@@ -1,0 +1,32 @@
+{
+  "qadi_cycle": {
+    "question": {
+      "description": "Generate initial questions about a given theme or problem.",
+      "prompt_template": "Given the theme '{theme}', generate 5 distinct and insightful questions that can spark creative thinking. Each question should aim to explore different facets of the theme."
+    },
+    "answer": {
+      "description": "Generate potential answers or hypotheses for a given question.",
+      "prompt_template": "For the question '{question}', generate a concise and plausible answer or hypothesis."
+    },
+    "deeper_question": {
+      "description": "Generate deeper, more specific questions based on an answer/hypothesis.",
+      "prompt_template": "Based on the answer/hypothesis '{answer}', formulate 3 deeper questions that challenge assumptions or explore implications."
+    },
+    "insight_idea": {
+      "description": "Generate an insight or idea based on the preceding Q&A flow.",
+      "prompt_template": "Reflecting on the question '{original_question}' and the answer '{answer_to_original_question}', and considering the deeper question '{deeper_question}' with its answer '{answer_to_deeper_question}', synthesize an innovative insight or a concrete idea. Explain the connection."
+    }
+  },
+  "abduction": {
+    "description": "Infer the most plausible explanation for a given observation or set of facts.",
+    "prompt_template": "Given the surprising observation: '{observation}', what is the most plausible explanation or hypothesis? Consider multiple possibilities and select the one that best explains the observation, even if it's not immediately obvious."
+  },
+  "deduction": {
+    "description": "Draw logical conclusions from a set of premises.",
+    "prompt_template": "Given the following premises:\n1. {premise1}\n2. {premise2}\nWhat can be logically deduced? If multiple deductions are possible, list them."
+  },
+  "induction": {
+    "description": "Formulate a general principle or hypothesis from specific observations.",
+    "prompt_template": "Based on the following specific observations:\n- {observation1}\n- {observation2}\n- {observation3}\nWhat general principle or hypothesis can be reasonably inferred?"
+  }
+}
