@@ -115,8 +115,11 @@ def evaluate(
             input_text = f.read()
     elif text:
         input_text = text
+    elif not sys.stdin.isatty():
+        # Read from stdin if available
+        input_text = sys.stdin.read().strip()
     else:
-        console.print("[red]Error: Provide text via argument or --file option[/red]")
+        console.print("[red]Error: Provide text via argument, --file option, or stdin[/red]")
         sys.exit(1)
 
     # Parse output type
