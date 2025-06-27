@@ -5,7 +5,7 @@ Main creativity evaluator orchestrator.
 import asyncio
 import logging
 import time
-from typing import Dict, List, Optional, Any, Set, Union
+from typing import Dict, List, Optional, Any, Set, Union, cast
 from dataclasses import dataclass, field
 
 from .interfaces import (
@@ -201,9 +201,10 @@ class CreativityEvaluator:
         # Execute with concurrency limit
         semaphore = asyncio.Semaphore(self.max_concurrent_evaluations)
         
-        async def bounded_task(task: Any) -> Union[List[EvaluationResult], Exception]:
+        async def bounded_task(task: Any) -> List[EvaluationResult]:
             async with semaphore:
-                return await task
+                result = await task
+                return cast(List[EvaluationResult], result)
         
         bounded_tasks = [bounded_task(task) for task in tasks]
         results = await asyncio.gather(*bounded_tasks, return_exceptions=True)

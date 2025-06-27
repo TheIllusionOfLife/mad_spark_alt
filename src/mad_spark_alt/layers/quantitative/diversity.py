@@ -8,7 +8,7 @@ from typing import Dict, List, Any, Set, Optional, cast
 from collections import Counter
 import logging
 from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
 
 from ...core.interfaces import (
     EvaluatorInterface,
@@ -168,7 +168,7 @@ class DiversityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin, CacheableEvalu
     
     async def _get_embeddings(self, texts: List[str]) -> np.ndarray:
         """Get embeddings for texts, using cache when possible."""
-        embeddings = []
+        embeddings: List[Optional[np.ndarray]] = []
         uncached_texts = []
         uncached_indices = []
         
@@ -195,7 +195,12 @@ class DiversityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin, CacheableEvalu
                 self._embedding_cache[cache_key] = embedding
                 embeddings[original_index] = embedding
         
-        return np.array([e for e in embeddings if e is not None])
+        # Convert to numpy array, filtering out None values
+        valid_embeddings = [e for e in embeddings if e is not None]
+        if not valid_embeddings:
+            # Return empty array with proper shape if no embeddings
+            return np.array([]).reshape(0, -1)
+        return np.array(valid_embeddings)
     
     def _calculate_distinct_n(self, text: str, n: int) -> float:
         """Calculate distinct n-gram ratio."""
