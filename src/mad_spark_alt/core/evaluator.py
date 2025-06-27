@@ -5,7 +5,7 @@ Main creativity evaluator orchestrator.
 import asyncio
 import logging
 import time
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Set, Union
 from dataclasses import dataclass, field
 
 from .interfaces import (
@@ -129,7 +129,7 @@ class CreativityEvaluator:
         self,
         output: ModelOutput,
         evaluator_names: Optional[List[str]] = None,
-        **kwargs
+        **kwargs: Any
     ) -> EvaluationSummary:
         """
         Convenience method to evaluate a single output.
@@ -201,7 +201,7 @@ class CreativityEvaluator:
         # Execute with concurrency limit
         semaphore = asyncio.Semaphore(self.max_concurrent_evaluations)
         
-        async def bounded_task(task):
+        async def bounded_task(task: Any) -> Union[List[EvaluationResult], Exception]:
             async with semaphore:
                 return await task
         
@@ -224,7 +224,7 @@ class CreativityEvaluator:
                     metadata={"failed": True}
                 )
                 layer_results.append(empty_result)
-            else:
+            elif isinstance(result, list):
                 layer_results.extend(result)
         
         return layer_results
@@ -251,7 +251,7 @@ class CreativityEvaluator:
         aggregate_scores = {}
         
         # Collect all unique score keys
-        all_score_keys = set()
+        all_score_keys: Set[str] = set()
         for results in layer_results.values():
             for result in results:
                 all_score_keys.update(result.scores.keys())

@@ -5,7 +5,7 @@ Quality and consistency evaluation metrics.
 import asyncio
 import re
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, cast
 from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 import torch
 
@@ -27,8 +27,8 @@ class QualityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin):
     
     def __init__(self, model_name: str = "gpt2"):
         self.model_name = model_name
-        self._model = None
-        self._tokenizer = None
+        self._model: Optional[GPT2LMHeadModel] = None
+        self._tokenizer: Optional[GPT2TokenizerFast] = None
     
     @property
     def name(self) -> str:
@@ -48,7 +48,7 @@ class QualityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin):
         if self._model is None:
             self._model = GPT2LMHeadModel.from_pretrained(self.model_name)
             self._model.eval()
-        return self._model
+        return cast(GPT2LMHeadModel, self._model)
     
     @property
     def tokenizer(self) -> GPT2TokenizerFast:
@@ -56,7 +56,7 @@ class QualityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin):
         if self._tokenizer is None:
             self._tokenizer = GPT2TokenizerFast.from_pretrained(self.model_name)
             self._tokenizer.pad_token = self._tokenizer.eos_token
-        return self._tokenizer
+        return cast(GPT2TokenizerFast, self._tokenizer)
     
     async def evaluate(self, request: EvaluationRequest) -> List[EvaluationResult]:
         """Evaluate quality metrics for the given outputs."""
@@ -76,13 +76,13 @@ class QualityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin):
         content = str(output.content)
         
         # Calculate various quality metrics
-        scores = {}
+        scores: Dict[str, float] = {}
         explanations = {}
         
         # Basic text quality metrics
-        scores["length"] = len(content)
-        scores["word_count"] = len(content.split())
-        scores["sentence_count"] = len(self._split_sentences(content))
+        scores["length"] = float(len(content))
+        scores["word_count"] = float(len(content.split()))
+        scores["sentence_count"] = float(len(self._split_sentences(content)))
         
         # Grammar and structure metrics
         scores["grammar_score"] = self._calculate_grammar_score(content)
@@ -163,7 +163,7 @@ class QualityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin):
         # Check for excessive repetition
         words = text.lower().split()
         if words:
-            word_freq = {}
+            word_freq: Dict[str, int] = {}
             for word in words:
                 word_freq[word] = word_freq.get(word, 0) + 1
             
@@ -252,32 +252,32 @@ class QualityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin):
     
     def _evaluate_code_quality(self, code: str) -> Dict[str, float]:
         """Evaluate code-specific quality metrics."""
-        metrics = {}
+        metrics: Dict[str, float] = {}
         
         # Basic syntax checks
         lines = code.split('\n')
         non_empty_lines = [line for line in lines if line.strip()]
         
-        metrics["code_lines"] = len(non_empty_lines)
-        metrics["total_lines"] = len(lines)
+        metrics["code_lines"] = float(len(non_empty_lines))
+        metrics["total_lines"] = float(len(lines))
         
         # Indentation consistency
         if non_empty_lines:
             indented_lines = [line for line in non_empty_lines if line.startswith((' ', '\t'))]
-            metrics["indentation_ratio"] = len(indented_lines) / len(non_empty_lines)
+            metrics["indentation_ratio"] = float(len(indented_lines) / len(non_empty_lines))
         else:
             metrics["indentation_ratio"] = 0.0
         
         # Comment ratio
         comment_lines = [line for line in non_empty_lines if line.strip().startswith('#')]
-        metrics["comment_ratio"] = len(comment_lines) / len(non_empty_lines) if non_empty_lines else 0.0
+        metrics["comment_ratio"] = float(len(comment_lines) / len(non_empty_lines)) if non_empty_lines else 0.0
         
         # Basic structure score
         structure_components = [
             min(metrics["indentation_ratio"] * 2, 1.0),  # Good indentation
             min(metrics["comment_ratio"] * 5, 1.0),      # Some comments
         ]
-        metrics["code_structure_score"] = sum(structure_components) / len(structure_components)
+        metrics["code_structure_score"] = float(sum(structure_components) / len(structure_components))
         
         return metrics
     

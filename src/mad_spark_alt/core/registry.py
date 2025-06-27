@@ -2,7 +2,7 @@
 Plugin registry system for managing evaluators.
 """
 
-from typing import Dict, List, Optional, Type, Set
+from typing import Dict, List, Optional, Type, Set, Any
 import logging
 from ..core.interfaces import (
     EvaluatorInterface, 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class EvaluatorRegistry:
     """Registry for managing evaluator plugins."""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self._evaluators: Dict[str, Type[EvaluatorInterface]] = {}
         self._instances: Dict[str, EvaluatorInterface] = {}
         self._layer_index: Dict[EvaluationLayer, Set[str]] = {
@@ -82,11 +82,12 @@ class EvaluatorRegistry:
             List of evaluator instances
         """
         evaluator_names = self._layer_index[layer]
-        return [
-            self.get_evaluator(name) 
-            for name in evaluator_names 
-            if self.get_evaluator(name) is not None
-        ]
+        evaluators = []
+        for name in evaluator_names:
+            evaluator = self.get_evaluator(name)
+            if evaluator is not None:
+                evaluators.append(evaluator)
+        return evaluators
     
     def get_evaluators_by_output_type(
         self, 
@@ -102,11 +103,12 @@ class EvaluatorRegistry:
             List of evaluator instances
         """
         evaluator_names = self._output_type_index[output_type]
-        return [
-            self.get_evaluator(name) 
-            for name in evaluator_names 
-            if self.get_evaluator(name) is not None
-        ]
+        evaluators = []
+        for name in evaluator_names:
+            evaluator = self.get_evaluator(name)
+            if evaluator is not None:
+                evaluators.append(evaluator)
+        return evaluators
     
     def get_compatible_evaluators(
         self, 
@@ -131,13 +133,14 @@ class EvaluatorRegistry:
         if output_type is not None:
             candidates &= self._output_type_index[output_type]
         
-        return [
-            self.get_evaluator(name) 
-            for name in candidates 
-            if self.get_evaluator(name) is not None
-        ]
+        evaluators = []
+        for name in candidates:
+            evaluator = self.get_evaluator(name)
+            if evaluator is not None:
+                evaluators.append(evaluator)
+        return evaluators
     
-    def list_evaluators(self) -> Dict[str, Dict[str, any]]:
+    def list_evaluators(self) -> Dict[str, Dict[str, Any]]:
         """
         List all registered evaluators with their metadata.
         

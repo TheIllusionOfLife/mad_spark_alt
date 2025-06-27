@@ -4,7 +4,7 @@ Diversity and novelty evaluation metrics.
 
 import asyncio
 import numpy as np
-from typing import Dict, List, Any, Set
+from typing import Dict, List, Any, Set, Optional, cast
 from collections import Counter
 import logging
 from sentence_transformers import SentenceTransformer
@@ -29,8 +29,8 @@ class DiversityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin, CacheableEvalu
     
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         self.model_name = model_name
-        self._embedding_model = None
-        self._embedding_cache = {}
+        self._embedding_model: Optional[SentenceTransformer] = None
+        self._embedding_cache: Dict[str, np.ndarray] = {}
     
     @property
     def name(self) -> str:
@@ -49,7 +49,7 @@ class DiversityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin, CacheableEvalu
         """Lazy load the embedding model."""
         if self._embedding_model is None:
             self._embedding_model = SentenceTransformer(self.model_name)
-        return self._embedding_model
+        return cast(SentenceTransformer, self._embedding_model)
     
     async def evaluate(self, request: EvaluationRequest) -> List[EvaluationResult]:
         """Evaluate diversity metrics for the given outputs."""
@@ -127,9 +127,9 @@ class DiversityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin, CacheableEvalu
                     for j in range(len(outputs)) 
                     if j != i
                 ]
-                avg_similarity = np.mean(other_similarities)
+                avg_similarity = float(np.mean(other_similarities))
                 scores["semantic_uniqueness"] = 1.0 - avg_similarity
-                scores["min_similarity"] = 1.0 - max(other_similarities)
+                scores["min_similarity"] = 1.0 - float(max(other_similarities))
             
             # Calculate novelty score (combination of metrics)
             novelty_components = [
@@ -137,7 +137,7 @@ class DiversityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin, CacheableEvalu
                 scores["lexical_diversity"],
                 scores.get("semantic_uniqueness", 0.5)
             ]
-            scores["novelty_score"] = np.mean(novelty_components)
+            scores["novelty_score"] = float(np.mean(novelty_components))
             
             explanations = {
                 "distinct_1": "Ratio of unique unigrams to total unigrams",
@@ -195,7 +195,7 @@ class DiversityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin, CacheableEvalu
                 self._embedding_cache[cache_key] = embedding
                 embeddings[original_index] = embedding
         
-        return np.array(embeddings)
+        return np.array([e for e in embeddings if e is not None])
     
     def _calculate_distinct_n(self, text: str, n: int) -> float:
         """Calculate distinct n-gram ratio."""

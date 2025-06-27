@@ -23,13 +23,14 @@ from .core import (
     OutputType,
     EvaluationLayer,
     registry,
+    EvaluationSummary,
 )
 from .layers.quantitative import DiversityEvaluator, QualityEvaluator
 
 console = Console()
 
 
-def setup_logging(verbose: bool = False):
+def setup_logging(verbose: bool = False) -> None:
     """Set up logging configuration."""
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
@@ -38,7 +39,7 @@ def setup_logging(verbose: bool = False):
     )
 
 
-def register_default_evaluators():
+def register_default_evaluators() -> None:
     """Register default evaluators."""
     registry.register(DiversityEvaluator)
     registry.register(QualityEvaluator)
@@ -46,14 +47,14 @@ def register_default_evaluators():
 
 @click.group()
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
-def main(verbose: bool):
+def main(verbose: bool) -> None:
     """Mad Spark Alt - AI Creativity Evaluation System."""
     setup_logging(verbose)
     register_default_evaluators()
 
 
 @main.command()
-def list_evaluators():
+def list_evaluators() -> None:
     """List all registered evaluators."""
     evaluators = registry.list_evaluators()
     
@@ -94,7 +95,7 @@ def evaluate(
     layers: Optional[str],
     output: Optional[str],
     output_format: str,
-):
+) -> None:
     """Evaluate creativity of AI output."""
     
     # Get input text
@@ -154,7 +155,7 @@ def batch_evaluate(
     output_type: str,
     output: Optional[str],
     output_format: str,
-):
+) -> None:
     """Evaluate creativity of multiple AI outputs from files."""
     
     # Parse output type
@@ -194,7 +195,7 @@ def compare(
     responses: List[str],
     model: str,
     output: Optional[str],
-):
+) -> None:
     """Compare creativity of multiple responses to the same prompt."""
     
     if len(responses) < 2:
@@ -227,7 +228,7 @@ async def _run_evaluation(
     output_file: Optional[str],
     output_format: str,
     compare_mode: bool = False,
-):
+) -> None:
     """Run the evaluation and display results."""
     
     with Progress(
@@ -254,7 +255,7 @@ async def _run_evaluation(
             _save_json_results(summary, output_file)
 
 
-def _display_json_results(summary, output_file: Optional[str]):
+def _display_json_results(summary: EvaluationSummary, output_file: Optional[str]) -> None:
     """Display results in JSON format."""
     result_data = _summary_to_dict(summary)
     
@@ -266,7 +267,7 @@ def _display_json_results(summary, output_file: Optional[str]):
         console.print(JSON.from_data(result_data))
 
 
-def _display_table_results(summary, compare_mode: bool = False):
+def _display_table_results(summary: EvaluationSummary, compare_mode: bool = False) -> None:
     """Display results in table format."""
     
     # Summary panel
@@ -317,7 +318,7 @@ def _display_table_results(summary, compare_mode: bool = False):
         console.print()
 
 
-def _save_json_results(summary, output_file: str):
+def _save_json_results(summary: EvaluationSummary, output_file: str) -> None:
     """Save results to JSON file."""
     result_data = _summary_to_dict(summary)
     with open(output_file, 'w') as f:
@@ -325,7 +326,7 @@ def _save_json_results(summary, output_file: str):
     console.print(f"[green]Results saved to {output_file}[/green]")
 
 
-def _summary_to_dict(summary) -> Dict[str, Any]:
+def _summary_to_dict(summary: EvaluationSummary) -> Dict[str, Any]:
     """Convert evaluation summary to dictionary."""
     return {
         "request_id": summary.request_id,
