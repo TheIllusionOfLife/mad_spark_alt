@@ -199,8 +199,8 @@ class DiversityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin, CacheableEvalu
         valid_embeddings = [e for e in embeddings if e is not None]
         if not valid_embeddings:
             # Return empty array with proper shape if no embeddings
-            return np.array([]).reshape(0, -1)
-        return np.array(valid_embeddings)
+            return cast(np.ndarray, np.array([]).reshape(0, -1))
+        return cast(np.ndarray, np.array(valid_embeddings))
     
     def _calculate_distinct_n(self, text: str, n: int) -> float:
         """Calculate distinct n-gram ratio."""
