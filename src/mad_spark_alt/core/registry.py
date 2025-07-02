@@ -2,9 +2,10 @@
 Plugin registry system for managing evaluators.
 """
 
-from typing import Dict, List, Optional, Type, Set, Any
 import logging
-from ..core.interfaces import EvaluatorInterface, EvaluationLayer, OutputType
+from typing import Any, Dict, List, Optional, Set, Type
+
+from ..core.interfaces import EvaluationLayer, EvaluatorInterface, OutputType
 
 logger = logging.getLogger(__name__)
 

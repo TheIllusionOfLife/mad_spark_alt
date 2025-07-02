@@ -31,6 +31,9 @@ uv sync --dev
 
 # Alternative with pip
 pip install -e .
+
+# Run development server (if needed)
+python main.py
 ```
 
 ### Testing & Quality
@@ -40,6 +43,9 @@ uv run pytest
 
 # Run specific test file
 uv run pytest tests/unit/test_llm_judges.py
+
+# Run tests with coverage
+uv run pytest --cov=src/mad_spark_alt --cov-report=html
 
 # Type checking
 uv run mypy src/
@@ -279,6 +285,16 @@ tests/
 
 ### Test Execution
 Run tests without external dependencies by default. Use environment variables to enable real API testing during development.
+
+### Quick Development Verification
+```bash
+# Verify installation and basic functionality
+mad-spark --help
+mad-spark list-evaluators
+
+# Test core functionality without API keys
+uv run pytest tests/unit/test_core.py -v
+```
 
 ## Important Implementation Notes
 

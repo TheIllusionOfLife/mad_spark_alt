@@ -5,17 +5,17 @@ Main creativity evaluator orchestrator.
 import asyncio
 import logging
 import time
-from typing import Dict, List, Optional, Any, Set, Union, cast
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Set, Union, cast
 
 from .interfaces import (
+    AsyncEvaluatorInterface,
+    EvaluationLayer,
     EvaluationRequest,
     EvaluationResult,
-    EvaluationLayer,
-    OutputType,
-    ModelOutput,
     EvaluatorInterface,
-    AsyncEvaluatorInterface,
+    ModelOutput,
+    OutputType,
 )
 from .registry import registry
 

@@ -1,13 +1,15 @@
 """Test core functionality."""
 
-import pytest
 import asyncio
+
+import pytest
+
 from src.mad_spark_alt.core import (
     CreativityEvaluator,
+    EvaluationLayer,
     EvaluationRequest,
     ModelOutput,
     OutputType,
-    EvaluationLayer,
     registry,
 )
 from src.mad_spark_alt.layers.quantitative import DiversityEvaluator, QualityEvaluator

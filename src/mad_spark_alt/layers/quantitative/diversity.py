@@ -3,22 +3,23 @@ Diversity and novelty evaluation metrics.
 """
 
 import asyncio
-import numpy as np
-from typing import Dict, List, Any, Set, Optional, cast
-from collections import Counter
 import logging
+from collections import Counter
+from typing import Any, Dict, List, Optional, Set, cast
+
+import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
 
 from ...core.interfaces import (
-    EvaluatorInterface,
-    EvaluationRequest,
-    EvaluationResult,
-    EvaluationLayer,
-    OutputType,
-    ModelOutput,
     AsyncEvaluatorMixin,
     CacheableEvaluatorMixin,
+    EvaluationLayer,
+    EvaluationRequest,
+    EvaluationResult,
+    EvaluatorInterface,
+    ModelOutput,
+    OutputType,
 )
 
 logger = logging.getLogger(__name__)
