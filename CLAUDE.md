@@ -138,7 +138,9 @@ src/mad_spark_alt/
 Implement `EvaluatorInterface` and register:
 
 ```python
+from typing import Any, Dict, List
 from mad_spark_alt.core import EvaluatorInterface, register_evaluator
+from mad_spark_alt.core.interfaces import EvaluationLayer, EvaluationRequest, EvaluationResult, OutputType
 
 class MyEvaluator(EvaluatorInterface):
     @property
@@ -148,6 +150,10 @@ class MyEvaluator(EvaluatorInterface):
     @property
     def layer(self) -> EvaluationLayer:
         return EvaluationLayer.QUANTITATIVE
+    
+    @property
+    def supported_output_types(self) -> List[OutputType]:
+        return [OutputType.TEXT]
     
     async def evaluate(self, request: EvaluationRequest) -> List[EvaluationResult]:
         # Implementation here
