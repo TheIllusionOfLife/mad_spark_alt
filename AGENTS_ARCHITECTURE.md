@@ -45,7 +45,32 @@ agents/questioning/
 **Key Methods:**
 ```python
 class QuestioningAgent(ThinkingAgentInterface):
-    async def generate_questions(self, problem: str) -> List[GeneratedIdea]:
+    @property
+    def thinking_method(self) -> ThinkingMethod:
+        return ThinkingMethod.QUESTIONING
+    
+    async def generate_ideas(self, request: IdeaGenerationRequest) -> List[GeneratedIdea]:
+        """Primary interface method - generates diverse questions as ideas"""
+        questions = await self.generate_questions(request.problem_statement)
+        reframings = await self.reframe_problem(request.problem_statement)
+        hierarchies = await self.generate_question_hierarchy(request.problem_statement)
+        
+        # Convert questions to GeneratedIdea objects
+        ideas = []
+        for question in questions + reframings:
+            ideas.append(GeneratedIdea(
+                content=question,
+                thinking_method=ThinkingMethod.QUESTIONING,
+                generation_context=request.generation_config
+            ))
+        return ideas
+    
+    def can_collaborate_with(self, other_method: ThinkingMethod) -> bool:
+        """Question generation collaborates well with all other methods"""
+        return True
+    
+    # Internal helper methods
+    async def generate_questions(self, problem: str) -> List[str]:
         """Generate diverse questions about the problem"""
         
     async def reframe_problem(self, problem: str) -> List[str]:
@@ -89,7 +114,36 @@ agents/abduction/
 **Key Methods:**
 ```python
 class AbductiveAgent(ThinkingAgentInterface):
-    async def generate_hypotheses(self, observations: List[str]) -> List[GeneratedIdea]:
+    @property
+    def thinking_method(self) -> ThinkingMethod:
+        return ThinkingMethod.ABDUCTION
+    
+    async def generate_ideas(self, request: IdeaGenerationRequest) -> List[GeneratedIdea]:
+        """Primary interface method - generates hypotheses as ideas"""
+        observations = [request.problem_statement]  # Extract observations from context
+        hypotheses = await self.generate_hypotheses(observations)
+        patterns = await self.find_patterns(request.generation_config.get('data', []))
+        analogies = await self.generate_analogies(
+            request.problem_statement, 
+            request.generation_config.get('domains', [])
+        )
+        
+        # Convert hypotheses to GeneratedIdea objects
+        ideas = []
+        for hypothesis in hypotheses + patterns + analogies:
+            ideas.append(GeneratedIdea(
+                content=hypothesis,
+                thinking_method=ThinkingMethod.ABDUCTION,
+                generation_context=request.generation_config
+            ))
+        return ideas
+    
+    def can_collaborate_with(self, other_method: ThinkingMethod) -> bool:
+        """Abduction works especially well with questioning and induction"""
+        return other_method in [ThinkingMethod.QUESTIONING, ThinkingMethod.INDUCTION, ThinkingMethod.DEDUCTION]
+    
+    # Internal helper methods
+    async def generate_hypotheses(self, observations: List[str]) -> List[str]:
         """Generate explanatory hypotheses"""
         
     async def find_patterns(self, data: List[Dict]) -> List[str]:
@@ -131,6 +185,40 @@ agents/deduction/
 **Key Methods:**
 ```python
 class DeductiveAgent(ThinkingAgentInterface):
+    @property
+    def thinking_method(self) -> ThinkingMethod:
+        return ThinkingMethod.DEDUCTION
+    
+    async def generate_ideas(self, request: IdeaGenerationRequest) -> List[GeneratedIdea]:
+        """Primary interface method - generates validated ideas through deductive analysis"""
+        # Process existing ideas from request context or generate from problem
+        base_ideas = request.generation_config.get('input_ideas', [])
+        if not base_ideas:
+            # Create initial idea from problem statement for analysis
+            base_ideas = [GeneratedIdea(content=request.problem_statement, thinking_method=ThinkingMethod.QUESTIONING)]
+        
+        validated_ideas = []
+        for idea in base_ideas:
+            validation = await self.validate_hypothesis(idea)
+            consequences = await self.derive_consequences(idea)
+            constraints = await self.identify_constraints(idea)
+            
+            # Create refined ideas based on deductive analysis
+            for consequence in consequences:
+                validated_ideas.append(GeneratedIdea(
+                    content=consequence,
+                    thinking_method=ThinkingMethod.DEDUCTION,
+                    generation_context=request.generation_config,
+                    parent_ideas=[idea.content] if hasattr(idea, 'content') else []
+                ))
+        
+        return validated_ideas
+    
+    def can_collaborate_with(self, other_method: ThinkingMethod) -> bool:
+        """Deduction works with all methods, especially abduction and induction"""
+        return True
+    
+    # Internal helper methods
     async def validate_hypothesis(self, hypothesis: GeneratedIdea) -> Dict[str, Any]:
         """Check logical consistency and validity"""
         
@@ -174,6 +262,52 @@ agents/induction/
 **Key Methods:**
 ```python
 class InductiveAgent(ThinkingAgentInterface):
+    @property
+    def thinking_method(self) -> ThinkingMethod:
+        return ThinkingMethod.INDUCTION
+    
+    async def generate_ideas(self, request: IdeaGenerationRequest) -> List[GeneratedIdea]:
+        """Primary interface method - generates synthesized insights through inductive reasoning"""
+        # Get input ideas from previous agents in the QADI cycle
+        input_ideas = request.generation_config.get('input_ideas', [])
+        observations = request.generation_config.get('observations', [request.problem_statement])
+        
+        # Synthesize insights through inductive reasoning
+        patterns = await self.generalize_patterns(input_ideas)
+        synthesis = await self.synthesize_insights(input_ideas)
+        rules = await self.form_rules(observations)
+        
+        # Create final synthesized ideas
+        synthesized_ideas = []
+        
+        # Add pattern-based ideas
+        for pattern in patterns:
+            synthesized_ideas.append(GeneratedIdea(
+                content=pattern,
+                thinking_method=ThinkingMethod.INDUCTION,
+                generation_context=request.generation_config,
+                parent_ideas=[idea.content for idea in input_ideas if hasattr(idea, 'content')]
+            ))
+        
+        # Add the main synthesis
+        if synthesis:
+            synthesized_ideas.append(synthesis)
+        
+        # Add rule-based insights
+        for rule in rules:
+            synthesized_ideas.append(GeneratedIdea(
+                content=rule,
+                thinking_method=ThinkingMethod.INDUCTION,
+                generation_context=request.generation_config
+            ))
+        
+        return synthesized_ideas
+    
+    def can_collaborate_with(self, other_method: ThinkingMethod) -> bool:
+        """Induction synthesizes output from all other thinking methods"""
+        return True
+    
+    # Internal helper methods
     async def generalize_patterns(self, examples: List[GeneratedIdea]) -> List[str]:
         """Extract general principles"""
         
