@@ -6,11 +6,11 @@ import logging
 from typing import Any, Dict, List, Optional, Set, Type, Union
 
 from ..core.interfaces import (
-    EvaluationLayer, 
-    EvaluatorInterface, 
+    EvaluationLayer,
+    EvaluatorInterface,
     OutputType,
-    ThinkingMethod,
     ThinkingAgentInterface,
+    ThinkingMethod,
 )
 
 logger = logging.getLogger(__name__)
@@ -264,7 +264,9 @@ class ThinkingAgentRegistry:
                 agents.append(agent)
         return agents
 
-    def get_agent_by_method(self, method: ThinkingMethod) -> Optional[ThinkingAgentInterface]:
+    def get_agent_by_method(
+        self, method: ThinkingMethod
+    ) -> Optional[ThinkingAgentInterface]:
         """
         Get the first available agent for a specific thinking method.
 
@@ -392,7 +394,7 @@ class UnifiedRegistry:
             layer_set.clear()
         for type_set in self.evaluators._output_type_index.values():
             type_set.clear()
-        
+
         # Clear agent registry
         self.agents.clear()
 

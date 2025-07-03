@@ -178,7 +178,9 @@ class ThinkingAgentInterface(ABC):
         pass
 
     @abstractmethod
-    async def generate_ideas(self, request: IdeaGenerationRequest) -> IdeaGenerationResult:
+    async def generate_ideas(
+        self, request: IdeaGenerationRequest
+    ) -> IdeaGenerationResult:
         """
         Generate ideas using this agent's thinking method.
 

@@ -1,7 +1,7 @@
 """Core evaluation system components and idea generation framework."""
 
 from .evaluator import CreativityEvaluator, EvaluationSummary
-from .interfaces import (
+from .interfaces import (  # New idea generation interfaces
     AsyncEvaluatorInterface,
     CacheableEvaluatorInterface,
     ConfigurableEvaluatorInterface,
@@ -9,23 +9,22 @@ from .interfaces import (
     EvaluationRequest,
     EvaluationResult,
     EvaluatorInterface,
-    ModelOutput,
-    OutputType,
-    # New idea generation interfaces
-    ThinkingMethod,
-    ThinkingAgentInterface,
     GeneratedIdea,
     IdeaGenerationRequest,
     IdeaGenerationResult,
+    ModelOutput,
+    OutputType,
+    ThinkingAgentInterface,
+    ThinkingMethod,
 )
-from .orchestrator import QADIOrchestrator, QADICycleResult
+from .orchestrator import QADICycleResult, QADIOrchestrator
 from .registry import (
-    EvaluatorRegistry, 
-    register_evaluator, 
-    registry,
+    EvaluatorRegistry,
     ThinkingAgentRegistry,
-    register_agent,
     agent_registry,
+    register_agent,
+    register_evaluator,
+    registry,
     unified_registry,
 )
 

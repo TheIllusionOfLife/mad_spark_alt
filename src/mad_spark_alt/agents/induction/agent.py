@@ -7,16 +7,16 @@ patterns from observations and forming general principles and insights.
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from ...core.interfaces import (
-    ThinkingAgentInterface,
-    ThinkingMethod,
-    OutputType,
+    GeneratedIdea,
     IdeaGenerationRequest,
     IdeaGenerationResult,
-    GeneratedIdea,
+    OutputType,
+    ThinkingAgentInterface,
+    ThinkingMethod,
 )
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class InductionAgent(ThinkingAgentInterface):
     """
     Agent that synthesizes patterns and forms general principles.
-    
+
     This agent focuses on:
     - Pattern recognition and synthesis
     - Generalization from specific observations
@@ -52,38 +52,45 @@ class InductionAgent(ThinkingAgentInterface):
 
     def validate_config(self, config: Dict[str, Any]) -> bool:
         valid_keys = {
-            "synthesis_methods", "pattern_depth", "generalization_level",
-            "insight_generation", "principle_extraction"
+            "synthesis_methods",
+            "pattern_depth",
+            "generalization_level",
+            "insight_generation",
+            "principle_extraction",
         }
         return all(key in valid_keys for key in config.keys())
 
-    async def generate_ideas(self, request: IdeaGenerationRequest) -> IdeaGenerationResult:
+    async def generate_ideas(
+        self, request: IdeaGenerationRequest
+    ) -> IdeaGenerationResult:
         """Generate insights through pattern synthesis and generalization."""
         start_time = asyncio.get_event_loop().time()
-        
-        logger.info(f"InductionAgent synthesizing insights for: {request.problem_statement[:100]}...")
-        
+
+        logger.info(
+            f"InductionAgent synthesizing insights for: {request.problem_statement[:100]}..."
+        )
+
         try:
             generated_insights = []
             config = request.generation_config
-            
-            methods = config.get("synthesis_methods", ["pattern", "principle", "insight", "generalization"])
-            
+
+            methods = config.get(
+                "synthesis_methods",
+                ["pattern", "principle", "insight", "generalization"],
+            )
+
             for method in methods:
                 insights = await self._apply_synthesis_method(
-                    request.problem_statement,
-                    method,
-                    request.context,
-                    config
+                    request.problem_statement, method, request.context, config
                 )
                 generated_insights.extend(insights)
-            
+
             max_total = min(request.max_ideas_per_method, len(generated_insights))
             generated_insights = generated_insights[:max_total]
-            
+
             end_time = asyncio.get_event_loop().time()
             execution_time = end_time - start_time
-            
+
             return IdeaGenerationResult(
                 agent_name=self.name,
                 thinking_method=self.thinking_method,
@@ -91,17 +98,17 @@ class InductionAgent(ThinkingAgentInterface):
                 execution_time=execution_time,
                 generation_metadata={
                     "methods_used": methods,
-                    "total_generated": len(generated_insights)
-                }
+                    "total_generated": len(generated_insights),
+                },
             )
-            
+
         except Exception as e:
             logger.error(f"Error in InductionAgent: {e}")
             return IdeaGenerationResult(
                 agent_name=self.name,
                 thinking_method=self.thinking_method,
                 generated_ideas=[],
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def _apply_synthesis_method(
@@ -109,25 +116,25 @@ class InductionAgent(ThinkingAgentInterface):
         problem_statement: str,
         method: str,
         context: Optional[str] = None,
-        config: Optional[Dict[str, Any]] = None
+        config: Optional[Dict[str, Any]] = None,
     ) -> List[GeneratedIdea]:
         """Apply a specific inductive synthesis method."""
         method_templates = self._synthesis_methods.get(method, [])
         if not method_templates:
             return []
-        
+
         insights = []
         max_per_method = 2
-        
+
         for i, template in enumerate(method_templates[:max_per_method]):
             try:
                 insight_content = template.format(
                     problem=problem_statement,
-                    context=context or "available information"
+                    context=context or "available information",
                 )
-                
+
                 reasoning = f"Applied {method} inductive synthesis to identify patterns and generate insights from the available information and context."
-                
+
                 idea = GeneratedIdea(
                     content=insight_content,
                     thinking_method=self.thinking_method,
@@ -137,17 +144,17 @@ class InductionAgent(ThinkingAgentInterface):
                     reasoning=reasoning,
                     metadata={
                         "method": method,
-                        "synthesis_type": "inductive_reasoning"
+                        "synthesis_type": "inductive_reasoning",
                     },
-                    timestamp=datetime.now().isoformat()
+                    timestamp=datetime.now().isoformat(),
                 )
-                
+
                 insights.append(idea)
-                
+
             except Exception as e:
                 logger.warning(f"Failed to apply {method} synthesis: {e}")
                 continue
-        
+
         return insights
 
     def _load_synthesis_methods(self) -> Dict[str, List[str]]:
@@ -172,5 +179,5 @@ class InductionAgent(ThinkingAgentInterface):
             "meta_pattern": [
                 "At a meta-level, {problem} exemplifies how complex systems exhibit self-organizing properties when conditions support natural evolution toward solutions.",
                 "The meta-pattern in {problem} shows how apparent contradictions often resolve at a higher level of organization through creative synthesis.",
-            ]
+            ],
         }

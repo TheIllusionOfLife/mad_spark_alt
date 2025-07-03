@@ -8,15 +8,15 @@ based on "Shin Logical Thinking" methodology for collaborative idea generation.
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from .interfaces import (
-    ThinkingAgentInterface,
-    ThinkingMethod,
+    GeneratedIdea,
     IdeaGenerationRequest,
     IdeaGenerationResult,
-    GeneratedIdea,
+    ThinkingAgentInterface,
+    ThinkingMethod,
 )
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class QADICycleResult:
 class QADIOrchestrator:
     """
     Orchestrates the QADI cycle for collaborative idea generation.
-    
+
     The QADI cycle follows Shin Logical Thinking methodology:
     - Question: Generate diverse questions to frame the problem
     - Abduction: Create hypotheses and creative leaps
@@ -61,7 +61,9 @@ class QADIOrchestrator:
     def register_agent(self, agent: ThinkingAgentInterface) -> None:
         """Register a thinking agent for a specific method."""
         self.agents[agent.thinking_method] = agent
-        logger.info(f"Registered agent '{agent.name}' for {agent.thinking_method.value}")
+        logger.info(
+            f"Registered agent '{agent.name}' for {agent.thinking_method.value}"
+        )
 
     def get_agent(self, method: ThinkingMethod) -> Optional[ThinkingAgentInterface]:
         """Get the agent for a specific thinking method."""
@@ -90,24 +92,21 @@ class QADIOrchestrator:
         """
         start_time = asyncio.get_event_loop().time()
         cycle_id = f"qadi_{int(start_time)}"
-        
+
         logger.info(f"Starting QADI cycle {cycle_id} for: {problem_statement[:100]}...")
-        
+
         config = cycle_config or {}
         result = QADICycleResult(
             problem_statement=problem_statement,
             cycle_id=cycle_id,
-            metadata={"config": config, "context": context}
+            metadata={"config": config, "context": context},
         )
 
         # Phase 1: Questioning
         if self.has_agent(ThinkingMethod.QUESTIONING):
             logger.info("Phase 1: Questioning")
             result.phases["questioning"] = await self._run_phase(
-                ThinkingMethod.QUESTIONING,
-                problem_statement,
-                context,
-                config
+                ThinkingMethod.QUESTIONING, problem_statement, context, config
             )
 
         # Phase 2: Abduction (use questioning results as input)
@@ -117,44 +116,34 @@ class QADIOrchestrator:
                 context, result.phases.get("questioning")
             )
             result.phases["abduction"] = await self._run_phase(
-                ThinkingMethod.ABDUCTION,
-                problem_statement,
-                enhanced_context,
-                config
+                ThinkingMethod.ABDUCTION, problem_statement, enhanced_context, config
             )
 
         # Phase 3: Deduction (use previous phases as input)
         if self.has_agent(ThinkingMethod.DEDUCTION):
             logger.info("Phase 3: Deduction")
             enhanced_context = self._build_enhanced_context(
-                context, 
+                context,
                 result.phases.get("questioning"),
-                result.phases.get("abduction")
+                result.phases.get("abduction"),
             )
             result.phases["deduction"] = await self._run_phase(
-                ThinkingMethod.DEDUCTION,
-                problem_statement,
-                enhanced_context,
-                config
+                ThinkingMethod.DEDUCTION, problem_statement, enhanced_context, config
             )
 
         # Phase 4: Induction (synthesize all previous phases)
         if self.has_agent(ThinkingMethod.INDUCTION):
             logger.info("Phase 4: Induction")
             enhanced_context = self._build_enhanced_context(
-                context,
-                *result.phases.values()
+                context, *result.phases.values()
             )
             result.phases["induction"] = await self._run_phase(
-                ThinkingMethod.INDUCTION,
-                problem_statement,
-                enhanced_context,
-                config
+                ThinkingMethod.INDUCTION, problem_statement, enhanced_context, config
             )
 
         # Synthesize final ideas from all phases
         result.synthesized_ideas = self._synthesize_ideas(result.phases)
-        
+
         end_time = asyncio.get_event_loop().time()
         result.execution_time = end_time - start_time
 
@@ -166,7 +155,7 @@ class QADIOrchestrator:
         method: ThinkingMethod,
         problem_statement: str,
         context: Optional[str],
-        config: Dict[str, Any]
+        config: Dict[str, Any],
     ) -> IdeaGenerationResult:
         """Run a single phase of the QADI cycle."""
         agent = self.get_agent(method)
@@ -176,7 +165,7 @@ class QADIOrchestrator:
                 agent_name="missing",
                 thinking_method=method,
                 generated_ideas=[],
-                error_message=f"No agent available for {method.value}"
+                error_message=f"No agent available for {method.value}",
             )
 
         request = IdeaGenerationRequest(
@@ -185,7 +174,7 @@ class QADIOrchestrator:
             target_thinking_methods=[method],
             generation_config=config.get(method.value, {}),
             max_ideas_per_method=config.get("max_ideas_per_method", 3),
-            require_reasoning=config.get("require_reasoning", True)
+            require_reasoning=config.get("require_reasoning", True),
         )
 
         try:
@@ -196,44 +185,43 @@ class QADIOrchestrator:
                 agent_name=agent.name,
                 thinking_method=method,
                 generated_ideas=[],
-                error_message=str(e)
+                error_message=str(e),
             )
 
     def _build_enhanced_context(
-        self, 
-        base_context: Optional[str], 
-        *phase_results: Optional[IdeaGenerationResult]
+        self,
+        base_context: Optional[str],
+        *phase_results: Optional[IdeaGenerationResult],
     ) -> str:
         """Build enhanced context from previous phase results."""
         context_parts = []
-        
+
         if base_context:
             context_parts.append(f"Initial context: {base_context}")
-        
+
         for phase_result in phase_results:
             if phase_result and phase_result.generated_ideas:
                 method_name = phase_result.thinking_method.value.title()
-                ideas_text = "\n".join([
-                    f"- {idea.content}" for idea in phase_result.generated_ideas
-                ])
+                ideas_text = "\n".join(
+                    [f"- {idea.content}" for idea in phase_result.generated_ideas]
+                )
                 context_parts.append(f"{method_name} phase insights:\n{ideas_text}")
-        
+
         return "\n\n".join(context_parts)
 
     def _synthesize_ideas(
-        self, 
-        phases: Dict[str, IdeaGenerationResult]
+        self, phases: Dict[str, IdeaGenerationResult]
     ) -> List[GeneratedIdea]:
         """Synthesize the best ideas from all phases."""
         all_ideas = []
-        
+
         for phase_name, phase_result in phases.items():
             if phase_result and phase_result.generated_ideas:
                 for idea in phase_result.generated_ideas:
                     # Add phase information to metadata
                     idea.metadata["phase"] = phase_name
                     all_ideas.append(idea)
-        
+
         # For now, return all ideas. Future enhancement: apply ranking/filtering
         return all_ideas
 
@@ -242,7 +230,7 @@ class QADIOrchestrator:
         problem_statement: str,
         thinking_methods: List[ThinkingMethod],
         context: Optional[str] = None,
-        config: Optional[Dict[str, Any]] = None
+        config: Optional[Dict[str, Any]] = None,
     ) -> Dict[ThinkingMethod, IdeaGenerationResult]:
         """
         Run multiple thinking methods in parallel (not following QADI sequence).
@@ -257,10 +245,10 @@ class QADIOrchestrator:
             Dictionary mapping thinking methods to their results
         """
         logger.info(f"Running parallel generation with methods: {thinking_methods}")
-        
+
         tasks = []
         available_methods = []
-        
+
         for method in thinking_methods:
             if self.has_agent(method):
                 available_methods.append(method)
@@ -268,13 +256,13 @@ class QADIOrchestrator:
                 tasks.append(task)
             else:
                 logger.warning(f"No agent available for {method.value}")
-        
+
         if not tasks:
             logger.error("No agents available for any requested thinking methods")
             return {}
-        
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         result_dict = {}
         for method, result in zip(available_methods, results):
             if isinstance(result, Exception):
@@ -283,10 +271,10 @@ class QADIOrchestrator:
                     agent_name="error",
                     thinking_method=method,
                     generated_ideas=[],
-                    error_message=str(result)
+                    error_message=str(result),
                 )
             else:
                 # Type assertion: result is IdeaGenerationResult when not an Exception
                 result_dict[method] = result  # type: ignore[assignment]
-        
+
         return result_dict

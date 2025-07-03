@@ -7,16 +7,16 @@ logical reasoning to validate hypotheses and derive systematic conclusions.
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from ...core.interfaces import (
-    ThinkingAgentInterface,
-    ThinkingMethod,
-    OutputType,
+    GeneratedIdea,
     IdeaGenerationRequest,
     IdeaGenerationResult,
-    GeneratedIdea,
+    OutputType,
+    ThinkingAgentInterface,
+    ThinkingMethod,
 )
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class DeductionAgent(ThinkingAgentInterface):
     """
     Agent that applies logical reasoning and systematic validation.
-    
+
     This agent focuses on:
     - Logical validation of hypotheses
     - Systematic consequence analysis
@@ -52,38 +52,45 @@ class DeductionAgent(ThinkingAgentInterface):
 
     def validate_config(self, config: Dict[str, Any]) -> bool:
         valid_keys = {
-            "reasoning_types", "validation_depth", "include_counterarguments",
-            "logical_frameworks", "systematic_analysis"
+            "reasoning_types",
+            "validation_depth",
+            "include_counterarguments",
+            "logical_frameworks",
+            "systematic_analysis",
         }
         return all(key in valid_keys for key in config.keys())
 
-    async def generate_ideas(self, request: IdeaGenerationRequest) -> IdeaGenerationResult:
+    async def generate_ideas(
+        self, request: IdeaGenerationRequest
+    ) -> IdeaGenerationResult:
         """Generate logical analyses and systematic validations."""
         start_time = asyncio.get_event_loop().time()
-        
-        logger.info(f"DeductionAgent applying logical reasoning to: {request.problem_statement[:100]}...")
-        
+
+        logger.info(
+            f"DeductionAgent applying logical reasoning to: {request.problem_statement[:100]}..."
+        )
+
         try:
             generated_analyses = []
             config = request.generation_config
-            
-            frameworks = config.get("logical_frameworks", ["consequence", "requirement", "validation", "systematic"])
-            
+
+            frameworks = config.get(
+                "logical_frameworks",
+                ["consequence", "requirement", "validation", "systematic"],
+            )
+
             for framework in frameworks:
                 analyses = await self._apply_reasoning_framework(
-                    request.problem_statement,
-                    framework,
-                    request.context,
-                    config
+                    request.problem_statement, framework, request.context, config
                 )
                 generated_analyses.extend(analyses)
-            
+
             max_total = min(request.max_ideas_per_method, len(generated_analyses))
             generated_analyses = generated_analyses[:max_total]
-            
+
             end_time = asyncio.get_event_loop().time()
             execution_time = end_time - start_time
-            
+
             return IdeaGenerationResult(
                 agent_name=self.name,
                 thinking_method=self.thinking_method,
@@ -91,17 +98,17 @@ class DeductionAgent(ThinkingAgentInterface):
                 execution_time=execution_time,
                 generation_metadata={
                     "frameworks_used": frameworks,
-                    "total_generated": len(generated_analyses)
-                }
+                    "total_generated": len(generated_analyses),
+                },
             )
-            
+
         except Exception as e:
             logger.error(f"Error in DeductionAgent: {e}")
             return IdeaGenerationResult(
                 agent_name=self.name,
                 thinking_method=self.thinking_method,
                 generated_ideas=[],
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def _apply_reasoning_framework(
@@ -109,25 +116,24 @@ class DeductionAgent(ThinkingAgentInterface):
         problem_statement: str,
         framework: str,
         context: Optional[str] = None,
-        config: Optional[Dict[str, Any]] = None
+        config: Optional[Dict[str, Any]] = None,
     ) -> List[GeneratedIdea]:
         """Apply a specific logical reasoning framework."""
         framework_templates = self._reasoning_frameworks.get(framework, [])
         if not framework_templates:
             return []
-        
+
         analyses = []
         max_per_framework = 2
-        
+
         for i, template in enumerate(framework_templates[:max_per_framework]):
             try:
                 analysis_content = template.format(
-                    problem=problem_statement,
-                    context=context or "given context"
+                    problem=problem_statement, context=context or "given context"
                 )
-                
+
                 reasoning = f"Applied {framework} logical framework to systematically analyze the problem and derive logical conclusions."
-                
+
                 idea = GeneratedIdea(
                     content=analysis_content,
                     thinking_method=self.thinking_method,
@@ -137,17 +143,17 @@ class DeductionAgent(ThinkingAgentInterface):
                     reasoning=reasoning,
                     metadata={
                         "framework": framework,
-                        "analysis_type": "logical_deduction"
+                        "analysis_type": "logical_deduction",
                     },
-                    timestamp=datetime.now().isoformat()
+                    timestamp=datetime.now().isoformat(),
                 )
-                
+
                 analyses.append(idea)
-                
+
             except Exception as e:
                 logger.warning(f"Failed to apply {framework} framework: {e}")
                 continue
-        
+
         return analyses
 
     def _load_reasoning_frameworks(self) -> Dict[str, List[str]]:
@@ -172,5 +178,5 @@ class DeductionAgent(ThinkingAgentInterface):
             "logical_chain": [
                 "The logical chain for {problem} follows: If premise A (current state), and premise B (intervention), then conclusion C (desired outcome) must follow.",
                 "Constructing a valid logical argument for {problem}: Major premise, minor premise, logical connection, conclusion, and verification method.",
-            ]
+            ],
         }
