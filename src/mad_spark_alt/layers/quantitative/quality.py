@@ -3,20 +3,21 @@ Quality and consistency evaluation metrics.
 """
 
 import asyncio
-import re
 import logging
-from typing import Dict, List, Any, Optional, cast
-from transformers import GPT2LMHeadModel, GPT2TokenizerFast
+import re
+from typing import Any, Dict, List, Optional, cast
+
 import torch
+from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 
 from ...core.interfaces import (
-    EvaluatorInterface,
+    AsyncEvaluatorMixin,
+    EvaluationLayer,
     EvaluationRequest,
     EvaluationResult,
-    EvaluationLayer,
-    OutputType,
+    EvaluatorInterface,
     ModelOutput,
-    AsyncEvaluatorMixin,
+    OutputType,
 )
 
 logger = logging.getLogger(__name__)

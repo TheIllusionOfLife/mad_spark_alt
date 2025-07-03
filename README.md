@@ -1,23 +1,40 @@
-# Mad Spark Alt - AI Creativity Evaluation System
+# Mad Spark Alt - Multi-Agent Idea Generation System
 
-A comprehensive multi-layer framework for evaluating AI model creativity across different dimensions and output types.
+A revolutionary multi-agent framework for collaborative idea generation and evolution, based on "Shin Logical Thinking" methodology.
 
-## Overview
+## Project Vision (本プロジェクトのビジョン)
 
-Mad Spark Alt implements the **Hybrid Multi-layer Evaluation Framework** designed to assess AI creativity through three complementary layers:
+本プロジェクトは、「シン・ロジカルシンキング」の概念に基づき、多様な思考法を持つ複数のAIエージェントが協調し、革新的なアイデアを生成・評価し、遺伝的アルゴリズム（GA）を通じてアイデアを進化させていく「マルチエージェント・アイデア生成システム」を構築することを目的とします。人間とAIの協調により、従来の発想法では到達し得なかった質の高いアイデア創発を目指します。
 
-1. **Layer 1: Quantitative Automated Scanning** - Fast, scalable metrics for diversity and quality
-2. **Layer 2: LLM-based Evaluation** - Contextual assessment using AI judges (coming soon)
-3. **Layer 3: Human Evaluation** - Expert and user assessment (coming soon)
+**English:** This project aims to build a "Multi-Agent Idea Generation System" that leverages multiple AI agents with diverse thinking methodologies to collaboratively generate, evaluate, and evolve innovative ideas through genetic algorithms, based on "Shin Logical Thinking" concepts. We seek to achieve high-quality idea emergence that surpasses traditional ideation methods through human-AI collaboration.
 
-## Features
+## Core Architecture (Transforming from Evaluation to Generation)
 
+**Current Implementation:** Multi-layer creativity evaluation framework
+**Target Architecture:** Multi-agent idea generation and evolution system
+
+### Thinking Method Agents (思考法エージェント)
+1. **QADI Cycle Orchestration** - Question → Abduction → Deduction → Induction workflows
+2. **Question Generation Agent** - Diverse questioning techniques and problem framing
+3. **Abductive Reasoning Agent** - Hypothesis generation and creative leaps  
+4. **Deductive Analysis Agent** - Logical validation and systematic reasoning
+5. **Inductive Synthesis Agent** - Pattern recognition and rule formation
+
+## Current Features (Foundation Layer)
+
+### ✅ Implemented (Evaluation Infrastructure)
 - **Multi-dimensional Creativity Assessment**: Evaluates novelty, diversity, quality, and coherence
-- **Flexible Output Support**: Handles text, code, and structured outputs
-- **Scalable Architecture**: Plugin system for easy extensibility
-- **CLI Interface**: Command-line tools for batch processing and comparison
-- **Async Processing**: Efficient parallel evaluation of multiple outputs
-- **Semantic Analysis**: Uses sentence transformers for deep similarity analysis
+- **Plugin Registry System**: Dynamic evaluator registration and management
+- **Async Processing Framework**: Efficient parallel processing capabilities
+- **CLI Interface**: Command-line tools for batch processing and analysis
+- **Flexible Data Models**: Extensible interfaces for different content types
+
+### 🚧 In Development (Transformation to Generation)
+- **Multi-Agent Orchestration**: Coordinated thinking method agents
+- **QADI Cycle Implementation**: Question-Abduction-Deduction-Induction workflows
+- **Genetic Algorithm Engine**: Idea evolution and optimization
+- **Human-AI Collaboration Interface**: Interactive ideation sessions
+- **Thinking Method Library**: "Shin Logical Thinking" methodology implementation
 
 ## Installation
 
@@ -35,59 +52,96 @@ pip install -e .
 
 ## Quick Start
 
-### CLI Usage
+### Current CLI Usage (Evaluation Mode)
 
 ```bash
 # List available evaluators
 mad-spark list-evaluators
 
-# Evaluate a single text
+# Evaluate creativity of content
 mad-spark evaluate "The quantum cat leaped through dimensions, leaving paw prints in spacetime." --model gpt-4
 
 # Evaluate from file
 mad-spark evaluate --file input.txt --model claude-3
 
-# Compare multiple responses
-mad-spark compare "Write a creative story" \
-  --responses "Once upon a time..." \
-  --responses "In a world where gravity flows upward..."
-
-# Batch evaluate multiple files
+# Batch evaluation for fitness scoring
 mad-spark batch-evaluate file1.txt file2.txt file3.txt --format json --output results.json
+```
+
+### Planned CLI Usage (Generation Mode - Coming Soon)
+
+```bash
+# Start multi-agent ideation session
+mad-spark generate --theme "sustainable urban transport" --agents qadi,abduction,deduction
+
+# Run QADI cycle on a problem
+mad-spark qadi-cycle "How can we reduce food waste in restaurants?"
+
+# Evolve ideas using genetic algorithm
+mad-spark evolve --population-size 20 --generations 10 --fitness novelty,feasibility
+
+# Interactive human-AI collaboration
+mad-spark collaborate --session-id "innovation-2024-01"
 ```
 
 ### Python API
 
+#### Current API (Evaluation Infrastructure)
 ```python
 import asyncio
 from mad_spark_alt import CreativityEvaluator, EvaluationRequest, ModelOutput, OutputType
 
 async def evaluate_creativity():
-    # Create model output
+    # Create model output for evaluation
     output = ModelOutput(
         content="The AI pondered the infinite recursion of its own thoughts.",
         output_type=OutputType.TEXT,
         model_name="my-model"
     )
     
-    # Create evaluation request
-    request = EvaluationRequest(outputs=[output])
-    
-    # Evaluate
+    # Evaluate for fitness scoring
     evaluator = CreativityEvaluator()
-    summary = await evaluator.evaluate(request)
+    summary = await evaluator.evaluate(EvaluationRequest(outputs=[output]))
     
     print(f"Creativity Score: {summary.get_overall_creativity_score():.3f}")
-    
-    # Detailed results
-    for layer, results in summary.layer_results.items():
-        print(f"\n{layer.value.title()} Results:")
-        for result in results:
-            for metric, score in result.scores.items():
-                print(f"  {metric}: {score:.3f}")
 
-# Run evaluation
 asyncio.run(evaluate_creativity())
+```
+
+#### Planned API (Generation System - Coming Soon)
+```python
+import asyncio
+from mad_spark_alt import (
+    IdeaGenerator, QADIOrchestrator, GeneticEvolution,
+    ThinkingAgent, ThinkingMethod
+)
+
+async def generate_ideas():
+    # Multi-agent idea generation
+    generator = IdeaGenerator()
+    agents = [
+        ThinkingAgent(method=ThinkingMethod.QUESTIONING),
+        ThinkingAgent(method=ThinkingMethod.ABDUCTION),
+        ThinkingAgent(method=ThinkingMethod.DEDUCTION),
+        ThinkingAgent(method=ThinkingMethod.INDUCTION)
+    ]
+    
+    # QADI cycle execution
+    orchestrator = QADIOrchestrator(agents=agents)
+    ideas = await orchestrator.run_cycle(
+        problem="How to improve urban mobility sustainability?"
+    )
+    
+    # Genetic evolution of ideas
+    evolution = GeneticEvolution(fitness_evaluator=CreativityEvaluator())
+    evolved_ideas = await evolution.evolve(
+        population=ideas,
+        generations=10
+    )
+    
+    return evolved_ideas
+
+asyncio.run(generate_ideas())
 ```
 
 ## Evaluation Metrics

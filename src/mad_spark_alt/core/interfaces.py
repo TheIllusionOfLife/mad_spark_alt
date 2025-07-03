@@ -2,11 +2,11 @@
 Core interfaces and abstract base classes for the creativity evaluation system.
 """
 
+import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
-import asyncio
 
 
 class EvaluationLayer(Enum):

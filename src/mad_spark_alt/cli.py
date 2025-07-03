@@ -7,23 +7,23 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 import click
 from rich.console import Console
-from rich.table import Table
+from rich.json import JSON
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.json import JSON
+from rich.table import Table
 
 from .core import (
     CreativityEvaluator,
+    EvaluationLayer,
     EvaluationRequest,
+    EvaluationSummary,
     ModelOutput,
     OutputType,
-    EvaluationLayer,
     registry,
-    EvaluationSummary,
 )
 from .layers.quantitative import DiversityEvaluator, QualityEvaluator
 

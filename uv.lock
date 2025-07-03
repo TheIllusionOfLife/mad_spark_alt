@@ -1548,7 +1548,7 @@ dependencies = [
     { name = "uvicorn", version = "0.34.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 dev = [
     { name = "black", version = "24.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "black", version = "25.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
@@ -1564,31 +1564,17 @@ dev = [
     { name = "pytest-asyncio", version = "1.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "pytest", version = "8.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "pytest", version = "8.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
-    { name = "pytest-asyncio", version = "0.24.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "pytest-asyncio", version = "1.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.8.0" },
     { name = "alembic", specifier = ">=1.12.0" },
     { name = "anthropic", specifier = ">=0.3.0" },
     { name = "asyncio-throttle", specifier = ">=1.0.0" },
-    { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
     { name = "click", specifier = ">=8.0.0" },
     { name = "fastapi", specifier = ">=0.100.0" },
-    { name = "isort", marker = "extra == 'dev'", specifier = ">=5.12.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.5.0" },
     { name = "numpy", specifier = ">=1.21.0" },
     { name = "openai", specifier = ">=1.0.0" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.0.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "scikit-learn", specifier = ">=1.0.0" },
     { name = "scipy", specifier = ">=1.7.0" },
@@ -1597,10 +1583,13 @@ requires-dist = [
     { name = "transformers", specifier = ">=4.20.0" },
     { name = "uvicorn", specifier = ">=0.23.0" },
 ]
-provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "black", specifier = ">=23.0.0" },
+    { name = "isort", specifier = ">=5.12.0" },
+    { name = "mypy", specifier = ">=1.5.0" },
+    { name = "pre-commit", specifier = ">=3.0.0" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-asyncio", specifier = ">=0.24.0" },
 ]
