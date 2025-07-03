@@ -102,44 +102,37 @@ class QADIOrchestrator:
             metadata={"config": config, "context": context},
         )
 
-        # Phase 1: Questioning
-        if self.has_agent(ThinkingMethod.QUESTIONING):
-            logger.info("Phase 1: Questioning")
-            result.phases["questioning"] = await self._run_phase(
-                ThinkingMethod.QUESTIONING, problem_statement, context, config
-            )
+        # Execute QADI sequence phases
+        QADI_SEQUENCE = [
+            ThinkingMethod.QUESTIONING,
+            ThinkingMethod.ABDUCTION,
+            ThinkingMethod.DEDUCTION,
+            ThinkingMethod.INDUCTION,
+        ]
 
-        # Phase 2: Abduction (use questioning results as input)
-        if self.has_agent(ThinkingMethod.ABDUCTION):
-            logger.info("Phase 2: Abduction")
-            enhanced_context = self._build_enhanced_context(
-                context, result.phases.get("questioning")
-            )
-            result.phases["abduction"] = await self._run_phase(
-                ThinkingMethod.ABDUCTION, problem_statement, enhanced_context, config
-            )
+        for i, method in enumerate(QADI_SEQUENCE):
+            logger.info(f"Phase {i+1}: {method.value.title()}")
 
-        # Phase 3: Deduction (use previous phases as input)
-        if self.has_agent(ThinkingMethod.DEDUCTION):
-            logger.info("Phase 3: Deduction")
-            enhanced_context = self._build_enhanced_context(
-                context,
-                result.phases.get("questioning"),
-                result.phases.get("abduction"),
-            )
-            result.phases["deduction"] = await self._run_phase(
-                ThinkingMethod.DEDUCTION, problem_statement, enhanced_context, config
-            )
+            # Build enhanced context using previous phase results
+            if i == 0:
+                # First phase uses original context
+                phase_context = context
+            else:
+                # Later phases use enhanced context from previous phases
+                previous_phase_results = [
+                    result.phases.get(m.value)
+                    for m in QADI_SEQUENCE[:i]
+                    if result.phases.get(m.value) is not None
+                ]
+                phase_context = self._build_enhanced_context(
+                    context, *previous_phase_results
+                )
 
-        # Phase 4: Induction (synthesize all previous phases)
-        if self.has_agent(ThinkingMethod.INDUCTION):
-            logger.info("Phase 4: Induction")
-            enhanced_context = self._build_enhanced_context(
-                context, *result.phases.values()
+            # Run the phase (this will handle missing agents correctly)
+            phase_result = await self._run_phase(
+                method, problem_statement, phase_context, config
             )
-            result.phases["induction"] = await self._run_phase(
-                ThinkingMethod.INDUCTION, problem_statement, enhanced_context, config
-            )
+            result.phases[method.value] = phase_result
 
         # Synthesize final ideas from all phases
         result.synthesized_ideas = self._synthesize_ideas(result.phases)

@@ -369,11 +369,23 @@ class UnifiedRegistry:
     """Unified registry managing both evaluators and thinking agents."""
 
     def __init__(self) -> None:
-        self.evaluators = EvaluatorRegistry()
-        self.agents = ThinkingAgentRegistry()
+        # Reference global registry instances to avoid duplication
+        self.evaluators: Optional[EvaluatorRegistry] = None
+        self.agents: Optional[ThinkingAgentRegistry] = None
+
+    def _ensure_registries(self) -> None:
+        """Ensure registry references are initialized."""
+        if self.evaluators is None:
+            global registry
+            self.evaluators = registry
+        if self.agents is None:
+            global agent_registry
+            self.agents = agent_registry
 
     def get_evaluators(self) -> List[EvaluatorInterface]:
         """Get all registered evaluators."""
+        self._ensure_registries()
+        assert self.evaluators is not None
         evaluators = []
         for name in self.evaluators._evaluators:
             evaluator = self.evaluators.get_evaluator(name)
@@ -383,10 +395,15 @@ class UnifiedRegistry:
 
     def get_agents(self) -> List[ThinkingAgentInterface]:
         """Get all registered thinking agents."""
+        self._ensure_registries()
+        assert self.agents is not None
         return self.agents.get_all_agents()
 
     def clear_all(self) -> None:
         """Clear all registries (useful for testing)."""
+        self._ensure_registries()
+        assert self.evaluators is not None
+        assert self.agents is not None
         # Clear evaluator registry
         self.evaluators._evaluators.clear()
         self.evaluators._instances.clear()
@@ -408,10 +425,8 @@ unified_registry = UnifiedRegistry()
 def register_evaluator(evaluator_class: Type[EvaluatorInterface]) -> None:
     """Convenience function to register an evaluator with the global registry."""
     registry.register(evaluator_class)
-    unified_registry.evaluators.register(evaluator_class)
 
 
 def register_agent(agent_class: Type[ThinkingAgentInterface]) -> None:
     """Convenience function to register a thinking agent with the global registry."""
     agent_registry.register(agent_class)
-    unified_registry.agents.register(agent_class)
