@@ -65,32 +65,33 @@ mad-spark --help
 # List available evaluators
 mad-spark list-evaluators
 
-# List LLM judges
-mad-spark list-judges
+# Evaluate single text (current implementation)
+mad-spark evaluate "creative text"
 
-# Test LLM connections
-mad-spark test-judges
+# Evaluate from file
+mad-spark evaluate --file input.txt
 
-# Evaluate single text
-mad-spark evaluate "creative text" --model gpt-4
+# Batch evaluation with different formats
+mad-spark batch-evaluate file1.txt file2.txt --format json --output results.json
+mad-spark batch-evaluate file1.txt file2.txt --format table
 
-# LLM judge evaluation
-mad-spark evaluate "text" --llm-judge gpt-4
+# Compare multiple outputs
+mad-spark compare "output1" "output2" "output3"
 
-# Multi-judge jury 
-mad-spark evaluate "text" --jury "gpt-4,claude-3-sonnet,gemini-pro"
-
-# Pre-configured jury budgets
-mad-spark evaluate "text" --jury-budget balanced
+# Note: LLM judge functionality is referenced but not fully implemented yet
+# Future: mad-spark evaluate "text" --llm-judge gpt-4
+# Future: mad-spark evaluate "text" --jury "gpt-4,claude-3-sonnet,gemini-pro"
 ```
 
 ### Environment Variables
-LLM Judge functionality requires API keys:
+Future LLM Judge functionality will require API keys:
 ```bash
 export OPENAI_API_KEY="your-openai-key"
 export ANTHROPIC_API_KEY="your-anthropic-key" 
 export GOOGLE_API_KEY="your-google-key"
 ```
+
+Current implementation primarily uses local evaluation methods.
 
 ## Transformation Roadmap
 
@@ -292,8 +293,17 @@ Run tests without external dependencies by default. Use environment variables to
 mad-spark --help
 mad-spark list-evaluators
 
+# Test basic evaluation
+mad-spark evaluate "The AI dreamed of electric sheep in quantum meadows."
+
 # Test core functionality without API keys
 uv run pytest tests/unit/test_core.py -v
+
+# Run all tests
+uv run pytest
+
+# Check registry state (useful for debugging)
+python -c "from mad_spark_alt.core import registry; print([e.name for e in registry.get_evaluators()])"
 ```
 
 ## Important Implementation Notes
