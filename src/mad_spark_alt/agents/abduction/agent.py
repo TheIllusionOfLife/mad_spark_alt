@@ -7,7 +7,7 @@ creative hypotheses and making intuitive leaps to explore possibilities.
 
 import asyncio
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from ...core.interfaces import (
@@ -109,8 +109,8 @@ class AbductionAgent(ThinkingAgentInterface):
         self,
         problem_statement: str,
         strategy: str,
-        context: str = None,
-        config: Dict[str, Any] = None
+        context: Optional[str] = None,
+        config: Optional[Dict[str, Any]] = None
     ) -> List[GeneratedIdea]:
         """Generate hypotheses using a specific abductive strategy."""
         strategy_templates = self._abduction_strategies.get(strategy, [])

@@ -7,7 +7,7 @@ logical reasoning to validate hypotheses and derive systematic conclusions.
 
 import asyncio
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from ...core.interfaces import (
@@ -108,8 +108,8 @@ class DeductionAgent(ThinkingAgentInterface):
         self,
         problem_statement: str,
         framework: str,
-        context: str = None,
-        config: Dict[str, Any] = None
+        context: Optional[str] = None,
+        config: Optional[Dict[str, Any]] = None
     ) -> List[GeneratedIdea]:
         """Apply a specific logical reasoning framework."""
         framework_templates = self._reasoning_frameworks.get(framework, [])

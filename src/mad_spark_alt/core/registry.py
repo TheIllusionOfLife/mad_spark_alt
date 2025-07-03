@@ -366,17 +366,18 @@ class ThinkingAgentRegistry:
 class UnifiedRegistry:
     """Unified registry managing both evaluators and thinking agents."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.evaluators = EvaluatorRegistry()
         self.agents = ThinkingAgentRegistry()
 
     def get_evaluators(self) -> List[EvaluatorInterface]:
         """Get all registered evaluators."""
-        return [
-            self.evaluators.get_evaluator(name) 
-            for name in self.evaluators._evaluators
-            if self.evaluators.get_evaluator(name) is not None
-        ]
+        evaluators = []
+        for name in self.evaluators._evaluators:
+            evaluator = self.evaluators.get_evaluator(name)
+            if evaluator is not None:
+                evaluators.append(evaluator)
+        return evaluators
 
     def get_agents(self) -> List[ThinkingAgentInterface]:
         """Get all registered thinking agents."""

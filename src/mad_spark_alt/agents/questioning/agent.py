@@ -7,7 +7,7 @@ diverse questions to explore different angles and perspectives on a problem.
 
 import asyncio
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from ...core.interfaces import (
@@ -131,8 +131,8 @@ class QuestioningAgent(ThinkingAgentInterface):
         problem_statement: str,
         question_type: str,
         max_questions: int,
-        context: str = None,
-        config: Dict[str, Any] = None
+        context: Optional[str] = None,
+        config: Optional[Dict[str, Any]] = None
     ) -> List[GeneratedIdea]:
         """Generate questions of a specific type."""
         templates = self._question_templates.get(question_type, [])

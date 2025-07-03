@@ -7,7 +7,7 @@ patterns from observations and forming general principles and insights.
 
 import asyncio
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from ...core.interfaces import (
@@ -108,8 +108,8 @@ class InductionAgent(ThinkingAgentInterface):
         self,
         problem_statement: str,
         method: str,
-        context: str = None,
-        config: Dict[str, Any] = None
+        context: Optional[str] = None,
+        config: Optional[Dict[str, Any]] = None
     ) -> List[GeneratedIdea]:
         """Apply a specific inductive synthesis method."""
         method_templates = self._synthesis_methods.get(method, [])

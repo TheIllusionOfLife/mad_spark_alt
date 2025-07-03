@@ -286,6 +286,7 @@ class QADIOrchestrator:
                     error_message=str(result)
                 )
             else:
-                result_dict[method] = result
+                # Type assertion: result is IdeaGenerationResult when not an Exception
+                result_dict[method] = result  # type: ignore[assignment]
         
         return result_dict
