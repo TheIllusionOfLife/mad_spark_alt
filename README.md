@@ -1,40 +1,38 @@
 # Mad Spark Alt - Multi-Agent Idea Generation System
 
-A revolutionary multi-agent framework for collaborative idea generation and evolution, based on "Shin Logical Thinking" methodology.
+A revolutionary multi-agent framework for collaborative idea generation based on "Shin Logical Thinking" QADI methodology, with integrated creativity evaluation and evolution capabilities.
 
 ## Project Vision (本プロジェクトのビジョン)
 
-本プロジェクトは、「シン・ロジカルシンキング」の概念に基づき、多様な思考法を持つ複数のAIエージェントが協調し、革新的なアイデアを生成・評価し、遺伝的アルゴリズム（GA）を通じてアイデアを進化させていく「マルチエージェント・アイデア生成システム」を構築することを目的とします。人間とAIの協調により、従来の発想法では到達し得なかった質の高いアイデア創発を目指します。
+本プロジェクトは、「シン・ロジカルシンキング」のQADI（Question → Abduction → Deduction → Induction）サイクルに基づき、多様な思考法を持つ複数のAIエージェントが協調し、革新的なアイデアを生成・評価・進化させる「マルチエージェント・アイデア生成システム」を構築します。人間とAIの協調により、従来の発想法では到達し得なかった質の高いアイデア創発を目指します。
 
-**English:** This project aims to build a "Multi-Agent Idea Generation System" that leverages multiple AI agents with diverse thinking methodologies to collaboratively generate, evaluate, and evolve innovative ideas through genetic algorithms, based on "Shin Logical Thinking" concepts. We seek to achieve high-quality idea emergence that surpasses traditional ideation methods through human-AI collaboration.
+**English:** This project builds a "Multi-Agent Idea Generation System" that leverages the QADI (Question → Abduction → Deduction → Induction) cycle from "Shin Logical Thinking" methodology. Multiple AI agents with diverse thinking approaches collaborate to generate, evaluate, and evolve innovative ideas. We aim for high-quality idea emergence that surpasses traditional ideation methods through human-AI collaboration.
 
-## Core Architecture (Transforming from Evaluation to Generation)
+## Core Architecture
 
-**Current Implementation:** Multi-layer creativity evaluation framework
-**Target Architecture:** Multi-agent idea generation and evolution system
+### 🎯 **QADI Cycle Implementation** (✅ **Implemented**)
+- **Question Agent**: Diverse questioning techniques and problem framing
+- **Abduction Agent**: Hypothesis generation and creative leaps  
+- **Deduction Agent**: Logical validation and systematic reasoning
+- **Induction Agent**: Pattern synthesis and rule formation
+- **QADI Orchestrator**: Coordinates multi-phase thinking cycles
 
-### Thinking Method Agents (思考法エージェント)
-1. **QADI Cycle Orchestration** - Question → Abduction → Deduction → Induction workflows
-2. **Question Generation Agent** - Diverse questioning techniques and problem framing
-3. **Abductive Reasoning Agent** - Hypothesis generation and creative leaps  
-4. **Deductive Analysis Agent** - Logical validation and systematic reasoning
-5. **Inductive Synthesis Agent** - Pattern recognition and rule formation
-
-## Current Features (Foundation Layer)
-
-### ✅ Implemented (Evaluation Infrastructure)
-- **Multi-dimensional Creativity Assessment**: Evaluates novelty, diversity, quality, and coherence
-- **Plugin Registry System**: Dynamic evaluator registration and management
+### 🏗️ **Multi-Agent Infrastructure** (✅ **Implemented**)
+- **Plugin Registry System**: Dynamic agent registration and management
 - **Async Processing Framework**: Efficient parallel processing capabilities
-- **CLI Interface**: Command-line tools for batch processing and analysis
-- **Flexible Data Models**: Extensible interfaces for different content types
+- **Unified Registry**: Seamless integration of evaluators and thinking agents
+- **Error Handling**: Robust error management and fallback mechanisms
 
-### 🚧 In Development (Transformation to Generation)
-- **Multi-Agent Orchestration**: Coordinated thinking method agents
-- **QADI Cycle Implementation**: Question-Abduction-Deduction-Induction workflows
-- **Genetic Algorithm Engine**: Idea evolution and optimization
-- **Human-AI Collaboration Interface**: Interactive ideation sessions
-- **Thinking Method Library**: "Shin Logical Thinking" methodology implementation
+### 📊 **Creativity Evaluation System** (✅ **Implemented**)
+- **Multi-dimensional Assessment**: Novelty, diversity, quality, and coherence
+- **LLM Judge Integration**: AI-powered creativity evaluation
+- **Quantitative Metrics**: Automated scoring and analysis
+- **Human Evaluation Interface**: Human-in-the-loop assessment
+
+### 🧬 **Future Evolution Engine** (🚧 **Planned**)
+- **Genetic Algorithm Integration**: Idea population evolution
+- **Fitness-Based Selection**: Using evaluation metrics for evolution
+- **Human-AI Collaboration**: Interactive ideation sessions
 
 ## Installation
 
@@ -52,41 +50,99 @@ pip install -e .
 
 ## Quick Start
 
-### Current CLI Usage (Evaluation Mode)
+### 🚀 **QADI Idea Generation** (✅ **Ready to Use**)
 
 ```bash
-# List available evaluators
+# Run the QADI demo to see the system in action
+python examples/qadi_demo.py
+
+# Run basic usage examples
+python examples/basic_usage.py
+
+# Test the agents interactively
+python -c "
+import asyncio
+from mad_spark_alt.agents import QuestioningAgent
+from mad_spark_alt.core import IdeaGenerationRequest
+
+async def test():
+    agent = QuestioningAgent()
+    request = IdeaGenerationRequest(
+        problem_statement='How can we reduce plastic waste?',
+        context='Urban environment focus',
+        max_ideas_per_method=3
+    )
+    result = await agent.generate_ideas(request)
+    for idea in result.generated_ideas:
+        print(f'💡 {idea.content}')
+
+asyncio.run(test())
+"
+```
+
+### 📊 **Creativity Evaluation**
+
+```bash
+# List available evaluators and agents
 mad-spark list-evaluators
 
 # Evaluate creativity of content
 mad-spark evaluate "The quantum cat leaped through dimensions, leaving paw prints in spacetime." --model gpt-4
 
-# Evaluate from file
-mad-spark evaluate --file input.txt --model claude-3
+# LLM judge evaluation
+mad-spark evaluate "Creative text here" --llm-judge gpt-4
 
-# Batch evaluation for fitness scoring
-mad-spark batch-evaluate file1.txt file2.txt file3.txt --format json --output results.json
-```
-
-### Planned CLI Usage (Generation Mode - Coming Soon)
-
-```bash
-# Start multi-agent ideation session
-mad-spark generate --theme "sustainable urban transport" --agents qadi,abduction,deduction
-
-# Run QADI cycle on a problem
-mad-spark qadi-cycle "How can we reduce food waste in restaurants?"
-
-# Evolve ideas using genetic algorithm
-mad-spark evolve --population-size 20 --generations 10 --fitness novelty,feasibility
-
-# Interactive human-AI collaboration
-mad-spark collaborate --session-id "innovation-2024-01"
+# Multi-judge consensus evaluation
+mad-spark evaluate "Creative text here" --jury "gpt-4,claude-3-sonnet,gemini-pro"
 ```
 
 ### Python API
 
-#### Current API (Evaluation Infrastructure)
+#### 🎯 **QADI Idea Generation** (✅ **Implemented**)
+```python
+import asyncio
+from mad_spark_alt.agents import QuestioningAgent, AbductionAgent, DeductionAgent, InductionAgent
+from mad_spark_alt.core import QADIOrchestrator, IdeaGenerationRequest, agent_registry, register_agent
+
+async def qadi_generation_example():
+    # Register all thinking agents
+    register_agent(QuestioningAgent)
+    register_agent(AbductionAgent) 
+    register_agent(DeductionAgent)
+    register_agent(InductionAgent)
+    
+    # Get agents from registry
+    agents = [
+        agent_registry.get_agent_by_method(method) 
+        for method in [ThinkingMethod.QUESTIONING, ThinkingMethod.ABDUCTION, 
+                      ThinkingMethod.DEDUCTION, ThinkingMethod.INDUCTION]
+    ]
+    
+    # Create QADI orchestrator
+    orchestrator = QADIOrchestrator(agents)
+    
+    # Run complete QADI cycle
+    result = await orchestrator.run_qadi_cycle(
+        problem_statement="How can we make cities more sustainable?",
+        context="Focus on practical, implementable solutions",
+        cycle_config={"max_ideas_per_method": 3, "require_reasoning": True}
+    )
+    
+    # Access results from each phase
+    for phase_name, phase_result in result.phases.items():
+        print(f"\n{phase_name.title()} Phase:")
+        for idea in phase_result.generated_ideas:
+            print(f"  💡 {idea.content}")
+            if idea.reasoning:
+                print(f"     💭 {idea.reasoning}")
+    
+    print(f"\nTotal ideas generated: {len(result.synthesized_ideas)}")
+    print(f"Execution time: {result.execution_time:.2f}s")
+
+asyncio.run(qadi_generation_example())
+```
+
+#### 📊 **Creativity Evaluation**
 ```python
 import asyncio
 from mad_spark_alt import CreativityEvaluator, EvaluationRequest, ModelOutput, OutputType
@@ -108,40 +164,28 @@ async def evaluate_creativity():
 asyncio.run(evaluate_creativity())
 ```
 
-#### Planned API (Generation System - Coming Soon)
+#### 🔄 **Parallel Agent Processing**
 ```python
 import asyncio
-from mad_spark_alt import (
-    IdeaGenerator, QADIOrchestrator, GeneticEvolution,
-    ThinkingAgent, ThinkingMethod
-)
+from mad_spark_alt.core import QADIOrchestrator, ThinkingMethod
 
-async def generate_ideas():
-    # Multi-agent idea generation
-    generator = IdeaGenerator()
-    agents = [
-        ThinkingAgent(method=ThinkingMethod.QUESTIONING),
-        ThinkingAgent(method=ThinkingMethod.ABDUCTION),
-        ThinkingAgent(method=ThinkingMethod.DEDUCTION),
-        ThinkingAgent(method=ThinkingMethod.INDUCTION)
-    ]
+async def parallel_generation_example():
+    # Run multiple thinking methods in parallel
+    orchestrator = QADIOrchestrator()
     
-    # QADI cycle execution
-    orchestrator = QADIOrchestrator(agents=agents)
-    ideas = await orchestrator.run_cycle(
-        problem="How to improve urban mobility sustainability?"
+    results = await orchestrator.run_parallel_generation(
+        problem_statement="How can AI improve healthcare accessibility?",
+        thinking_methods=[ThinkingMethod.QUESTIONING, ThinkingMethod.ABDUCTION],
+        context="Focus on remote and underserved areas",
+        config={"max_ideas_per_method": 2}
     )
     
-    # Genetic evolution of ideas
-    evolution = GeneticEvolution(fitness_evaluator=CreativityEvaluator())
-    evolved_ideas = await evolution.evolve(
-        population=ideas,
-        generations=10
-    )
-    
-    return evolved_ideas
+    for method, result in results.items():
+        print(f"\n{method.value.title()} Results:")
+        for idea in result.generated_ideas:
+            print(f"  🧠 {idea.content}")
 
-asyncio.run(generate_ideas())
+asyncio.run(parallel_generation_example())
 ```
 
 ## Evaluation Metrics
@@ -167,20 +211,104 @@ asyncio.run(generate_ideas())
 
 ```
 mad_spark_alt/
-├── core/                   # Core evaluation engine
-│   ├── evaluator.py       # Main orchestrator
-│   ├── interfaces.py      # Abstract base classes
-│   └── registry.py        # Plugin registry
-├── layers/                # Evaluation layer implementations
-│   ├── quantitative/      # Layer 1: Automated metrics
-│   ├── llm_judges/        # Layer 2: AI evaluators
-│   └── human_eval/        # Layer 3: Human assessment
-└── cli.py                 # Command-line interface
+├── core/                        # Core system components
+│   ├── interfaces.py           # Agent and evaluator interfaces  
+│   ├── orchestrator.py         # QADI cycle orchestration
+│   ├── registry.py             # Unified agent/evaluator registry
+│   └── evaluator.py            # Creativity evaluation engine
+├── agents/                      # QADI thinking method agents
+│   ├── questioning/            # Question generation agent
+│   ├── abduction/              # Hypothesis generation agent  
+│   ├── deduction/              # Logical reasoning agent
+│   └── induction/              # Pattern synthesis agent
+├── layers/                      # Evaluation layer implementations
+│   ├── quantitative/           # Automated metrics (diversity, quality)
+│   ├── llm_judges/             # AI-powered evaluation
+│   └── human_eval/             # Human assessment interface
+├── examples/                    # Usage examples and demos
+│   ├── qadi_demo.py            # Complete QADI system demonstration
+│   └── basic_usage.py          # Basic evaluation examples
+├── tests/                       # Comprehensive test suite
+│   ├── test_qadi_system.py     # QADI agents and orchestration tests
+│   └── unit/                   # Unit tests for individual components
+└── cli.py                       # Command-line interface
 ```
+
+### Key Components
+
+#### 🎯 **QADI Orchestration System**
+- **QADIOrchestrator**: Manages multi-phase thinking cycles
+- **ThinkingAgentInterface**: Common interface for all agents
+- **IdeaGenerationRequest/Result**: Standardized data flow
+- **Error Handling**: Robust missing agent management
+
+#### 🧠 **Thinking Method Agents**  
+- **QuestioningAgent**: Generates diverse questions and problem framings
+- **AbductionAgent**: Creates hypotheses and makes creative leaps
+- **DeductionAgent**: Performs logical validation and systematic reasoning  
+- **InductionAgent**: Synthesizes patterns and forms general principles
+
+#### 🔄 **Registry & Plugin System**
+- **UnifiedRegistry**: Manages both evaluators and thinking agents
+- **Dynamic Registration**: Runtime plugin discovery and loading
+- **Global Access**: Convenience functions for easy component access
 
 ## Extending the System
 
-Add new evaluators by implementing the `EvaluatorInterface`:
+### 🧠 **Adding New Thinking Agents**
+
+Create custom thinking agents by implementing the `ThinkingAgentInterface`:
+
+```python
+from mad_spark_alt.core import ThinkingAgentInterface, ThinkingMethod, register_agent
+from mad_spark_alt.core.interfaces import IdeaGenerationRequest, IdeaGenerationResult
+
+class MyCustomAgent(ThinkingAgentInterface):
+    @property
+    def name(self) -> str:
+        return "MyCustomAgent"
+    
+    @property
+    def thinking_method(self) -> ThinkingMethod:
+        return ThinkingMethod.QUESTIONING  # or create custom method
+    
+    @property
+    def supported_output_types(self) -> List[OutputType]:
+        return [OutputType.TEXT, OutputType.STRUCTURED]
+    
+    async def generate_ideas(self, request: IdeaGenerationRequest) -> IdeaGenerationResult:
+        # Your idea generation logic here
+        generated_ideas = []
+        
+        # Generate ideas based on the problem statement
+        for i in range(request.max_ideas_per_method):
+            idea = GeneratedIdea(
+                content=f"Custom idea {i+1} for: {request.problem_statement}",
+                thinking_method=self.thinking_method,
+                agent_name=self.name,
+                generation_prompt=f"Generate idea using custom method",
+                confidence_score=0.8,
+                reasoning="Custom reasoning approach applied"
+            )
+            generated_ideas.append(idea)
+        
+        return IdeaGenerationResult(
+            agent_name=self.name,
+            thinking_method=self.thinking_method,
+            generated_ideas=generated_ideas,
+            execution_time=0.1
+        )
+    
+    def validate_config(self, config: Dict[str, Any]) -> bool:
+        return True
+
+# Register your custom agent
+register_agent(MyCustomAgent)
+```
+
+### 📊 **Adding New Evaluators**
+
+Add custom evaluators by implementing the `EvaluatorInterface`:
 
 ```python
 from mad_spark_alt.core import EvaluatorInterface, register_evaluator
@@ -199,8 +327,18 @@ class MyCustomEvaluator(EvaluatorInterface):
         return [OutputType.TEXT]
     
     async def evaluate(self, request: EvaluationRequest) -> List[EvaluationResult]:
-        # Your evaluation logic here
-        pass
+        results = []
+        for output in request.outputs:
+            # Your evaluation logic here
+            score = len(output.content) / 100  # Simple example
+            
+            result = EvaluationResult(
+                evaluator_name=self.name,
+                scores={"custom_metric": score},
+                metadata={"evaluated_at": "2025-01-01"}
+            )
+            results.append(result)
+        return results
     
     def validate_config(self, config: Dict[str, Any]) -> bool:
         return True
@@ -215,8 +353,14 @@ register_evaluator(MyCustomEvaluator)
 # Install development dependencies
 uv sync --dev
 
-# Run tests
+# Run all tests
 uv run pytest
+
+# Run QADI system tests specifically
+uv run pytest tests/test_qadi_system.py -v
+
+# Run unit tests
+uv run pytest tests/unit/ -v
 
 # Run type checking
 uv run mypy src/
@@ -224,18 +368,87 @@ uv run mypy src/
 # Format code
 uv run black src/ tests/
 
-# Example usage
+# Import sorting
+uv run isort src/ tests/
+
+# Run examples
+uv run python examples/qadi_demo.py
 uv run python examples/basic_usage.py
+```
+
+### 🧪 **Testing the QADI System**
+
+```bash
+# Test individual agents
+python -c "
+import asyncio
+from mad_spark_alt.agents import QuestioningAgent
+from mad_spark_alt.core import IdeaGenerationRequest
+
+async def test_agent():
+    agent = QuestioningAgent()
+    request = IdeaGenerationRequest(
+        problem_statement='Test problem',
+        max_ideas_per_method=2
+    )
+    result = await agent.generate_ideas(request)
+    print(f'Agent: {result.agent_name}')
+    print(f'Ideas: {len(result.generated_ideas)}')
+    for idea in result.generated_ideas:
+        print(f'  - {idea.content}')
+
+asyncio.run(test_agent())
+"
+
+# Test complete QADI cycle
+python -c "
+import asyncio
+from mad_spark_alt.core import QADIOrchestrator, agent_registry
+from mad_spark_alt.agents import QuestioningAgent, AbductionAgent
+
+async def test_cycle():
+    # Register minimal agents for testing
+    agent_registry.clear()
+    agent_registry.register(QuestioningAgent) 
+    agent_registry.register(AbductionAgent)
+    
+    agents = [
+        agent_registry.get_agent('QuestioningAgent'),
+        agent_registry.get_agent('AbductionAgent')
+    ]
+    
+    orchestrator = QADIOrchestrator([a for a in agents if a])
+    result = await orchestrator.run_qadi_cycle(
+        problem_statement='Test QADI cycle',
+        cycle_config={'max_ideas_per_method': 1}
+    )
+    
+    print(f'Phases executed: {list(result.phases.keys())}')
+    print(f'Total execution time: {result.execution_time:.2f}s')
+
+asyncio.run(test_cycle())
+"
 ```
 
 ## Research Background
 
-This implementation is based on extensive research into AI creativity evaluation methods, including:
+This implementation combines research in AI creativity evaluation with multi-agent systems and logical thinking methodologies:
 
+### 🎯 **QADI Methodology**
+- **"Shin Logical Thinking"**: Question → Abduction → Deduction → Induction cycle
+- **Multi-Agent Coordination**: Collaborative thinking through specialized agents
+- **Creative Problem-Solving**: Systematic approach to idea generation and validation
+
+### 📊 **Creativity Evaluation Research**
 - **LLM Judge Systems**: Automated evaluation using AI models as critics
 - **Semantic Diversity Analysis**: Embedding-based similarity measurements  
 - **Multi-dimensional Assessment**: Breaking creativity into measurable components
 - **Human-AI Evaluation Correlation**: Bridging automated and human judgment
+
+### 🔄 **Multi-Agent Systems**
+- **Registry Pattern**: Dynamic component management and discovery
+- **Async Orchestration**: Efficient parallel processing and coordination
+- **Error-Resilient Design**: Robust handling of missing or failing components
 
 For detailed research context, see [Issue #1](https://github.com/TheIllusionOfLife/mad_spark_alt/issues/1).
 
@@ -257,9 +470,11 @@ If you use Mad Spark Alt in your research, please cite:
 
 ```bibtex
 @software{mad_spark_alt,
-  title={Mad Spark Alt: AI Creativity Evaluation System},
+  title={Mad Spark Alt: Multi-Agent Idea Generation System},
+  subtitle={QADI-Based Collaborative Thinking Framework},
   author={TheIllusionOfLife},
   year={2025},
-  url={https://github.com/TheIllusionOfLife/mad_spark_alt}
+  url={https://github.com/TheIllusionOfLife/mad_spark_alt},
+  note={Multi-agent system implementing "Shin Logical Thinking" QADI methodology for collaborative idea generation and creativity evaluation}
 }
 ```
