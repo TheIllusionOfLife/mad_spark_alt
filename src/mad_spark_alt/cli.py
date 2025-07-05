@@ -20,14 +20,18 @@ from .core import (
     CreativityEvaluator,
     EvaluationLayer,
     EvaluationRequest,
+    EvaluationResult,
     EvaluationSummary,
     ModelOutput,
     OutputType,
     registry,
 )
 from .layers.quantitative import DiversityEvaluator, QualityEvaluator
+from .layers.llm_judges import CreativityLLMJudge, CreativityJury
+from .layers.human_eval import HumanCreativityEvaluator, ABTestEvaluator
 
 console = Console()
+logger = logging.getLogger(__name__)
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -42,6 +46,20 @@ def register_default_evaluators() -> None:
     """Register default evaluators."""
     registry.register(DiversityEvaluator)
     registry.register(QualityEvaluator)
+    
+    # Register LLM judges if available
+    try:
+        registry.register(CreativityLLMJudge)
+        registry.register(CreativityJury)
+    except Exception as e:
+        logger.debug(f"LLM judges not available: {e}")
+    
+    # Register human evaluators
+    try:
+        registry.register(HumanCreativityEvaluator)
+        registry.register(ABTestEvaluator)
+    except Exception as e:
+        logger.debug(f"Human evaluators not available: {e}")
 
 
 @click.group()
@@ -260,6 +278,302 @@ def compare(
     asyncio.run(_run_evaluation(request, output, "table", compare_mode=True))
 
 
+@main.command()
+@click.argument("text", required=False)
+@click.option("--file", "-f", type=click.Path(exists=True), help="Read text from file")
+@click.option(
+    "--model", 
+    "-m", 
+    default="gpt-4", 
+    help="LLM model to use (gpt-4, claude-3-sonnet, mock-model)"
+)
+@click.option(
+    "--prompt", 
+    "-p", 
+    help="Original prompt that generated the text"
+)
+@click.option("--output", "-o", type=click.Path(), help="Save results to file")
+def llm_judge(
+    text: Optional[str],
+    file: Optional[str], 
+    model: str,
+    prompt: Optional[str],
+    output: Optional[str],
+) -> None:
+    """Evaluate creativity using LLM judge."""
+    
+    if not text and not file:
+        console.print("[red]Error: Provide either text or file[/red]")
+        sys.exit(1)
+    
+    if file:
+        with open(file) as f:
+            text = f.read()
+    
+    # Create model output
+    model_output = ModelOutput(
+        content=text,
+        output_type=OutputType.TEXT,
+        model_name="evaluated-content",
+        prompt=prompt,
+    )
+    
+    # Create evaluation request
+    request = EvaluationRequest(
+        outputs=[model_output],
+        target_layers=[EvaluationLayer.LLM_JUDGE],
+        task_context="LLM judge creativity evaluation"
+    )
+    
+    console.print(f"🤖 Using LLM judge: [cyan]{model}[/cyan]")
+    
+    # Create specific LLM judge evaluator
+    try:
+        evaluator = CreativityLLMJudge(model)
+        asyncio.run(_run_llm_evaluation(evaluator, request, output))
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+
+
+@main.command()
+@click.argument("text", required=False)
+@click.option("--file", "-f", type=click.Path(exists=True), help="Read text from file")
+@click.option(
+    "--models", 
+    "-m", 
+    default="gpt-4,claude-3-sonnet,mock-model",
+    help="Comma-separated list of LLM models for jury"
+)
+@click.option(
+    "--prompt", 
+    "-p", 
+    help="Original prompt that generated the text"
+)
+@click.option("--output", "-o", type=click.Path(), help="Save results to file")
+def llm_jury(
+    text: Optional[str],
+    file: Optional[str], 
+    models: str,
+    prompt: Optional[str],
+    output: Optional[str],
+) -> None:
+    """Evaluate creativity using multiple LLM judges (jury)."""
+    
+    if not text and not file:
+        console.print("[red]Error: Provide either text or file[/red]")
+        sys.exit(1)
+    
+    if file:
+        with open(file) as f:
+            text = f.read()
+    
+    model_list = [m.strip() for m in models.split(",")]
+    
+    # Create model output
+    model_output = ModelOutput(
+        content=text,
+        output_type=OutputType.TEXT,
+        model_name="evaluated-content",
+        prompt=prompt,
+    )
+    
+    # Create evaluation request
+    request = EvaluationRequest(
+        outputs=[model_output],
+        target_layers=[EvaluationLayer.LLM_JUDGE],
+        task_context="LLM jury creativity evaluation"
+    )
+    
+    console.print(f"⚖️  Using LLM jury: [cyan]{', '.join(model_list)}[/cyan]")
+    
+    # Create jury evaluator
+    try:
+        evaluator = CreativityJury(model_list)
+        asyncio.run(_run_llm_evaluation(evaluator, request, output))
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+
+
+@main.command()
+@click.argument("text", required=False)
+@click.option("--file", "-f", type=click.Path(exists=True), help="Read text from file")
+@click.option(
+    "--mode", 
+    "-m", 
+    type=click.Choice(["interactive", "batch", "expert"]),
+    default="interactive",
+    help="Human evaluation mode"
+)
+@click.option(
+    "--prompt", 
+    "-p", 
+    help="Original prompt that generated the text"
+)
+@click.option("--output", "-o", type=click.Path(), help="Save results to file")
+@click.option("--input", "-i", type=click.Path(), help="Input file for expert mode")
+def human_eval(
+    text: Optional[str],
+    file: Optional[str], 
+    mode: str,
+    prompt: Optional[str],
+    output: Optional[str],
+    input: Optional[str],
+) -> None:
+    """Evaluate creativity using human assessment."""
+    
+    if not text and not file:
+        console.print("[red]Error: Provide either text or file[/red]")
+        sys.exit(1)
+    
+    if file:
+        with open(file) as f:
+            text = f.read()
+    
+    # Create model output
+    model_output = ModelOutput(
+        content=text,
+        output_type=OutputType.TEXT,
+        model_name="evaluated-content",
+        prompt=prompt,
+    )
+    
+    # Create evaluation request
+    request = EvaluationRequest(
+        outputs=[model_output],
+        target_layers=[EvaluationLayer.HUMAN],
+        task_context="Human creativity evaluation"
+    )
+    
+    console.print(f"🧑‍🎨 Starting human evaluation in [cyan]{mode}[/cyan] mode")
+    
+    # Create human evaluator
+    config = {"mode": mode}
+    if input:
+        config["input_file"] = input
+    if output:
+        config["output_file"] = output
+    
+    try:
+        evaluator = HumanCreativityEvaluator(config)
+        asyncio.run(_run_human_evaluation(evaluator, request, output, mode))
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+
+
+@main.command()
+@click.option("--texts", "-t", multiple=True, help="Multiple texts to compare")
+@click.option("--files", "-f", multiple=True, help="Multiple files to compare")
+@click.option(
+    "--mode", 
+    "-m", 
+    type=click.Choice(["pairwise", "ranking", "tournament"]),
+    default="pairwise",
+    help="A/B testing mode"
+)
+@click.option("--output", "-o", type=click.Path(), help="Save results to file")
+def ab_test(
+    texts: List[str],
+    files: List[str],
+    mode: str,
+    output: Optional[str],
+) -> None:
+    """A/B test creativity comparison between multiple outputs."""
+    
+    if not texts and not files:
+        console.print("[red]Error: Provide either texts or files[/red]")
+        sys.exit(1)
+    
+    # Collect all content
+    all_content = list(texts)
+    
+    for file_path in files:
+        with open(file_path) as f:
+            all_content.append(f.read())
+    
+    if len(all_content) < 2:
+        console.print("[red]Error: Need at least 2 items for A/B testing[/red]")
+        sys.exit(1)
+    
+    # Create model outputs
+    model_outputs = []
+    for i, content in enumerate(all_content):
+        model_outputs.append(ModelOutput(
+            content=content,
+            output_type=OutputType.TEXT,
+            model_name=f"option_{i+1}",
+            metadata={"option_index": i}
+        ))
+    
+    # Create evaluation request
+    request = EvaluationRequest(
+        outputs=model_outputs,
+        target_layers=[EvaluationLayer.HUMAN],
+        task_context=f"A/B testing comparison ({mode} mode)"
+    )
+    
+    console.print(f"🆚 A/B testing {len(all_content)} options in [cyan]{mode}[/cyan] mode")
+    
+    # Create A/B test evaluator
+    try:
+        evaluator = ABTestEvaluator({"mode": mode})
+        asyncio.run(_run_human_evaluation(evaluator, request, output, mode))
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+
+
+async def _run_llm_evaluation(
+    evaluator: Any,
+    request: EvaluationRequest,
+    output_file: Optional[str],
+) -> None:
+    """Run LLM evaluation and display results."""
+    
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        
+        task = progress.add_task("Running LLM evaluation...", total=None)
+        
+        # Run evaluation
+        results = await evaluator.evaluate(request)
+        
+        progress.update(task, completed=True)
+    
+    # Display results
+    _display_llm_results(results, evaluator.name)
+    
+    if output_file:
+        _save_llm_results(results, output_file)
+
+
+async def _run_human_evaluation(
+    evaluator: Any,
+    request: EvaluationRequest,
+    output_file: Optional[str],
+    mode: str,
+) -> None:
+    """Run human evaluation and display results."""
+    
+    # Run evaluation (no progress bar for interactive modes)
+    results = await evaluator.evaluate(request)
+    
+    # Display results
+    _display_human_results(results, mode)
+    
+    if output_file:
+        _save_human_results(results, output_file)
+
+
+    # Run evaluation with focus on diversity
+    asyncio.run(_run_evaluation(request, output, "table", compare_mode=True))
+
+
 async def _run_evaluation(
     request: EvaluationRequest,
     output_file: Optional[str],
@@ -385,6 +699,146 @@ def _summary_to_dict(summary: EvaluationSummary) -> Dict[str, Any]:
             for layer, results in summary.layer_results.items()
         },
     }
+
+
+def _display_llm_results(results: List[EvaluationResult], evaluator_name: str) -> None:
+    """Display LLM evaluation results."""
+    console.print(f"\n🤖 LLM Judge Results - {evaluator_name}")
+    console.print("=" * 60)
+    
+    for i, result in enumerate(results):
+        if result.scores:
+            console.print(f"\n📊 Creativity Scores:")
+            
+            # Display scores in a nice format
+            for metric, score in result.scores.items():
+                if metric != "overall_creativity":
+                    console.print(f"  • {metric.replace('_', ' ').title()}: {score:.3f}")
+            
+            if "overall_creativity" in result.scores:
+                overall = result.scores["overall_creativity"]
+                console.print(f"  • [bold]Overall Creativity: {overall:.3f}[/bold]")
+            
+            # Display explanations
+            if result.explanations:
+                console.print(f"\n💭 Analysis:")
+                for key, explanation in result.explanations.items():
+                    if key == "rationale":
+                        console.print(f"  Rationale: {explanation}")
+                    elif key == "strengths":
+                        console.print(f"  ✅ Strengths: {explanation}")
+                    elif key == "weaknesses":
+                        console.print(f"  ⚠️  Areas for improvement: {explanation}")
+                    elif key == "disagreement_notice":
+                        console.print(f"  ⚖️  {explanation}", style="yellow")
+                    elif key == "consensus_quality":
+                        console.print(f"  ✅ {explanation}", style="green")
+            
+            # Display model info
+            if result.metadata and "model" in result.metadata:
+                model = result.metadata["model"]
+                console.print(f"\n🔧 Model: {model}")
+                
+                if "usage" in result.metadata:
+                    usage = result.metadata["usage"]
+                    if "total_tokens" in usage:
+                        console.print(f"  Tokens used: {usage['total_tokens']}")
+        
+        elif result.explanations and "error" in result.explanations:
+            console.print(f"\n❌ Error: {result.explanations['error']}", style="red")
+
+
+def _display_human_results(results: List[EvaluationResult], mode: str) -> None:
+    """Display human evaluation results."""
+    console.print(f"\n🧑‍🎨 Human Evaluation Results - {mode.title()} Mode")
+    console.print("=" * 60)
+    
+    for i, result in enumerate(results):
+        if result.scores:
+            console.print(f"\n📊 Human Assessment (Item {i+1}):")
+            
+            # Display scores
+            for metric, score in result.scores.items():
+                if metric.startswith("raw_"):
+                    continue  # Skip raw scores, they're in metadata
+                
+                display_name = metric.replace('_', ' ').title()
+                if metric == "overall_creativity":
+                    console.print(f"  • [bold]{display_name}: {score:.3f}[/bold]")
+                else:
+                    console.print(f"  • {display_name}: {score:.3f}")
+            
+            # Display comments
+            if result.explanations and "human_comments" in result.explanations:
+                comments = result.explanations["human_comments"]
+                if comments:
+                    console.print(f"\n💬 Comments: {comments}")
+            
+            # Display comparison results for A/B testing
+            if "win_rate" in result.scores:
+                win_rate = result.scores["win_rate"]
+                wins = result.scores.get("wins", 0)
+                total = result.scores.get("total_comparisons", 0)
+                console.print(f"\n🏆 Competition Results:")
+                console.print(f"  • Win Rate: {win_rate:.1%}")
+                console.print(f"  • Wins: {wins}/{total}")
+            
+            if "rank" in result.scores:
+                rank = result.scores["rank"]
+                total_items = result.metadata.get("total_outputs", 0)
+                console.print(f"\n📊 Ranking: #{rank} out of {total_items}")
+            
+            # Display evaluator info
+            if result.metadata:
+                evaluator_id = result.metadata.get("evaluator_id")
+                eval_time = result.metadata.get("evaluation_time_seconds")
+                
+                if evaluator_id:
+                    console.print(f"\n👤 Evaluator: {evaluator_id}")
+                if eval_time:
+                    console.print(f"⏱️  Evaluation time: {eval_time:.1f}s")
+        
+        elif result.explanations:
+            if "error" in result.explanations:
+                console.print(f"\n❌ Error: {result.explanations['error']}", style="red")
+            elif "info" in result.explanations:
+                console.print(f"\n💡 Info: {result.explanations['info']}", style="blue")
+
+
+def _save_llm_results(results: List[EvaluationResult], output_file: str) -> None:
+    """Save LLM evaluation results to file."""
+    result_data = []
+    for result in results:
+        result_data.append({
+            "evaluator": result.evaluator_name,
+            "layer": result.layer.value,
+            "scores": result.scores,
+            "explanations": result.explanations,
+            "metadata": result.metadata,
+        })
+    
+    with open(output_file, "w") as f:
+        json.dump(result_data, f, indent=2)
+    
+    console.print(f"\n💾 Results saved to [cyan]{output_file}[/cyan]")
+
+
+def _save_human_results(results: List[EvaluationResult], output_file: str) -> None:
+    """Save human evaluation results to file."""
+    result_data = []
+    for result in results:
+        result_data.append({
+            "evaluator": result.evaluator_name,
+            "layer": result.layer.value,
+            "scores": result.scores,
+            "explanations": result.explanations,
+            "metadata": result.metadata,
+        })
+    
+    with open(output_file, "w") as f:
+        json.dump(result_data, f, indent=2)
+    
+    console.print(f"\n💾 Results saved to [cyan]{output_file}[/cyan]")
 
 
 if __name__ == "__main__":
