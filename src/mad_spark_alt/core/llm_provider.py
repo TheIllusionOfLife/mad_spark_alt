@@ -565,9 +565,11 @@ async def setup_llm_providers(
 
         # Set default model for OpenAI
         default_models = openai_provider.get_available_models()
-        llm_manager.set_default_model(
-            LLMProvider.OPENAI, default_models[1]
-        )  # gpt-4o-mini
+        default_model = next(
+            (m for m in default_models if m.model_name == "gpt-4o-mini"),
+            default_models[0],  # Fallback to first model if gpt-4o-mini not found
+        )
+        llm_manager.set_default_model(LLMProvider.OPENAI, default_model)
 
     if anthropic_api_key:
         anthropic_provider = AnthropicProvider(anthropic_api_key)
@@ -577,9 +579,11 @@ async def setup_llm_providers(
 
         # Set default model for Anthropic
         default_models = anthropic_provider.get_available_models()
-        llm_manager.set_default_model(
-            LLMProvider.ANTHROPIC, default_models[2]
-        )  # claude-3-haiku
+        default_model = next(
+            (m for m in default_models if m.model_name == "claude-3-haiku-20240307"),
+            default_models[0],  # Fallback to first model if claude-3-haiku not found
+        )
+        llm_manager.set_default_model(LLMProvider.ANTHROPIC, default_model)
 
     # TODO: Add Google provider implementation
 

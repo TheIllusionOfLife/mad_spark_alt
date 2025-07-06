@@ -19,6 +19,7 @@ from mad_spark_alt.core.llm_provider import (
     OpenAIProvider,
     AnthropicProvider,
     RateLimitConfig,
+    RateLimiter,
     UsageStats,
 )
 from mad_spark_alt.core.retry import LLMError, ErrorType
@@ -256,6 +257,83 @@ class TestRateLimiting:
         assert config.requests_per_minute == 60
         assert config.tokens_per_minute == 150000
         assert config.max_concurrent_requests == 10
+
+    @pytest.mark.asyncio
+    async def test_rate_limiter_initialization(self):
+        """Test RateLimiter initialization."""
+        config = RateLimitConfig(
+            requests_per_minute=10, tokens_per_minute=1000, max_concurrent_requests=2
+        )
+        limiter = RateLimiter(config)
+
+        assert limiter.config == config
+        assert len(limiter.request_times) == 0
+        assert len(limiter.token_usage) == 0
+        assert limiter._semaphore._value == 2  # max_concurrent_requests
+
+    @pytest.mark.asyncio
+    async def test_rate_limiter_basic_acquire_release(self):
+        """Test basic acquire and release functionality."""
+        config = RateLimitConfig(
+            requests_per_minute=60, tokens_per_minute=1000, max_concurrent_requests=3
+        )
+        limiter = RateLimiter(config)
+
+        # Should acquire without delay
+        await limiter.acquire(100)
+        assert len(limiter.request_times) == 1
+        assert len(limiter.token_usage) == 1
+        assert limiter.token_usage[0][1] == 100  # tokens
+
+        limiter.release()
+
+    @pytest.mark.asyncio
+    async def test_rate_limiter_concurrent_requests(self):
+        """Test concurrent request limiting."""
+        config = RateLimitConfig(
+            requests_per_minute=60, tokens_per_minute=10000, max_concurrent_requests=2
+        )
+        limiter = RateLimiter(config)
+
+        # Acquire two concurrent slots
+        await limiter.acquire(100)
+        await limiter.acquire(100)
+
+        # Third request should be blocked (would need to test with timeout in real scenario)
+        assert limiter._semaphore._value == 0  # No more slots available
+
+        # Release one slot
+        limiter.release()
+        assert limiter._semaphore._value == 1  # One slot available
+
+        limiter.release()
+        assert limiter._semaphore._value == 2  # Back to full capacity
+
+    @pytest.mark.asyncio
+    async def test_rate_limiter_cleans_old_entries(self):
+        """Test that rate limiter cleans up old entries."""
+        config = RateLimitConfig(
+            requests_per_minute=5, tokens_per_minute=500, max_concurrent_requests=5
+        )
+        limiter = RateLimiter(config)
+
+        # Manually add old entries (more than 60 seconds ago)
+        import time
+
+        old_time = time.time() - 70  # 70 seconds ago
+        limiter.request_times.append(old_time)
+        limiter.token_usage.append((old_time, 100))
+
+        # Acquire should clean up old entries
+        await limiter.acquire(50)
+
+        # Old entries should be removed, only new entry should remain
+        assert len(limiter.request_times) == 1
+        assert len(limiter.token_usage) == 1
+        assert limiter.request_times[0] > old_time
+        assert limiter.token_usage[0][0] > old_time
+
+        limiter.release()
 
 
 @pytest.mark.asyncio
