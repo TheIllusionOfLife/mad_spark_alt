@@ -533,16 +533,16 @@ Rank these hypotheses from best to worst based on the evaluation criteria."""
 
             # Select top hypotheses based on rankings
             selected_hypotheses = []
-            for rank_idx in rankings[:max_hypotheses]:
+            for rank, rank_idx in enumerate(rankings[:max_hypotheses]):
                 if 0 <= rank_idx < len(hypotheses):
-                    hypotheses[rank_idx].metadata["ranking_score"] = len(
-                        rankings
-                    ) - rankings.index(rank_idx)
+                    hypotheses[rank_idx].metadata["ranking_score"] = (
+                        len(rankings) - rank
+                    )
                     selected_hypotheses.append(hypotheses[rank_idx])
 
             return selected_hypotheses
 
-        except (json.JSONDecodeError, Exception) as e:
+        except Exception as e:
             logger.warning(f"Hypothesis ranking failed, using fallback selection: {e}")
             # Fallback: return first max_hypotheses, ensuring strategy diversity
             strategies_used: set = set()
