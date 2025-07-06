@@ -7,7 +7,8 @@ creative hypotheses and making intuitive leaps to explore possibilities.
 
 import asyncio
 import logging
-from datetime import datetime
+import time
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from ...core.interfaces import (
@@ -64,7 +65,7 @@ class AbductionAgent(ThinkingAgentInterface):
         self, request: IdeaGenerationRequest
     ) -> IdeaGenerationResult:
         """Generate creative hypotheses and insights."""
-        start_time = asyncio.get_event_loop().time()
+        start_time = time.time()
 
         logger.info(
             f"AbductionAgent generating hypotheses for: {request.problem_statement[:100]}..."
@@ -88,7 +89,7 @@ class AbductionAgent(ThinkingAgentInterface):
             max_total = min(request.max_ideas_per_method, len(generated_hypotheses))
             generated_hypotheses = generated_hypotheses[:max_total]
 
-            end_time = asyncio.get_event_loop().time()
+            end_time = time.time()
             execution_time = end_time - start_time
 
             return IdeaGenerationResult(
@@ -142,7 +143,7 @@ class AbductionAgent(ThinkingAgentInterface):
                     confidence_score=0.6,  # Abductive reasoning has inherent uncertainty
                     reasoning=reasoning,
                     metadata={"strategy": strategy, "hypothesis_type": "creative_leap"},
-                    timestamp=datetime.now().isoformat(),
+                    timestamp=datetime.now(timezone.utc).isoformat(),
                 )
 
                 hypotheses.append(idea)

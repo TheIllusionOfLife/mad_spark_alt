@@ -8,7 +8,8 @@ sophisticated questions that explore problems from multiple cognitive perspectiv
 import asyncio
 import json
 import logging
-from datetime import datetime
+import time
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from ...core.interfaces import (
@@ -408,7 +409,7 @@ Using the {strategy_name} approach, generate insightful questions that will help
                         "batch_cost": response.cost,  # Full cost for this API call
                         "generation_index": i,
                     },
-                    timestamp=datetime.now().isoformat(),
+                    timestamp=datetime.now(timezone.utc).isoformat(),
                 )
                 generated_questions.append(idea)
 
