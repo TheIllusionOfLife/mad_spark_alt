@@ -1,4 +1,4 @@
-name: Claude PR Assistant - Authorized Users Only
+name: Claude Manual Assistant
 
 on:
   issue_comment:
@@ -9,23 +9,17 @@ on:
     types: [opened, assigned]
   pull_request_review:
     types: [submitted]
-  pull_request:
-    types: [opened, synchronize, reopened]
 
 jobs:
-  claude-code-action:
-    # Respond to @claude mentions from TheIllusionOfLife OR any pull request submission
+  manual-claude:
+    # Respond to @claude mentions from TheIllusionOfLife only
     if: |
       (
-        (
-          (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-          (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-          (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-          (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
-        ) && github.actor == 'TheIllusionOfLife'
-      ) || (
-        github.event_name == 'pull_request'
-      )
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
+      ) && github.actor == 'TheIllusionOfLife'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -39,7 +33,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Run Claude PR Action
+      - name: Run Claude Manual Action
         uses: grll/claude-code-action@beta
         with:
           use_oauth: true
