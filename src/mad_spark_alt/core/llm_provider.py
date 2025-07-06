@@ -148,30 +148,40 @@ class RateLimiter:
         """Acquire rate limit permission."""
         await self._semaphore.acquire()
 
-        now = time.time()
-        minute_ago = now - 60
+        # Loop to wait for rate limit window to pass
+        while True:
+            now = time.time()
+            minute_ago = now - 60
 
-        # Clean old entries
-        self.request_times = [t for t in self.request_times if t > minute_ago]
-        self.token_usage = [
-            (t, tokens) for t, tokens in self.token_usage if t > minute_ago
-        ]
+            # Clean old entries on each iteration
+            self.request_times = [t for t in self.request_times if t > minute_ago]
+            self.token_usage = [
+                (t, tokens) for t, tokens in self.token_usage if t > minute_ago
+            ]
 
-        # Check rate limits
-        if len(self.request_times) >= self.config.requests_per_minute:
-            sleep_time = 60 - (now - self.request_times[0])
-            if sleep_time > 0:
-                await asyncio.sleep(sleep_time)
+            # Calculate sleep times for both limits
+            request_sleep = 0.0
+            if len(self.request_times) >= self.config.requests_per_minute:
+                request_sleep = 60 - (now - self.request_times[0])
 
-        current_tokens = sum(tokens for _, tokens in self.token_usage)
-        if current_tokens + estimated_tokens > self.config.tokens_per_minute:
-            sleep_time = 60 - (now - self.token_usage[0][0])
-            if sleep_time > 0:
-                await asyncio.sleep(sleep_time)
+            token_sleep = 0.0
+            current_tokens = sum(tokens for _, tokens in self.token_usage)
+            if current_tokens + estimated_tokens > self.config.tokens_per_minute:
+                if self.token_usage:  # Only if we have token usage data
+                    token_sleep = 60 - (now - self.token_usage[0][0])
 
-        # Record this request
-        self.request_times.append(now)
-        self.token_usage.append((now, estimated_tokens))
+            # Sleep for the maximum required time, or break if no sleep needed
+            max_sleep = max(request_sleep, token_sleep)
+            if max_sleep > 0:
+                await asyncio.sleep(max_sleep)
+                # Continue loop to re-evaluate with fresh timestamps
+            else:
+                break
+
+        # Record this request with current timestamp
+        final_now = time.time()
+        self.request_times.append(final_now)
+        self.token_usage.append((final_now, estimated_tokens))
 
     def release(self) -> None:
         """Release rate limit permission."""
