@@ -59,45 +59,45 @@ uv run isort src/ tests/
 ```
 
 ### CLI Usage
+**IMPORTANT**: CLI commands must be run with `uv run` prefix due to package installation method.
+
 ```bash
+# Install package first (required for CLI access)
+uv pip install -e .
+
 # Main CLI entry point
-mad-spark --help
+uv run mad-spark --help
 
-# List available evaluators and agents
-mad-spark list-evaluators
+# List available evaluators
+uv run mad-spark list-evaluators
 
-# List LLM judges
-mad-spark list-judges
+# Evaluate single text for creativity
+uv run mad-spark evaluate "The AI dreamed of electric sheep in quantum meadows."
 
-# Test LLM connections
-mad-spark test-judges
+# Batch evaluate multiple files
+uv run mad-spark batch-evaluate file1.txt file2.txt file3.txt
 
-# Evaluate single text
-mad-spark evaluate "creative text" --model gpt-4
-
-# LLM judge evaluation
-mad-spark evaluate "text" --llm-judge gpt-4
-
-# Multi-judge jury evaluation
-mad-spark evaluate "text" --jury "gpt-4,claude-3-sonnet,gemini-pro"
-
-# Pre-configured jury budgets
-mad-spark evaluate "text" --jury-budget balanced
+# Compare creativity of multiple responses
+uv run mad-spark compare "idea1" "idea2" "idea3"
 ```
 
-### QADI System Usage
+**Note**: The CLI currently supports evaluation functionality. QADI generation is available through Python API only.
+
+### QADI System Usage (Python API)
+**IMPORTANT**: QADI generation is currently Phase 1 implementation using template-based agents.
+
 ```bash
-# Run QADI demonstration
-python examples/qadi_demo.py
+# Run QADI demonstration (shows all 4 phases working)
+uv run python examples/qadi_demo.py
 
 # Run basic examples
-python examples/basic_usage.py
+uv run python examples/basic_usage.py
 
 # Test the complete system
 uv run pytest tests/test_qadi_system.py -v
 
 # Test individual agents
-python -c "
+uv run python -c "
 import asyncio
 from mad_spark_alt.agents import QuestioningAgent
 from mad_spark_alt.core import IdeaGenerationRequest
@@ -117,6 +117,14 @@ asyncio.run(test())
 "
 ```
 
+**Expected Output**: The QADI system generates template-based ideas across 4 phases:
+- **Questioning**: "What are the core elements of [problem]?"
+- **Abduction**: "What if [problem] is caused by unexpected factors?"
+- **Deduction**: "If we address [problem], then logically..."
+- **Induction**: "Looking at patterns in [problem], I observe..."
+
+This is the intended Phase 1 behavior - a working framework with template-based generation.
+
 ### Environment Variables
 LLM Judge functionality requires API keys:
 ```bash
@@ -126,6 +134,36 @@ export GOOGLE_API_KEY="your-google-key"
 ```
 
 Current implementation primarily uses local evaluation methods.
+
+## Current System State & Expectations
+
+### ✅ What Works Now (Phase 1 - Template-Based)
+- **QADI Orchestration**: All 4 phases run successfully in sequence
+- **Template-Based Generation**: Agents use predefined templates to generate ideas
+- **System Integration**: Registry, orchestrator, and agents work together seamlessly
+- **Evaluation Engine**: Creativity assessment with quantitative metrics
+- **CLI Interface**: Basic evaluation commands (not generation commands)
+
+### 🔍 Expected Output Characteristics
+The current QADI system produces **template-based results** like:
+- **Questioning**: "What are the core elements of [problem]?"
+- **Abduction**: "What if [problem] is caused by unexpected interactions?"
+- **Deduction**: "If we address [problem], then logically we must consider..."
+- **Induction**: "Looking at patterns in [problem], I observe recurring themes..."
+
+**This is the intended behavior** for Phase 1 - proving the framework works with structured templates.
+
+### 🚧 What's Missing (Future Phases)
+- **AI-Powered Generation**: Integration with LLM APIs for intelligent reasoning
+- **Context-Aware Reasoning**: Domain-specific knowledge and sophisticated prompting
+- **Genetic Evolution**: Population-based idea evolution and refinement
+- **Human-AI Collaboration**: Interactive ideation and feedback loops
+
+### 📋 Key Files for New Sessions
+- **USER_GUIDE.md**: Complete user experience guide with working examples
+- **examples/qadi_demo.py**: Comprehensive demonstration of all system capabilities
+- **tests/test_qadi_system.py**: Verification that all components work correctly
+- **src/mad_spark_alt/agents/**: Template-based agent implementations
 
 ## System Architecture (Current Implementation)
 
@@ -348,12 +386,18 @@ Run tests without external dependencies by default. Use environment variables to
 
 ### Quick Development Verification
 ```bash
+# Install package first
+uv pip install -e .
+
 # Verify installation and basic functionality
-mad-spark --help
-mad-spark list-evaluators
+uv run mad-spark --help
+uv run mad-spark list-evaluators
 
 # Test basic evaluation
-mad-spark evaluate "The AI dreamed of electric sheep in quantum meadows."
+uv run mad-spark evaluate "The AI dreamed of electric sheep in quantum meadows."
+
+# Test QADI system (template-based generation)
+uv run python examples/qadi_demo.py
 
 # Test core functionality without API keys
 uv run pytest tests/unit/test_core.py -v
@@ -362,7 +406,7 @@ uv run pytest tests/unit/test_core.py -v
 uv run pytest
 
 # Check registry state (useful for debugging)
-python -c "from mad_spark_alt.core import registry; print([e.name for e in registry.get_evaluators()])"
+uv run python -c "from mad_spark_alt.core import registry; print([e.name for e in registry.get_evaluators()])"
 ```
 
 ## Important Implementation Notes
