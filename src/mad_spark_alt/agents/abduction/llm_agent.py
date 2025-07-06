@@ -8,6 +8,7 @@ creative leaps, and intuitive connections through abductive reasoning.
 import asyncio
 import json
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -109,7 +110,7 @@ class LLMAbductiveAgent(ThinkingAgentInterface):
         Returns:
             Result containing AI-generated hypotheses as ideas
         """
-        start_time = asyncio.get_running_loop().time()
+        start_time = time.time()
 
         logger.info(
             f"{self.name} generating hypotheses for: {request.problem_statement[:100]}..."
@@ -164,7 +165,7 @@ class LLMAbductiveAgent(ThinkingAgentInterface):
                 context_analysis,
             )
 
-            end_time = asyncio.get_running_loop().time()
+            end_time = time.time()
             execution_time = end_time - start_time
 
             logger.info(

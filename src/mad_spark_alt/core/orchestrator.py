@@ -7,6 +7,7 @@ based on "Shin Logical Thinking" methodology for collaborative idea generation.
 
 import asyncio
 import logging
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -92,7 +93,7 @@ class QADIOrchestrator:
         Returns:
             Result containing outputs from all phases
         """
-        start_time = asyncio.get_running_loop().time()
+        start_time = time.time()
         cycle_id = f"qadi_{int(start_time)}"
 
         logger.info(f"Starting QADI cycle {cycle_id} for: {problem_statement[:100]}...")
@@ -139,7 +140,7 @@ class QADIOrchestrator:
         # Synthesize final ideas from all phases
         result.synthesized_ideas = self._synthesize_ideas(result.phases)
 
-        end_time = asyncio.get_running_loop().time()
+        end_time = time.time()
         result.execution_time = end_time - start_time
 
         logger.info(f"QADI cycle {cycle_id} completed in {result.execution_time:.2f}s")
