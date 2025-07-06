@@ -90,7 +90,7 @@ class NetworkError(LLMError):
         super().__init__(message, ErrorType.NETWORK)
 
 
-class TimeoutError(LLMError):
+class LLMTimeoutError(LLMError):
     """Request timeout error."""
 
     def __init__(self, message: str):
@@ -154,10 +154,10 @@ async def calculate_delay(
 
 async def retry_async(
     func: Callable[..., Any],
-    *args,
+    *args: Any,
     retry_config: Optional[RetryConfig] = None,
-    **kwargs,
-) -> T:
+    **kwargs: Any,
+) -> Any:
     """
     Retry an async function with exponential backoff.
 
@@ -208,11 +208,17 @@ async def retry_async(
     if isinstance(last_exception, LLMError):
         raise last_exception
     else:
-        error_type = classify_error(last_exception)
-        raise LLMError(
-            f"Request failed after {retry_config.max_attempts} attempts: {str(last_exception)}",
-            error_type,
-        ) from last_exception
+        if last_exception is not None:
+            error_type = classify_error(last_exception)
+            raise LLMError(
+                f"Request failed after {retry_config.max_attempts} attempts: {str(last_exception)}",
+                error_type,
+            ) from last_exception
+        else:
+            raise LLMError(
+                f"Request failed after {retry_config.max_attempts} attempts",
+                ErrorType.UNKNOWN,
+            )
 
 
 class CircuitBreaker:
@@ -232,7 +238,7 @@ class CircuitBreaker:
         self.last_failure_time: Optional[float] = None
         self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
 
-    async def call(self, func: Callable[..., Any], *args, **kwargs) -> Any:
+    async def call(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Execute function through circuit breaker."""
         import time
 
@@ -315,7 +321,7 @@ async def safe_aiohttp_request(
     url: str,
     retry_config: Optional[RetryConfig] = None,
     circuit_breaker: Optional[CircuitBreaker] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> dict:
     """
     Make a safe aiohttp request with retry logic and error handling.
@@ -335,7 +341,7 @@ async def safe_aiohttp_request(
         LLMError: On request failure
     """
 
-    async def _make_request():
+    async def _make_request() -> Any:
         try:
             timeout = aiohttp.ClientTimeout(total=kwargs.pop("timeout", 30))
 
@@ -352,8 +358,8 @@ async def safe_aiohttp_request(
 
                 return response_data
 
-        except aiohttp.ClientTimeout as e:
-            raise TimeoutError(f"Request timed out: {str(e)}")
+        except aiohttp.ClientTimeout:  # type: ignore
+            raise LLMTimeoutError("Request timed out")
         except aiohttp.ClientError as e:
             raise NetworkError(f"Network error: {str(e)}")
 
@@ -364,4 +370,5 @@ async def safe_aiohttp_request(
         request_func = _make_request
 
     # Apply retry logic
-    return await retry_async(request_func, retry_config=retry_config)
+    result = await retry_async(request_func, retry_config=retry_config)
+    return result  # type: ignore

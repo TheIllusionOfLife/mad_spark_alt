@@ -56,7 +56,9 @@ class LLMQuestioningAgent(ThinkingAgentInterface):
             preferred_provider: Preferred LLM provider (auto-select if None)
         """
         self._name = name
-        self.llm_manager = llm_manager or llm_manager
+        from ...core.llm_provider import llm_manager as default_llm_manager
+
+        self.llm_manager = llm_manager or default_llm_manager
         self.preferred_provider = preferred_provider
         self._questioning_strategies = self._load_questioning_strategies()
 
@@ -169,7 +171,7 @@ class LLMQuestioningAgent(ThinkingAgentInterface):
 
     async def _analyze_problem_domain(
         self, problem_statement: str, context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> Any:
         """Analyze the problem domain to inform questioning strategy."""
         system_prompt = """You are an expert problem analyst. Analyze the given problem to understand its domain, complexity, and characteristics. Provide your analysis in the following JSON format:
 
@@ -308,7 +310,7 @@ Analyze this problem and provide the domain analysis in the specified JSON forma
             ]
 
         # Select strategies ensuring priority ones are included
-        selected = []
+        selected: List[Dict[str, Any]] = []
         strategy_dict = {s["name"]: s for s in strategies}
 
         # Add priority strategies first
@@ -482,8 +484,8 @@ Rank these questions from best to worst based on the evaluation criteria."""
         except (json.JSONDecodeError, Exception) as e:
             logger.warning(f"Question ranking failed, using fallback selection: {e}")
             # Fallback: return first max_questions, ensuring strategy diversity
-            strategies_used = set()
-            selected = []
+            strategies_used: set = set()
+            selected: List[GeneratedIdea] = []
 
             for question in questions:
                 strategy = question.metadata.get("strategy", "unknown")
