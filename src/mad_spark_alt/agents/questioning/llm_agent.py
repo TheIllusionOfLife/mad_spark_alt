@@ -387,8 +387,10 @@ Using the {strategy_name} approach, generate insightful questions that will help
 
             generated_questions = []
             # Distribute cost across all generated questions from this API call
-            cost_per_question = response.cost / len(questions_data) if questions_data else 0
-            
+            cost_per_question = (
+                response.cost / len(questions_data) if questions_data else 0
+            )
+
             for i, q_data in enumerate(questions_data):
                 idea = GeneratedIdea(
                     content=q_data["question"],
