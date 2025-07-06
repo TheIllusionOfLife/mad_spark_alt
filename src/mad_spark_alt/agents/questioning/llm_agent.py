@@ -386,6 +386,9 @@ Using the {strategy_name} approach, generate insightful questions that will help
             questions_data = json.loads(response.content)
 
             generated_questions = []
+            # Distribute cost across all generated questions from this API call
+            cost_per_question = response.cost / len(questions_data) if questions_data else 0
+            
             for i, q_data in enumerate(questions_data):
                 idea = GeneratedIdea(
                     content=q_data["question"],
@@ -399,7 +402,8 @@ Using the {strategy_name} approach, generate insightful questions that will help
                         "focus_area": q_data.get("focus_area"),
                         "stakeholder_relevance": q_data.get("stakeholder_relevance"),
                         "cognitive_approach": cognitive_approach,
-                        "llm_cost": response.cost,
+                        "llm_cost": cost_per_question,  # Prorated cost per question
+                        "batch_cost": response.cost,  # Full cost for this API call
                         "generation_index": i,
                     },
                     timestamp=datetime.now().isoformat(),
