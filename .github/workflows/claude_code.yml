@@ -9,17 +9,23 @@ on:
     types: [opened, assigned]
   pull_request_review:
     types: [submitted]
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   claude-code-action:
-    # Only respond to @claude mentions from TheIllusionOfLife
+    # Respond to @claude mentions from TheIllusionOfLife OR any pull request submission
     if: |
       (
-        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-        (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
-      ) && github.actor == 'TheIllusionOfLife'
+        (
+          (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+          (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+          (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+          (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
+        ) && github.actor == 'TheIllusionOfLife'
+      ) || (
+        github.event_name == 'pull_request'
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: read
