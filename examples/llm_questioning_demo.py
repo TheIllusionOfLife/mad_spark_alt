@@ -11,6 +11,7 @@ import os
 from rich.console import Console
 from rich.panel import Panel
 
+from mad_spark_alt.agents.questioning.agent import QuestioningAgent
 from mad_spark_alt.agents.questioning.llm_agent import LLMQuestioningAgent
 from mad_spark_alt.core import IdeaGenerationRequest, setup_llm_providers, LLMProvider
 
@@ -175,9 +176,6 @@ async def compare_agents():
     console.print(f"\n{'='*80}")
     console.print("📊 Agent Comparison Demo", style="bold blue")
     console.print(f"{'='*80}")
-
-    # Import both agents
-    from mad_spark_alt.agents.questioning.agent import QuestioningAgent
 
     problem = "How can we make public transportation more accessible for people with disabilities?"
     context = "Urban planning and accessibility considerations"

@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from mad_spark_alt.agents.abduction.llm_agent import LLMAbductiveAgent
 from mad_spark_alt.core.interfaces import (
+    GeneratedIdea,
     IdeaGenerationRequest,
     ThinkingMethod,
     OutputType,
@@ -351,8 +352,6 @@ class TestLLMAbductiveAgent:
         for i, strategy in enumerate(
             ["causal_inference", "analogical_reasoning", "pattern_recognition"]
         ):
-            from mad_spark_alt.core.interfaces import GeneratedIdea
-
             idea = GeneratedIdea(
                 content=f"Test hypothesis {i+1}",
                 thinking_method=ThinkingMethod.ABDUCTION,
