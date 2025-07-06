@@ -98,10 +98,7 @@ async def demo_basic_hypothesis_generation():
         context=context,
         max_ideas_per_method=6,
         generation_config={
-            "creativity_level": "high",
-            "use_analogies": True,
-            "include_counter_intuitive": True,
-            "max_strategies": 4,
+            "max_strategies": 4,  # Only config key actually processed by agent
         },
     )
 
@@ -144,24 +141,16 @@ async def demo_basic_hypothesis_generation():
 async def demo_strategy_comparison():
     """Demonstrate different abductive strategies in action."""
     print("\n\n🎯 Strategy Comparison Demo")
-    print("=" * 60)
+    print("=" * DEMO_SECTION_WIDTH)
 
-    # Check for API keys
-    openai_key = os.getenv("OPENAI_API_KEY")
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-
-    if not (openai_key or anthropic_key):
+    # Setup LLM agent using helper function
+    agent_setup = await setup_llm_agent()
+    if not agent_setup:
         print("⚠️  Skipping strategy comparison demo - no API keys available.")
         return
 
-    # Setup LLM providers
-    await setup_llm_providers(
-        openai_api_key=openai_key,
-        anthropic_api_key=anthropic_key,
-    )
-
-    preferred_provider = LLMProvider.OPENAI if openai_key else LLMProvider.ANTHROPIC
-    agent = LLMAbductiveAgent(preferred_provider=preferred_provider)
+    agent, status_msg = agent_setup
+    print(status_msg)
 
     # Different problem contexts to test strategy selection
     test_cases = [
@@ -180,7 +169,7 @@ async def demo_strategy_comparison():
         {
             "name": "Counter-Intuitive Problem",
             "problem": "Employee productivity increased significantly during the transition to remote work, contrary to management expectations.",
-            "config": {"max_strategies": 2, "include_counter_intuitive": True},
+            "config": {"max_strategies": 2},
             "expected_strategies": ["counter_intuitive"],
         },
     ]
