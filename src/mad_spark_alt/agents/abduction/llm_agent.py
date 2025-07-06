@@ -8,7 +8,7 @@ creative leaps, and intuitive connections through abductive reasoning.
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from ...core.interfaces import (
@@ -23,7 +23,7 @@ from ...core.llm_provider import (
     LLMManager,
     LLMProvider,
     LLMRequest,
-    llm_manager,
+    llm_manager as default_llm_manager,
 )
 
 logger = logging.getLogger(__name__)
@@ -56,8 +56,6 @@ class LLMAbductiveAgent(ThinkingAgentInterface):
             preferred_provider: Preferred LLM provider (auto-select if None)
         """
         self._name = name
-        from ...core.llm_provider import llm_manager as default_llm_manager
-
         self.llm_manager = llm_manager or default_llm_manager
         self.preferred_provider = preferred_provider
         self._abductive_strategies = self._load_abductive_strategies()
@@ -93,7 +91,7 @@ class LLMAbductiveAgent(ThinkingAgentInterface):
             if (
                 not isinstance(max_strategies, int)
                 or max_strategies < 1
-                or max_strategies > 7
+                or max_strategies > len(self._abductive_strategies)
             ):
                 return False
 
@@ -111,7 +109,7 @@ class LLMAbductiveAgent(ThinkingAgentInterface):
         Returns:
             Result containing AI-generated hypotheses as ideas
         """
-        start_time = asyncio.get_event_loop().time()
+        start_time = asyncio.get_running_loop().time()
 
         logger.info(
             f"{self.name} generating hypotheses for: {request.problem_statement[:100]}..."
@@ -166,7 +164,7 @@ class LLMAbductiveAgent(ThinkingAgentInterface):
                 context_analysis,
             )
 
-            end_time = asyncio.get_event_loop().time()
+            end_time = asyncio.get_running_loop().time()
             execution_time = end_time - start_time
 
             logger.info(
@@ -459,7 +457,7 @@ Using {strategy_name} abductive reasoning, generate creative hypotheses that cou
                         "batch_cost": response.cost,
                         "generation_index": i,
                     },
-                    timestamp=datetime.now().isoformat(),
+                    timestamp=datetime.now(timezone.utc).isoformat(),
                 )
                 generated_hypotheses.append(idea)
 
@@ -533,12 +531,18 @@ Rank these hypotheses from best to worst based on the evaluation criteria."""
 
             # Select top hypotheses based on rankings
             selected_hypotheses = []
-            for rank, rank_idx in enumerate(rankings[:max_hypotheses]):
-                if 0 <= rank_idx < len(hypotheses):
+            processed_indices = set()
+            for rank, rank_idx in enumerate(rankings):
+                if (
+                    0 <= rank_idx < len(hypotheses)
+                    and rank_idx not in processed_indices
+                    and len(selected_hypotheses) < max_hypotheses
+                ):
                     hypotheses[rank_idx].metadata["ranking_score"] = (
                         len(rankings) - rank
                     )
                     selected_hypotheses.append(hypotheses[rank_idx])
+                    processed_indices.add(rank_idx)
 
             return selected_hypotheses
 

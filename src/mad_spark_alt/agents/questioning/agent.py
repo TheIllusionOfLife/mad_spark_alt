@@ -7,7 +7,7 @@ diverse questions to explore different angles and perspectives on a problem.
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from ...core.interfaces import (
@@ -77,7 +77,7 @@ class QuestioningAgent(ThinkingAgentInterface):
         Returns:
             Result containing generated questions as ideas
         """
-        start_time = asyncio.get_event_loop().time()
+        start_time = asyncio.get_running_loop().time()
 
         logger.info(
             f"QuestioningAgent generating questions for: {request.problem_statement[:100]}..."
@@ -118,7 +118,7 @@ class QuestioningAgent(ThinkingAgentInterface):
             max_total = min(request.max_ideas_per_method, len(generated_questions))
             generated_questions = generated_questions[:max_total]
 
-            end_time = asyncio.get_event_loop().time()
+            end_time = asyncio.get_running_loop().time()
             execution_time = end_time - start_time
 
             logger.info(
@@ -190,7 +190,7 @@ class QuestioningAgent(ThinkingAgentInterface):
                         "template_index": i,
                         "creativity_level": creativity_level,
                     },
-                    timestamp=datetime.now().isoformat(),
+                    timestamp=datetime.now(timezone.utc).isoformat(),
                 )
 
                 questions.append(idea)

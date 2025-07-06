@@ -11,7 +11,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -64,7 +64,7 @@ class UsageStats:
         self.output_tokens += output_tokens
         self.total_requests += 1
         self.total_cost += cost
-        self.last_request = datetime.now()
+        self.last_request = datetime.now(timezone.utc)
 
 
 @dataclass

@@ -7,7 +7,7 @@ patterns from observations and forming general principles and insights.
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from ...core.interfaces import (
@@ -64,7 +64,7 @@ class InductionAgent(ThinkingAgentInterface):
         self, request: IdeaGenerationRequest
     ) -> IdeaGenerationResult:
         """Generate insights through pattern synthesis and generalization."""
-        start_time = asyncio.get_event_loop().time()
+        start_time = asyncio.get_running_loop().time()
 
         logger.info(
             f"InductionAgent synthesizing insights for: {request.problem_statement[:100]}..."
@@ -88,7 +88,7 @@ class InductionAgent(ThinkingAgentInterface):
             max_total = min(request.max_ideas_per_method, len(generated_insights))
             generated_insights = generated_insights[:max_total]
 
-            end_time = asyncio.get_event_loop().time()
+            end_time = asyncio.get_running_loop().time()
             execution_time = end_time - start_time
 
             return IdeaGenerationResult(
@@ -146,7 +146,7 @@ class InductionAgent(ThinkingAgentInterface):
                         "method": method,
                         "synthesis_type": "inductive_reasoning",
                     },
-                    timestamp=datetime.now().isoformat(),
+                    timestamp=datetime.now(timezone.utc).isoformat(),
                 )
 
                 insights.append(idea)

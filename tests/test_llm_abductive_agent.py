@@ -5,7 +5,9 @@ This module tests the LLM-based abductive reasoning functionality,
 hypothesis generation strategies, and error handling.
 """
 
+import json
 import pytest
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
 from mad_spark_alt.agents.abduction.llm_agent import LLMAbductiveAgent
@@ -170,8 +172,6 @@ class TestLLMAbductiveAgent:
             "abductive_opportunities": ["pattern_recognition", "analogical_reasoning"],
         }
 
-        import json
-
         mock_response = LLMResponse(
             content=json.dumps(valid_analysis),  # Proper JSON conversion
             provider=LLMProvider.OPENAI,
@@ -214,8 +214,6 @@ class TestLLMAbductiveAgent:
             },
         ]
 
-        import json
-
         mock_response = LLMResponse(
             content=json.dumps(hypotheses_data),  # Proper JSON conversion
             provider=LLMProvider.OPENAI,
@@ -254,8 +252,6 @@ class TestLLMAbductiveAgent:
 
         # Mock LLM manager for context analysis
         mock_llm_manager = AsyncMock()
-
-        import json
 
         async def mock_generate(request, provider=None):
             # Context analysis call
@@ -356,7 +352,6 @@ class TestLLMAbductiveAgent:
             ["causal_inference", "analogical_reasoning", "pattern_recognition"]
         ):
             from mad_spark_alt.core.interfaces import GeneratedIdea
-            from datetime import datetime
 
             idea = GeneratedIdea(
                 content=f"Test hypothesis {i+1}",

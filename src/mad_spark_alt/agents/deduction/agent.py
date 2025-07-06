@@ -7,7 +7,7 @@ logical reasoning to validate hypotheses and derive systematic conclusions.
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from ...core.interfaces import (
@@ -64,7 +64,7 @@ class DeductionAgent(ThinkingAgentInterface):
         self, request: IdeaGenerationRequest
     ) -> IdeaGenerationResult:
         """Generate logical analyses and systematic validations."""
-        start_time = asyncio.get_event_loop().time()
+        start_time = asyncio.get_running_loop().time()
 
         logger.info(
             f"DeductionAgent applying logical reasoning to: {request.problem_statement[:100]}..."
@@ -88,7 +88,7 @@ class DeductionAgent(ThinkingAgentInterface):
             max_total = min(request.max_ideas_per_method, len(generated_analyses))
             generated_analyses = generated_analyses[:max_total]
 
-            end_time = asyncio.get_event_loop().time()
+            end_time = asyncio.get_running_loop().time()
             execution_time = end_time - start_time
 
             return IdeaGenerationResult(
@@ -145,7 +145,7 @@ class DeductionAgent(ThinkingAgentInterface):
                         "framework": framework,
                         "analysis_type": "logical_deduction",
                     },
-                    timestamp=datetime.now().isoformat(),
+                    timestamp=datetime.now(timezone.utc).isoformat(),
                 )
 
                 analyses.append(idea)
