@@ -10,7 +10,7 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from ...core.interfaces import (
     GeneratedIdea,
@@ -531,8 +531,8 @@ Rank these hypotheses from best to worst based on the evaluation criteria."""
             rankings = json.loads(response.content)
 
             # Select top hypotheses based on rankings
-            selected_hypotheses = []
-            processed_indices = set()
+            selected_hypotheses: List[GeneratedIdea] = []
+            processed_indices: Set[int] = set()
             for rank, rank_idx in enumerate(rankings):
                 if (
                     0 <= rank_idx < len(hypotheses)
@@ -550,7 +550,7 @@ Rank these hypotheses from best to worst based on the evaluation criteria."""
         except Exception as e:
             logger.warning(f"Hypothesis ranking failed, using fallback selection: {e}")
             # Fallback: return first max_hypotheses, ensuring strategy diversity
-            strategies_used: set = set()
+            strategies_used: Set[str] = set()
             selected: List[GeneratedIdea] = []
 
             for hypothesis in hypotheses:
