@@ -80,20 +80,24 @@ class LLMAbductiveAgent(ThinkingAgentInterface):
     def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate that the configuration is valid for this agent."""
         valid_keys = {
-            "abductive_strategy",
-            "hypothesis_types",
-            "creativity_level",
-            "domain_context",
-            "exploration_depth",
-            "use_analogies",
-            "explore_opposites",
-            "pattern_sources",
-            "max_hypotheses_per_strategy",
-            "include_counter_intuitive",
-            "use_domain_expertise",
-            "metaphor_diversity",
+            "max_strategies",  # Number of abductive strategies to use (default: 4)
         }
-        return all(key in valid_keys for key in config.keys())
+
+        # Check if all keys are valid
+        if not all(key in valid_keys for key in config.keys()):
+            return False
+
+        # Validate specific config values
+        if "max_strategies" in config:
+            max_strategies = config["max_strategies"]
+            if (
+                not isinstance(max_strategies, int)
+                or max_strategies < 1
+                or max_strategies > 7
+            ):
+                return False
+
+        return True
 
     async def generate_ideas(
         self, request: IdeaGenerationRequest

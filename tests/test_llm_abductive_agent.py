@@ -46,11 +46,9 @@ class TestLLMAbductiveAgent:
         """Test configuration validation."""
         agent = LLMAbductiveAgent()
 
-        # Valid config
+        # Valid config with supported key
         valid_config = {
-            "abductive_strategy": "causal_inference",
-            "creativity_level": "high",
-            "use_analogies": True,
+            "max_strategies": 3,
         }
         assert agent.validate_config(valid_config) is True
 
@@ -60,6 +58,18 @@ class TestLLMAbductiveAgent:
             "another_invalid": True,
         }
         assert agent.validate_config(invalid_config) is False
+
+        # Invalid max_strategies value (too high)
+        invalid_max_config = {
+            "max_strategies": 10,
+        }
+        assert agent.validate_config(invalid_max_config) is False
+
+        # Invalid max_strategies value (negative)
+        invalid_negative_config = {
+            "max_strategies": -1,
+        }
+        assert agent.validate_config(invalid_negative_config) is False
 
         # Empty config should be valid
         assert agent.validate_config({}) is True
