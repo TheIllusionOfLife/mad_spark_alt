@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import aiohttp
 from pydantic import BaseModel, Field
@@ -23,7 +23,7 @@ from .retry import (
     ErrorType,
     LLMError,
     RetryConfig,
-    safe_aiohttp_request
+    safe_aiohttp_request,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 class LLMProvider(Enum):
     """Supported LLM providers."""
+
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
@@ -38,6 +39,7 @@ class LLMProvider(Enum):
 
 class ModelSize(Enum):
     """Model size categories for cost estimation."""
+
     SMALL = "small"
     MEDIUM = "medium"
     LARGE = "large"
@@ -47,6 +49,7 @@ class ModelSize(Enum):
 @dataclass
 class UsageStats:
     """Track LLM usage statistics."""
+
     provider: LLMProvider
     model: str
     input_tokens: int = 0
@@ -67,6 +70,7 @@ class UsageStats:
 @dataclass
 class RateLimitConfig:
     """Rate limiting configuration."""
+
     requests_per_minute: int = 60
     tokens_per_minute: int = 150000
     max_concurrent_requests: int = 10
@@ -75,6 +79,7 @@ class RateLimitConfig:
 @dataclass
 class ModelConfig:
     """Configuration for a specific model."""
+
     provider: LLMProvider
     model_name: str
     model_size: ModelSize
@@ -87,6 +92,7 @@ class ModelConfig:
 
 class LLMRequest(BaseModel):
     """Request structure for LLM calls."""
+
     system_prompt: Optional[str] = None
     user_prompt: str
     max_tokens: int = 1000
@@ -98,6 +104,7 @@ class LLMRequest(BaseModel):
 
 class LLMResponse(BaseModel):
     """Response structure from LLM calls."""
+
     content: str
     provider: LLMProvider
     model: str
@@ -116,7 +123,9 @@ class LLMProviderInterface(ABC):
         pass
 
     @abstractmethod
-    def calculate_cost(self, input_tokens: int, output_tokens: int, model_config: ModelConfig) -> float:
+    def calculate_cost(
+        self, input_tokens: int, output_tokens: int, model_config: ModelConfig
+    ) -> float:
         """Calculate the cost for a request."""
         pass
 
@@ -132,32 +141,34 @@ class RateLimiter:
     def __init__(self, config: RateLimitConfig):
         self.config = config
         self.request_times: List[float] = []
-        self.token_usage: List[tuple[float, int]] = []  # (timestamp, tokens)
+        self.token_usage: List[Tuple[float, int]] = []  # (timestamp, tokens)
         self._semaphore = asyncio.Semaphore(config.max_concurrent_requests)
 
     async def acquire(self, estimated_tokens: int = 1000) -> None:
         """Acquire rate limit permission."""
         await self._semaphore.acquire()
-        
+
         now = time.time()
         minute_ago = now - 60
-        
+
         # Clean old entries
         self.request_times = [t for t in self.request_times if t > minute_ago]
-        self.token_usage = [(t, tokens) for t, tokens in self.token_usage if t > minute_ago]
-        
+        self.token_usage = [
+            (t, tokens) for t, tokens in self.token_usage if t > minute_ago
+        ]
+
         # Check rate limits
         if len(self.request_times) >= self.config.requests_per_minute:
             sleep_time = 60 - (now - self.request_times[0])
             if sleep_time > 0:
                 await asyncio.sleep(sleep_time)
-        
+
         current_tokens = sum(tokens for _, tokens in self.token_usage)
         if current_tokens + estimated_tokens > self.config.tokens_per_minute:
             sleep_time = 60 - (now - self.token_usage[0][0])
             if sleep_time > 0:
                 await asyncio.sleep(sleep_time)
-        
+
         # Record this request
         self.request_times.append(now)
         self.token_usage.append((now, estimated_tokens))
@@ -182,7 +193,7 @@ class OpenAIProvider(LLMProviderInterface):
         if self._session is None or self._session.closed:
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
             self._session = aiohttp.ClientSession(headers=headers)
         return self._session
@@ -190,14 +201,18 @@ class OpenAIProvider(LLMProviderInterface):
     async def generate(self, request: LLMRequest) -> LLMResponse:
         """Generate text using OpenAI API."""
         session = await self._get_session()
-        
+
         messages = []
         if request.system_prompt:
             messages.append({"role": "system", "content": request.system_prompt})
         messages.append({"role": "user", "content": request.user_prompt})
-        
-        model_name = request.model_configuration.model_name if request.model_configuration else "gpt-4o-mini"
-        
+
+        model_name = (
+            request.model_configuration.model_name
+            if request.model_configuration
+            else "gpt-4o-mini"
+        )
+
         payload = {
             "model": model_name,
             "messages": messages,
@@ -205,12 +220,12 @@ class OpenAIProvider(LLMProviderInterface):
             "temperature": request.temperature,
             "top_p": request.top_p,
         }
-        
+
         if request.stop_sequences:
             payload["stop"] = request.stop_sequences
 
         start_time = time.time()
-        
+
         try:
             data = await safe_aiohttp_request(
                 session=session,
@@ -219,21 +234,24 @@ class OpenAIProvider(LLMProviderInterface):
                 json=payload,
                 retry_config=self.retry_config,
                 circuit_breaker=self.circuit_breaker,
-                timeout=30
+                timeout=30,
             )
-            
+
             response_time = time.time() - start_time
-            
+
             content = data["choices"][0]["message"]["content"]
             usage = data.get("usage", {})
-            
-            model_config = request.model_configuration or self._get_default_model_config(model_name)
+
+            model_config = (
+                request.model_configuration
+                or self._get_default_model_config(model_name)
+            )
             cost = self.calculate_cost(
                 usage.get("prompt_tokens", 0),
                 usage.get("completion_tokens", 0),
-                model_config
+                model_config,
             )
-            
+
             return LLMResponse(
                 content=content,
                 provider=LLMProvider.OPENAI,
@@ -241,16 +259,18 @@ class OpenAIProvider(LLMProviderInterface):
                 usage=usage,
                 cost=cost,
                 response_time=response_time,
-                metadata={"choices": len(data["choices"])}
+                metadata={"choices": len(data["choices"])},
             )
-                
+
         except LLMError:
             raise
         except Exception as e:
             logger.error(f"Unexpected error in OpenAI request: {e}")
             raise LLMError(f"OpenAI request failed: {str(e)}", ErrorType.UNKNOWN)
 
-    def calculate_cost(self, input_tokens: int, output_tokens: int, model_config: ModelConfig) -> float:
+    def calculate_cost(
+        self, input_tokens: int, output_tokens: int, model_config: ModelConfig
+    ) -> float:
         """Calculate cost for OpenAI request."""
         input_cost = (input_tokens / 1000) * model_config.input_cost_per_1k
         output_cost = (output_tokens / 1000) * model_config.output_cost_per_1k
@@ -265,7 +285,7 @@ class OpenAIProvider(LLMProviderInterface):
                 model_size=ModelSize.LARGE,
                 input_cost_per_1k=0.005,
                 output_cost_per_1k=0.015,
-                max_tokens=128000
+                max_tokens=128000,
             ),
             ModelConfig(
                 provider=LLMProvider.OPENAI,
@@ -273,7 +293,7 @@ class OpenAIProvider(LLMProviderInterface):
                 model_size=ModelSize.SMALL,
                 input_cost_per_1k=0.00015,
                 output_cost_per_1k=0.0006,
-                max_tokens=128000
+                max_tokens=128000,
             ),
             ModelConfig(
                 provider=LLMProvider.OPENAI,
@@ -281,7 +301,7 @@ class OpenAIProvider(LLMProviderInterface):
                 model_size=ModelSize.LARGE,
                 input_cost_per_1k=0.01,
                 output_cost_per_1k=0.03,
-                max_tokens=128000
+                max_tokens=128000,
             ),
         ]
 
@@ -312,7 +332,7 @@ class AnthropicProvider(LLMProviderInterface):
             headers = {
                 "x-api-key": self.api_key,
                 "Content-Type": "application/json",
-                "anthropic-version": "2023-06-01"
+                "anthropic-version": "2023-06-01",
             }
             self._session = aiohttp.ClientSession(headers=headers)
         return self._session
@@ -320,9 +340,13 @@ class AnthropicProvider(LLMProviderInterface):
     async def generate(self, request: LLMRequest) -> LLMResponse:
         """Generate text using Anthropic API."""
         session = await self._get_session()
-        
-        model_name = request.model_configuration.model_name if request.model_configuration else "claude-3-haiku-20240307"
-        
+
+        model_name = (
+            request.model_configuration.model_name
+            if request.model_configuration
+            else "claude-3-haiku-20240307"
+        )
+
         payload = {
             "model": model_name,
             "max_tokens": request.max_tokens,
@@ -330,15 +354,15 @@ class AnthropicProvider(LLMProviderInterface):
             "top_p": request.top_p,
             "messages": [{"role": "user", "content": request.user_prompt}],
         }
-        
+
         if request.system_prompt:
             payload["system"] = request.system_prompt
-        
+
         if request.stop_sequences:
             payload["stop_sequences"] = request.stop_sequences
 
         start_time = time.time()
-        
+
         try:
             data = await safe_aiohttp_request(
                 session=session,
@@ -347,21 +371,24 @@ class AnthropicProvider(LLMProviderInterface):
                 json=payload,
                 retry_config=self.retry_config,
                 circuit_breaker=self.circuit_breaker,
-                timeout=30
+                timeout=30,
             )
-            
+
             response_time = time.time() - start_time
-            
+
             content = data["content"][0]["text"]
             usage = data.get("usage", {})
-            
-            model_config = request.model_configuration or self._get_default_model_config(model_name)
+
+            model_config = (
+                request.model_configuration
+                or self._get_default_model_config(model_name)
+            )
             cost = self.calculate_cost(
                 usage.get("input_tokens", 0),
                 usage.get("output_tokens", 0),
-                model_config
+                model_config,
             )
-            
+
             return LLMResponse(
                 content=content,
                 provider=LLMProvider.ANTHROPIC,
@@ -369,16 +396,18 @@ class AnthropicProvider(LLMProviderInterface):
                 usage=usage,
                 cost=cost,
                 response_time=response_time,
-                metadata={"stop_reason": data.get("stop_reason")}
+                metadata={"stop_reason": data.get("stop_reason")},
             )
-                
+
         except LLMError:
             raise
         except Exception as e:
             logger.error(f"Unexpected error in Anthropic request: {e}")
             raise LLMError(f"Anthropic request failed: {str(e)}", ErrorType.UNKNOWN)
 
-    def calculate_cost(self, input_tokens: int, output_tokens: int, model_config: ModelConfig) -> float:
+    def calculate_cost(
+        self, input_tokens: int, output_tokens: int, model_config: ModelConfig
+    ) -> float:
         """Calculate cost for Anthropic request."""
         input_cost = (input_tokens / 1000) * model_config.input_cost_per_1k
         output_cost = (output_tokens / 1000) * model_config.output_cost_per_1k
@@ -393,7 +422,7 @@ class AnthropicProvider(LLMProviderInterface):
                 model_size=ModelSize.XLARGE,
                 input_cost_per_1k=0.015,
                 output_cost_per_1k=0.075,
-                max_tokens=200000
+                max_tokens=200000,
             ),
             ModelConfig(
                 provider=LLMProvider.ANTHROPIC,
@@ -401,7 +430,7 @@ class AnthropicProvider(LLMProviderInterface):
                 model_size=ModelSize.LARGE,
                 input_cost_per_1k=0.003,
                 output_cost_per_1k=0.015,
-                max_tokens=200000
+                max_tokens=200000,
             ),
             ModelConfig(
                 provider=LLMProvider.ANTHROPIC,
@@ -409,7 +438,7 @@ class AnthropicProvider(LLMProviderInterface):
                 model_size=ModelSize.SMALL,
                 input_cost_per_1k=0.00025,
                 output_cost_per_1k=0.00125,
-                max_tokens=200000
+                max_tokens=200000,
             ),
         ]
 
@@ -427,17 +456,21 @@ class AnthropicProvider(LLMProviderInterface):
 class LLMManager:
     """Central manager for LLM providers with cost tracking and rate limiting."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.providers: Dict[LLMProvider, LLMProviderInterface] = {}
         self.usage_stats: Dict[str, UsageStats] = {}  # key: provider:model
         self.rate_limiters: Dict[LLMProvider, RateLimiter] = {}
         self.default_configs: Dict[LLMProvider, ModelConfig] = {}
 
-    def register_provider(self, provider: LLMProvider, instance: LLMProviderInterface, 
-                         rate_limit_config: Optional[RateLimitConfig] = None) -> None:
+    def register_provider(
+        self,
+        provider: LLMProvider,
+        instance: LLMProviderInterface,
+        rate_limit_config: Optional[RateLimitConfig] = None,
+    ) -> None:
         """Register an LLM provider."""
         self.providers[provider] = instance
-        
+
         if rate_limit_config:
             self.rate_limiters[provider] = RateLimiter(rate_limit_config)
         else:
@@ -445,18 +478,22 @@ class LLMManager:
             default_config = RateLimitConfig()
             self.rate_limiters[provider] = RateLimiter(default_config)
 
-    def set_default_model(self, provider: LLMProvider, model_config: ModelConfig) -> None:
+    def set_default_model(
+        self, provider: LLMProvider, model_config: ModelConfig
+    ) -> None:
         """Set default model configuration for a provider."""
         self.default_configs[provider] = model_config
 
-    async def generate(self, request: LLMRequest, provider: Optional[LLMProvider] = None) -> LLMResponse:
+    async def generate(
+        self, request: LLMRequest, provider: Optional[LLMProvider] = None
+    ) -> LLMResponse:
         """Generate text using the specified or default provider."""
         if provider is None:
             # Use first available provider
             if not self.providers:
                 raise ValueError("No LLM providers registered")
             provider = next(iter(self.providers.keys()))
-        
+
         if provider not in self.providers:
             raise ValueError(f"Provider {provider} not registered")
 
@@ -474,20 +511,22 @@ class LLMManager:
                 request.model_configuration = self.default_configs[provider]
 
             response = await provider_instance.generate(request)
-            
+
             # Track usage
             stats_key = f"{provider.value}:{response.model}"
             if stats_key not in self.usage_stats:
                 self.usage_stats[stats_key] = UsageStats(provider, response.model)
-            
+
             self.usage_stats[stats_key].add_usage(
-                response.usage.get("prompt_tokens", 0) or response.usage.get("input_tokens", 0),
-                response.usage.get("completion_tokens", 0) or response.usage.get("output_tokens", 0),
-                response.cost
+                response.usage.get("prompt_tokens", 0)
+                or response.usage.get("input_tokens", 0),
+                response.usage.get("completion_tokens", 0)
+                or response.usage.get("output_tokens", 0),
+                response.cost,
             )
-            
+
             return response
-            
+
         finally:
             if rate_limiter:
                 rate_limiter.release()
@@ -503,7 +542,7 @@ class LLMManager:
     async def close(self) -> None:
         """Close all provider sessions."""
         for provider in self.providers.values():
-            if hasattr(provider, 'close'):
+            if hasattr(provider, "close"):
                 await provider.close()
 
 
@@ -515,25 +554,33 @@ async def setup_llm_providers(
     openai_api_key: Optional[str] = None,
     anthropic_api_key: Optional[str] = None,
     google_api_key: Optional[str] = None,
-    rate_limit_config: Optional[RateLimitConfig] = None
+    rate_limit_config: Optional[RateLimitConfig] = None,
 ) -> LLMManager:
     """Setup LLM providers with API keys."""
     if openai_api_key:
         openai_provider = OpenAIProvider(openai_api_key)
-        llm_manager.register_provider(LLMProvider.OPENAI, openai_provider, rate_limit_config)
-        
+        llm_manager.register_provider(
+            LLMProvider.OPENAI, openai_provider, rate_limit_config
+        )
+
         # Set default model for OpenAI
         default_models = openai_provider.get_available_models()
-        llm_manager.set_default_model(LLMProvider.OPENAI, default_models[1])  # gpt-4o-mini
+        llm_manager.set_default_model(
+            LLMProvider.OPENAI, default_models[1]
+        )  # gpt-4o-mini
 
     if anthropic_api_key:
         anthropic_provider = AnthropicProvider(anthropic_api_key)
-        llm_manager.register_provider(LLMProvider.ANTHROPIC, anthropic_provider, rate_limit_config)
-        
+        llm_manager.register_provider(
+            LLMProvider.ANTHROPIC, anthropic_provider, rate_limit_config
+        )
+
         # Set default model for Anthropic
         default_models = anthropic_provider.get_available_models()
-        llm_manager.set_default_model(LLMProvider.ANTHROPIC, default_models[2])  # claude-3-haiku
+        llm_manager.set_default_model(
+            LLMProvider.ANTHROPIC, default_models[2]
+        )  # claude-3-haiku
 
     # TODO: Add Google provider implementation
-    
+
     return llm_manager
