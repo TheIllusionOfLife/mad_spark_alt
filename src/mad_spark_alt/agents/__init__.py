@@ -8,7 +8,7 @@ from .questioning.llm_agent import LLMQuestioningAgent
 
 __all__ = [
     "QuestioningAgent",
-    "LLMQuestioningAgent", 
+    "LLMQuestioningAgent",
     "AbductionAgent",
     "DeductionAgent",
     "InductionAgent",
