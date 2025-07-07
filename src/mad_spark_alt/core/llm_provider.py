@@ -11,7 +11,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -463,6 +463,158 @@ class AnthropicProvider(LLMProviderInterface):
             await self._session.close()
 
 
+class GoogleProvider(LLMProviderInterface):
+    """Google Gemini API provider implementation."""
+
+    def __init__(self, api_key: str, retry_config: Optional[RetryConfig] = None):
+        self.api_key = api_key
+        self.base_url = "https://generativelanguage.googleapis.com/v1beta"
+        self._session: Optional[aiohttp.ClientSession] = None
+        self.retry_config = retry_config or RetryConfig()
+        self.circuit_breaker = CircuitBreaker()
+
+    async def _get_session(self) -> aiohttp.ClientSession:
+        """Get or create aiohttp session."""
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def generate(self, request: LLMRequest) -> LLMResponse:
+        """Generate text using Google Gemini API."""
+        session = await self._get_session()
+
+        # Get model config
+        model_config = request.model_configuration or self._get_default_model_config(
+            "gemini-2.0-flash"
+        )
+
+        # Prepare the request payload
+        url = f"{self.base_url}/models/{model_config.model_name}:generateContent"
+
+        # Build the prompt from system and user prompts
+        prompt_parts = []
+        if request.system_prompt:
+            prompt_parts.append(f"System: {request.system_prompt}")
+        if request.user_prompt:
+            prompt_parts.append(f"User: {request.user_prompt}")
+
+        full_prompt = "\n\n".join(prompt_parts)
+
+        payload = {
+            "contents": [{"parts": [{"text": full_prompt}]}],
+            "generationConfig": {
+                "temperature": request.temperature,
+                "maxOutputTokens": request.max_tokens,
+                "topP": 0.95,
+                "topK": 40,
+            },
+        }
+
+        params = {"key": self.api_key}
+
+        headers = {"Content-Type": "application/json"}
+
+        start_time = time.time()
+
+        try:
+            response_data = await safe_aiohttp_request(
+                session=session,
+                method="POST",
+                url=url,
+                json=payload,
+                params=params,
+                headers=headers,
+                retry_config=self.retry_config,
+                circuit_breaker=self.circuit_breaker,
+                timeout=30,
+            )
+        except Exception as e:
+            raise LLMError(f"Google API request failed: {str(e)}", ErrorType.API_ERROR)
+
+        end_time = time.time()
+
+        # Extract the generated content
+        try:
+            content = response_data["candidates"][0]["content"]["parts"][0]["text"]
+        except (KeyError, IndexError):
+            raise LLMError(
+                "Invalid response format from Google API", ErrorType.API_ERROR
+            )
+
+        # Extract usage information
+        usage_metadata = response_data.get("usageMetadata", {})
+        prompt_tokens = usage_metadata.get("promptTokenCount", 0)
+        completion_tokens = usage_metadata.get("candidatesTokenCount", 0)
+        total_tokens = usage_metadata.get(
+            "totalTokenCount", prompt_tokens + completion_tokens
+        )
+
+        # Calculate cost based on model pricing
+        input_cost = (prompt_tokens / 1000) * model_config.input_cost_per_1k
+        output_cost = (completion_tokens / 1000) * model_config.output_cost_per_1k
+        total_cost = input_cost + output_cost
+
+        return LLMResponse(
+            content=content,
+            provider=LLMProvider.GOOGLE,
+            model=model_config.model_name,
+            usage={
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": total_tokens,
+            },
+            cost=total_cost,
+            response_time=end_time - start_time,
+        )
+
+    def get_available_models(self) -> List[ModelConfig]:
+        """Get available Google models."""
+        return [
+            ModelConfig(
+                provider=LLMProvider.GOOGLE,
+                model_name="gemini-2.0-flash",
+                model_size=ModelSize.LARGE,
+                input_cost_per_1k=0.00001,  # Very low cost for Gemini
+                output_cost_per_1k=0.00002,
+                max_tokens=8192,
+            ),
+            ModelConfig(
+                provider=LLMProvider.GOOGLE,
+                model_name="gemini-1.5-flash",
+                model_size=ModelSize.MEDIUM,
+                input_cost_per_1k=0.000075,
+                output_cost_per_1k=0.0003,
+                max_tokens=8192,
+            ),
+            ModelConfig(
+                provider=LLMProvider.GOOGLE,
+                model_name="gemini-1.5-pro",
+                model_size=ModelSize.LARGE,
+                input_cost_per_1k=0.00125,
+                output_cost_per_1k=0.005,
+                max_tokens=8192,
+            ),
+        ]
+
+    def _get_default_model_config(self, model_name: str) -> ModelConfig:
+        """Get default model config by name."""
+        models = {model.model_name: model for model in self.get_available_models()}
+        return models.get(model_name, models["gemini-2.0-flash"])
+
+    def calculate_cost(
+        self, prompt_tokens: int, completion_tokens: int, model_config: ModelConfig
+    ) -> float:
+        """Calculate cost based on token usage and model pricing."""
+        input_cost = (prompt_tokens / 1000) * model_config.input_cost_per_1k
+        output_cost = (completion_tokens / 1000) * model_config.output_cost_per_1k
+        return input_cost + output_cost
+
+    async def close(self) -> None:
+        """Close the session."""
+        if self._session and not self._session.closed:
+            await self._session.close()
+
+
 class LLMManager:
     """Central manager for LLM providers with cost tracking and rate limiting."""
 
@@ -595,6 +747,18 @@ async def setup_llm_providers(
         )
         llm_manager.set_default_model(LLMProvider.ANTHROPIC, default_model)
 
-    # TODO: Add Google provider implementation
+    if google_api_key:
+        google_provider = GoogleProvider(google_api_key)
+        llm_manager.register_provider(
+            LLMProvider.GOOGLE, google_provider, rate_limit_config
+        )
+
+        # Set default model for Google
+        default_models = google_provider.get_available_models()
+        default_model = next(
+            (m for m in default_models if m.model_name == "gemini-2.0-flash"),
+            default_models[0],  # Fallback to first model if gemini-2.0-flash not found
+        )
+        llm_manager.set_default_model(LLMProvider.GOOGLE, default_model)
 
     return llm_manager

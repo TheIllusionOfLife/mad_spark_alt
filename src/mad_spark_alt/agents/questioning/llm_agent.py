@@ -20,6 +20,7 @@ from ...core.interfaces import (
     ThinkingAgentInterface,
     ThinkingMethod,
 )
+from ...core.json_utils import safe_json_parse, parse_json_list
 from ...core.llm_provider import (
     LLMManager,
     LLMProvider,
@@ -77,6 +78,11 @@ class LLMQuestioningAgent(ThinkingAgentInterface):
     def supported_output_types(self) -> List[OutputType]:
         """Output types this agent can work with."""
         return [OutputType.TEXT, OutputType.STRUCTURED]
+
+    @property
+    def is_llm_powered(self) -> bool:
+        """Whether this agent uses LLM services for generation."""
+        return True
 
     def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate that the configuration is valid for this agent."""
@@ -207,15 +213,24 @@ Analyze this problem and provide the domain analysis in the specified JSON forma
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
 
-            # Parse JSON response
-            analysis = json.loads(response.content)
+            # Parse JSON response with robust extraction
+
+            fallback_analysis = {
+                "domain": "general",
+                "complexity_level": "medium",
+                "problem_type": "ill_defined",
+                "stakeholder_groups": ["users", "stakeholders"],
+                "interdisciplinary": True,
+            }
+
+            analysis = safe_json_parse(response.content, fallback_analysis)
             analysis["llm_cost"] = response.cost
 
             return analysis
 
-        except json.JSONDecodeError:
-            # Fallback to basic analysis if JSON parsing fails
-            logger.warning("Failed to parse domain analysis JSON, using fallback")
+        except Exception as e:
+            # Fallback to basic analysis if any error occurs
+            logger.warning(f"Domain analysis failed, using fallback: {e}")
             return {
                 "domain": "general",
                 "complexity_level": "medium",
@@ -223,9 +238,6 @@ Analyze this problem and provide the domain analysis in the specified JSON forma
                 "stakeholder_groups": ["users", "stakeholders"],
                 "interdisciplinary": True,
             }
-        except Exception as e:
-            logger.error(f"Domain analysis failed: {e}")
-            return {"domain": "general", "complexity_level": "unknown"}
 
     def _load_questioning_strategies(self) -> Dict[str, Dict[str, Any]]:
         """Load different questioning strategies and their configurations."""
@@ -360,12 +372,12 @@ Generate 3-5 high-quality questions that:
 5. Consider the complexity level and stakeholder perspectives
 
 Format your response as a JSON array of objects, each containing:
-{
+{{
     "question": "the actual question text",
     "reasoning": "why this question is important and how it applies the strategy",
     "focus_area": "specific aspect this question targets",
     "stakeholder_relevance": "which stakeholders this question most affects"
-}"""
+}}"""
 
         user_prompt = f"""Problem Statement: {problem_statement}
 
@@ -383,8 +395,9 @@ Using the {strategy_name} approach, generate insightful questions that will help
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
 
-            # Parse JSON response
-            questions_data = json.loads(response.content)
+            # Parse JSON response with robust extraction
+
+            questions_data = parse_json_list(response.content, [])
 
             generated_questions = []
             # Distribute cost across all generated questions from this API call
@@ -475,7 +488,8 @@ Rank these questions from best to worst based on the evaluation criteria."""
             )
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
-            rankings = json.loads(response.content)
+
+            rankings = parse_json_list(response.content, list(range(len(questions))))
 
             # Select top questions based on rankings
             selected_questions = []

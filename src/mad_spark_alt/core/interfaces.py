@@ -177,6 +177,11 @@ class ThinkingAgentInterface(ABC):
         """Output types this agent can work with."""
         pass
 
+    @property
+    def is_llm_powered(self) -> bool:
+        """Whether this agent uses LLM services for generation."""
+        return False
+
     @abstractmethod
     async def generate_ideas(
         self, request: IdeaGenerationRequest

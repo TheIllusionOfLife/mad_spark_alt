@@ -1,17 +1,6 @@
 """Core evaluation system components and idea generation framework."""
 
 from .evaluator import CreativityEvaluator, EvaluationSummary
-from .llm_provider import (
-    LLMManager,
-    LLMProvider,
-    LLMRequest,
-    LLMResponse,
-    ModelConfig,
-    RateLimitConfig,
-    UsageStats,
-    llm_manager,
-    setup_llm_providers,
-)
 from .interfaces import (  # New idea generation interfaces
     AsyncEvaluatorInterface,
     CacheableEvaluatorInterface,
@@ -28,6 +17,17 @@ from .interfaces import (  # New idea generation interfaces
     ThinkingAgentInterface,
     ThinkingMethod,
 )
+from .llm_provider import (
+    LLMManager,
+    LLMProvider,
+    LLMRequest,
+    LLMResponse,
+    ModelConfig,
+    RateLimitConfig,
+    UsageStats,
+    llm_manager,
+    setup_llm_providers,
+)
 from .orchestrator import QADICycleResult, QADIOrchestrator
 from .registry import (
     EvaluatorRegistry,
@@ -37,6 +37,13 @@ from .registry import (
     register_evaluator,
     registry,
     unified_registry,
+)
+from .smart_orchestrator import SmartQADICycleResult, SmartQADIOrchestrator
+from .smart_registry import (
+    SmartAgentRegistry,
+    get_smart_agent,
+    setup_smart_agents,
+    smart_registry,
 )
 
 __all__ = [
@@ -73,9 +80,16 @@ __all__ = [
     "IdeaGenerationResult",
     "QADIOrchestrator",
     "QADICycleResult",
+    "SmartQADIOrchestrator",
+    "SmartQADICycleResult",
     # Agent registry system
     "ThinkingAgentRegistry",
     "agent_registry",
     "register_agent",
     "unified_registry",
+    # Smart registry system
+    "SmartAgentRegistry",
+    "smart_registry",
+    "setup_smart_agents",
+    "get_smart_agent",
 ]

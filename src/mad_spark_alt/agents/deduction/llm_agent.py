@@ -19,6 +19,7 @@ from ...core.interfaces import (
     ThinkingAgentInterface,
     ThinkingMethod,
 )
+from ...core.json_utils import safe_json_parse, parse_json_list
 from ...core.llm_provider import (
     LLMManager,
     LLMProvider,
@@ -76,6 +77,11 @@ class LLMDeductiveAgent(ThinkingAgentInterface):
     def supported_output_types(self) -> List[OutputType]:
         """Output types this agent can work with."""
         return [OutputType.TEXT, OutputType.STRUCTURED]
+
+    @property
+    def is_llm_powered(self) -> bool:
+        """Whether this agent uses LLM services for generation."""
+        return True
 
     def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate that the configuration is valid for this agent."""
@@ -229,30 +235,31 @@ Analyze this problem to identify its logical structure, requirements, and the ty
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
 
-            # Parse JSON response
-            analysis = json.loads(response.content)
+            # Parse JSON response with robust extraction
+
+            fallback_analysis = {
+                "logical_complexity": "moderate",
+                "problem_type": "semi_structured",
+                "evidence_base": "moderate",
+                "formal_logic_applicable": False,
+                "reasoning_chain_depth": "moderate",
+                "systematic_analysis_scope": ["validation", "consistency"],
+            }
+            analysis = safe_json_parse(response.content, fallback_analysis)
             analysis["llm_cost"] = response.cost
 
             return analysis
 
-        except json.JSONDecodeError:
-            # Fallback to basic analysis if JSON parsing fails
-            logger.warning("Failed to parse logical analysis JSON, using fallback")
+        except Exception as e:
+            logger.error(f"Logical structure analysis failed: {e}")
             return {
                 "logical_complexity": "moderate",
                 "problem_type": "semi_structured",
                 "evidence_base": "moderate",
+                "formal_logic_applicable": False,
                 "reasoning_chain_depth": "moderate",
-                "formal_logic_applicable": True,
-                "systematic_analysis_scope": [
-                    "requirements",
-                    "validation",
-                    "consequences",
-                ],
+                "systematic_analysis_scope": ["validation", "consistency"],
             }
-        except Exception as e:
-            logger.error(f"Logical structure analysis failed: {e}")
-            return {"logical_complexity": "unknown", "problem_type": "unknown"}
 
     def _load_deductive_frameworks(self) -> Dict[str, Dict[str, Any]]:
         """Load different deductive reasoning frameworks and their configurations."""
@@ -425,8 +432,9 @@ Using {framework_name} deductive reasoning, generate systematic logical analyses
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
 
-            # Parse JSON response
-            analyses_data = json.loads(response.content)
+            # Parse JSON response with robust extraction
+
+            analyses_data = parse_json_list(response.content, [])
 
             generated_analyses = []
             # Distribute cost across all generated analyses from this API call
@@ -528,7 +536,8 @@ Rank these logical analyses from best to worst based on the evaluation criteria.
             )
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
-            rankings = json.loads(response.content)
+
+            rankings = parse_json_list(response.content, list(range(len(analyses))))
 
             # Select top analyses based on rankings
             selected_analyses = []

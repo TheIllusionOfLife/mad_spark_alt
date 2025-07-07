@@ -225,6 +225,36 @@ class ThinkingAgentRegistry:
 
         logger.info(f"Registered thinking agent: {name}")
 
+    def register_instance(
+        self, method: ThinkingMethod, agent_instance: ThinkingAgentInterface
+    ) -> None:
+        """
+        Register a thinking agent instance directly for a specific method.
+
+        This is useful when you need to register an agent with specific configuration
+        (like a preferred LLM provider) that can't be created through the normal
+        class-based registration.
+
+        Args:
+            method: The thinking method this agent handles
+            agent_instance: The pre-configured agent instance
+        """
+        name = agent_instance.name
+
+        # Register the class if not already registered
+        if name not in self._agents:
+            self._agents[name] = type(agent_instance)
+            # Update indices
+            self._method_index[method].add(name)
+            for output_type in agent_instance.supported_output_types:
+                self._output_type_index[output_type].add(name)
+
+        # Store the specific instance
+        self._instances[name] = agent_instance
+        logger.info(
+            f"Registered thinking agent instance: {name} for method {method.value}"
+        )
+
     def get_agent(self, name: str) -> Optional[ThinkingAgentInterface]:
         """
         Get a thinking agent instance by name.

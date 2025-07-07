@@ -6,18 +6,19 @@ hypothesis generation strategies, and error handling.
 """
 
 import json
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from mad_spark_alt.agents.abduction.llm_agent import LLMAbductiveAgent
 from mad_spark_alt.core.interfaces import (
     GeneratedIdea,
     IdeaGenerationRequest,
-    ThinkingMethod,
     OutputType,
+    ThinkingMethod,
 )
-from mad_spark_alt.core.llm_provider import LLMManager, LLMResponse, LLMProvider
+from mad_spark_alt.core.llm_provider import LLMManager, LLMProvider, LLMResponse
 
 
 class TestLLMAbductiveAgent:

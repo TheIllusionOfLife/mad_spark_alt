@@ -5,16 +5,17 @@ This module tests the LLM-based inductive reasoning functionality,
 pattern synthesis methods, and error handling.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from mad_spark_alt.agents.induction.llm_agent import LLMInductiveAgent
 from mad_spark_alt.core.interfaces import (
     IdeaGenerationRequest,
-    ThinkingMethod,
     OutputType,
+    ThinkingMethod,
 )
-from mad_spark_alt.core.llm_provider import LLMManager, LLMResponse, LLMProvider
+from mad_spark_alt.core.llm_provider import LLMManager, LLMProvider, LLMResponse
 
 
 class TestLLMInductiveAgent:
@@ -358,8 +359,9 @@ class TestLLMInductiveAgent:
         for i, method in enumerate(
             ["pattern_synthesis", "principle_extraction", "creative_synthesis"]
         ):
-            from mad_spark_alt.core.interfaces import GeneratedIdea
             from datetime import datetime
+
+            from mad_spark_alt.core.interfaces import GeneratedIdea
 
             idea = GeneratedIdea(
                 content=f"Test insight {i+1}",

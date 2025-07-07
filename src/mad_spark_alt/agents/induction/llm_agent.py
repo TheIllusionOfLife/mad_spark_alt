@@ -19,6 +19,7 @@ from ...core.interfaces import (
     ThinkingAgentInterface,
     ThinkingMethod,
 )
+from ...core.json_utils import safe_json_parse, parse_json_list
 from ...core.llm_provider import (
     LLMManager,
     LLMProvider,
@@ -76,6 +77,11 @@ class LLMInductiveAgent(ThinkingAgentInterface):
     def supported_output_types(self) -> List[OutputType]:
         """Output types this agent can work with."""
         return [OutputType.TEXT, OutputType.STRUCTURED]
+
+    @property
+    def is_llm_powered(self) -> bool:
+        """Whether this agent uses LLM services for generation."""
+        return True
 
     def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate that the configuration is valid for this agent."""
@@ -224,29 +230,35 @@ Analyze this problem to identify patterns, synthesis opportunities, and the pote
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
 
-            # Parse JSON response
-            analysis = json.loads(response.content)
+            # Parse JSON response with robust extraction
+
+            fallback_analysis = {
+                "data_richness": "moderate",
+                "pattern_visibility": "subtle",
+                "pattern_diversity": "medium",
+                "observation_scope": "comprehensive",
+                "synthesis_opportunities": ["commonalities", "trends"],
+                "inductive_strength": "moderate",
+                "generalization_potential": "medium",
+                "insight_opportunities": ["pattern_recognition", "trend_analysis"],
+            }
+            analysis = safe_json_parse(response.content, fallback_analysis)
             analysis["llm_cost"] = response.cost
 
             return analysis
 
-        except json.JSONDecodeError:
-            # Fallback to basic analysis if JSON parsing fails
-            logger.warning("Failed to parse synthesis context JSON, using fallback")
+        except Exception as e:
+            logger.error(f"Synthesis context analysis failed: {e}")
             return {
                 "data_richness": "moderate",
                 "pattern_visibility": "subtle",
-                "synthesis_complexity": "moderate",
+                "pattern_diversity": "medium",
+                "observation_scope": "comprehensive",
+                "synthesis_opportunities": ["commonalities", "trends"],
+                "inductive_strength": "moderate",
                 "generalization_potential": "medium",
-                "insight_opportunities": [
-                    "pattern_recognition",
-                    "principle_extraction",
-                ],
-                "synthesis_depth_needed": "moderate",
+                "insight_opportunities": ["pattern_recognition", "trend_analysis"],
             }
-        except Exception as e:
-            logger.error(f"Synthesis context analysis failed: {e}")
-            return {"data_richness": "unknown", "synthesis_complexity": "unknown"}
 
     def _load_inductive_methods(self) -> Dict[str, Dict[str, Any]]:
         """Load different inductive reasoning methods and their configurations."""
@@ -418,8 +430,9 @@ Using {method_name} inductive reasoning, synthesize insights that identify patte
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
 
-            # Parse JSON response
-            insights_data = json.loads(response.content)
+            # Parse JSON response with robust extraction
+
+            insights_data = parse_json_list(response.content, [])
 
             generated_insights = []
             # Distribute cost across all generated insights from this API call
@@ -518,7 +531,8 @@ Rank these insights from best to worst based on the evaluation criteria."""
             )
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
-            rankings = json.loads(response.content)
+
+            rankings = parse_json_list(response.content, list(range(len(insights))))
 
             # Select top insights based on rankings
             selected_insights = []

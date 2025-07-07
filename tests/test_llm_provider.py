@@ -6,10 +6,12 @@ cost tracking, and error handling functionality.
 """
 
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from mad_spark_alt.core.llm_provider import (
+    AnthropicProvider,
     LLMManager,
     LLMProvider,
     LLMRequest,
@@ -17,12 +19,11 @@ from mad_spark_alt.core.llm_provider import (
     ModelConfig,
     ModelSize,
     OpenAIProvider,
-    AnthropicProvider,
     RateLimitConfig,
     RateLimiter,
     UsageStats,
 )
-from mad_spark_alt.core.retry import LLMError, ErrorType
+from mad_spark_alt.core.retry import ErrorType, LLMError
 
 
 class TestLLMProvider:

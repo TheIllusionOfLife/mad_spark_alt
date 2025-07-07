@@ -20,12 +20,13 @@ from ...core.interfaces import (
     ThinkingAgentInterface,
     ThinkingMethod,
 )
+from ...core.json_utils import safe_json_parse, parse_json_list
 from ...core.llm_provider import (
     LLMManager,
     LLMProvider,
     LLMRequest,
-    llm_manager as default_llm_manager,
 )
+from ...core.llm_provider import llm_manager as default_llm_manager
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,11 @@ class LLMAbductiveAgent(ThinkingAgentInterface):
     def supported_output_types(self) -> List[OutputType]:
         """Output types this agent can work with."""
         return [OutputType.TEXT, OutputType.STRUCTURED]
+
+    @property
+    def is_llm_powered(self) -> bool:
+        """Whether this agent uses LLM services for generation."""
+        return True
 
     def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate that the configuration is valid for this agent."""
@@ -233,28 +239,41 @@ Analyze this problem to identify characteristics that will inform abductive hypo
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
 
-            # Parse JSON response
-            analysis = json.loads(response.content)
+            # Parse JSON response with robust extraction
+
+            fallback_analysis = {
+                "domain": "general",
+                "problem_nature": "ill_structured",
+                "evidence_availability": "moderate",
+                "causal_complexity": "complex",
+                "analogical_domains": ["general"],
+                "pattern_indicators": ["complexity", "uncertainty"],
+                "uncertainty_level": "medium",
+                "stakeholder_impact": "direct",
+                "temporal_dynamics": "evolving",
+                "potential_biases": ["confirmation_bias"],
+                "abductive_opportunities": ["hypothesis_generation", "creative_leaps"],
+            }
+            analysis = safe_json_parse(response.content, fallback_analysis)
             analysis["llm_cost"] = response.cost
 
             return analysis
 
-        except json.JSONDecodeError:
-            # Fallback to basic analysis if JSON parsing fails
-            logger.warning("Failed to parse context analysis JSON, using fallback")
+        except Exception as e:
+            logger.error(f"Context analysis failed: {e}")
             return {
                 "domain": "general",
                 "problem_nature": "ill_structured",
+                "evidence_availability": "moderate",
                 "causal_complexity": "complex",
-                "uncertainty_level": "high",
-                "abductive_opportunities": [
-                    "causal_exploration",
-                    "pattern_recognition",
-                ],
+                "analogical_domains": ["general"],
+                "pattern_indicators": ["complexity", "uncertainty"],
+                "uncertainty_level": "medium",
+                "stakeholder_impact": "direct",
+                "temporal_dynamics": "evolving",
+                "potential_biases": ["confirmation_bias"],
+                "abductive_opportunities": ["hypothesis_generation", "creative_leaps"],
             }
-        except Exception as e:
-            logger.error(f"Context analysis failed: {e}")
-            return {"domain": "general", "uncertainty_level": "unknown"}
 
     def _load_abductive_strategies(self) -> Dict[str, Dict[str, Any]]:
         """Load different abductive reasoning strategies and their configurations."""
@@ -425,8 +444,9 @@ Using {strategy_name} abductive reasoning, generate creative hypotheses that cou
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
 
-            # Parse JSON response
-            hypotheses_data = json.loads(response.content)
+            # Parse JSON response with robust extraction
+
+            hypotheses_data = parse_json_list(response.content, [])
 
             generated_hypotheses = []
             # Distribute cost across all generated hypotheses from this API call
@@ -528,7 +548,8 @@ Rank these hypotheses from best to worst based on the evaluation criteria."""
             )
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
-            rankings = json.loads(response.content)
+
+            rankings = parse_json_list(response.content, list(range(len(hypotheses))))
 
             # Select top hypotheses based on rankings
             selected_hypotheses: List[GeneratedIdea] = []
