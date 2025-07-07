@@ -19,6 +19,7 @@ from ...core.interfaces import (
     ThinkingAgentInterface,
     ThinkingMethod,
 )
+from ...core.json_utils import safe_json_parse, parse_json_list
 from ...core.llm_provider import (
     LLMManager,
     LLMProvider,
@@ -230,7 +231,6 @@ Analyze this problem to identify its logical structure, requirements, and the ty
             response = await self.llm_manager.generate(request, self.preferred_provider)
 
             # Parse JSON response with robust extraction
-            from ...core.json_utils import safe_json_parse
 
             fallback_analysis = {
                 "logical_complexity": "moderate",
@@ -428,7 +428,6 @@ Using {framework_name} deductive reasoning, generate systematic logical analyses
             response = await self.llm_manager.generate(request, self.preferred_provider)
 
             # Parse JSON response with robust extraction
-            from ...core.json_utils import parse_json_list
 
             analyses_data = parse_json_list(response.content, [])
 
@@ -532,7 +531,6 @@ Rank these logical analyses from best to worst based on the evaluation criteria.
             )
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
-            from ...core.json_utils import parse_json_list
 
             rankings = parse_json_list(response.content, list(range(len(analyses))))
 

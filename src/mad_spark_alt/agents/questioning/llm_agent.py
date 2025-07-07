@@ -20,6 +20,7 @@ from ...core.interfaces import (
     ThinkingAgentInterface,
     ThinkingMethod,
 )
+from ...core.json_utils import safe_json_parse, parse_json_list
 from ...core.llm_provider import (
     LLMManager,
     LLMProvider,
@@ -208,7 +209,6 @@ Analyze this problem and provide the domain analysis in the specified JSON forma
             response = await self.llm_manager.generate(request, self.preferred_provider)
 
             # Parse JSON response with robust extraction
-            from ...core.json_utils import safe_json_parse
 
             fallback_analysis = {
                 "domain": "general",
@@ -391,7 +391,6 @@ Using the {strategy_name} approach, generate insightful questions that will help
             response = await self.llm_manager.generate(request, self.preferred_provider)
 
             # Parse JSON response with robust extraction
-            from ...core.json_utils import parse_json_list
 
             questions_data = parse_json_list(response.content, [])
 
@@ -484,7 +483,6 @@ Rank these questions from best to worst based on the evaluation criteria."""
             )
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
-            from ...core.json_utils import parse_json_list
 
             rankings = parse_json_list(response.content, list(range(len(questions))))
 
