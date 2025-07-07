@@ -224,8 +224,8 @@ Analyze this problem and provide the domain analysis in the specified JSON forma
             return analysis
 
         except Exception as e:
-            # Fallback to basic analysis if parsing fails
-            logger.warning(f"Failed to parse domain analysis JSON, using fallback: {e}")
+            # Fallback to basic analysis if any error occurs
+            logger.warning(f"Domain analysis failed, using fallback: {e}")
             return {
                 "domain": "general",
                 "complexity_level": "medium",
@@ -233,9 +233,6 @@ Analyze this problem and provide the domain analysis in the specified JSON forma
                 "stakeholder_groups": ["users", "stakeholders"],
                 "interdisciplinary": True,
             }
-        except Exception as e:
-            logger.error(f"Domain analysis failed: {e}")
-            return {"domain": "general", "complexity_level": "unknown"}
 
     def _load_questioning_strategies(self) -> Dict[str, Dict[str, Any]]:
         """Load different questioning strategies and their configurations."""
