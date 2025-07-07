@@ -77,6 +77,11 @@ class LLMAbductiveAgent(ThinkingAgentInterface):
         """Output types this agent can work with."""
         return [OutputType.TEXT, OutputType.STRUCTURED]
 
+    @property
+    def is_llm_powered(self) -> bool:
+        """Whether this agent uses LLM services for generation."""
+        return True
+
     def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate that the configuration is valid for this agent."""
         valid_keys = {

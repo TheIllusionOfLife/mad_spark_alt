@@ -209,7 +209,7 @@ class SmartQADIOrchestrator:
             )
 
         # Determine agent type for tracking
-        if "LLM" in agent.name:
+        if agent.is_llm_powered:
             agent_type = "LLM"
         else:
             agent_type = "template"
@@ -261,26 +261,8 @@ class SmartQADIOrchestrator:
         Returns:
             Result from template agent or None if not available
         """
-        # Import template agents for fallback
         try:
-            fallback_agent: Optional[ThinkingAgentInterface] = None
-            if method == ThinkingMethod.QUESTIONING:
-                from ..agents import QuestioningAgent
-
-                fallback_agent = QuestioningAgent()
-            elif method == ThinkingMethod.ABDUCTION:
-                from ..agents import AbductionAgent
-
-                fallback_agent = AbductionAgent()
-            elif method == ThinkingMethod.DEDUCTION:
-                from ..agents import DeductionAgent
-
-                fallback_agent = DeductionAgent()
-            elif method == ThinkingMethod.INDUCTION:
-                from ..agents import InductionAgent
-
-                fallback_agent = InductionAgent()
-
+            fallback_agent = self._create_template_agent(method)
             if not fallback_agent:
                 return None
 
@@ -289,6 +271,42 @@ class SmartQADIOrchestrator:
 
         except Exception as e:
             logger.error(f"Template fallback also failed for {method.value}: {e}")
+            return None
+
+    def _create_template_agent(
+        self, method: ThinkingMethod
+    ) -> Optional[ThinkingAgentInterface]:
+        """Create a template agent for the given thinking method."""
+        # Template agent mapping
+        agent_mapping = {
+            ThinkingMethod.QUESTIONING: ("QuestioningAgent", "..agents"),
+            ThinkingMethod.ABDUCTION: ("AbductionAgent", "..agents"),
+            ThinkingMethod.DEDUCTION: ("DeductionAgent", "..agents"),
+            ThinkingMethod.INDUCTION: ("InductionAgent", "..agents"),
+        }
+
+        if method not in agent_mapping:
+            return None
+
+        agent_class_name, module_path = agent_mapping[method]
+
+        try:
+            # Dynamic import to avoid circular dependencies
+            module = __import__(f"{module_path}", fromlist=[agent_class_name])
+            agent_class = getattr(module, agent_class_name)
+            agent_instance = agent_class()
+            # Type check to ensure it's a ThinkingAgentInterface
+            from .interfaces import ThinkingAgentInterface
+
+            if isinstance(agent_instance, ThinkingAgentInterface):
+                return agent_instance
+            else:
+                logger.error(
+                    f"Agent {agent_class_name} is not a ThinkingAgentInterface"
+                )
+                return None
+        except (ImportError, AttributeError) as e:
+            logger.error(f"Failed to import template agent {agent_class_name}: {e}")
             return None
 
     def _build_enhanced_context(

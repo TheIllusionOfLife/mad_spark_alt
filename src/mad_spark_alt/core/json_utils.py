@@ -31,23 +31,35 @@ def extract_json_from_response(text: str) -> Optional[str]:
 
     text = text.strip()
 
-    # Pattern 1: JSON in ```json code blocks
-    json_block_pattern = r"```(?:json)?\s*(\{.*?\})\s*```"
+    # Pattern 1: JSON in ```json code blocks (supports both objects and arrays)
+    json_block_pattern = r"```(?:json)?\s*([\s\S]*?)\s*```"
     match = re.search(json_block_pattern, text, re.DOTALL | re.IGNORECASE)
     if match:
         return match.group(1).strip()
 
-    # Pattern 2: Look for JSON objects with proper braces
-    json_pattern = r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}"
-    matches = re.findall(json_pattern, text, re.DOTALL)
-    if matches:
-        # Return the largest JSON-like match
-        return str(max(matches, key=len)).strip()
+    # Pattern 2: Look for JSON objects with proper braces (supports nested structures)
+    json_object_pattern = r"\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}"
+    object_matches = re.findall(json_object_pattern, text, re.DOTALL)
 
-    # Pattern 3: Try to extract anything between first { and last }
+    # Pattern 3: Look for JSON arrays with proper brackets
+    json_array_pattern = r"\[(?:[^\[\]]|\[(?:[^\[\]]|\[[^\[\]]*\])*\])*\]"
+    array_matches = re.findall(json_array_pattern, text, re.DOTALL)
+
+    all_matches = object_matches + array_matches
+    if all_matches:
+        # Return the largest JSON-like match
+        return str(max(all_matches, key=len)).strip()
+
+    # Pattern 4: Try to extract anything between first { and last } (objects)
     if "{" in text and "}" in text:
         start = text.find("{")
         end = text.rfind("}") + 1
+        return text[start:end].strip()
+
+    # Pattern 5: Try to extract anything between first [ and last ] (arrays)
+    if "[" in text and "]" in text:
+        start = text.find("[")
+        end = text.rfind("]") + 1
         return text[start:end].strip()
 
     return None
