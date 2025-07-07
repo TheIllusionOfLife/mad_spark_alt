@@ -84,7 +84,9 @@ def safe_json_parse(
     try:
         # First try to parse as-is
         result = json.loads(text)
-        return result  # type: ignore
+        if isinstance(result, dict):
+            return result
+        # If not a dict, fall through to extraction or fallback
     except (json.JSONDecodeError, TypeError):
         pass
 
@@ -93,7 +95,9 @@ def safe_json_parse(
     if extracted_json:
         try:
             result = json.loads(extracted_json)
-            return result  # type: ignore
+            if isinstance(result, dict):
+                return result
+            # If not a dict, fall through to fallback
         except json.JSONDecodeError:
             pass
 
