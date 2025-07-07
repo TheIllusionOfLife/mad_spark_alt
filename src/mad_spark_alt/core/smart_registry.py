@@ -170,7 +170,8 @@ class SmartAgentRegistry:
             try:
                 # Create agent with preferred provider
                 agent_instance = agent_class(preferred_provider=preferred_provider)
-                self.base_registry.register(agent_class)  # type: ignore
+                # Register the instance directly to preserve preferred_provider
+                self.base_registry.register_instance(method, agent_instance)
                 self._agent_preferences[method] = name
                 provider_str = (
                     preferred_provider.value if preferred_provider else "unknown"

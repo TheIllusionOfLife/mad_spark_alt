@@ -245,24 +245,16 @@ Analyze this problem to identify its logical structure, requirements, and the ty
 
             return analysis
 
-        except json.JSONDecodeError:
-            # Fallback to basic analysis if JSON parsing fails
-            logger.warning("Failed to parse logical analysis JSON, using fallback")
+        except Exception as e:
+            logger.error(f"Logical structure analysis failed: {e}")
             return {
                 "logical_complexity": "moderate",
                 "problem_type": "semi_structured",
                 "evidence_base": "moderate",
+                "formal_logic_applicable": False,
                 "reasoning_chain_depth": "moderate",
-                "formal_logic_applicable": True,
-                "systematic_analysis_scope": [
-                    "requirements",
-                    "validation",
-                    "consequences",
-                ],
+                "systematic_analysis_scope": ["validation", "consistency"],
             }
-        except Exception as e:
-            logger.error(f"Logical structure analysis failed: {e}")
-            return {"logical_complexity": "unknown", "problem_type": "unknown"}
 
     def _load_deductive_frameworks(self) -> Dict[str, Dict[str, Any]]:
         """Load different deductive reasoning frameworks and their configurations."""

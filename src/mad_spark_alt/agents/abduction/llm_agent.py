@@ -254,22 +254,21 @@ Analyze this problem to identify characteristics that will inform abductive hypo
 
             return analysis
 
-        except json.JSONDecodeError:
-            # Fallback to basic analysis if JSON parsing fails
-            logger.warning("Failed to parse context analysis JSON, using fallback")
+        except Exception as e:
+            logger.error(f"Context analysis failed: {e}")
             return {
                 "domain": "general",
                 "problem_nature": "ill_structured",
+                "evidence_availability": "moderate",
                 "causal_complexity": "complex",
-                "uncertainty_level": "high",
-                "abductive_opportunities": [
-                    "causal_exploration",
-                    "pattern_recognition",
-                ],
+                "analogical_domains": ["general"],
+                "pattern_indicators": ["complexity", "uncertainty"],
+                "uncertainty_level": "medium",
+                "stakeholder_impact": "direct",
+                "temporal_dynamics": "evolving",
+                "potential_biases": ["confirmation_bias"],
+                "abductive_opportunities": ["hypothesis_generation", "creative_leaps"],
             }
-        except Exception as e:
-            logger.error(f"Context analysis failed: {e}")
-            return {"domain": "general", "uncertainty_level": "unknown"}
 
     def _load_abductive_strategies(self) -> Dict[str, Dict[str, Any]]:
         """Load different abductive reasoning strategies and their configurations."""

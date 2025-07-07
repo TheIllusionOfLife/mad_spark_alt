@@ -242,23 +242,18 @@ Analyze this problem to identify patterns, synthesis opportunities, and the pote
 
             return analysis
 
-        except json.JSONDecodeError:
-            # Fallback to basic analysis if JSON parsing fails
-            logger.warning("Failed to parse synthesis context JSON, using fallback")
+        except Exception as e:
+            logger.error(f"Synthesis context analysis failed: {e}")
             return {
                 "data_richness": "moderate",
                 "pattern_visibility": "subtle",
-                "synthesis_complexity": "moderate",
+                "pattern_diversity": "medium",
+                "observation_scope": "comprehensive",
+                "synthesis_opportunities": ["commonalities", "trends"],
+                "inductive_strength": "moderate",
                 "generalization_potential": "medium",
-                "insight_opportunities": [
-                    "pattern_recognition",
-                    "principle_extraction",
-                ],
-                "synthesis_depth_needed": "moderate",
+                "insight_opportunities": ["pattern_recognition", "trend_analysis"],
             }
-        except Exception as e:
-            logger.error(f"Synthesis context analysis failed: {e}")
-            return {"data_richness": "unknown", "synthesis_complexity": "unknown"}
 
     def _load_inductive_methods(self) -> Dict[str, Dict[str, Any]]:
         """Load different inductive reasoning methods and their configurations."""
