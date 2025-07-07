@@ -20,6 +20,9 @@ from mad_spark_alt.evolution.operators import (
     MutationOperator,
     TournamentSelection,
     EliteSelection,
+    RouletteWheelSelection,
+    RankSelection,
+    RandomSelection,
 )
 
 __all__ = [
@@ -38,4 +41,7 @@ __all__ = [
     "MutationOperator",
     "TournamentSelection",
     "EliteSelection",
+    "RouletteWheelSelection",
+    "RankSelection",
+    "RandomSelection",
 ]

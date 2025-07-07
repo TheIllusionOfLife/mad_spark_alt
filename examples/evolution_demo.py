@@ -40,7 +40,6 @@ async def generate_initial_ideas(problem_statement: str, context: str) -> list:
     logger.info("=== Phase 1: Generating Initial Ideas with QADI ===")
 
     # Register all agents
-    registry.clear()
     register_agent(QuestioningAgent)
     register_agent(AbductionAgent)
     register_agent(DeductionAgent)
