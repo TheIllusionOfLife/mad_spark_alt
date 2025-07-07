@@ -22,48 +22,48 @@ from mad_spark_alt.evolution.interfaces import (
 class CrossoverOperator(CrossoverInterface):
     """
     Implements semantic crossover for ideas.
-    
+
     This operator combines elements from two parent ideas to create offspring
     that inherit characteristics from both parents.
     """
-    
+
     @property
     def name(self) -> str:
         return "semantic_crossover"
-    
+
     def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate crossover configuration."""
         return True  # No specific config needed for basic crossover
-    
+
     async def crossover(
         self,
         parent1: GeneratedIdea,
         parent2: GeneratedIdea,
-        context: Optional[str] = None
+        context: Optional[str] = None,
     ) -> Tuple[GeneratedIdea, GeneratedIdea]:
         """
         Perform semantic crossover between two parent ideas.
-        
+
         Args:
             parent1: First parent idea
             parent2: Second parent idea
             context: Optional context for crossover
-            
+
         Returns:
             Tuple of two offspring ideas
         """
         # Extract key components from parent ideas
         p1_components = self._extract_components(parent1.content)
         p2_components = self._extract_components(parent2.content)
-        
+
         # Create crossover points
         max_components = min(len(p1_components), len(p2_components))
         if max_components <= 1:
             # If content is too simple, just swap
             return parent2, parent1
-        
+
         crossover_point = random.randint(1, max_components - 1)
-        
+
         # Create offspring by combining components
         offspring1_content = self._combine_components(
             p1_components[:crossover_point] + p2_components[crossover_point:]
@@ -71,7 +71,7 @@ class CrossoverOperator(CrossoverInterface):
         offspring2_content = self._combine_components(
             p2_components[:crossover_point] + p1_components[crossover_point:]
         )
-        
+
         # Create offspring ideas
         offspring1 = GeneratedIdea(
             content=offspring1_content,
@@ -86,12 +86,13 @@ class CrossoverOperator(CrossoverInterface):
                 "crossover_point": crossover_point,
                 "generation": max(
                     parent1.metadata.get("generation", 0),
-                    parent2.metadata.get("generation", 0)
-                ) + 1,
+                    parent2.metadata.get("generation", 0),
+                )
+                + 1,
             },
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
         )
-        
+
         offspring2 = GeneratedIdea(
             content=offspring2_content,
             thinking_method=parent2.thinking_method,  # Inherit from parent2
@@ -105,21 +106,22 @@ class CrossoverOperator(CrossoverInterface):
                 "crossover_point": crossover_point,
                 "generation": max(
                     parent1.metadata.get("generation", 0),
-                    parent2.metadata.get("generation", 0)
-                ) + 1,
+                    parent2.metadata.get("generation", 0),
+                )
+                + 1,
             },
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
         )
-        
+
         return offspring1, offspring2
-    
+
     def _extract_components(self, content: str) -> List[str]:
         """Extract semantic components from idea content."""
         # Simple implementation: split by sentences or key phrases
         # In a more sophisticated version, this could use NLP
         sentences = content.split(". ")
         return [s.strip() for s in sentences if s.strip()]
-    
+
     def _combine_components(self, components: List[str]) -> str:
         """Combine components back into coherent content."""
         # Ensure proper sentence structure
@@ -132,52 +134,51 @@ class CrossoverOperator(CrossoverInterface):
 class MutationOperator(MutationInterface):
     """
     Implements semantic mutation for ideas.
-    
+
     This operator introduces random variations to ideas to maintain
     genetic diversity and explore new solution spaces.
     """
-    
+
     @property
     def name(self) -> str:
         return "semantic_mutation"
-    
+
     def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate mutation configuration."""
         return True  # No specific config needed
-    
+
     async def mutate(
-        self,
-        idea: GeneratedIdea,
-        mutation_rate: float,
-        context: Optional[str] = None
+        self, idea: GeneratedIdea, mutation_rate: float, context: Optional[str] = None
     ) -> GeneratedIdea:
         """
         Mutate an idea with given mutation rate.
-        
+
         Args:
             idea: Idea to mutate
             mutation_rate: Probability of mutation (0-1)
             context: Optional context for mutation
-            
+
         Returns:
             Mutated idea (or original if no mutation occurs)
         """
         # Check if mutation should occur
         if random.random() > mutation_rate:
             return idea  # No mutation
-        
+
         # Choose mutation type
-        mutation_type = random.choice([
-            "word_substitution",
-            "phrase_reordering",
-            "concept_addition",
-            "concept_removal",
-            "emphasis_change"
-        ])
-        
+        mutation_type = random.choice(
+            [
+                "word_substitution",
+                "phrase_reordering",
+                "concept_addition",
+                "concept_removal",
+                "emphasis_change",
+            ]
+        )
+
         # Apply mutation
         mutated_content = self._apply_mutation(idea.content, mutation_type)
-        
+
         # Create mutated idea
         mutated_idea = GeneratedIdea(
             content=mutated_content,
@@ -193,11 +194,11 @@ class MutationOperator(MutationInterface):
                 "mutation_rate": mutation_rate,
                 "generation": idea.metadata.get("generation", 0) + 1,
             },
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
         )
-        
+
         return mutated_idea
-    
+
     def _apply_mutation(self, content: str, mutation_type: str) -> str:
         """Apply specific mutation type to content."""
         if mutation_type == "word_substitution":
@@ -208,24 +209,33 @@ class MutationOperator(MutationInterface):
                 # Simple substitution - in production, use word embeddings
                 substitutions = {
                     "improve": "enhance",
+                    "improves": "enhances",
                     "create": "develop",
                     "use": "utilize",
+                    "uses": "utilizes",
                     "make": "construct",
                     "reduce": "minimize",
+                    "reduces": "minimizes",
                     "increase": "amplify",
+                    "innovative": "creative",
+                    "efficiency": "effectiveness",
+                    "idea": "concept",
                 }
                 word = words[idx].lower().strip(".,!?")
                 if word in substitutions:
                     words[idx] = substitutions[word]
+                else:
+                    # If no substitution found, add a modifier
+                    words[idx] = f"enhanced_{words[idx]}"
             return " ".join(words)
-        
+
         elif mutation_type == "phrase_reordering":
             # Reorder phrases or sentences
             sentences = content.split(". ")
             if len(sentences) > 2:
                 random.shuffle(sentences)
             return ". ".join(sentences)
-        
+
         elif mutation_type == "concept_addition":
             # Add a related concept
             additions = [
@@ -235,14 +245,14 @@ class MutationOperator(MutationInterface):
                 " Scalability should be a key consideration.",
             ]
             return content + random.choice(additions)
-        
+
         elif mutation_type == "concept_removal":
             # Remove a sentence (if multiple exist)
             sentences = content.split(". ")
             if len(sentences) > 2:
                 sentences.pop(random.randint(0, len(sentences) - 1))
             return ". ".join(sentences)
-        
+
         elif mutation_type == "emphasis_change":
             # Change emphasis or priority
             emphasis_words = ["critically", "importantly", "primarily", "especially"]
@@ -250,91 +260,91 @@ class MutationOperator(MutationInterface):
             insert_pos = random.randint(0, len(words))
             words.insert(insert_pos, random.choice(emphasis_words))
             return " ".join(words)
-        
+
         return content  # Fallback
 
 
 class TournamentSelection(SelectionInterface):
     """
     Tournament selection operator.
-    
+
     Selects individuals by running tournaments between random subsets
     of the population.
     """
-    
+
     @property
     def name(self) -> str:
         return "tournament_selection"
-    
+
     def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate selection configuration."""
         return True
-    
+
     async def select(
         self,
         population: List[IndividualFitness],
         num_selected: int,
-        config: EvolutionConfig
+        config: EvolutionConfig,
     ) -> List[IndividualFitness]:
         """
         Select individuals using tournament selection.
-        
+
         Args:
             population: Population to select from
             num_selected: Number of individuals to select
             config: Evolution configuration with tournament size
-            
+
         Returns:
             Selected individuals
         """
         selected = []
-        
+
         for _ in range(num_selected):
             # Run a tournament
             tournament_size = min(config.tournament_size, len(population))
             tournament = random.sample(population, tournament_size)
-            
+
             # Select winner (highest fitness)
             winner = max(tournament, key=lambda x: x.overall_fitness)
             selected.append(winner)
-        
+
         return selected
 
 
 class EliteSelection(SelectionInterface):
     """
     Elite selection operator.
-    
+
     Always preserves the best individuals from the population.
     """
-    
+
     @property
     def name(self) -> str:
         return "elite_selection"
-    
+
     def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate selection configuration."""
         return True
-    
+
     async def select(
         self,
         population: List[IndividualFitness],
         num_selected: int,
-        config: EvolutionConfig
+        config: EvolutionConfig,
     ) -> List[IndividualFitness]:
         """
         Select top individuals by fitness.
-        
+
         Args:
             population: Population to select from
             num_selected: Number of individuals to select
             config: Evolution configuration
-            
+
         Returns:
             Top individuals by fitness
         """
         # Sort by fitness (descending)
         sorted_pop = sorted(population, key=lambda x: x.overall_fitness, reverse=True)
-        
+
         # Return top individuals
         return sorted_pop[:num_selected]
