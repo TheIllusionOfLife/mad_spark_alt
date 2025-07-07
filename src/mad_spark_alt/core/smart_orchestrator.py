@@ -277,36 +277,29 @@ class SmartQADIOrchestrator:
         self, method: ThinkingMethod
     ) -> Optional[ThinkingAgentInterface]:
         """Create a template agent for the given thinking method."""
-        # Template agent mapping
-        agent_mapping = {
-            ThinkingMethod.QUESTIONING: ("QuestioningAgent", "..agents"),
-            ThinkingMethod.ABDUCTION: ("AbductionAgent", "..agents"),
-            ThinkingMethod.DEDUCTION: ("DeductionAgent", "..agents"),
-            ThinkingMethod.INDUCTION: ("InductionAgent", "..agents"),
-        }
-
-        if method not in agent_mapping:
-            return None
-
-        agent_class_name, module_path = agent_mapping[method]
-
         try:
-            # Dynamic import to avoid circular dependencies
-            module = __import__(f"{module_path}", fromlist=[agent_class_name])
-            agent_class = getattr(module, agent_class_name)
-            agent_instance = agent_class()
-            # Type check to ensure it's a ThinkingAgentInterface
-            from .interfaces import ThinkingAgentInterface
+            # Direct imports to avoid path issues
+            if method == ThinkingMethod.QUESTIONING:
+                from ..agents import QuestioningAgent
 
-            if isinstance(agent_instance, ThinkingAgentInterface):
-                return agent_instance
+                return QuestioningAgent()
+            elif method == ThinkingMethod.ABDUCTION:
+                from ..agents import AbductionAgent
+
+                return AbductionAgent()
+            elif method == ThinkingMethod.DEDUCTION:
+                from ..agents import DeductionAgent
+
+                return DeductionAgent()
+            elif method == ThinkingMethod.INDUCTION:
+                from ..agents import InductionAgent
+
+                return InductionAgent()
             else:
-                logger.error(
-                    f"Agent {agent_class_name} is not a ThinkingAgentInterface"
-                )
+                logger.error(f"Unknown thinking method: {method}")
                 return None
-        except (ImportError, AttributeError) as e:
-            logger.error(f"Failed to import template agent {agent_class_name}: {e}")
+        except ImportError as e:
+            logger.error(f"Failed to import template agent for {method.value}: {e}")
             return None
 
     def _build_enhanced_context(

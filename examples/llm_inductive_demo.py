@@ -269,7 +269,7 @@ def print_cost_summary(results):
         print_section("Cost Summary")
         print(f"💰 Total LLM Cost: ${total_cost:.4f}")
         print(f"📊 Total Ideas Generated: {total_ideas}")
-        print(f"📈 Average Cost per Idea: ${total_cost/total_ideas:.4f}")
+        print(f"📈 Average Cost per Idea: ${total_cost / max(total_ideas, 1):.4f}")
     else:
         print_section("Cost Summary")
         print("💰 No LLM costs incurred (likely using fallback methods)")
