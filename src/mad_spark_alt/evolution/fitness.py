@@ -11,7 +11,9 @@ from typing import Dict, List, Optional
 
 from mad_spark_alt.core.evaluator import CreativityEvaluator
 from mad_spark_alt.core.interfaces import (
+    EvaluationLayer,
     EvaluationRequest,
+    EvaluationResult,
     GeneratedIdea,
     ModelOutput,
     OutputType,
@@ -80,7 +82,7 @@ class FitnessEvaluator:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Handle any exceptions
-        fitness_results = []
+        fitness_results: List[IndividualFitness] = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 logger.error(f"Error evaluating idea {i}: {result}")
@@ -95,7 +97,7 @@ class FitnessEvaluator:
                         evaluation_metadata={"error": str(result)},
                     )
                 )
-            else:
+            elif isinstance(result, IndividualFitness):
                 fitness_results.append(result)
 
         return fitness_results
@@ -172,11 +174,11 @@ class FitnessEvaluator:
             summary = await self.creativity_evaluator.evaluate(eval_request)
 
             # Extract scores from evaluation summary
-            creativity_score = summary.get_overall_creativity_score()
+            creativity_score = summary.get_overall_creativity_score() or 0.0
 
-            # Get component scores
-            diversity_score = self._extract_diversity_score(summary.result_details)
-            quality_score = self._extract_quality_score(summary.result_details)
+            # Get component scores from layer results
+            diversity_score = self._extract_diversity_score(summary.layer_results)
+            quality_score = self._extract_quality_score(summary.layer_results)
 
             # Create fitness object
             fitness = IndividualFitness(
@@ -185,8 +187,8 @@ class FitnessEvaluator:
                 diversity_score=diversity_score,
                 quality_score=quality_score,
                 evaluation_metadata={
-                    "evaluation_time": summary.total_time,
-                    "evaluators_used": summary.evaluators_used,
+                    "evaluation_time": summary.execution_time,
+                    "total_evaluators": summary.total_evaluators,
                 },
             )
 
@@ -206,19 +208,20 @@ class FitnessEvaluator:
                 evaluation_metadata={"error": str(e)},
             )
 
-    def _extract_diversity_score(self, result_details: List[Dict]) -> float:
+    def _extract_diversity_score(
+        self, layer_results: Dict[EvaluationLayer, List[EvaluationResult]]
+    ) -> float:
         """Extract diversity score from evaluation results."""
-        for detail in result_details:
-            if detail.get("layer") == "quantitative" and "diversity" in detail.get(
-                "evaluator_name", ""
-            ):
-                scores = detail.get("scores", {})
+        quantitative_results = layer_results.get(EvaluationLayer.QUANTITATIVE, [])
+
+        for result in quantitative_results:
+            if "diversity" in result.evaluator_name:
                 # Average different diversity metrics
                 diversity_metrics = [
-                    scores.get("distinct_1", 0.0),
-                    scores.get("distinct_2", 0.0),
-                    scores.get("semantic_uniqueness", 0.0),
-                    scores.get("lexical_diversity", 0.0),
+                    result.scores.get("distinct_1", 0.0),
+                    result.scores.get("distinct_2", 0.0),
+                    result.scores.get("semantic_uniqueness", 0.0),
+                    result.scores.get("lexical_diversity", 0.0),
                 ]
                 # Include all metrics in average, even 0.0 values
                 return (
@@ -228,19 +231,20 @@ class FitnessEvaluator:
                 )
         return 0.5  # Default middle score if not found
 
-    def _extract_quality_score(self, result_details: List[Dict]) -> float:
+    def _extract_quality_score(
+        self, layer_results: Dict[EvaluationLayer, List[EvaluationResult]]
+    ) -> float:
         """Extract quality score from evaluation results."""
-        for detail in result_details:
-            if detail.get("layer") == "quantitative" and "quality" in detail.get(
-                "evaluator_name", ""
-            ):
-                scores = detail.get("scores", {})
+        quantitative_results = layer_results.get(EvaluationLayer.QUANTITATIVE, [])
+
+        for result in quantitative_results:
+            if "quality" in result.evaluator_name:
                 # Average quality metrics
                 quality_metrics = [
-                    scores.get("fluency_score", 0.0),
-                    scores.get("grammar_score", 0.0),
-                    scores.get("readability_score", 0.0),
-                    scores.get("coherence_score", 0.0),
+                    result.scores.get("fluency_score", 0.0),
+                    result.scores.get("grammar_score", 0.0),
+                    result.scores.get("readability_score", 0.0),
+                    result.scores.get("coherence_score", 0.0),
                 ]
                 # Include all metrics in average, even 0.0 values
                 return (
@@ -288,10 +292,14 @@ class FitnessEvaluator:
 
         try:
             summary = await self.creativity_evaluator.evaluate(eval_request)
-            # Extract population-level diversity
-            for detail in summary.result_details:
-                if "diversity" in detail.get("evaluator_name", ""):
-                    return detail.get("scores", {}).get("semantic_uniqueness", 0.5)
+            # Extract population-level diversity from layer results
+            quantitative_results = summary.layer_results.get(
+                EvaluationLayer.QUANTITATIVE, []
+            )
+
+            for result in quantitative_results:
+                if "diversity" in result.evaluator_name:
+                    return result.scores.get("semantic_uniqueness", 0.5)
             return 0.5
         except Exception as e:
             logger.error(f"Failed to calculate population diversity: {e}")

@@ -78,7 +78,10 @@ class CrossoverOperator(CrossoverInterface):
             thinking_method=parent1.thinking_method,  # Inherit from parent1
             agent_name="CrossoverOperator",
             generation_prompt=f"Crossover of ideas: '{parent1.content[:50]}...' and '{parent2.content[:50]}...'",
-            confidence_score=(parent1.confidence_score + parent2.confidence_score) / 2,
+            confidence_score=(
+                (parent1.confidence_score or 0.5) + (parent2.confidence_score or 0.5)
+            )
+            / 2,
             reasoning=f"Combined elements from both parent ideas at crossover point {crossover_point}",
             parent_ideas=[parent1.content[:50], parent2.content[:50]],
             metadata={
@@ -98,7 +101,10 @@ class CrossoverOperator(CrossoverInterface):
             thinking_method=parent2.thinking_method,  # Inherit from parent2
             agent_name="CrossoverOperator",
             generation_prompt=f"Crossover of ideas: '{parent2.content[:50]}...' and '{parent1.content[:50]}...'",
-            confidence_score=(parent1.confidence_score + parent2.confidence_score) / 2,
+            confidence_score=(
+                (parent1.confidence_score or 0.5) + (parent2.confidence_score or 0.5)
+            )
+            / 2,
             reasoning=f"Combined elements from both parent ideas at crossover point {crossover_point}",
             parent_ideas=[parent2.content[:50], parent1.content[:50]],
             metadata={
@@ -185,7 +191,8 @@ class MutationOperator(MutationInterface):
             thinking_method=idea.thinking_method,
             agent_name="MutationOperator",
             generation_prompt=f"Mutation ({mutation_type}) of: '{idea.content[:50]}...'",
-            confidence_score=idea.confidence_score * 0.95,  # Slightly reduce confidence
+            confidence_score=(idea.confidence_score or 0.5)
+            * 0.95,  # Slightly reduce confidence
             reasoning=f"Applied {mutation_type} mutation to introduce variation",
             parent_ideas=[idea.content[:50]],
             metadata={
