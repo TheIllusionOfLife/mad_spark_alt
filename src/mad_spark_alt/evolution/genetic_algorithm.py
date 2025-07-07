@@ -25,6 +25,9 @@ from mad_spark_alt.evolution.operators import (
     CrossoverOperator,
     EliteSelection,
     MutationOperator,
+    RandomSelection,
+    RankSelection,
+    RouletteWheelSelection,
     TournamentSelection,
 )
 
@@ -62,6 +65,9 @@ class GeneticAlgorithm:
         self.selection_operators = {
             SelectionStrategy.TOURNAMENT: TournamentSelection(),
             SelectionStrategy.ELITE: EliteSelection(),
+            SelectionStrategy.ROULETTE: RouletteWheelSelection(),
+            SelectionStrategy.RANK: RankSelection(),
+            SelectionStrategy.RANDOM: RandomSelection(),
         }
 
     async def evolve(self, request: EvolutionRequest) -> EvolutionResult:

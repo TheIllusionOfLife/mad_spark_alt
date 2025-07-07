@@ -168,43 +168,43 @@ class MutationOperator(MutationInterface):
             Mutated idea (or original if no mutation occurs)
         """
         # Check if mutation should occur
-        if random.random() > mutation_rate:
+        if random.random() < mutation_rate:
+            # Choose mutation type
+            mutation_type = random.choice(
+                [
+                    "word_substitution",
+                    "phrase_reordering",
+                    "concept_addition",
+                    "concept_removal",
+                    "emphasis_change",
+                ]
+            )
+
+            # Apply mutation
+            mutated_content = self._apply_mutation(idea.content, mutation_type)
+
+            # Create mutated idea
+            mutated_idea = GeneratedIdea(
+                content=mutated_content,
+                thinking_method=idea.thinking_method,
+                agent_name="MutationOperator",
+                generation_prompt=f"Mutation ({mutation_type}) of: '{idea.content[:50]}...'",
+                confidence_score=(idea.confidence_score or 0.5)
+                * 0.95,  # Slightly reduce confidence
+                reasoning=f"Applied {mutation_type} mutation to introduce variation",
+                parent_ideas=[idea.content[:50]],
+                metadata={
+                    "operator": "mutation",
+                    "mutation_type": mutation_type,
+                    "mutation_rate": mutation_rate,
+                    "generation": idea.metadata.get("generation", 0) + 1,
+                },
+                timestamp=datetime.now().isoformat(),
+            )
+
+            return mutated_idea
+        else:
             return idea  # No mutation
-
-        # Choose mutation type
-        mutation_type = random.choice(
-            [
-                "word_substitution",
-                "phrase_reordering",
-                "concept_addition",
-                "concept_removal",
-                "emphasis_change",
-            ]
-        )
-
-        # Apply mutation
-        mutated_content = self._apply_mutation(idea.content, mutation_type)
-
-        # Create mutated idea
-        mutated_idea = GeneratedIdea(
-            content=mutated_content,
-            thinking_method=idea.thinking_method,
-            agent_name="MutationOperator",
-            generation_prompt=f"Mutation ({mutation_type}) of: '{idea.content[:50]}...'",
-            confidence_score=(idea.confidence_score or 0.5)
-            * 0.95,  # Slightly reduce confidence
-            reasoning=f"Applied {mutation_type} mutation to introduce variation",
-            parent_ideas=[idea.content[:50]],
-            metadata={
-                "operator": "mutation",
-                "mutation_type": mutation_type,
-                "mutation_rate": mutation_rate,
-                "generation": idea.metadata.get("generation", 0) + 1,
-            },
-            timestamp=datetime.now().isoformat(),
-        )
-
-        return mutated_idea
 
     def _apply_mutation(self, content: str, mutation_type: str) -> str:
         """Apply specific mutation type to content."""
@@ -390,3 +390,156 @@ class EliteSelection(SelectionInterface):
 
         # Return top individuals
         return sorted_pop[:num_selected]
+
+
+class RouletteWheelSelection(SelectionInterface):
+    """
+    Roulette wheel selection operator.
+
+    Selection probability is proportional to fitness scores.
+    """
+
+    @property
+    def name(self) -> str:
+        return "roulette_wheel_selection"
+
+    def validate_config(self, config: Dict[str, Any]) -> bool:
+        """Validate selection configuration."""
+        return True
+
+    async def select(
+        self,
+        population: List[IndividualFitness],
+        num_selected: int,
+        config: EvolutionConfig,
+    ) -> List[IndividualFitness]:
+        """
+        Select individuals using roulette wheel (fitness-proportionate) selection.
+
+        Args:
+            population: Population to select from
+            num_selected: Number of individuals to select
+            config: Evolution configuration
+
+        Returns:
+            Selected individuals
+        """
+        selected = []
+
+        # Calculate total fitness (ensure all positive)
+        min_fitness = min(ind.overall_fitness for ind in population)
+        if min_fitness < 0:
+            # Shift all fitnesses to be positive
+            adjusted_fitnesses = [
+                ind.overall_fitness - min_fitness + 0.001 for ind in population
+            ]
+        else:
+            adjusted_fitnesses = [
+                ind.overall_fitness + 0.001 for ind in population
+            ]  # Avoid zero
+
+        total_fitness = sum(adjusted_fitnesses)
+
+        for _ in range(num_selected):
+            # Spin the roulette wheel
+            spin = random.uniform(0, total_fitness)
+            cumulative = 0.0
+
+            for i, fitness in enumerate(adjusted_fitnesses):
+                cumulative += fitness
+                if cumulative >= spin:
+                    selected.append(population[i])
+                    break
+
+        return selected
+
+
+class RankSelection(SelectionInterface):
+    """
+    Rank-based selection operator.
+
+    Selection is based on rank rather than raw fitness values.
+    """
+
+    @property
+    def name(self) -> str:
+        return "rank_selection"
+
+    def validate_config(self, config: Dict[str, Any]) -> bool:
+        """Validate selection configuration."""
+        return True
+
+    async def select(
+        self,
+        population: List[IndividualFitness],
+        num_selected: int,
+        config: EvolutionConfig,
+    ) -> List[IndividualFitness]:
+        """
+        Select individuals using rank-based selection.
+
+        Args:
+            population: Population to select from
+            num_selected: Number of individuals to select
+            config: Evolution configuration
+
+        Returns:
+            Selected individuals
+        """
+        selected = []
+
+        # Sort population by fitness and assign ranks
+        sorted_pop = sorted(population, key=lambda x: x.overall_fitness, reverse=True)
+        n = len(sorted_pop)
+
+        # Create rank-based weights (linear ranking)
+        ranks = list(range(n, 0, -1))  # Best gets rank n, worst gets rank 1
+        total_rank = sum(ranks)
+
+        for _ in range(num_selected):
+            # Select based on rank probability
+            spin = random.uniform(0, total_rank)
+            cumulative = 0.0
+
+            for i, rank in enumerate(ranks):
+                cumulative += rank
+                if cumulative >= spin:
+                    selected.append(sorted_pop[i])
+                    break
+
+        return selected
+
+
+class RandomSelection(SelectionInterface):
+    """
+    Random selection operator.
+
+    Selects individuals uniformly at random (no fitness bias).
+    """
+
+    @property
+    def name(self) -> str:
+        return "random_selection"
+
+    def validate_config(self, config: Dict[str, Any]) -> bool:
+        """Validate selection configuration."""
+        return True
+
+    async def select(
+        self,
+        population: List[IndividualFitness],
+        num_selected: int,
+        config: EvolutionConfig,
+    ) -> List[IndividualFitness]:
+        """
+        Select individuals randomly (uniform distribution).
+
+        Args:
+            population: Population to select from
+            num_selected: Number of individuals to select
+            config: Evolution configuration
+
+        Returns:
+            Randomly selected individuals
+        """
+        return random.choices(population, k=num_selected)

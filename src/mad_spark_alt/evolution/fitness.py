@@ -217,21 +217,25 @@ class FitnessEvaluator:
         """Extract diversity score from evaluation results."""
         quantitative_results = layer_results.get(EvaluationLayer.QUANTITATIVE, [])
 
+        # Define diversity metric keys to look for
+        diversity_metric_keys = [
+            "distinct_1",
+            "distinct_2",
+            "semantic_uniqueness",
+            "lexical_diversity",
+        ]
+
         for result in quantitative_results:
-            if "diversity" in result.evaluator_name:
-                # Average different diversity metrics
-                diversity_metrics = [
-                    result.scores.get("distinct_1", 0.0),
-                    result.scores.get("distinct_2", 0.0),
-                    result.scores.get("semantic_uniqueness", 0.0),
-                    result.scores.get("lexical_diversity", 0.0),
-                ]
-                # Include all metrics in average, even 0.0 values
-                return (
-                    sum(diversity_metrics) / len(diversity_metrics)
-                    if diversity_metrics
-                    else 0.0
-                )
+            # Check if this result contains any diversity metrics
+            diversity_metrics = []
+            for key in diversity_metric_keys:
+                if key in result.scores:
+                    diversity_metrics.append(result.scores[key])
+
+            # If we found diversity metrics, use them
+            if diversity_metrics:
+                return sum(diversity_metrics) / len(diversity_metrics)
+
         return DEFAULT_FAILURE_SCORE  # Penalty for missing metrics
 
     def _extract_quality_score(
@@ -240,21 +244,25 @@ class FitnessEvaluator:
         """Extract quality score from evaluation results."""
         quantitative_results = layer_results.get(EvaluationLayer.QUANTITATIVE, [])
 
+        # Define quality metric keys to look for
+        quality_metric_keys = [
+            "fluency_score",
+            "grammar_score",
+            "readability_score",
+            "coherence_score",
+        ]
+
         for result in quantitative_results:
-            if "quality" in result.evaluator_name:
-                # Average quality metrics
-                quality_metrics = [
-                    result.scores.get("fluency_score", 0.0),
-                    result.scores.get("grammar_score", 0.0),
-                    result.scores.get("readability_score", 0.0),
-                    result.scores.get("coherence_score", 0.0),
-                ]
-                # Include all metrics in average, even 0.0 values
-                return (
-                    sum(quality_metrics) / len(quality_metrics)
-                    if quality_metrics
-                    else 0.0
-                )
+            # Check if this result contains any quality metrics
+            quality_metrics = []
+            for key in quality_metric_keys:
+                if key in result.scores:
+                    quality_metrics.append(result.scores[key])
+
+            # If we found quality metrics, use them
+            if quality_metrics:
+                return sum(quality_metrics) / len(quality_metrics)
+
         return DEFAULT_FAILURE_SCORE  # Penalty for missing metrics
 
     async def calculate_population_diversity(
@@ -301,10 +309,9 @@ class FitnessEvaluator:
             )
 
             for result in quantitative_results:
-                if "diversity" in result.evaluator_name:
-                    return result.scores.get(
-                        "semantic_uniqueness", DEFAULT_FAILURE_SCORE
-                    )
+                # Look for semantic uniqueness metric directly
+                if "semantic_uniqueness" in result.scores:
+                    return result.scores["semantic_uniqueness"]
             return DEFAULT_FAILURE_SCORE
         except Exception as e:
             logger.error(f"Failed to calculate population diversity: {e}")

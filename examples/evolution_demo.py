@@ -30,8 +30,7 @@ from mad_spark_alt.evolution import (
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -39,14 +38,14 @@ logger = logging.getLogger(__name__)
 async def generate_initial_ideas(problem_statement: str, context: str) -> list:
     """Generate initial ideas using QADI agents."""
     logger.info("=== Phase 1: Generating Initial Ideas with QADI ===")
-    
+
     # Register all agents
     registry.clear()
     register_agent(QuestioningAgent)
     register_agent(AbductionAgent)
     register_agent(DeductionAgent)
     register_agent(InductionAgent)
-    
+
     # Create orchestrator with all agents
     agents = [
         registry.get_agent("QuestioningAgent"),
@@ -54,37 +53,34 @@ async def generate_initial_ideas(problem_statement: str, context: str) -> list:
         registry.get_agent("DeductionAgent"),
         registry.get_agent("InductionAgent"),
     ]
-    
+
     orchestrator = QADIOrchestrator([a for a in agents if a])
-    
+
     # Generate ideas
     result = await orchestrator.run_qadi_cycle(
         problem_statement=problem_statement,
         context=context,
-        cycle_config={
-            "max_ideas_per_method": 5,
-            "require_reasoning": True
-        }
+        cycle_config={"max_ideas_per_method": 5, "require_reasoning": True},
     )
-    
+
     logger.info(f"Generated {len(result.synthesized_ideas)} initial ideas")
-    
+
     # Display sample ideas
     print("\n📝 Sample Initial Ideas:")
     for i, idea in enumerate(result.synthesized_ideas[:3]):
         print(f"\n{i+1}. [{idea.thinking_method.value}] {idea.content[:100]}...")
-        print(f"   Confidence: {idea.confidence_score:.2f}")
-    
+        print(f"   Confidence: {idea.confidence_score or 0.0:.2f}")
+
     return result.synthesized_ideas
 
 
 async def evolve_ideas(initial_ideas: list, context: str) -> dict:
     """Evolve ideas using genetic algorithm."""
     logger.info("\n=== Phase 2: Evolving Ideas with Genetic Algorithm ===")
-    
+
     # Create genetic algorithm
     ga = GeneticAlgorithm()
-    
+
     # Configure evolution
     config = EvolutionConfig(
         population_size=20,
@@ -104,33 +100,37 @@ async def evolve_ideas(initial_ideas: list, context: str) -> dict:
         parallel_evaluation=True,
         max_parallel_evaluations=5,
     )
-    
-    logger.info(f"Evolution config: {config.generations} generations, "
-                f"population size {config.population_size}")
-    
+
+    logger.info(
+        f"Evolution config: {config.generations} generations, "
+        f"population size {config.population_size}"
+    )
+
     # Create evolution request
     request = EvolutionRequest(
-        initial_population=initial_ideas[:config.population_size],
+        initial_population=initial_ideas[: config.population_size],
         config=config,
         context=context,
-        target_metrics={"min_fitness": 0.8}
+        target_metrics={"min_fitness": 0.8},
     )
-    
+
     # Run evolution
     result = await ga.evolve(request)
-    
+
     if result.success:
         logger.info(f"Evolution completed successfully in {result.execution_time:.2f}s")
         logger.info(f"Total generations: {result.total_generations}")
-        
+
         # Display evolution progress
         print("\n📈 Evolution Progress:")
         print("Generation | Best Fitness | Avg Fitness | Diversity")
         print("-" * 50)
         for snapshot in result.generation_snapshots:
-            print(f"    {snapshot.generation:2d}     |    {snapshot.best_fitness:.3f}    |   "
-                  f"{snapshot.average_fitness:.3f}    |   {snapshot.diversity_score:.3f}")
-        
+            print(
+                f"    {snapshot.generation:2d}     |    {snapshot.best_fitness:.3f}    |   "
+                f"{snapshot.average_fitness:.3f}    |   {snapshot.diversity_score:.3f}"
+            )
+
         # Display best evolved ideas
         print("\n🏆 Top 5 Evolved Ideas:")
         for i, idea in enumerate(result.best_ideas[:5]):
@@ -139,16 +139,18 @@ async def evolve_ideas(initial_ideas: list, context: str) -> dict:
             print(f"   Operator: {idea.metadata.get('operator', 'original')}")
             if idea.parent_ideas:
                 print(f"   Parents: {len(idea.parent_ideas)} ideas combined")
-        
+
         # Display metrics
         metrics = result.evolution_metrics
         print("\n📊 Evolution Metrics:")
-        print(f"- Fitness improvement: {metrics.get('fitness_improvement_percent', 0):.1f}%")
+        print(
+            f"- Fitness improvement: {metrics.get('fitness_improvement_percent', 0):.1f}%"
+        )
         print(f"- Initial best fitness: {metrics.get('initial_best_fitness', 0):.3f}")
         print(f"- Final best fitness: {metrics.get('final_best_fitness', 0):.3f}")
         print(f"- Best generation: {metrics.get('best_fitness_generation', 0)}")
         print(f"- Total ideas evaluated: {metrics.get('total_ideas_evaluated', 0)}")
-        
+
         return result
     else:
         logger.error(f"Evolution failed: {result.error_message}")
@@ -159,38 +161,43 @@ async def main():
     """Run the complete evolution demo."""
     print("🧬 Mad Spark Alt - Genetic Evolution Demo")
     print("=" * 50)
-    
+
     # Define problem
     problem_statement = "How can we create more sustainable and livable cities?"
-    context = ("Focus on practical solutions that can be implemented within 10 years "
-               "using existing or near-future technology")
-    
+    context = (
+        "Focus on practical solutions that can be implemented within 10 years "
+        "using existing or near-future technology"
+    )
+
     print(f"\n🎯 Problem: {problem_statement}")
     print(f"📋 Context: {context}")
-    
+
     try:
         # Phase 1: Generate initial ideas
         initial_ideas = await generate_initial_ideas(problem_statement, context)
-        
+
         if not initial_ideas:
             logger.error("No initial ideas generated")
             return
-        
+
         # Phase 2: Evolve ideas
         evolution_result = await evolve_ideas(initial_ideas, context)
-        
+
         if evolution_result:
             print("\n✅ Evolution Complete!")
-            
+
             # Compare initial vs evolved
             print("\n🔄 Evolution Impact:")
             print("- Initial ideas were generated using QADI thinking methods")
             print("- Evolution combined and mutated ideas to optimize fitness")
             print("- Best ideas show characteristics from multiple parents")
             print("- Diversity was maintained through mutation and selection pressure")
-            
+
             # Show lineage example
-            if evolution_result.best_ideas and evolution_result.best_ideas[0].parent_ideas:
+            if (
+                evolution_result.best_ideas
+                and evolution_result.best_ideas[0].parent_ideas
+            ):
                 best_idea = evolution_result.best_ideas[0]
                 print(f"\n🌳 Example Lineage of Best Idea:")
                 print(f"Current: {best_idea.content[:80]}...")
@@ -198,7 +205,7 @@ async def main():
                     print("Parents:")
                     for i, parent in enumerate(best_idea.parent_ideas[:2]):
                         print(f"  {i+1}. {parent.content[:70]}...")
-    
+
     except Exception as e:
         logger.error(f"Demo failed: {e}")
         raise
