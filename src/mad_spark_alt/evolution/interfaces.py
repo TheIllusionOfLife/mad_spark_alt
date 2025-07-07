@@ -50,6 +50,7 @@ class EvolutionConfig:
     diversity_pressure: float = 0.1
     parallel_evaluation: bool = True
     max_parallel_evaluations: int = 10
+    random_seed: Optional[int] = None
 
     def validate(self) -> bool:
         """Validate configuration parameters."""
@@ -65,6 +66,14 @@ class EvolutionConfig:
             return False
         return True
 
+    def get_random_state(self) -> Any:
+        """Get seeded random state for reproducibility."""
+        import random
+
+        if self.random_seed is not None:
+            return random.Random(self.random_seed)
+        return random
+
 
 @dataclass
 class IndividualFitness:
@@ -76,7 +85,12 @@ class IndividualFitness:
     quality_score: float = 0.0
     overall_fitness: float = 0.0
     evaluation_metadata: Dict[str, Any] = field(default_factory=dict)
-    evaluated_at: datetime = field(default_factory=datetime.now)
+    evaluated_at: Optional[datetime] = None
+
+    def __post_init__(self) -> None:
+        """Set timestamp after initialization."""
+        if self.evaluated_at is None:
+            self.evaluated_at = datetime.now()
 
     def calculate_overall_fitness(self, weights: Dict[str, float]) -> float:
         """Calculate weighted overall fitness score."""
@@ -98,7 +112,12 @@ class PopulationSnapshot:
     average_fitness: float
     worst_fitness: float
     diversity_score: float
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: Optional[datetime] = None
+
+    def __post_init__(self) -> None:
+        """Set timestamp after initialization."""
+        if self.timestamp is None:
+            self.timestamp = datetime.now()
 
     @classmethod
     def from_population(

@@ -25,6 +25,9 @@ from mad_spark_alt.evolution.interfaces import (
 
 logger = logging.getLogger(__name__)
 
+# Default score for failed evaluations or missing metrics
+DEFAULT_FAILURE_SCORE = 0.1  # Penalty score rather than neutral 0.5
+
 
 class FitnessEvaluator:
     """
@@ -229,7 +232,7 @@ class FitnessEvaluator:
                     if diversity_metrics
                     else 0.0
                 )
-        return 0.5  # Default middle score if not found
+        return DEFAULT_FAILURE_SCORE  # Penalty for missing metrics
 
     def _extract_quality_score(
         self, layer_results: Dict[EvaluationLayer, List[EvaluationResult]]
@@ -252,7 +255,7 @@ class FitnessEvaluator:
                     if quality_metrics
                     else 0.0
                 )
-        return 0.5  # Default middle score if not found
+        return DEFAULT_FAILURE_SCORE  # Penalty for missing metrics
 
     async def calculate_population_diversity(
         self, population: List[IndividualFitness]
@@ -299,8 +302,10 @@ class FitnessEvaluator:
 
             for result in quantitative_results:
                 if "diversity" in result.evaluator_name:
-                    return result.scores.get("semantic_uniqueness", 0.5)
-            return 0.5
+                    return result.scores.get(
+                        "semantic_uniqueness", DEFAULT_FAILURE_SCORE
+                    )
+            return DEFAULT_FAILURE_SCORE
         except Exception as e:
             logger.error(f"Failed to calculate population diversity: {e}")
-            return 0.5
+            return DEFAULT_FAILURE_SCORE

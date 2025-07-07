@@ -215,18 +215,53 @@ class MutationOperator(MutationInterface):
                 idx = random.randint(0, len(words) - 1)
                 # Simple substitution - in production, use word embeddings
                 substitutions = {
+                    # Action verbs
                     "improve": "enhance",
                     "improves": "enhances",
                     "create": "develop",
+                    "creates": "develops",
                     "use": "utilize",
                     "uses": "utilizes",
                     "make": "construct",
+                    "makes": "constructs",
                     "reduce": "minimize",
                     "reduces": "minimizes",
                     "increase": "amplify",
+                    "increases": "amplifies",
+                    "build": "construct",
+                    "builds": "constructs",
+                    "design": "architect",
+                    "designs": "architects",
+                    "implement": "deploy",
+                    "implements": "deploys",
+                    # Descriptive adjectives
                     "innovative": "creative",
+                    "effective": "efficient",
+                    "simple": "streamlined",
+                    "complex": "sophisticated",
+                    "advanced": "cutting-edge",
+                    "modern": "contemporary",
+                    "traditional": "conventional",
+                    "unique": "distinctive",
+                    "powerful": "robust",
+                    "flexible": "adaptable",
+                    # Nouns and concepts
                     "efficiency": "effectiveness",
                     "idea": "concept",
+                    "ideas": "concepts",
+                    "solution": "approach",
+                    "solutions": "approaches",
+                    "method": "technique",
+                    "methods": "techniques",
+                    "system": "framework",
+                    "systems": "frameworks",
+                    "process": "procedure",
+                    "processes": "procedures",
+                    "technology": "innovation",
+                    "problem": "challenge",
+                    "problems": "challenges",
+                    "opportunity": "possibility",
+                    "opportunities": "possibilities",
                 }
                 word = words[idx].lower().strip(".,!?")
                 if word in substitutions:

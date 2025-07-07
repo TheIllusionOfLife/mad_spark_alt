@@ -76,6 +76,12 @@ class GeneticAlgorithm:
         """
         start_time = time.time()
 
+        # Set random seed for reproducibility if provided
+        if request.config.random_seed is not None:
+            import random
+
+            random.seed(request.config.random_seed)
+
         # Validate request
         if not request.validate():
             return EvolutionResult(
@@ -94,6 +100,7 @@ class GeneticAlgorithm:
             )
 
             generation_snapshots = []
+            total_evaluations = len(current_population)  # Count initial evaluation
 
             # Evolution loop
             for generation in range(request.config.generations):
@@ -147,7 +154,10 @@ class GeneticAlgorithm:
 
             # Calculate evolution metrics
             evolution_metrics = self._calculate_evolution_metrics(
-                generation_snapshots, request.initial_population, best_ideas
+                generation_snapshots,
+                request.initial_population,
+                best_ideas,
+                request.config,
             )
 
             execution_time = time.time() - start_time
@@ -313,6 +323,7 @@ class GeneticAlgorithm:
         snapshots: List[PopulationSnapshot],
         initial_ideas: List[GeneratedIdea],
         best_ideas: List[GeneratedIdea],
+        config: EvolutionConfig,
     ) -> dict:
         """Calculate metrics about the evolution process."""
         if not snapshots:
@@ -344,5 +355,6 @@ class GeneticAlgorithm:
             "best_fitness_generation": best_generation,
             "diversity_trend": [s.diversity_score for s in snapshots],
             "fitness_trend": [s.best_fitness for s in snapshots],
-            "total_ideas_evaluated": len(snapshots) * len(initial_ideas),
+            "total_ideas_evaluated": len(initial_ideas)
+            + (len(snapshots) - 1) * config.population_size,
         }
