@@ -233,8 +233,16 @@ Analyze this problem to identify characteristics that will inform abductive hypo
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
 
-            # Parse JSON response
-            analysis = json.loads(response.content)
+            # Parse JSON response with robust extraction
+            from ...core.json_utils import safe_json_parse
+            fallback_analysis = {
+                "domain": "general",
+                "complexity_level": "medium",
+                "core_elements": ["problem", "context"],
+                "key_relationships": [],
+                "underlying_factors": [],
+            }
+            analysis = safe_json_parse(response.content, fallback_analysis)
             analysis["llm_cost"] = response.cost
 
             return analysis
@@ -425,8 +433,9 @@ Using {strategy_name} abductive reasoning, generate creative hypotheses that cou
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
 
-            # Parse JSON response
-            hypotheses_data = json.loads(response.content)
+            # Parse JSON response with robust extraction
+            from ...core.json_utils import parse_json_list
+            hypotheses_data = parse_json_list(response.content, [])
 
             generated_hypotheses = []
             # Distribute cost across all generated hypotheses from this API call
@@ -528,7 +537,8 @@ Rank these hypotheses from best to worst based on the evaluation criteria."""
             )
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
-            rankings = json.loads(response.content)
+            from ...core.json_utils import parse_json_list
+            rankings = parse_json_list(response.content, list(range(len(hypotheses))))
 
             # Select top hypotheses based on rankings
             selected_hypotheses: List[GeneratedIdea] = []

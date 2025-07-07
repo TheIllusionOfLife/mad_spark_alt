@@ -2,25 +2,25 @@
 
 ## Overview
 
-Mad Spark Alt is a Multi-Agent Idea Generation System based on the QADI (Question → Abduction → Deduction → Induction) methodology from "Shin Logical Thinking". The system uses specialized AI agents to explore problems from multiple cognitive perspectives and generate comprehensive solution spaces.
+Mad Spark Alt is an **Intelligent Multi-Agent Idea Generation System** based on the QADI (Question → Abduction → Deduction → Induction) methodology from "Shin Logical Thinking". The system uses specialized **AI-powered agents** that leverage Large Language Models to explore problems from multiple cognitive perspectives and generate sophisticated, creative solutions.
 
-## 🚨 Important: Current Implementation Status
+## 🚀 Current Implementation Status: Phase 2 Complete
 
-**This is Phase 1 - Template-Based Implementation**
+**Intelligent LLM-Powered Multi-Agent System**
 
-The current system demonstrates the complete QADI framework with **template-based generation**. This means:
+✅ **AI-Powered Agents**: All 4 QADI phases use sophisticated LLM reasoning  
+✅ **Smart Agent Selection**: Automatic preference for LLM agents with template fallback  
+✅ **Multiple LLM Providers**: Support for OpenAI, Anthropic, and Google APIs  
+✅ **Cost Tracking**: Real-time monitoring of LLM usage and costs  
+✅ **Intelligent Fallback**: Graceful degradation to template agents when needed  
 
-✅ **What Works**: All 4 QADI phases run successfully with structured templates  
-✅ **Framework**: Complete orchestration, registry, and agent coordination  
-✅ **Output**: Consistent, structured ideas following QADI methodology  
+🤖 **AI-Generated Results**: The system produces intelligent, context-aware ideas like:
+- **Questioning**: "What stakeholder perspectives haven't we considered in addressing [problem]?"
+- **Abduction**: "This problem might stem from systemic incentive misalignments that create..."  
+- **Deduction**: "If we implement solution X, the logical consequences would be Y because..."
+- **Induction**: "Analyzing patterns across similar domains reveals that successful approaches typically..."
 
-🔍 **Expected Results**: The system generates template-based ideas like:
-- "What are the core elements of [your problem]?"
-- "What if [your problem] is caused by unexpected interactions?"  
-- "If we address [your problem], then logically we must consider..."
-- "Looking at patterns in [your problem], I observe recurring themes..."
-
-**This is the intended Phase 1 behavior** - proving the framework architecture works with predefined templates before adding AI-powered reasoning in future phases.
+**This represents sophisticated AI reasoning** - contextual analysis, creative hypothesis generation, logical validation, and pattern synthesis.
 
 ## Quick Start
 
@@ -36,6 +36,24 @@ uv sync
 # Install the package in development mode
 uv pip install -e .
 ```
+
+### 🔑 LLM API Setup (Required for AI-Powered Generation)
+
+To experience intelligent AI-powered idea generation, set at least one API key:
+
+```bash
+# OpenAI (GPT-4, GPT-3.5-turbo)
+export OPENAI_API_KEY="your-openai-api-key"
+
+# Anthropic (Claude 3)
+export ANTHROPIC_API_KEY="your-anthropic-api-key"
+
+# Google (Gemini)
+export GOOGLE_API_KEY="your-google-api-key"
+```
+
+**Without API keys**: The system automatically falls back to template-based agents.  
+**With API keys**: Experience sophisticated AI reasoning and creativity.
 
 ## Current System Capabilities
 
@@ -75,33 +93,48 @@ uv run mad-spark compare "Traditional email marketing" "AI-powered personalized 
 uv run mad-spark list-evaluators
 ```
 
-### 2. QADI Generation System (Python API)
+### 2. Intelligent QADI Generation System (Python API)
 
-The core QADI generation system is available through the Python API:
+The core intelligent QADI generation system uses **Smart Orchestrator** for automatic LLM agent selection:
 
-#### Complete QADI Cycle
+#### Smart QADI Cycle (Recommended)
 ```python
-# Create a test script: test_qadi.py
+# Create a test script: test_smart_qadi.py
 import asyncio
-from mad_spark_alt.core.orchestrator import QADIOrchestrator
-from mad_spark_alt.core.interfaces import IdeaGenerationRequest
+from mad_spark_alt.core import SmartQADIOrchestrator, IdeaGenerationRequest
 
 async def main():
-    orchestrator = QADIOrchestrator()
+    # Smart orchestrator automatically detects API keys and prefers LLM agents
+    orchestrator = SmartQADIOrchestrator()
     
-    request = IdeaGenerationRequest(
-        problem_statement="How might we reduce food waste in restaurants?",
-        max_ideas_per_method=5
+    result = await orchestrator.run_qadi_cycle(
+        problem_statement="How might we reduce food waste in restaurants while maintaining profitability?",
+        context="Consider technology solutions, staff training, and customer engagement",
+        cycle_config={
+            "max_ideas_per_method": 4,
+            "require_reasoning": True,
+            "creativity_level": "high"
+        }
     )
     
-    result = await orchestrator.generate_ideas(request)
+    print(f"🎯 Smart QADI Cycle Results:")
+    print(f"  • Generated {len(result.synthesized_ideas)} total ideas")
+    print(f"  • Execution time: {result.execution_time:.2f}s")
+    if result.llm_cost > 0:
+        print(f"  • LLM cost: ${result.llm_cost:.4f}")
     
-    print(f"Generated {len(result.all_ideas)} ideas across {len(result.phases)} phases:")
+    # Show agent types used
+    print(f"\n🤖 Agent Types Used:")
+    for phase, agent_type in result.agent_types.items():
+        print(f"  • {phase.title()}: {agent_type}")
     
+    # Show ideas by phase
     for phase_name, phase_result in result.phases.items():
-        print(f"\n{phase_name.upper()} PHASE ({len(phase_result.generated_ideas)} ideas):")
-        for idea in phase_result.generated_ideas:
-            print(f"  💡 {idea.content}")
+        print(f"\n{phase_name.upper()} PHASE:")
+        for i, idea in enumerate(phase_result.generated_ideas, 1):
+            print(f"  {i}. {idea.content}")
+            if idea.reasoning and len(idea.reasoning) < 100:
+                print(f"     💭 {idea.reasoning}")
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -109,7 +142,28 @@ if __name__ == "__main__":
 
 Run it:
 ```bash
-uv run python test_qadi.py
+uv run python test_smart_qadi.py
+```
+
+#### API Key Detection Example
+```python
+# The system automatically detects your setup:
+import asyncio
+from mad_spark_alt.core import SmartQADIOrchestrator
+
+async def check_setup():
+    orchestrator = SmartQADIOrchestrator()
+    
+    # This will show what agents are available
+    status = await orchestrator.ensure_agents_ready()
+    
+    for method, status_msg in status.items():
+        if "LLM" in status_msg:
+            print(f"✅ {method}: AI-powered agent ready")
+        else:
+            print(f"📝 {method}: Template agent (set API keys for AI)")
+
+asyncio.run(check_setup())
 ```
 
 #### Individual Agent Testing
@@ -258,51 +312,91 @@ if __name__ == "__main__":
 
 ## Demo Scripts
 
-### Run Provided Examples
+### Run Intelligent Demo Scripts
 ```bash
-# Run the comprehensive QADI demo
+# Run the comprehensive Smart QADI demo (shows LLM vs template agents)
 uv run python examples/qadi_demo.py
+
+# Run LLM showcase demo (requires API keys)
+uv run python examples/llm_showcase_demo.py
+
+# Run LLM-specific demos
+uv run python examples/llm_questioning_demo.py
+uv run python examples/llm_abductive_demo.py
 
 # Run basic usage examples
 uv run python examples/basic_usage.py
 ```
 
+### Understanding Demo Output
+
+**With API Keys (LLM Agents)**:
+- 🤖 Sophisticated, context-aware reasoning
+- 💰 Real-time cost tracking
+- 🧠 Detailed reasoning explanations
+- 📊 Confidence scoring
+- 🔍 Domain-specific insights
+
+**Without API Keys (Template Agents)**:
+- 📝 Structured template-based ideas
+- ⚡ Fast generation (no API calls)
+- 🔄 Consistent format
+- 💡 Basic creativity patterns
+
 ## Advanced Usage Patterns
 
-### Custom Configuration
+### Smart Configuration with LLM Agents
 ```python
-# Create custom_config.py
+# Create smart_config.py
 import asyncio
-from mad_spark_alt.core.orchestrator import QADIOrchestrator
-from mad_spark_alt.core.interfaces import IdeaGenerationRequest
+from mad_spark_alt.core import SmartQADIOrchestrator
 
 async def main():
-    orchestrator = QADIOrchestrator()
+    orchestrator = SmartQADIOrchestrator()
     
-    # Custom configuration with specific parameters
-    request = IdeaGenerationRequest(
+    # Smart configuration automatically optimized for LLM agents
+    result = await orchestrator.run_qadi_cycle(
         problem_statement="How can we create more sustainable packaging solutions?",
-        max_ideas_per_method=8,
-        context="Focus on biodegradable materials and circular economy principles",
-        generation_config={
+        context="Focus on biodegradable materials, circular economy principles, and consumer behavior",
+        cycle_config={
+            "max_ideas_per_method": 5,
+            "require_reasoning": True,
             "creativity_level": "high",
-            "explore_analogies": True,
-            "question_types": ["what", "why", "how", "assumptions"]
+            # LLM-specific configurations
+            "questioning": {
+                "questioning_strategy": "comprehensive",
+                "include_meta_questions": True,
+                "perspective_diversity": True
+            },
+            "abduction": {
+                "max_strategies": 4
+            }
         }
     )
     
-    result = await orchestrator.generate_ideas(request)
+    print("🌱 SUSTAINABLE PACKAGING SOLUTIONS")
+    print("="*40)
     
-    print("SUSTAINABLE PACKAGING SOLUTIONS")
-    print("="*35)
+    # Show cost and performance metrics
+    print(f"💰 Total Cost: ${result.llm_cost:.4f}")
+    print(f"⏱️  Execution Time: {result.execution_time:.2f}s")
+    print(f"🧠 Agent Types: {', '.join(set(result.agent_types.values()))}")
     
     for phase_name, phase_result in result.phases.items():
-        print(f"\n{phase_name.upper()}:")
-        for idea in phase_result.generated_ideas:
-            print(f"  • {idea.content}")
-            # Show confidence if available
-            if hasattr(idea, 'confidence_score'):
-                print(f"    Confidence: {idea.confidence_score:.2f}")
+        agent_type = result.agent_types.get(phase_name, "unknown")
+        print(f"\n{phase_name.upper()} ({agent_type}):")
+        
+        for i, idea in enumerate(phase_result.generated_ideas, 1):
+            print(f"  {i}. {idea.content}")
+            
+            # Show LLM-specific metadata
+            if "LLM" in agent_type:
+                if idea.reasoning:
+                    print(f"     💭 {idea.reasoning[:100]}...")
+                if hasattr(idea, 'confidence_score') and idea.confidence_score:
+                    print(f"     📊 Confidence: {idea.confidence_score:.2f}")
+                if "llm_cost" in idea.metadata:
+                    print(f"     💰 Cost: ${idea.metadata['llm_cost']:.4f}")
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -352,20 +446,37 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## Understanding the Output
+## Understanding the AI-Powered Output
 
-The QADI system generates structured results with:
+The intelligent QADI system generates sophisticated results with:
 
-- **Questioning Phase**: Explores assumptions, clarifies the problem, identifies constraints
-- **Abduction Phase**: Generates creative hypotheses and explores analogies
-- **Deduction Phase**: Applies logical reasoning and analyzes consequences
-- **Induction Phase**: Synthesizes patterns and generalizes insights
+- **Questioning Phase**: Context-aware problem analysis, stakeholder consideration, assumption challenging
+- **Abduction Phase**: Creative hypothesis generation with multiple reasoning strategies  
+- **Deduction Phase**: Logical validation with structured consequence analysis
+- **Induction Phase**: Pattern synthesis with meta-level insights and generalizations
 
-Each idea includes:
-- Content (the actual idea)
-- Confidence score (when available)
-- Reasoning explanation
-- Metadata about generation approach
+Each AI-generated idea includes:
+- **Content**: The actual sophisticated idea or insight
+- **Reasoning**: Detailed AI logic explaining the thinking process
+- **Confidence Score**: AI's assessment of idea quality (0.0-1.0)
+- **Cost**: LLM API cost for generating this specific idea
+- **Strategy**: The reasoning strategy used (for abductive ideas)
+- **Metadata**: Rich context including domain analysis, stakeholder relevance, etc.
+
+### LLM Agent vs Template Agent Output
+
+**LLM Agents** produce:
+- Context-aware, domain-specific insights
+- Multi-step reasoning chains
+- Creative analogies and novel connections
+- Stakeholder and implementation considerations
+- Confidence scoring and uncertainty acknowledgment
+
+**Template Agents** produce:
+- Structured, consistent format
+- Framework-based thinking patterns
+- Reliable but predictable output
+- Fast generation without API dependencies
 
 ## Testing and Validation
 
@@ -421,14 +532,78 @@ logging.basicConfig(level=logging.DEBUG)
 # Then run your QADI generation
 ```
 
-## Next Steps
+## Cost Management and Optimization
 
-This system provides a foundation for systematic idea generation. You can:
+### Understanding LLM Costs
+```python
+import asyncio
+from mad_spark_alt.core import SmartQADIOrchestrator
 
-1. **Extend Agents**: Add new thinking method agents with specialized approaches
-2. **Customize Templates**: Modify the idea generation templates for domain-specific problems
-3. **Integration**: Combine with external APIs, databases, or knowledge sources
-4. **Evaluation**: Use the built-in creativity evaluation system to assess generated ideas
-5. **Human-AI Collaboration**: Build interfaces for interactive ideation sessions
+async def cost_analysis():
+    orchestrator = SmartQADIOrchestrator()
+    
+    # Run with cost tracking
+    result = await orchestrator.run_qadi_cycle(
+        problem_statement="How can we optimize our software development process?",
+        cycle_config={"max_ideas_per_method": 3}
+    )
+    
+    print(f"💰 Total Cost: ${result.llm_cost:.4f}")
+    print(f"💡 Cost per Idea: ${result.llm_cost / len(result.synthesized_ideas):.4f}")
+    
+    # Show cost breakdown by phase
+    for phase_name, phase_result in result.phases.items():
+        phase_cost = sum(
+            idea.metadata.get("llm_cost", 0) 
+            for idea in phase_result.generated_ideas
+        )
+        print(f"  {phase_name}: ${phase_cost:.4f}")
 
-The QADI methodology transforms problem-solving by applying systematic thinking methods through AI agents, helping you explore problems from multiple angles and generate comprehensive solution spaces.
+asyncio.run(cost_analysis())
+```
+
+### Cost Optimization Tips
+- **Start small**: Use `max_ideas_per_method=2-3` for testing
+- **Template fallback**: System automatically uses templates when LLM fails
+- **Batch problems**: Process multiple related problems together
+- **Monitor usage**: Track costs in production applications
+
+## Next Steps: Advanced AI-Powered Development
+
+This intelligent system enables sophisticated problem-solving applications:
+
+### 1. **Enterprise Integration**
+- Integrate with business intelligence systems
+- Create domain-specific agent configurations
+- Build cost-aware production pipelines
+- Implement human-AI collaboration workflows
+
+### 2. **Custom LLM Agent Development**
+- Extend existing agents with domain expertise
+- Create industry-specific reasoning strategies
+- Implement specialized evaluation criteria
+- Build agent ensembles for complex problems
+
+### 3. **Advanced Applications**
+- **Research & Development**: Systematic innovation processes
+- **Strategic Planning**: Multi-perspective analysis for business decisions
+- **Product Development**: User-centered design thinking
+- **Education**: Adaptive learning with personalized idea generation
+
+### 4. **System Enhancement**
+- **Genetic Algorithm Integration**: Evolve ideas through fitness-based selection
+- **Knowledge Graph Integration**: Connect ideas with structured domain knowledge
+- **Real-time Collaboration**: Multi-user ideation sessions
+- **Advanced Evaluation**: Multi-dimensional creativity assessment
+
+## Architecture Benefits
+
+The **Smart QADI System** provides:
+
+✅ **Intelligent Agent Selection**: Automatic LLM preference with graceful fallbacks  
+✅ **Cost-Effective AI**: Optimized API usage with transparent cost tracking  
+✅ **Scalable Architecture**: Support for multiple LLM providers and models  
+✅ **Production Ready**: Robust error handling and fallback mechanisms  
+✅ **Extensible Design**: Easy integration of new agents and capabilities  
+
+The QADI methodology, enhanced with AI reasoning, transforms problem-solving by applying sophisticated thinking methods through intelligent agents, helping you explore problems from multiple cognitive perspectives and generate innovative, well-reasoned solutions.

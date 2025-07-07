@@ -224,8 +224,16 @@ Analyze this problem to identify patterns, synthesis opportunities, and the pote
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
 
-            # Parse JSON response
-            analysis = json.loads(response.content)
+            # Parse JSON response with robust extraction
+            from ...core.json_utils import safe_json_parse
+            fallback_analysis = {
+                "domain": "general",
+                "pattern_complexity": "medium",
+                "data_types": ["qualitative", "empirical"],
+                "observable_patterns": [],
+                "meta_patterns": [],
+            }
+            analysis = safe_json_parse(response.content, fallback_analysis)
             analysis["llm_cost"] = response.cost
 
             return analysis
@@ -418,8 +426,9 @@ Using {method_name} inductive reasoning, synthesize insights that identify patte
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
 
-            # Parse JSON response
-            insights_data = json.loads(response.content)
+            # Parse JSON response with robust extraction
+            from ...core.json_utils import parse_json_list
+            insights_data = parse_json_list(response.content, [])
 
             generated_insights = []
             # Distribute cost across all generated insights from this API call
@@ -518,7 +527,8 @@ Rank these insights from best to worst based on the evaluation criteria."""
             )
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
-            rankings = json.loads(response.content)
+            from ...core.json_utils import parse_json_list
+            rankings = parse_json_list(response.content, list(range(len(insights))))
 
             # Select top insights based on rankings
             selected_insights = []

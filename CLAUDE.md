@@ -4,21 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**TRANSFORMATION COMPLETE:** Mad Spark Alt has evolved from an AI creativity evaluation system into a **Multi-Agent Idea Generation System** based on "Shin Logical Thinking" QADI methodology.
+**INTELLIGENT SYSTEM COMPLETE:** Mad Spark Alt is a **sophisticated Multi-Agent Idea Generation System** powered by Large Language Models and based on "Shin Logical Thinking" QADI methodology.
 
-### Current State: QADI System Implementation ✅
-The system now provides a complete multi-agent framework with:
-1. **QADI Cycle Orchestration** - Question → Abduction → Deduction → Induction workflows ✅
-2. **Thinking Method Agents** - Specialized AI agents for different cognitive approaches ✅  
-3. **Unified Registry System** - Seamless management of evaluators and thinking agents ✅
-4. **Async Processing Framework** - Efficient multi-agent coordination ✅
-5. **Creativity Evaluation Engine** - Multi-dimensional assessment for fitness scoring ✅
+### Current State: Advanced LLM-Powered System ✅
+The system provides an intelligent multi-agent framework with:
+1. **Smart QADI Orchestration** - AI-powered Question → Abduction → Deduction → Induction workflows ✅
+2. **LLM-Powered Agents** - Sophisticated AI agents using OpenAI, Anthropic, and Google APIs ✅  
+3. **Intelligent Agent Registry** - Automatic LLM preference with graceful template fallback ✅
+4. **Cost-Aware Processing** - Real-time LLM cost tracking and optimization ✅
+5. **Multi-Provider Support** - Seamless integration across multiple LLM providers ✅
+6. **Robust Fallback System** - Automatic degradation to template agents when needed ✅
+7. **Creativity Evaluation Engine** - Multi-dimensional assessment for idea fitness scoring ✅
 
-### Future Evolution: Genetic Algorithm Integration 🚧
-The next phase will add:
-1. **Genetic Evolution Engine** - Idea population evolution through genetic algorithms
-2. **Human-AI Collaboration Interface** - Interactive ideation sessions and feedback loops
-3. **Advanced Fitness Functions** - Sophisticated evaluation criteria for idea evolution
+### Next Evolution: Advanced AI Integration 🚧
+Future enhancements will include:
+1. **Genetic Algorithm Engine** - Evolution of LLM-generated ideas through fitness-based selection
+2. **Context-Aware Processing** - Domain knowledge integration and specialized reasoning
+3. **Human-AI Collaboration** - Interactive ideation with intelligent agent assistance
+4. **Advanced Analytics** - Multi-dimensional creativity and feasibility assessment
 
 ## Commands
 
@@ -83,47 +86,58 @@ uv run mad-spark compare "idea1" "idea2" "idea3"
 
 **Note**: The CLI currently supports evaluation functionality. QADI generation is available through Python API only.
 
-### QADI System Usage (Python API)
-**IMPORTANT**: QADI generation is currently Phase 1 implementation using template-based agents.
+### Smart QADI System Usage (Python API)
+**IMPORTANT**: QADI generation now uses intelligent LLM-powered agents with automatic fallback.
 
 ```bash
-# Run QADI demonstration (shows all 4 phases working)
+# Set API keys for LLM-powered generation (recommended)
+export OPENAI_API_KEY="your-openai-key"
+export ANTHROPIC_API_KEY="your-anthropic-key" 
+export GOOGLE_API_KEY="your-google-key"
+
+# Run Smart QADI demonstration (shows LLM vs template agents)
 uv run python examples/qadi_demo.py
 
-# Run basic examples
-uv run python examples/basic_usage.py
+# Run LLM showcase demo (requires API keys)
+uv run python examples/llm_showcase_demo.py
 
-# Test the complete system
+# Run LLM-specific agent demos
+uv run python examples/llm_questioning_demo.py
+uv run python examples/llm_abductive_demo.py
+
+# Test the intelligent system
 uv run pytest tests/test_qadi_system.py -v
 
-# Test individual agents
+# Test smart agent setup
 uv run python -c "
 import asyncio
-from mad_spark_alt.agents import QuestioningAgent
-from mad_spark_alt.core import IdeaGenerationRequest
+from mad_spark_alt.core import SmartQADIOrchestrator
 
 async def test():
-    agent = QuestioningAgent()
-    request = IdeaGenerationRequest(
+    orchestrator = SmartQADIOrchestrator()
+    result = await orchestrator.run_qadi_cycle(
         problem_statement='How can we improve urban sustainability?',
-        context='Focus on practical solutions',
-        max_ideas_per_method=3
+        context='Focus on practical, innovative solutions',
+        cycle_config={'max_ideas_per_method': 3}
     )
-    result = await agent.generate_ideas(request)
-    for idea in result.generated_ideas:
-        print(f'💡 {idea.content}')
+    print(f'Generated {len(result.synthesized_ideas)} ideas')
+    print(f'Agent types: {set(result.agent_types.values())}')
+    if result.llm_cost > 0:
+        print(f'LLM cost: \${result.llm_cost:.4f}')
+    for phase, phase_result in result.phases.items():
+        print(f'{phase.upper()}: {len(phase_result.generated_ideas)} ideas')
 
 asyncio.run(test())
 "
 ```
 
-**Expected Output**: The QADI system generates template-based ideas across 4 phases:
-- **Questioning**: "What are the core elements of [problem]?"
-- **Abduction**: "What if [problem] is caused by unexpected factors?"
-- **Deduction**: "If we address [problem], then logically..."
-- **Induction**: "Looking at patterns in [problem], I observe..."
+**Expected Output**: The Smart QADI system produces sophisticated AI-powered ideas:
+- **With API Keys**: Context-aware, intelligent reasoning with detailed explanations
+- **Without API Keys**: Graceful fallback to template-based generation
+- **Cost Tracking**: Real-time monitoring of LLM usage and costs
+- **Agent Types**: Clear indication of LLM vs template agent usage
 
-This is the intended Phase 1 behavior - a working framework with template-based generation.
+This is intelligent Phase 2+ behavior - AI-powered reasoning with robust fallbacks.
 
 ### Environment Variables
 LLM Judge functionality requires API keys:
@@ -137,38 +151,45 @@ Current implementation primarily uses local evaluation methods.
 
 ## Current System State & Expectations
 
-### ✅ What Works Now (Phase 1 - Template-Based)
-- **QADI Orchestration**: All 4 phases run successfully in sequence
-- **Template-Based Generation**: Agents use predefined templates to generate ideas
-- **System Integration**: Registry, orchestrator, and agents work together seamlessly
-- **Evaluation Engine**: Creativity assessment with quantitative metrics
-- **CLI Interface**: Basic evaluation commands (not generation commands)
+### ✅ What Works Now (Phase 2+ - LLM-Powered)
+- **Smart QADI Orchestration**: All 4 phases use intelligent LLM reasoning with fallback
+- **LLM-Powered Generation**: Agents use sophisticated AI reasoning from OpenAI, Anthropic, Google
+- **Intelligent Agent Selection**: Automatic preference for LLM agents with graceful template fallback
+- **Cost-Aware Processing**: Real-time LLM usage tracking and cost optimization
+- **System Integration**: Smart registry, orchestrator, and agents work seamlessly
+- **Evaluation Engine**: Multi-dimensional creativity assessment with quantitative metrics
+- **CLI Interface**: Basic evaluation commands (generation via Python API)
 
 ### 🔍 Expected Output Characteristics
-The current QADI system produces **template-based results** like:
-- **Questioning**: "What are the core elements of [problem]?"
-- **Abduction**: "What if [problem] is caused by unexpected interactions?"
-- **Deduction**: "If we address [problem], then logically we must consider..."
-- **Induction**: "Looking at patterns in [problem], I observe recurring themes..."
+The Smart QADI system produces **intelligent AI-powered results**:
 
-**This is the intended behavior** for Phase 1 - proving the framework works with structured templates.
+**With LLM Agents**:
+- **Questioning**: "What stakeholder perspectives haven't been considered in urban sustainability? How might economic incentives conflict with environmental goals?"
+- **Abduction**: "This problem might stem from systemic misalignment between short-term economic pressures and long-term sustainability benefits, suggesting we need innovative financing mechanisms..."
+- **Deduction**: "If we implement carbon pricing mechanisms, then logically we must also provide transition support for affected industries to prevent economic disruption while achieving environmental goals."
+- **Induction**: "Analyzing patterns across successful sustainability initiatives reveals that effective solutions typically integrate economic incentives, stakeholder engagement, and measurable impact metrics."
 
-### 🚧 What's Missing (Future Phases)
-- **AI-Powered Generation**: Integration with LLM APIs for intelligent reasoning
-- **Context-Aware Reasoning**: Domain-specific knowledge and sophisticated prompting
-- **Genetic Evolution**: Population-based idea evolution and refinement
-- **Human-AI Collaboration**: Interactive ideation and feedback loops
+**This represents sophisticated AI reasoning** - context awareness, stakeholder analysis, and domain-specific insights.
+
+### 🚧 What's Coming Next (Future Phases)
+- **Genetic Algorithm Engine**: Evolution of LLM-generated ideas through fitness-based selection
+- **Context-Aware Processing**: Domain knowledge integration and specialized reasoning strategies
+- **Human-AI Collaboration**: Interactive ideation sessions with intelligent agent assistance
+- **Advanced Analytics**: Multi-dimensional creativity and feasibility assessment frameworks
 
 ### 📋 Key Files for New Sessions
-- **USER_GUIDE.md**: Complete user experience guide with working examples
-- **examples/qadi_demo.py**: Comprehensive demonstration of all system capabilities
+- **USER_GUIDE.md**: Complete user experience guide with LLM and template agent examples
+- **examples/qadi_demo.py**: Smart QADI demonstration with LLM vs template comparison
+- **examples/llm_showcase_demo.py**: Advanced LLM agent capabilities showcase
+- **src/mad_spark_alt/core/smart_registry.py**: Intelligent agent registration system
+- **src/mad_spark_alt/core/smart_orchestrator.py**: Smart QADI orchestration with LLM preference
+- **src/mad_spark_alt/agents/*/llm_agent.py**: LLM-powered agent implementations
 - **tests/test_qadi_system.py**: Verification that all components work correctly
-- **src/mad_spark_alt/agents/**: Template-based agent implementations
 
 ## System Architecture (Current Implementation)
 
-### ✅ Phase 1: Core Architecture (COMPLETED)
-**Multi-Agent QADI Framework**
+### ✅ Phase 2+: Advanced LLM-Powered Architecture (COMPLETED)
+**Intelligent Multi-Agent QADI Framework**
 
 1. **Core Interfaces** (`core/interfaces.py`)
    - ✅ `ThinkingAgentInterface` - Common interface for all thinking agents
