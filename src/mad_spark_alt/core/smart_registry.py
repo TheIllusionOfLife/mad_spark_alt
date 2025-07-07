@@ -155,7 +155,7 @@ class SmartAgentRegistry:
         elif LLMProvider.GOOGLE in available_providers:
             preferred_provider = LLMProvider.GOOGLE
 
-        provider_name = preferred_provider.value if preferred_provider else 'None'
+        provider_name = preferred_provider.value if preferred_provider else "None"
         logger.info(f"Using preferred LLM provider: {provider_name}")
 
         # Register LLM agents
@@ -172,7 +172,9 @@ class SmartAgentRegistry:
                 agent_instance = agent_class(preferred_provider=preferred_provider)
                 self.base_registry.register(agent_class)  # type: ignore
                 self._agent_preferences[method] = name
-                provider_str = preferred_provider.value if preferred_provider else "unknown"
+                provider_str = (
+                    preferred_provider.value if preferred_provider else "unknown"
+                )
                 status[method.value] = f"LLM agent registered ({provider_str})"
                 logger.info(f"Registered LLM agent for {method.value}")
             except Exception as e:

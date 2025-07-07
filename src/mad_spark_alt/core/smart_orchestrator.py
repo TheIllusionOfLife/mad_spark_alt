@@ -280,7 +280,7 @@ class SmartQADIOrchestrator:
                 from ..agents import InductionAgent
 
                 fallback_agent = InductionAgent()
-            
+
             if not fallback_agent:
                 return None
 

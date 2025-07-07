@@ -5,16 +5,17 @@ This module tests the LLM-based deductive reasoning functionality,
 logical validation frameworks, and error handling.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from mad_spark_alt.agents.deduction.llm_agent import LLMDeductiveAgent
 from mad_spark_alt.core.interfaces import (
     IdeaGenerationRequest,
-    ThinkingMethod,
     OutputType,
+    ThinkingMethod,
 )
-from mad_spark_alt.core.llm_provider import LLMManager, LLMResponse, LLMProvider
+from mad_spark_alt.core.llm_provider import LLMManager, LLMProvider, LLMResponse
 
 
 class TestLLMDeductiveAgent:
@@ -363,8 +364,9 @@ class TestLLMDeductiveAgent:
         for i, framework in enumerate(
             ["logical_validation", "consequence_analysis", "requirement_validation"]
         ):
-            from mad_spark_alt.core.interfaces import GeneratedIdea
             from datetime import datetime
+
+            from mad_spark_alt.core.interfaces import GeneratedIdea
 
             idea = GeneratedIdea(
                 content=f"Test logical analysis {i+1}",
