@@ -232,11 +232,12 @@ Analyze this problem to identify its logical structure, requirements, and the ty
             # Parse JSON response with robust extraction
             from ...core.json_utils import safe_json_parse
             fallback_analysis = {
-                "domain": "general",
-                "logical_structure": "complex",
-                "key_assumptions": [],
-                "logical_relationships": [],
-                "validation_criteria": [],
+                "logical_complexity": "moderate",
+                "problem_type": "semi_structured",
+                "evidence_base": "moderate",
+                "formal_logic_applicable": False,
+                "reasoning_chain_depth": "moderate",
+                "systematic_analysis_scope": ["validation", "consistency"],
             }
             analysis = safe_json_parse(response.content, fallback_analysis)
             analysis["llm_cost"] = response.cost

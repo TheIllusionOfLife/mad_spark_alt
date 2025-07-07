@@ -227,11 +227,14 @@ Analyze this problem to identify patterns, synthesis opportunities, and the pote
             # Parse JSON response with robust extraction
             from ...core.json_utils import safe_json_parse
             fallback_analysis = {
-                "domain": "general",
-                "pattern_complexity": "medium",
-                "data_types": ["qualitative", "empirical"],
-                "observable_patterns": [],
-                "meta_patterns": [],
+                "data_richness": "moderate",
+                "pattern_visibility": "subtle",
+                "pattern_diversity": "medium",
+                "observation_scope": "comprehensive",
+                "synthesis_opportunities": ["commonalities", "trends"],
+                "inductive_strength": "moderate",
+                "generalization_potential": "medium",
+                "insight_opportunities": ["pattern_recognition", "trend_analysis"],
             }
             analysis = safe_json_parse(response.content, fallback_analysis)
             analysis["llm_cost"] = response.cost

@@ -237,10 +237,16 @@ Analyze this problem to identify characteristics that will inform abductive hypo
             from ...core.json_utils import safe_json_parse
             fallback_analysis = {
                 "domain": "general",
-                "complexity_level": "medium",
-                "core_elements": ["problem", "context"],
-                "key_relationships": [],
-                "underlying_factors": [],
+                "problem_nature": "ill_structured",
+                "evidence_availability": "moderate",
+                "causal_complexity": "complex",
+                "analogical_domains": ["general"],
+                "pattern_indicators": ["complexity", "uncertainty"],
+                "uncertainty_level": "medium",
+                "stakeholder_impact": "direct",
+                "temporal_dynamics": "evolving",
+                "potential_biases": ["confirmation_bias"],
+                "abductive_opportunities": ["hypothesis_generation", "creative_leaps"],
             }
             analysis = safe_json_parse(response.content, fallback_analysis)
             analysis["llm_cost"] = response.cost
