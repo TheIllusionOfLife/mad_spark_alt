@@ -11,7 +11,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -482,43 +482,37 @@ class GoogleProvider(LLMProviderInterface):
     async def generate(self, request: LLMRequest) -> LLMResponse:
         """Generate text using Google Gemini API."""
         session = await self._get_session()
-        
+
         # Get model config
-        model_config = request.model_configuration or self._get_default_model_config("gemini-2.0-flash")
-        
+        model_config = request.model_configuration or self._get_default_model_config(
+            "gemini-2.0-flash"
+        )
+
         # Prepare the request payload
         url = f"{self.base_url}/models/{model_config.model_name}:generateContent"
-        
+
         # Build the prompt from system and user prompts
         prompt_parts = []
         if request.system_prompt:
             prompt_parts.append(f"System: {request.system_prompt}")
         if request.user_prompt:
             prompt_parts.append(f"User: {request.user_prompt}")
-        
+
         full_prompt = "\n\n".join(prompt_parts)
-        
+
         payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {"text": full_prompt}
-                    ]
-                }
-            ],
+            "contents": [{"parts": [{"text": full_prompt}]}],
             "generationConfig": {
                 "temperature": request.temperature,
                 "maxOutputTokens": request.max_tokens,
                 "topP": 0.95,
-                "topK": 40
-            }
+                "topK": 40,
+            },
         }
-        
+
         params = {"key": self.api_key}
-        
-        headers = {
-            "Content-Type": "application/json"
-        }
+
+        headers = {"Content-Type": "application/json"}
 
         start_time = time.time()
 
@@ -538,24 +532,28 @@ class GoogleProvider(LLMProviderInterface):
             raise LLMError(f"Google API request failed: {str(e)}", ErrorType.API_ERROR)
 
         end_time = time.time()
-        
+
         # Extract the generated content
         try:
             content = response_data["candidates"][0]["content"]["parts"][0]["text"]
         except (KeyError, IndexError):
-            raise LLMError("Invalid response format from Google API", ErrorType.API_ERROR)
-        
+            raise LLMError(
+                "Invalid response format from Google API", ErrorType.API_ERROR
+            )
+
         # Extract usage information
         usage_metadata = response_data.get("usageMetadata", {})
         prompt_tokens = usage_metadata.get("promptTokenCount", 0)
         completion_tokens = usage_metadata.get("candidatesTokenCount", 0)
-        total_tokens = usage_metadata.get("totalTokenCount", prompt_tokens + completion_tokens)
-        
+        total_tokens = usage_metadata.get(
+            "totalTokenCount", prompt_tokens + completion_tokens
+        )
+
         # Calculate cost based on model pricing
         input_cost = (prompt_tokens / 1000) * model_config.input_cost_per_1k
         output_cost = (completion_tokens / 1000) * model_config.output_cost_per_1k
         total_cost = input_cost + output_cost
-        
+
         return LLMResponse(
             content=content,
             provider=LLMProvider.GOOGLE,
@@ -604,10 +602,7 @@ class GoogleProvider(LLMProviderInterface):
         return models.get(model_name, models["gemini-2.0-flash"])
 
     def calculate_cost(
-        self, 
-        prompt_tokens: int, 
-        completion_tokens: int, 
-        model_config: ModelConfig
+        self, prompt_tokens: int, completion_tokens: int, model_config: ModelConfig
     ) -> float:
         """Calculate cost based on token usage and model pricing."""
         input_cost = (prompt_tokens / 1000) * model_config.input_cost_per_1k

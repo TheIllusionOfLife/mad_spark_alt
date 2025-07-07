@@ -231,6 +231,7 @@ Analyze this problem to identify its logical structure, requirements, and the ty
 
             # Parse JSON response with robust extraction
             from ...core.json_utils import safe_json_parse
+
             fallback_analysis = {
                 "logical_complexity": "moderate",
                 "problem_type": "semi_structured",
@@ -436,6 +437,7 @@ Using {framework_name} deductive reasoning, generate systematic logical analyses
 
             # Parse JSON response with robust extraction
             from ...core.json_utils import parse_json_list
+
             analyses_data = parse_json_list(response.content, [])
 
             generated_analyses = []
@@ -539,6 +541,7 @@ Rank these logical analyses from best to worst based on the evaluation criteria.
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
             from ...core.json_utils import parse_json_list
+
             rankings = parse_json_list(response.content, list(range(len(analyses))))
 
             # Select top analyses based on rankings

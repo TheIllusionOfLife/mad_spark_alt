@@ -226,6 +226,7 @@ Analyze this problem to identify patterns, synthesis opportunities, and the pote
 
             # Parse JSON response with robust extraction
             from ...core.json_utils import safe_json_parse
+
             fallback_analysis = {
                 "data_richness": "moderate",
                 "pattern_visibility": "subtle",
@@ -431,6 +432,7 @@ Using {method_name} inductive reasoning, synthesize insights that identify patte
 
             # Parse JSON response with robust extraction
             from ...core.json_utils import parse_json_list
+
             insights_data = parse_json_list(response.content, [])
 
             generated_insights = []
@@ -531,6 +533,7 @@ Rank these insights from best to worst based on the evaluation criteria."""
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
             from ...core.json_utils import parse_json_list
+
             rankings = parse_json_list(response.content, list(range(len(insights))))
 
             # Select top insights based on rankings

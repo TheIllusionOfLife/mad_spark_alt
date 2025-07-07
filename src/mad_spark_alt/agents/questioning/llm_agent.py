@@ -209,7 +209,7 @@ Analyze this problem and provide the domain analysis in the specified JSON forma
 
             # Parse JSON response with robust extraction
             from ...core.json_utils import safe_json_parse
-            
+
             fallback_analysis = {
                 "domain": "general",
                 "complexity_level": "medium",
@@ -217,7 +217,7 @@ Analyze this problem and provide the domain analysis in the specified JSON forma
                 "stakeholder_groups": ["users", "stakeholders"],
                 "interdisciplinary": True,
             }
-            
+
             analysis = safe_json_parse(response.content, fallback_analysis)
             analysis["llm_cost"] = response.cost
 
@@ -395,6 +395,7 @@ Using the {strategy_name} approach, generate insightful questions that will help
 
             # Parse JSON response with robust extraction
             from ...core.json_utils import parse_json_list
+
             questions_data = parse_json_list(response.content, [])
 
             generated_questions = []
@@ -487,6 +488,7 @@ Rank these questions from best to worst based on the evaluation criteria."""
 
             response = await self.llm_manager.generate(request, self.preferred_provider)
             from ...core.json_utils import parse_json_list
+
             rankings = parse_json_list(response.content, list(range(len(questions))))
 
             # Select top questions based on rankings
