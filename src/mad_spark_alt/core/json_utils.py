@@ -42,7 +42,7 @@ def extract_json_from_response(text: str) -> Optional[str]:
     matches = re.findall(json_pattern, text, re.DOTALL)
     if matches:
         # Return the largest JSON-like match
-        return max(matches, key=len).strip()
+        return str(max(matches, key=len)).strip()
 
     # Pattern 3: Try to extract anything between first { and last }
     if "{" in text and "}" in text:
@@ -71,7 +71,8 @@ def safe_json_parse(
 
     try:
         # First try to parse as-is
-        return json.loads(text)
+        result = json.loads(text)
+        return result  # type: ignore
     except (json.JSONDecodeError, TypeError):
         pass
 
@@ -79,7 +80,8 @@ def safe_json_parse(
     extracted_json = extract_json_from_response(text)
     if extracted_json:
         try:
-            return json.loads(extracted_json)
+            result = json.loads(extracted_json)
+            return result  # type: ignore
         except json.JSONDecodeError:
             pass
 

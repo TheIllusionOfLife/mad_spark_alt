@@ -9,7 +9,7 @@ agents when they're not.
 import asyncio
 import logging
 import os
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from .interfaces import ThinkingAgentInterface, ThinkingMethod
 from .llm_provider import LLMProvider, setup_llm_providers
@@ -155,9 +155,8 @@ class SmartAgentRegistry:
         elif LLMProvider.GOOGLE in available_providers:
             preferred_provider = LLMProvider.GOOGLE
 
-        logger.info(
-            f"Using preferred LLM provider: {preferred_provider.value if preferred_provider else 'None'}"
-        )
+        provider_name = preferred_provider.value if preferred_provider else 'None'
+        logger.info(f"Using preferred LLM provider: {provider_name}")
 
         # Register LLM agents
         llm_agents = [
@@ -171,11 +170,10 @@ class SmartAgentRegistry:
             try:
                 # Create agent with preferred provider
                 agent_instance = agent_class(preferred_provider=preferred_provider)
-                self.base_registry.register(agent_class)
+                self.base_registry.register(agent_class)  # type: ignore
                 self._agent_preferences[method] = name
-                status[method.value] = (
-                    f"LLM agent registered ({preferred_provider.value})"
-                )
+                provider_str = preferred_provider.value if preferred_provider else "unknown"
+                status[method.value] = f"LLM agent registered ({provider_str})"
                 logger.info(f"Registered LLM agent for {method.value}")
             except Exception as e:
                 logger.error(f"Failed to register LLM agent for {method.value}: {e}")
@@ -208,7 +206,7 @@ class SmartAgentRegistry:
 
         for agent_class, method, name in template_agents:
             try:
-                self.base_registry.register(agent_class)
+                self.base_registry.register(agent_class)  # type: ignore
                 self._agent_preferences[method] = name
                 status[method.value] = "Template agent registered"
                 logger.info(f"Registered template agent for {method.value}")
@@ -239,7 +237,7 @@ class SmartAgentRegistry:
         # Fallback to any available agent for the method
         return self.base_registry.get_agent_by_method(method)
 
-    def get_agent_status(self) -> Dict[str, Dict[str, str]]:
+    def get_agent_status(self) -> Dict[str, Any]:
         """
         Get status of all registered agents.
 
