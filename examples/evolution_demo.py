@@ -203,7 +203,7 @@ async def main():
                 if best_idea.parent_ideas:
                     print("Parents:")
                     for i, parent in enumerate(best_idea.parent_ideas[:2]):
-                        print(f"  {i+1}. {parent.content[:70]}...")
+                        print(f"  {i+1}. {parent[:70]}...")
 
     except Exception as e:
         logger.error(f"Demo failed: {e}")

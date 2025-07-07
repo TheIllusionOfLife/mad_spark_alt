@@ -285,8 +285,8 @@ class TestGeneticOperators:
         # Check parent tracking
         assert len(offspring1.parent_ideas) == 2
         assert len(offspring2.parent_ideas) == 2
-        assert offspring1.parent_ideas[0] == self.parent1.content[:50]
-        assert offspring1.parent_ideas[1] == self.parent2.content[:50]
+        assert offspring1.parent_ideas[0] == self.parent1.content
+        assert offspring1.parent_ideas[1] == self.parent2.content
 
     @pytest.mark.asyncio
     async def test_mutation_operator(self):
@@ -302,7 +302,7 @@ class TestGeneticOperators:
         assert mutated.metadata["operator"] == "mutation"
         assert mutated.metadata["generation"] == 1
         assert len(mutated.parent_ideas) == 1
-        assert mutated.parent_ideas[0] == self.parent1.content[:50]
+        assert mutated.parent_ideas[0] == self.parent1.content
 
     @pytest.mark.asyncio
     async def test_mutation_no_change(self):

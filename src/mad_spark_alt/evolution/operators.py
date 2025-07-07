@@ -83,7 +83,7 @@ class CrossoverOperator(CrossoverInterface):
             )
             / 2,
             reasoning=f"Combined elements from both parent ideas at crossover point {crossover_point}",
-            parent_ideas=[parent1.content[:50], parent2.content[:50]],
+            parent_ideas=[parent1.content, parent2.content],
             metadata={
                 "operator": "crossover",
                 "crossover_point": crossover_point,
@@ -106,7 +106,7 @@ class CrossoverOperator(CrossoverInterface):
             )
             / 2,
             reasoning=f"Combined elements from both parent ideas at crossover point {crossover_point}",
-            parent_ideas=[parent2.content[:50], parent1.content[:50]],
+            parent_ideas=[parent2.content, parent1.content],
             metadata={
                 "operator": "crossover",
                 "crossover_point": crossover_point,
@@ -192,7 +192,7 @@ class MutationOperator(MutationInterface):
                 confidence_score=(idea.confidence_score or 0.5)
                 * 0.95,  # Slightly reduce confidence
                 reasoning=f"Applied {mutation_type} mutation to introduce variation",
-                parent_ideas=[idea.content[:50]],
+                parent_ideas=[idea.content],
                 metadata={
                     "operator": "mutation",
                     "mutation_type": mutation_type,

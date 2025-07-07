@@ -361,6 +361,6 @@ class GeneticAlgorithm:
             "best_fitness_generation": best_generation,
             "diversity_trend": [s.diversity_score for s in snapshots],
             "fitness_trend": [s.best_fitness for s in snapshots],
-            "total_ideas_evaluated": len(initial_ideas)
-            + (len(snapshots) - 1) * config.population_size,
+            "total_ideas_evaluated": config.population_size
+            + (len(snapshots) - 1) * (config.population_size - config.elite_size),
         }

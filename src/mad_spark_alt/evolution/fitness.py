@@ -225,16 +225,17 @@ class FitnessEvaluator:
             "lexical_diversity",
         ]
 
+        # Collect all diversity metrics from all evaluators
+        all_diversity_metrics = []
         for result in quantitative_results:
             # Check if this result contains any diversity metrics
-            diversity_metrics = []
             for key in diversity_metric_keys:
                 if key in result.scores:
-                    diversity_metrics.append(result.scores[key])
+                    all_diversity_metrics.append(result.scores[key])
 
-            # If we found diversity metrics, use them
-            if diversity_metrics:
-                return sum(diversity_metrics) / len(diversity_metrics)
+        # Return average of all diversity metrics found
+        if all_diversity_metrics:
+            return sum(all_diversity_metrics) / len(all_diversity_metrics)
 
         return DEFAULT_FAILURE_SCORE  # Penalty for missing metrics
 
@@ -252,16 +253,17 @@ class FitnessEvaluator:
             "coherence_score",
         ]
 
+        # Collect all quality metrics from all evaluators
+        all_quality_metrics = []
         for result in quantitative_results:
             # Check if this result contains any quality metrics
-            quality_metrics = []
             for key in quality_metric_keys:
                 if key in result.scores:
-                    quality_metrics.append(result.scores[key])
+                    all_quality_metrics.append(result.scores[key])
 
-            # If we found quality metrics, use them
-            if quality_metrics:
-                return sum(quality_metrics) / len(quality_metrics)
+        # Return average of all quality metrics found
+        if all_quality_metrics:
+            return sum(all_quality_metrics) / len(all_quality_metrics)
 
         return DEFAULT_FAILURE_SCORE  # Penalty for missing metrics
 
