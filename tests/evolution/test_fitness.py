@@ -32,7 +32,7 @@ from mad_spark_alt.core import (
     ThinkingMethod,
 )
 from mad_spark_alt.core.evaluator import EvaluationSummary
-from mad_spark_alt.evolution.fitness import FitnessEvaluator
+from mad_spark_alt.evolution.fitness import FitnessEvaluator, DEFAULT_FAILURE_SCORE
 from mad_spark_alt.evolution.interfaces import EvolutionConfig, IndividualFitness
 
 
@@ -74,7 +74,7 @@ class TestFitnessEvaluator:
                 confidence_score=0.8 + i * 0.05,
                 reasoning="Test reasoning",
                 metadata={"test": True, "id": i},
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.utcnow().isoformat(),
             )
             for i in range(3)
         ]
@@ -290,7 +290,7 @@ class TestFitnessEvaluator:
                     thinking_method=ThinkingMethod.QUESTIONING,
                     agent_name="TestAgent",
                     generation_prompt="Test",
-                    timestamp=datetime.now().isoformat(),
+                    timestamp=datetime.utcnow().isoformat(),
                 ),
                 creativity_score=0.8,
                 diversity_score=0.7,
@@ -303,7 +303,7 @@ class TestFitnessEvaluator:
                     thinking_method=ThinkingMethod.ABDUCTION,
                     agent_name="TestAgent",
                     generation_prompt="Test",
-                    timestamp=datetime.now().isoformat(),
+                    timestamp=datetime.utcnow().isoformat(),
                 ),
                 creativity_score=0.8,
                 diversity_score=0.7,
@@ -328,8 +328,7 @@ class TestFitnessEvaluator:
         )
         assert single_diversity == 1.0
 
-    @pytest.mark.asyncio
-    async def test_extract_diversity_score(self) -> None:
+    def test_extract_diversity_score(self) -> None:
         """Test diversity score extraction from evaluation results."""
         # Create layer results with diversity metrics
         layer_results = {
@@ -358,8 +357,7 @@ class TestFitnessEvaluator:
         # Should average the diversity metrics: (0.8 + 0.7 + 0.9 + 0.75) / 4
         assert score == pytest.approx(0.7875, rel=1e-3)
 
-    @pytest.mark.asyncio
-    async def test_extract_quality_score(self) -> None:
+    def test_extract_quality_score(self) -> None:
         """Test quality score extraction from evaluation results."""
         # Create layer results with quality metrics
         layer_results = {
@@ -395,8 +393,8 @@ class TestFitnessEvaluator:
         diversity = self.fitness_evaluator._extract_diversity_score(empty_results)
         quality = self.fitness_evaluator._extract_quality_score(empty_results)
 
-        assert diversity == 0.1  # DEFAULT_FAILURE_SCORE
-        assert quality == 0.1  # DEFAULT_FAILURE_SCORE
+        assert diversity == DEFAULT_FAILURE_SCORE
+        assert quality == DEFAULT_FAILURE_SCORE
 
     def test_extract_scores_no_matching_metrics(self) -> None:
         """Test score extraction with no matching metrics."""
@@ -414,8 +412,8 @@ class TestFitnessEvaluator:
         diversity = self.fitness_evaluator._extract_diversity_score(results)
         quality = self.fitness_evaluator._extract_quality_score(results)
 
-        assert diversity == 0.1  # DEFAULT_FAILURE_SCORE
-        assert quality == 0.1  # DEFAULT_FAILURE_SCORE
+        assert diversity == DEFAULT_FAILURE_SCORE
+        assert quality == DEFAULT_FAILURE_SCORE
 
     @pytest.mark.asyncio
     async def test_semaphore_concurrency_control(self) -> None:
@@ -464,7 +462,7 @@ class TestFitnessEvaluator:
                     thinking_method=ThinkingMethod.QUESTIONING,
                     agent_name="TestAgent",
                     generation_prompt="Test",
-                    timestamp=datetime.now().isoformat(),
+                    timestamp=datetime.utcnow().isoformat(),
                 )
                 for i in range(10)
             ]
