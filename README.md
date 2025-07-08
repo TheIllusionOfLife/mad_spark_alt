@@ -599,18 +599,41 @@ If you use Mad Spark Alt in your research, please cite:
   - Made thinking method preservation test more robust
 
 #### Next Priority Tasks
-1. **Phase 4: Context-Aware Processing**: Implement domain knowledge integration
+1. **Evolution Testing & Improvements** (Immediate - Next PR)
+   - Source: PR #13 review recommendations
+   - Context: Testing coverage at 75%, critical components need unit tests
+   - Tasks:
+     - Add FitnessEvaluator unit tests
+     - Fix resource exhaustion vulnerability in parallel execution
+     - Remove duplicate random import
+     - Add performance benchmarks for evolution
+   - Estimate: Small-Medium
+
+2. **Phase 4: Context-Aware Processing**: Implement domain knowledge integration
    - Source: TRANSFORMATION_ROADMAP.md Phase 4
    - Context: Enhance system with domain-specific reasoning capabilities
    - Approach: Create context managers, knowledge bases, and specialized reasoning strategies
+   - Estimate: Large
 
-3. **Human-AI Collaboration Interface**: Build interactive ideation features
+3. **Evolution Enhancements** (Short-term - Next Sprint)
+   - Source: PR #13 review recommendations
+   - Context: Enhance genetic algorithm capabilities
+   - Tasks:
+     - Implement additional crossover methods
+     - Add diversity metrics and tracking
+     - Enhance mutation with NLP techniques
+     - Complete tests for all selection strategies
+   - Estimate: Medium
+
+4. **Human-AI Collaboration Interface**: Build interactive ideation features
    - Source: README roadmap and Issue #3
    - Context: Enable human feedback integration during idea generation
    - Approach: Design feedback interfaces and collaborative refinement workflows
+   - Estimate: Large
 
 #### Known Issues / Blockers
-- None - all CI checks passing and PR is mergeable
+- Resource exhaustion vulnerability in parallel fitness evaluation (from PR #13 review)
+- Testing coverage at 75% - needs improvement for production readiness
 
 #### Session Learnings
 - **Type Safety**: GeneratedIdea.confidence_score can be None, requiring defensive coding
@@ -618,3 +641,5 @@ If you use Mad Spark Alt in your research, please cite:
 - **Test Robustness**: Genetic algorithms are non-deterministic; tests should account for this
 - **CI Debugging**: Always check mypy output when CI fails - type errors are common
 - **Evolution Diversity**: Perfect thinking method balance isn't guaranteed due to fitness-based selection
+- **Testing Gaps**: FitnessEvaluator lacks unit tests despite being critical component
+- **Performance Risk**: Parallel evaluation can cause resource exhaustion without proper limits
