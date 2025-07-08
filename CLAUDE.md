@@ -201,8 +201,8 @@ print(f'Available methods: {list(registry._agents.keys())}')
 
 ### Type Safety Requirements
 - **Critical Pattern**: Always handle Optional fields defensively
-- **Convention**: Use `(field or default_value)` pattern throughout
-- **Example**: `(idea.confidence_score or 0.5)` in operators.py
+- **Convention**: Use `field if field is not None else default_value` pattern for clarity and safety
+- **Example**: `(idea.confidence_score if idea.confidence_score is not None else 0.5)` in operators.py
 
 ### CI/CD Specifics
 - **Common Failure**: mypy type checking errors (even when local passes)
