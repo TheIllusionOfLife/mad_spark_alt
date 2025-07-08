@@ -1,8 +1,18 @@
 """
-Unit tests for the FitnessEvaluator component.
+Comprehensive unit tests for the FitnessEvaluator component.
 
-This module tests individual fitness evaluation, population evaluation,
-and diversity calculation methods.
+This module provides extensive test coverage for the FitnessEvaluator class,
+including individual fitness evaluation, population evaluation (both parallel
+and sequential modes), error handling for partial failures, score extraction
+methods, edge cases with empty results, and concurrency control verification.
+
+The test strategy focuses on:
+- Individual fitness evaluation (success/failure scenarios)
+- Population evaluation with different concurrency modes
+- Error handling and graceful degradation
+- Resource management with semaphore-based concurrency control
+- Edge cases and boundary conditions
+- Performance characteristics of parallel evaluation
 """
 
 import asyncio
