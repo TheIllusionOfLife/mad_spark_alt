@@ -8,6 +8,7 @@ and optimized using genetic algorithms.
 import asyncio
 import logging
 from datetime import datetime
+from typing import List, Optional
 
 from mad_spark_alt.agents import (
     QuestioningAgent,
@@ -16,14 +17,16 @@ from mad_spark_alt.agents import (
     InductionAgent,
 )
 from mad_spark_alt.core import (
+    GeneratedIdea,
     IdeaGenerationRequest,
     QADIOrchestrator,
+    agent_registry,
     register_agent,
-    registry,
 )
 from mad_spark_alt.evolution import (
     EvolutionConfig,
     EvolutionRequest,
+    EvolutionResult,
     GeneticAlgorithm,
     SelectionStrategy,
 )
@@ -35,8 +38,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def generate_initial_ideas(problem_statement: str, context: str) -> list:
-    """Generate initial ideas using QADI agents."""
+async def generate_initial_ideas(
+    problem_statement: str, context: str
+) -> List[GeneratedIdea]:
+    """Generate initial ideas using QADI agents.
+    
+    Args:
+        problem_statement: The problem or challenge to generate ideas for.
+        context: Additional context and background information for idea generation.
+    
+    Returns:
+        List[GeneratedIdea]: A list of generated ideas from the QADI process.
+    """
     logger.info("=== Phase 1: Generating Initial Ideas with QADI ===")
 
     # Register all agents
@@ -47,10 +60,10 @@ async def generate_initial_ideas(problem_statement: str, context: str) -> list:
 
     # Create orchestrator with all agents
     agents = [
-        registry.get_agent("QuestioningAgent"),
-        registry.get_agent("AbductionAgent"),
-        registry.get_agent("DeductionAgent"),
-        registry.get_agent("InductionAgent"),
+        agent_registry.get_agent("QuestioningAgent"),
+        agent_registry.get_agent("AbductionAgent"),
+        agent_registry.get_agent("DeductionAgent"),
+        agent_registry.get_agent("InductionAgent"),
     ]
 
     orchestrator = QADIOrchestrator([a for a in agents if a])
@@ -73,8 +86,18 @@ async def generate_initial_ideas(problem_statement: str, context: str) -> list:
     return result.synthesized_ideas
 
 
-async def evolve_ideas(initial_ideas: list, context: str) -> dict:
-    """Evolve ideas using genetic algorithm."""
+async def evolve_ideas(
+    initial_ideas: List[GeneratedIdea], context: str
+) -> Optional[EvolutionResult]:
+    """Evolve ideas using genetic algorithm.
+    
+    Args:
+        initial_ideas: The initial population of ideas to evolve.
+        context: Additional context for evolution and fitness evaluation.
+    
+    Returns:
+        Optional[EvolutionResult]: Evolution result on success, None on failure.
+    """
     logger.info("\n=== Phase 2: Evolving Ideas with Genetic Algorithm ===")
 
     # Create genetic algorithm
@@ -156,7 +179,7 @@ async def evolve_ideas(initial_ideas: list, context: str) -> dict:
         return None
 
 
-async def main():
+async def main() -> None:
     """Run the complete evolution demo."""
     print("🧬 Mad Spark Alt - Genetic Evolution Demo")
     print("=" * 50)
