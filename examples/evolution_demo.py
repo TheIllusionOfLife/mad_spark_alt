@@ -41,7 +41,11 @@ logger = logging.getLogger(__name__)
 async def generate_initial_ideas(
     problem_statement: str, context: str
 ) -> List[GeneratedIdea]:
-    """Generate initial ideas using QADI agents."""
+    """Generate initial ideas using QADI agents.
+    
+    Returns:
+        List[GeneratedIdea]: A list of generated ideas from the QADI process.
+    """
     logger.info("=== Phase 1: Generating Initial Ideas with QADI ===")
 
     # Register all agents
@@ -81,7 +85,11 @@ async def generate_initial_ideas(
 async def evolve_ideas(
     initial_ideas: List[GeneratedIdea], context: str
 ) -> Optional[EvolutionResult]:
-    """Evolve ideas using genetic algorithm."""
+    """Evolve ideas using genetic algorithm.
+    
+    Returns:
+        Optional[EvolutionResult]: Evolution result on success, None on failure.
+    """
     logger.info("\n=== Phase 2: Evolving Ideas with Genetic Algorithm ===")
 
     # Create genetic algorithm
