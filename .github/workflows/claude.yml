@@ -58,8 +58,7 @@ jobs:
           # Optional: Add custom instructions for Claude to customize its behavior for your project
           custom_instructions: |
             Follow [our coding standards](../../CLAUDE.md) 
-            Ensure all new code has tests
-            Respond in Japanese
+            Other than that, follow the generally accepted best practices.
 
           # Optional: Custom environment variables for Claude
           # claude_env: |
