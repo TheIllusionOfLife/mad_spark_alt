@@ -43,6 +43,10 @@ async def generate_initial_ideas(
 ) -> List[GeneratedIdea]:
     """Generate initial ideas using QADI agents.
     
+    Args:
+        problem_statement: The problem or challenge to generate ideas for.
+        context: Additional context and background information for idea generation.
+    
     Returns:
         List[GeneratedIdea]: A list of generated ideas from the QADI process.
     """
@@ -86,6 +90,10 @@ async def evolve_ideas(
     initial_ideas: List[GeneratedIdea], context: str
 ) -> Optional[EvolutionResult]:
     """Evolve ideas using genetic algorithm.
+    
+    Args:
+        initial_ideas: The initial population of ideas to evolve.
+        context: Additional context for evolution and fitness evaluation.
     
     Returns:
         Optional[EvolutionResult]: Evolution result on success, None on failure.
