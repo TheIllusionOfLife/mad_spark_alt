@@ -191,3 +191,40 @@ registry = SmartAgentRegistry()
 print(f'Available methods: {list(registry._agents.keys())}')
 "
 ```
+
+## Project-Specific Patterns
+
+### Evolution System Testing
+- **Pattern**: Test genetic algorithms with variance tolerance, not exact values
+- **Convention**: Use `assert final_fitness >= initial_fitness * 0.9` for randomness
+- **Gotcha**: Perfect thinking method balance isn't guaranteed in evolution
+
+### Type Safety Requirements
+- **Critical Pattern**: Always handle Optional fields defensively
+- **Convention**: Use `(field or default_value)` pattern throughout
+- **Example**: `(idea.confidence_score or 0.5)` in operators.py
+
+### CI/CD Specifics
+- **Common Failure**: mypy type checking errors (even when local passes)
+- **Prevention**: Run `uv run mypy src/` before every push
+- **Fix Pattern**: Check datetime fields, Optional annotations, type imports
+
+### LLM Integration Patterns
+- **Dual Agent System**: Every thinking agent has LLM + template versions
+- **Cost Tracking**: Distributed across generated ideas automatically
+- **Fallback**: Graceful degradation when API keys missing
+
+### Registry Architecture
+- **Global Registry**: Use `agent_registry` and `evaluator_registry`
+- **Dynamic Loading**: Agents register at module import time
+- **Clear Before Tests**: Always `agent_registry.clear()` in test setup
+
+### QADI Orchestration
+- **Phase Order**: Question → Abduction → Deduction → Induction
+- **Parallel Execution**: Use `run_parallel_generation` for efficiency
+- **Context Passing**: Each phase builds on previous phase results
+
+### Import Requirements
+- **No Inline Imports**: All imports must be at module level for CI
+- **Relative Imports**: Use `from ...core import X` pattern
+- **Type Imports**: Use `from typing import TYPE_CHECKING` for circular deps
