@@ -46,7 +46,7 @@ class TestGeneticAlgorithm:
                 confidence_score=0.8,
                 reasoning="Test reasoning",
                 metadata={"test": True, "generation": 0},
-                timestamp=datetime.now(),
+                timestamp=datetime.now().isoformat(),
             )
             for i in range(5)
         ]
