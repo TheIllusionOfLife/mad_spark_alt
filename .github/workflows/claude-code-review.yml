@@ -51,7 +51,7 @@ jobs:
             
             Be constructive and helpful in your feedback.
             Follow [our coding standards](../../CLAUDE.md).
-            Respond in Japanese.
+
           # Optional: Use sticky comments to make Claude reuse the same comment on subsequent pushes to the same PR
           # use_sticky_comment: true
 
