@@ -1,2 +1,4 @@
-Refer to this [CLAUDE Documentation](../CLAUDE.md) for project specific styleguide.
-Other than that, follow the generally accepted best practices.
+- Build software that is **simple (KISS), duplication-free (DRY), only what’s needed (YAGNI) and structurally SOLID**.
+- Design every component with clear separation of concerns, high cohesion and low coupling; surprise no one (Principle of Least Astonishment), talk only to friends (Law of Demeter), hide volatile details, defend with robust validations, and run with least-privilege access.
+- **Drive development with tests first (TDD), fail fast, keep the main branch continuously integrated and green, and leave the code cleaner than you found it with every commit (Boy-Scout Rule)**.
+- Refer to this [CLAUDE Documentation](../CLAUDE.md) for project specific styleguide.
