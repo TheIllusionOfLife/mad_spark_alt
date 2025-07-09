@@ -57,8 +57,10 @@ jobs:
 
           # Optional: Add custom instructions for Claude to customize its behavior for your project
           custom_instructions: |
+            Build software that is **simple (KISS), duplication-free (DRY), only what’s needed (YAGNI) and structurally SOLID**.
+            Design every component with clear separation of concerns, high cohesion and low coupling; surprise no one (Principle of Least Astonishment), talk only to friends (Law of Demeter), hide volatile details, defend with robust validations, and run with least-privilege access.
+            **Drive development with tests first (TDD), fail fast, keep the main branch continuously integrated and green, and leave the code cleaner than you found it with every commit (Boy-Scout Rule)**.
             Follow [our coding standards](../../CLAUDE.md) 
-            Other than that, follow the generally accepted best practices.
 
           # Optional: Custom environment variables for Claude
           # claude_env: |
