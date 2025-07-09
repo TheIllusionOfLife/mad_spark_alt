@@ -49,8 +49,11 @@ jobs:
             - Security concerns
             - Test coverage
             
-            Be constructive and helpful in your feedback.
-            Follow [our coding standards](../../CLAUDE.md).
+            Be constructive and helpful in your feedback by following the best practices:
+            - Build software that is **simple (KISS), duplication-free (DRY), only what’s needed (YAGNI) and structurally SOLID**.
+            - Design every component with clear separation of concerns, high cohesion and low coupling; surprise no one (Principle of Least Astonishment), talk only to friends (Law of Demeter), hide volatile details, defend with robust validations, and run with least-privilege access.
+            - **Drive development with tests first (TDD), fail fast, keep the main branch continuously integrated and green, and leave the code cleaner than you found it with every commit (Boy-Scout Rule)**.
+            - Follow [our coding standards](../../CLAUDE.md)
 
           # Optional: Use sticky comments to make Claude reuse the same comment on subsequent pushes to the same PR
           # use_sticky_comment: true
