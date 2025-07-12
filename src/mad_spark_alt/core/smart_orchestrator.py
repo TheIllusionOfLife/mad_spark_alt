@@ -409,16 +409,8 @@ class SmartQADIOrchestrator:
 
         result_dict = {}
         for method, result in zip(available_methods, results):
-            # Check if result is an exception (more robust for Python 3.13)
-            is_exception = False
-            try:
-                if isinstance(result, BaseException):
-                    is_exception = True
-            except Exception:
-                # If isinstance fails, check if it has exception attributes
-                is_exception = hasattr(result, '__traceback__') and hasattr(result, 'args')
-            
-            if is_exception:
+            # Check if result is an exception
+            if isinstance(result, BaseException):
                 logger.error(f"Error in {method.value}: {result}")
                 result_dict[method] = (
                     IdeaGenerationResult(
