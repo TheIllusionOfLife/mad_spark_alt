@@ -485,7 +485,7 @@ class GoogleProvider(LLMProviderInterface):
         session = await self._get_session()
 
         # Get model config - use latest 2.5 model by default
-        default_model = os.getenv("GEMINI_MODEL_OVERRIDE", "gemini-2.5-flash")
+        default_model = os.getenv("GEMINI_MODEL_OVERRIDE", "gemini-1.5-flash")
         model_config = request.model_configuration or self._get_default_model_config(
             default_model
         )
@@ -537,10 +537,27 @@ class GoogleProvider(LLMProviderInterface):
 
         # Extract the generated content
         try:
-            content = response_data["candidates"][0]["content"]["parts"][0]["text"]
-        except (KeyError, IndexError):
+            candidate = response_data["candidates"][0]
+            content_data = candidate["content"]
+            
+            # Handle cases where parts might not exist (e.g., MAX_TOKENS with no content)
+            if "parts" in content_data and len(content_data["parts"]) > 0:
+                content = content_data["parts"][0]["text"]
+            else:
+                # Fallback for empty content due to finish reasons like MAX_TOKENS
+                finish_reason = candidate.get("finishReason", "UNKNOWN")
+                if finish_reason == "MAX_TOKENS":
+                    content = "[Content generation stopped due to token limit - try reducing max_tokens or prompt length]"
+                elif finish_reason == "SAFETY":
+                    content = "[Content blocked by safety filters]"
+                elif finish_reason == "RECITATION":
+                    content = "[Content blocked due to recitation concerns]"
+                else:
+                    content = f"[No content generated - finish reason: {finish_reason}]"
+                    
+        except (KeyError, IndexError) as e:
             raise LLMError(
-                "Invalid response format from Google API", ErrorType.API_ERROR
+                f"Invalid response format from Google API: {e}", ErrorType.API_ERROR
             )
 
         # Extract usage information
@@ -609,8 +626,8 @@ class GoogleProvider(LLMProviderInterface):
     def _get_default_model_config(self, model_name: str) -> ModelConfig:
         """Get default model config by name."""
         models = {model.model_name: model for model in self.get_available_models()}
-        # Use gemini-2.5-flash as fallback for better stability
-        fallback = models.get("gemini-2.5-flash", list(models.values())[0])
+        # Use gemini-1.5-flash as fallback for better stability  
+        fallback = models.get("gemini-1.5-flash", list(models.values())[0])
         return models.get(model_name, fallback)
 
     def calculate_cost(
@@ -767,11 +784,11 @@ async def setup_llm_providers(
 
         # Set default model for Google - use latest 2.5 model
         default_models = google_provider.get_available_models()
-        preferred_model = os.getenv("GEMINI_MODEL_OVERRIDE", "gemini-2.5-flash")
+        preferred_model = os.getenv("GEMINI_MODEL_OVERRIDE", "gemini-1.5-flash")
         default_model = next(
             (m for m in default_models if m.model_name == preferred_model),
             next(
-                (m for m in default_models if m.model_name == "gemini-2.5-flash"),
+                (m for m in default_models if m.model_name == "gemini-1.5-flash"),
                 default_models[0],  # Fallback to first model if neither found
             ),
         )
