@@ -273,10 +273,19 @@ class MutationOperator(MutationInterface):
 
         elif mutation_type == "phrase_reordering":
             # Reorder phrases or sentences
-            sentences = content.split(". ")
-            if len(sentences) > 2:
-                random.shuffle(sentences)
-            return ". ".join(sentences)
+            # Handle both ". " and "." as sentence separators
+            if ". " in content:
+                sentences = content.split(". ")
+                if len(sentences) > 1:
+                    random.shuffle(sentences)
+                    return ". ".join(sentences)
+            elif "." in content:
+                # Split by "." and preserve the dots
+                sentences = [s.strip() for s in content.split(".") if s.strip()]
+                if len(sentences) > 1:
+                    random.shuffle(sentences)
+                    return ". ".join(sentences) + "."
+            return content
 
         elif mutation_type == "concept_addition":
             # Add a related concept
