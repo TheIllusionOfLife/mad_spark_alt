@@ -192,8 +192,7 @@ class SmartQADIOrchestrator:
                 
                 # Add cost of conclusion synthesis
                 if hasattr(result.conclusion, 'metadata') and 'llm_cost' in result.conclusion.metadata:
-                    total_llm_cost += result.conclusion.metadata['llm_cost']
-                    result.llm_cost = total_llm_cost
+                    result.llm_cost += result.conclusion.metadata['llm_cost']
                     
             except Exception as e:
                 logger.error(f"Failed to synthesize conclusion: {e}")
@@ -205,8 +204,8 @@ class SmartQADIOrchestrator:
         logger.info(
             f"Smart QADI cycle {cycle_id} completed in {result.execution_time:.2f}s"
         )
-        if total_llm_cost > 0:
-            logger.info(f"Total LLM cost: ${total_llm_cost:.4f}")
+        if result.llm_cost > 0:
+            logger.info(f"Total LLM cost: ${result.llm_cost:.4f}")
 
         return result
 
