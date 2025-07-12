@@ -105,8 +105,8 @@ def _fix_common_json_issues(text: str) -> str:
     # Fix single quotes
     text = text.replace("'", '"')
 
-    # Fix unquoted keys
-    text = re.sub(r"(\w+):", r'"\1":', text)
+    # Fix unquoted keys (use negative lookbehind to avoid keys already in quotes)
+    text = re.sub(r'(?<!")\b(\w+)\b(?=\s*:)', r'"\1"', text)
 
     # Remove comments
     text = re.sub(r"//.*$", "", text, flags=re.MULTILINE)

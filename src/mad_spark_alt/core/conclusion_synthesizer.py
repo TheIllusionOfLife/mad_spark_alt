@@ -61,7 +61,7 @@ class ConclusionSynthesizer:
         """Check if LLM is available."""
         try:
             return len(llm_manager.providers) > 0
-        except:
+        except Exception:
             return False
 
     async def _synthesize_with_llm(

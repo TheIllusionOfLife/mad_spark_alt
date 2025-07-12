@@ -132,36 +132,7 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
         result.synthesized_ideas = self._synthesize_ideas(result.phases)
 
         # Generate conclusion from all ideas
-        if result.synthesized_ideas:
-            try:
-                from .conclusion_synthesizer import ConclusionSynthesizer
-
-                conclusion_synthesizer = ConclusionSynthesizer(use_llm=True)
-
-                # Group ideas by phase for conclusion synthesis
-                ideas_by_phase: Dict[str, List[GeneratedIdea]] = {}
-                for idea in result.synthesized_ideas:
-                    phase = idea.metadata.get("phase", "unknown")
-                    if phase not in ideas_by_phase:
-                        ideas_by_phase[phase] = []
-                    ideas_by_phase[phase].append(idea)
-
-                result.conclusion = await conclusion_synthesizer.synthesize_conclusion(
-                    problem_statement=problem_statement,
-                    ideas_by_phase=ideas_by_phase,
-                    context=context,
-                )
-
-                # Add cost of conclusion synthesis if available
-                if (
-                    hasattr(result.conclusion, "metadata")
-                    and "llm_cost" in result.conclusion.metadata
-                ):
-                    result.llm_cost += result.conclusion.metadata["llm_cost"]
-
-            except Exception as e:
-                logger.error(f"Failed to synthesize conclusion: {e}")
-                # Continue without conclusion rather than failing the whole cycle
+        await self._synthesize_conclusion(result, problem_statement, context)
 
         # Calculate execution time
         result.execution_time = time.time() - start_time
