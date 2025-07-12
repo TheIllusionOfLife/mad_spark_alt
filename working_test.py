@@ -7,6 +7,7 @@ import asyncio
 from typing import Optional, Any
 
 from mad_spark_alt.core import SmartQADIOrchestrator
+from test_utils import truncate_text, validate_qadi_result
 
 
 async def test_custom_prompt(problem: str, context: str = "") -> Optional[bool]:
@@ -43,17 +44,18 @@ async def test_custom_prompt(problem: str, context: str = "") -> Optional[bool]:
             for i, idea in enumerate(phase_result.generated_ideas, 1):
                 print(f"\n   {i}. {idea.content}")
                 if hasattr(idea, "reasoning") and idea.reasoning:
-                    reasoning = (
-                        idea.reasoning[:200] + "..."
-                        if len(idea.reasoning) > 200
-                        else idea.reasoning
-                    )
-                    print(f"      💭 {reasoning}")
+                    print(f"      💭 {truncate_text(idea.reasoning, 200)}")
                 if hasattr(idea, "confidence_score") and idea.confidence_score is not None:
                     print(f"      📊 Confidence: {idea.confidence_score}")
 
         print(f"\n🎨 Total synthesized ideas: {len(result.synthesized_ideas)}")
-        return True
+        
+        # Validate result
+        validation_passed = validate_qadi_result(result)
+        if validation_passed:
+            print("✅ QADI result validation passed")
+        
+        return validation_passed
 
     except (ImportError, ModuleNotFoundError) as e:
         print(f"❌ Missing dependencies: {e}")

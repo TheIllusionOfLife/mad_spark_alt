@@ -8,6 +8,7 @@ from typing import Optional
 
 from mad_spark_alt.core import SmartQADIOrchestrator
 from mad_spark_alt.evolution import GeneticAlgorithm, EvolutionConfig, EvolutionRequest
+from test_utils import truncate_text
 
 
 async def test_evolution_system() -> bool:
@@ -36,10 +37,7 @@ async def test_evolution_system() -> bool:
     # Show the initial ideas
     print("\n📋 Initial Ideas:")
     for i, idea in enumerate(qadi_result.synthesized_ideas[:6], 1):  # Show first 6
-        content_preview = (
-            idea.content[:80] + "..." if len(idea.content) > 80 else idea.content
-        )
-        print(f"  {i}. {content_preview}")
+        print(f"  {i}. {truncate_text(idea.content, 80)}")
 
     # Step 2: Setup genetic algorithm
     print("\n2️⃣  Setting up genetic evolution...")
@@ -86,6 +84,12 @@ async def test_evolution_system() -> bool:
                     "fitness_improvement_percent"
                 ]
                 print(f"   Fitness improvement: {improvement:.1f}%")
+                
+                # Validate fitness improvement
+                if improvement >= 0:
+                    print("✅ Fitness validation passed")
+                else:
+                    print("⚠️  Warning: Negative fitness improvement")
 
             # Show best evolved ideas
             print("\n🏆 Top 3 Evolved Ideas:")
@@ -97,12 +101,7 @@ async def test_evolution_system() -> bool:
             )
             
             for i, idea in enumerate(evolution_result.best_ideas[:3], 1):
-                content_preview = (
-                    idea.content[:100] + "..."
-                    if len(idea.content) > 100
-                    else idea.content
-                )
-                print(f"  {i}. {content_preview}")
+                print(f"  {i}. {truncate_text(idea.content, 100)}")
 
                 # Display fitness from sorted population
                 if i <= len(sorted_population):
