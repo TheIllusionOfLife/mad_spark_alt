@@ -6,8 +6,8 @@ actionable conclusions and recommendations.
 """
 
 import logging
-from typing import Dict, List, Optional
-from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+from dataclasses import dataclass, field
 
 from .interfaces import GeneratedIdea, ThinkingMethod
 from .llm_provider import LLMRequest, llm_manager, LLMProvider
@@ -24,6 +24,7 @@ class Conclusion:
     actionable_recommendations: List[str]
     next_steps: List[str]
     confidence_level: float = 0.8
+    metadata: Dict[str, Any] = field(default_factory=dict)
     
 
 class ConclusionSynthesizer:

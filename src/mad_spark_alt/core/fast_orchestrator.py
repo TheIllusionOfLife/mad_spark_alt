@@ -43,7 +43,7 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
         self.enable_parallel = enable_parallel
         self.enable_batching = enable_batching
         self.enable_cache = enable_cache
-        self._cache = {} if enable_cache else None
+        self._cache: Optional[Dict[str, SmartQADICycleResult]] = {} if enable_cache else None
         
     async def run_qadi_cycle(
         self,
@@ -68,7 +68,7 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
         setup_status = await self.ensure_agents_ready()
         
         # Check cache if enabled
-        if self.enable_cache and problem_statement in self._cache:
+        if self.enable_cache and self._cache and problem_statement in self._cache:
             logger.info("Cache hit - returning cached result")
             cached = self._cache[problem_statement]
             cached.execution_time = time.time() - start_time
@@ -136,7 +136,7 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
                 conclusion_synthesizer = ConclusionSynthesizer(use_llm=True)
                 
                 # Group ideas by phase for conclusion synthesis
-                ideas_by_phase = {}
+                ideas_by_phase: Dict[str, List[GeneratedIdea]] = {}
                 for idea in result.synthesized_ideas:
                     phase = idea.metadata.get("phase", "unknown")
                     if phase not in ideas_by_phase:
@@ -166,7 +166,7 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
         )
         
         # Cache result if enabled
-        if self.enable_cache:
+        if self.enable_cache and self._cache is not None:
             self._cache[problem_statement] = result
         
         return result
@@ -208,7 +208,7 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
                 )
                 phase_results[method] = (error_result, "error")
             else:
-                phase_results[method] = result
+                phase_results[method] = result  # type: ignore[assignment]
         
         return phase_results
     
@@ -220,7 +220,7 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
         config: Dict[str, Any],
     ) -> Dict[ThinkingMethod, Tuple[IdeaGenerationResult, str]]:
         """Fall back to sequential execution if parallel disabled."""
-        phase_results = {}
+        phase_results: Dict[ThinkingMethod, Tuple[IdeaGenerationResult, str]] = {}
         
         for i, method in enumerate(methods):
             # Build enhanced context for sequential mode

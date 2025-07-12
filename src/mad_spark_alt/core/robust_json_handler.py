@@ -34,7 +34,7 @@ def extract_json_from_response(
     try:
         data = json.loads(response)
         if _validate_json(data, expected_keys):
-            return data
+            return data  # type: ignore[no-any-return]
     except json.JSONDecodeError:
         pass
     
@@ -44,7 +44,7 @@ def extract_json_from_response(
         try:
             data = json.loads(json_match.group(1))
             if _validate_json(data, expected_keys):
-                return data
+                return data  # type: ignore[no-any-return]
         except json.JSONDecodeError:
             pass
     
@@ -61,7 +61,7 @@ def extract_json_from_response(
             try:
                 data = json.loads(match)
                 if _validate_json(data, expected_keys):
-                    return data
+                    return data  # type: ignore[no-any-return]
             except json.JSONDecodeError:
                 continue
     
@@ -71,7 +71,7 @@ def extract_json_from_response(
         try:
             data = json.loads(fixed_response)
             if _validate_json(data, expected_keys):
-                return data
+                return data  # type: ignore[no-any-return]
         except json.JSONDecodeError:
             pass
     

@@ -177,7 +177,7 @@ class SmartQADIOrchestrator:
                 conclusion_synthesizer = ConclusionSynthesizer(use_llm=True)
                 
                 # Group ideas by phase for conclusion synthesis
-                ideas_by_phase = {}
+                ideas_by_phase: Dict[str, List[GeneratedIdea]] = {}
                 for idea in result.synthesized_ideas:
                     phase = idea.metadata.get("phase", "unknown")
                     if phase not in ideas_by_phase:

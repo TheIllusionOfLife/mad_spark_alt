@@ -358,14 +358,18 @@ async def safe_aiohttp_request(
 
                 return response_data
 
-        except aiohttp.ClientTimeout as e:
+        except asyncio.TimeoutError as e:
             raise LLMTimeoutError("Request timed out") from e
         except aiohttp.ClientError as e:
+            raise NetworkError(f"Network error: {str(e)}") from e
+        except Exception as e:
+            if "timeout" in str(e).lower():
+                raise LLMTimeoutError("Request timed out") from e
             raise NetworkError(f"Network error: {str(e)}") from e
 
     # Apply circuit breaker if provided
     if circuit_breaker:
-        async def request_func():
+        async def request_func() -> Any:
             return await circuit_breaker.call(_make_request)
     else:
         request_func = _make_request

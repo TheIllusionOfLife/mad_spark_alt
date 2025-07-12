@@ -31,12 +31,12 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
     
     def __init__(
         self,
-        agents: Optional[List[ThinkingAgentInterface]] = None,
         registry: Optional[SmartAgentRegistry] = None,
         default_timeout: float = 300.0,  # 5 minutes total
         phase_timeout: float = 75.0,     # 75 seconds per phase (for 4 phases)
+        auto_setup: bool = True,
     ):
-        super().__init__(agents, registry)
+        super().__init__(registry, auto_setup)
         self.default_timeout = default_timeout
         self.phase_timeout = phase_timeout
         
@@ -57,19 +57,18 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
         start_time = time.time()
         
         # Initialize tracking
-        phases = {}
-        synthesized_ideas = []
+        phases: Dict[str, IdeaGenerationResult] = {}
+        synthesized_ideas: List[GeneratedIdea] = []
         llm_cost = 0.0
-        agent_types = {}
+        agent_types: Dict[str, str] = {}
         
         logger.info(f"Starting QADI cycle {cycle_id} with {timeout_mgr.total_timeout}s timeout")
         
         # Ensure agents are ready (with timeout)
         try:
-            await with_timeout(
+            await asyncio.wait_for(
                 self.ensure_agents_ready(),
-                timeout=min(10, timeout_mgr.get_remaining_time()),
-                phase="agent_setup"
+                timeout=min(10, timeout_mgr.get_remaining_time())
             )
         except TimeoutError:
             logger.error("Agent setup timed out, using template agents")
@@ -101,7 +100,7 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
             # Run phase with timeout
             phase_start = time.time()
             try:
-                phase_result = await with_timeout(
+                phase_result = await asyncio.wait_for(
                     self._run_robust_phase(
                         phase_method,
                         problem_statement,
@@ -109,9 +108,7 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
                         cycle_config,
                         previous_results=synthesized_ideas
                     ),
-                    timeout=phase_timeout,
-                    phase=f"QADI_{phase_name}",
-                    fallback=None  # Let the timeout handler deal with this
+                    timeout=phase_timeout
                 )
                 
                 # Record phase time
@@ -175,18 +172,17 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
             # Create request with previous context
             request = IdeaGenerationRequest(
                 problem_statement=problem_statement,
-                context=self._build_enhanced_context(context, method, previous_results),
+                context=f"{context or ''} Previous ideas: {[idea.content for idea in previous_results[:3]]}" if previous_results else context,
+                target_thinking_methods=[method],
                 max_ideas_per_method=config.get("max_ideas_per_method", 3) if config else 3,
                 require_reasoning=config.get("require_reasoning", False) if config else False,
-                output_type=OutputType.STRUCTURED,
-                metadata={"phase": method.value}
+                generation_config={"phase": method.value}
             )
             
             # Run with timeout
-            result = await with_timeout(
+            result = await asyncio.wait_for(
                 agent.generate_ideas(request),
-                timeout=60,  # 60 seconds per agent call
-                phase=f"agent_{method.value}"
+                timeout=60  # 60 seconds per agent call
             )
             
             # Determine agent type
@@ -198,7 +194,7 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
             logger.error(f"Phase {method.value} failed: {e}")
             return None
     
-    def _force_template_agents(self):
+    def _force_template_agents(self) -> None:
         """Force the use of template agents."""
         # Clear any LLM agent preferences
         self.registry._agent_preferences.clear()
@@ -212,8 +208,7 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
             InductionAgent,
         ]:
             try:
-                agent = agent_class()
-                self.registry.base_registry.register(agent)
+                self.registry.base_registry.register(agent_class)  # type: ignore[type-abstract]
                 successful_registrations += 1
                 logger.debug(f"Successfully registered template agent: {agent_class.__name__}")
             except Exception as e:

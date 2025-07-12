@@ -6,7 +6,7 @@ import asyncio
 import functools
 import logging
 import time
-from typing import Any, Callable, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, Optional, TypeVar, Union
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ async def with_timeout(
             progress_task = asyncio.create_task(_log_progress(phase, timeout))
         
         # Execute with timeout
-        result = await asyncio.wait_for(coro, timeout=timeout)
+        result: Any = await asyncio.wait_for(coro(), timeout=timeout)
         
         # Cancel progress logging
         if log_progress:
@@ -88,10 +88,10 @@ async def with_timeout(
         raise
 
 
-async def _log_progress(phase: str, timeout: float):
+async def _log_progress(phase: str, timeout: float) -> None:
     """Log progress periodically during long operations."""
     interval = min(10, timeout / 5)  # Log every 10s or 5 times total
-    elapsed = 0
+    elapsed = 0.0
     
     try:
         while elapsed < timeout:
@@ -103,7 +103,7 @@ async def _log_progress(phase: str, timeout: float):
         pass
 
 
-def timeout_decorator(timeout: float, phase: Optional[str] = None, fallback: Optional[Any] = None):
+def timeout_decorator(timeout: float, phase: Optional[str] = None, fallback: Optional[Any] = None) -> Callable[..., Any]:
     """
     Decorator to add timeout to async functions.
     
@@ -112,9 +112,9 @@ def timeout_decorator(timeout: float, phase: Optional[str] = None, fallback: Opt
         phase: Phase name (uses function name if not provided)
         fallback: Fallback value on timeout
     """
-    def decorator(func):
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             phase_name = phase or func.__name__
             return await with_timeout(
                 func(*args, **kwargs),
@@ -134,7 +134,7 @@ class TimeoutManager:
     def __init__(self, total_timeout: float):
         self.total_timeout = total_timeout
         self.start_time = time.time()
-        self.phase_times = {}
+        self.phase_times: Dict[str, float] = {}
         
     def get_remaining_time(self) -> float:
         """Get remaining time in the total timeout."""
@@ -155,11 +155,11 @@ class TimeoutManager:
         
         return min(default, remaining)
         
-    def record_phase_time(self, phase: str, duration: float):
+    def record_phase_time(self, phase: str, duration: float) -> None:
         """Record how long a phase took."""
         self.phase_times[phase] = duration
         
-    def get_summary(self) -> dict:
+    def get_summary(self) -> Dict[str, Any]:
         """Get summary of all phase times."""
         total_elapsed = time.time() - self.start_time
         return {
