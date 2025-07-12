@@ -5,22 +5,20 @@ This shows how to use the system with your own prompts.
 """
 
 import asyncio
-import sys
-import os
-from datetime import datetime
-
-# Add the src directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+from datetime import datetime, timezone
+from typing import Optional, Any
 
 from mad_spark_alt.core import SmartQADIOrchestrator
 
 
 async def test_with_custom_prompt(
-    problem_statement: str, context: str = "", max_ideas: int = 2
-):
+    problem_statement: str,
+    context: str = "",
+    max_ideas: int = 2,
+) -> Optional[Any]:
     """Test the QADI system with a custom prompt"""
 
-    print(f"🎯 Testing with custom prompt:")
+    print("🎯 Testing with custom prompt:")
     print(f"   Problem: {problem_statement}")
     if context:
         print(f"   Context: {context}")
@@ -38,7 +36,7 @@ async def test_with_custom_prompt(
     try:
         # Run QADI cycle
         print("🚀 Starting QADI cycle...")
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
 
         result = await orchestrator.run_qadi_cycle(
             problem_statement=problem_statement,
@@ -46,10 +44,8 @@ async def test_with_custom_prompt(
             cycle_config={"max_ideas_per_method": max_ideas, "require_reasoning": True},
         )
 
-        end_time = datetime.now()
-        execution_time = (end_time - start_time).total_seconds()
-
-        print(f"✅ QADI cycle completed in {execution_time:.2f}s")
+        end_time = datetime.now(timezone.utc)
+        print(f"✅ QADI cycle completed in {result.execution_time:.2f}s")
         print(f"💰 Total LLM cost: ${result.llm_cost:.4f}")
         print("=" * 60)
 
@@ -61,19 +57,22 @@ async def test_with_custom_prompt(
 
             for i, idea in enumerate(phase_result.generated_ideas, 1):
                 print(f"\n  {i}. {idea.content}")
-                if idea.reasoning:
+                if hasattr(idea, "reasoning") and idea.reasoning:
                     reasoning_preview = (
                         idea.reasoning[:200] + "..."
                         if len(idea.reasoning) > 200
                         else idea.reasoning
                     )
                     print(f"     💭 {reasoning_preview}")
-                if idea.confidence_score:
+                if hasattr(idea, "confidence_score") and idea.confidence_score is not None:
                     print(f"     📊 Confidence: {idea.confidence_score}")
 
         print(f"\n🎨 Total synthesized ideas: {len(result.synthesized_ideas)}")
         return result
 
+    except (ImportError, ModuleNotFoundError) as e:
+        print(f"❌ Missing dependencies: {e}")
+        return None
     except Exception as e:
         print(f"❌ Error during QADI cycle: {e}")
         import traceback
@@ -82,7 +81,7 @@ async def test_with_custom_prompt(
         return None
 
 
-async def main():
+async def main() -> None:
     """Main testing function with multiple examples"""
 
     print("🌟 Mad Spark Alt - Custom Prompt Testing")

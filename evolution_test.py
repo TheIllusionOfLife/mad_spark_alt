@@ -4,17 +4,13 @@ Test script for the genetic evolution feature of Mad Spark Alt.
 """
 
 import asyncio
-import sys
-import os
-
-# Add the src directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+from typing import Optional
 
 from mad_spark_alt.core import SmartQADIOrchestrator
 from mad_spark_alt.evolution import GeneticAlgorithm, EvolutionConfig, EvolutionRequest
 
 
-async def test_evolution_system():
+async def test_evolution_system() -> bool:
     """Test the genetic evolution system with ideas from QADI"""
 
     print("🧬 Mad Spark Alt - Genetic Evolution Test")
@@ -46,7 +42,7 @@ async def test_evolution_system():
         print(f"  {i}. {content_preview}")
 
     # Step 2: Setup genetic algorithm
-    print(f"\n2️⃣  Setting up genetic evolution...")
+    print("\n2️⃣  Setting up genetic evolution...")
 
     ga = GeneticAlgorithm()
 
@@ -65,7 +61,7 @@ async def test_evolution_system():
     print(f"   Elite size: {config.elite_size}")
 
     # Step 3: Run evolution
-    print(f"\n3️⃣  Running genetic evolution...")
+    print("\n3️⃣  Running genetic evolution...")
 
     evolution_request = EvolutionRequest(
         initial_population=qadi_result.synthesized_ideas,
@@ -80,7 +76,7 @@ async def test_evolution_system():
         evolution_result = await ga.evolve(evolution_request)
 
         if evolution_result.success:
-            print(f"✅ Evolution completed successfully!")
+            print("✅ Evolution completed successfully!")
             print(f"   Generations: {evolution_result.total_generations}")
             print(f"   Final population size: {len(evolution_result.final_population)}")
 
@@ -92,7 +88,14 @@ async def test_evolution_system():
                 print(f"   Fitness improvement: {improvement:.1f}%")
 
             # Show best evolved ideas
-            print(f"\n🏆 Top 3 Evolved Ideas:")
+            print("\n🏆 Top 3 Evolved Ideas:")
+            # Sort population by fitness to match best_ideas order
+            sorted_population = sorted(
+                evolution_result.final_population, 
+                key=lambda x: x.overall_fitness, 
+                reverse=True
+            )
+            
             for i, idea in enumerate(evolution_result.best_ideas[:3], 1):
                 content_preview = (
                     idea.content[:100] + "..."
@@ -101,11 +104,10 @@ async def test_evolution_system():
                 )
                 print(f"  {i}. {content_preview}")
 
-                # Try to show fitness if available
-                if i <= len(evolution_result.final_population):
-                    individual = evolution_result.final_population[i - 1]
-                    if hasattr(individual, "overall_fitness"):
-                        print(f"     🎯 Fitness: {individual.overall_fitness:.3f}")
+                # Display fitness from sorted population
+                if i <= len(sorted_population):
+                    individual = sorted_population[i - 1]
+                    print(f"     🎯 Fitness: {individual.overall_fitness:.3f}")
 
             return True
 
@@ -113,6 +115,9 @@ async def test_evolution_system():
             print(f"❌ Evolution failed: {evolution_result.error_message}")
             return False
 
+    except (ImportError, ModuleNotFoundError) as e:
+        print(f"❌ Evolution dependencies missing: {e}")
+        return False
     except Exception as e:
         print(f"❌ Evolution error: {e}")
         import traceback
@@ -121,7 +126,7 @@ async def test_evolution_system():
         return False
 
 
-async def main():
+async def main() -> None:
     """Main test function"""
 
     print("🌟 Testing Mad Spark Alt Genetic Evolution")

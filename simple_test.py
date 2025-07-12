@@ -4,16 +4,12 @@ Simple test script to demonstrate Mad Spark Alt with custom prompts.
 """
 
 import asyncio
-import sys
-import os
-
-# Add the src directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+from typing import Optional, Any
 
 from mad_spark_alt.core import SmartQADIOrchestrator
 
 
-async def simple_qadi_test(problem: str, context: str = ""):
+async def simple_qadi_test(problem: str, context: str = "") -> Optional[Any]:
     """Smart test with automatic agent registration and setup"""
 
     print(f"🎯 Problem: {problem}")
@@ -46,7 +42,7 @@ async def simple_qadi_test(problem: str, context: str = ""):
             print(f"\n🔸 {phase_name.upper()}:")
             for i, idea in enumerate(phase_result.generated_ideas, 1):
                 print(f"  {i}. {idea.content}")
-                if idea.reasoning:
+                if hasattr(idea, "reasoning") and idea.reasoning:
                     reasoning_short = (
                         idea.reasoning[:150] + "..."
                         if len(idea.reasoning) > 150
@@ -57,14 +53,18 @@ async def simple_qadi_test(problem: str, context: str = ""):
         print(f"\n🎨 Total ideas generated: {len(result.synthesized_ideas)}")
         return result
 
+    except (ImportError, ModuleNotFoundError) as e:
+        print(f"❌ Missing dependencies (may fall back to template agents): {e}")
+        return None
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
 
         traceback.print_exc()
+        return None
 
 
-async def main():
+async def main() -> None:
     """Run tests with different custom prompts"""
 
     print("🌟 Mad Spark Alt - Simple Custom Prompt Test")

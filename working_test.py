@@ -4,16 +4,12 @@ Working test script for Mad Spark Alt with custom prompts.
 """
 
 import asyncio
-import sys
-import os
-
-# Add the src directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+from typing import Optional, Any
 
 from mad_spark_alt.core import SmartQADIOrchestrator
 
 
-async def test_custom_prompt(problem: str, context: str = ""):
+async def test_custom_prompt(problem: str, context: str = "") -> Optional[bool]:
     """Test the system with a custom prompt using Smart Orchestrator"""
 
     print(f"🎯 Testing: {problem}")
@@ -53,18 +49,21 @@ async def test_custom_prompt(problem: str, context: str = ""):
                         else idea.reasoning
                     )
                     print(f"      💭 {reasoning}")
-                if hasattr(idea, "confidence_score") and idea.confidence_score:
+                if hasattr(idea, "confidence_score") and idea.confidence_score is not None:
                     print(f"      📊 Confidence: {idea.confidence_score}")
 
         print(f"\n🎨 Total synthesized ideas: {len(result.synthesized_ideas)}")
         return True
 
+    except (ImportError, ModuleNotFoundError) as e:
+        print(f"❌ Missing dependencies: {e}")
+        return False
     except Exception as e:
         print(f"❌ Error during execution: {e}")
         return False
 
 
-async def test_creativity_evaluation(text: str):
+async def test_creativity_evaluation(text: str) -> Optional[float]:
     """Test the creativity evaluation system"""
     print(f"📊 Evaluating creativity of: '{text[:50]}...'")
 
@@ -92,12 +91,17 @@ async def test_creativity_evaluation(text: str):
                     print(f"      {metric}: {value:.3f}")
 
         return creativity_score
+    except (ImportError, ModuleNotFoundError) as e:
+        print(f"   ❌ Missing evaluation dependencies: {e}")
+        return None
     except Exception as e:
         print(f"   ❌ Evaluation error: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
-async def main():
+async def main() -> None:
     """Main demonstration function"""
 
     print("🌟 Mad Spark Alt - Custom Prompt Testing Guide")
