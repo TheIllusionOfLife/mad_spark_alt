@@ -9,6 +9,7 @@ the "Shin Logical Thinking" QADI methodology with automatic LLM agent preference
 import asyncio
 import json
 import os
+from pathlib import Path
 
 from rich.console import Console
 from rich.json import JSON
@@ -18,8 +19,18 @@ from rich.table import Table
 from mad_spark_alt.core import (
     IdeaGenerationRequest,
     SmartQADIOrchestrator,
+    RobustQADIOrchestrator,
     ThinkingMethod,
 )
+
+# Load .env file if it exists
+env_path = Path(__file__).parent.parent / ".env"
+if env_path.exists():
+    with open(env_path) as f:
+        for line in f:
+            if line.strip() and not line.startswith('#'):
+                key, value = line.strip().split('=', 1)
+                os.environ[key] = value
 
 console = Console()
 
@@ -95,7 +106,7 @@ async def demo_smart_qadi_cycle(problem: str):
     console.print("🔄 Smart QADI Cycle Demo", style="bold blue")
     console.print("=" * 60)
 
-    orchestrator = SmartQADIOrchestrator()
+    orchestrator = RobustQADIOrchestrator()
 
     console.print(f"\n🎯 Problem: [italic]{problem}[/italic]")
     console.print("\n🚀 Starting intelligent QADI cycle...")
@@ -198,7 +209,7 @@ async def demo_agent_comparison(problem: str):
         console.print("🤖 Running comparison between template and LLM agents...")
         
         # Create two orchestrators - one smart, one basic
-        smart_orchestrator = SmartQADIOrchestrator()
+        smart_orchestrator = RobustQADIOrchestrator()
         
         # Run smart cycle (LLM preferred)
         smart_result = await smart_orchestrator.run_qadi_cycle(
@@ -251,7 +262,7 @@ async def main():
             console.print('='*80)
 
             # Setup demo
-            orchestrator = SmartQADIOrchestrator()
+            orchestrator = RobustQADIOrchestrator()
             await demo_agent_setup(orchestrator)
 
             # Main QADI cycle demo

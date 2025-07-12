@@ -545,7 +545,7 @@ Rank these insights from best to worst based on the evaluation criteria."""
 
             return selected_insights
 
-        except (json.JSONDecodeError, Exception) as e:
+        except Exception as e:
             logger.warning(f"Insight ranking failed, using fallback selection: {e}")
             # Fallback: return first max_insights, ensuring method diversity
             methods_used: set = set()

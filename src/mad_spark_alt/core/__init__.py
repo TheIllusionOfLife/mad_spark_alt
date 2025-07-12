@@ -45,6 +45,18 @@ from .smart_registry import (
     setup_smart_agents,
     smart_registry,
 )
+from .fast_orchestrator import FastQADIOrchestrator
+
+# Import robust orchestrator if available
+try:
+    from .robust_orchestrator import RobustQADIOrchestrator
+    from .robust_orchestrator import SmartQADICycleResult as RobustQADICycleResult
+except ImportError as e:
+    # Fallback to smart orchestrator if robust version not available
+    import logging
+    logging.debug(f"Failed to import RobustQADIOrchestrator: {e}")
+    RobustQADIOrchestrator = SmartQADIOrchestrator
+    RobustQADICycleResult = SmartQADICycleResult
 
 __all__ = [
     # Evaluation system
@@ -82,6 +94,8 @@ __all__ = [
     "QADICycleResult",
     "SmartQADIOrchestrator",
     "SmartQADICycleResult",
+    "RobustQADIOrchestrator",
+    "RobustQADICycleResult",
     # Agent registry system
     "ThinkingAgentRegistry",
     "agent_registry",
@@ -92,4 +106,6 @@ __all__ = [
     "smart_registry",
     "setup_smart_agents",
     "get_smart_agent",
+    # Fast orchestrator
+    "FastQADIOrchestrator",
 ]

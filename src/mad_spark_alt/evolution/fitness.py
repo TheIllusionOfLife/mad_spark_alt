@@ -87,7 +87,16 @@ class FitnessEvaluator:
         # Handle any exceptions
         fitness_results: List[IndividualFitness] = []
         for i, result in enumerate(results):
-            if isinstance(result, Exception):
+            # Check if result is an exception (more robust for Python 3.13)
+            is_exception = False
+            try:
+                if isinstance(result, BaseException):
+                    is_exception = True
+            except Exception:
+                # If isinstance fails, check if it has exception attributes
+                is_exception = hasattr(result, '__traceback__') and hasattr(result, 'args')
+            
+            if is_exception:
                 logger.error(f"Error evaluating idea {i}: {result}")
                 # Create default fitness for failed evaluations
                 fitness_results.append(

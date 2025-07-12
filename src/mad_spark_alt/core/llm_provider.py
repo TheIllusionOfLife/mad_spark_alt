@@ -8,6 +8,7 @@ and async request handling.
 
 import asyncio
 import logging
+import os
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -244,7 +245,7 @@ class OpenAIProvider(LLMProviderInterface):
                 json=payload,
                 retry_config=self.retry_config,
                 circuit_breaker=self.circuit_breaker,
-                timeout=30,
+                timeout=300,  # 5 minutes timeout for complex questions
             )
 
             response_time = time.time() - start_time
@@ -381,7 +382,7 @@ class AnthropicProvider(LLMProviderInterface):
                 json=payload,
                 retry_config=self.retry_config,
                 circuit_breaker=self.circuit_breaker,
-                timeout=30,
+                timeout=300,  # 5 minutes timeout for complex questions
             )
 
             response_time = time.time() - start_time
@@ -483,9 +484,10 @@ class GoogleProvider(LLMProviderInterface):
         """Generate text using Google Gemini API."""
         session = await self._get_session()
 
-        # Get model config
+        # Get model config - use latest 2.5 model by default
+        default_model = os.getenv("GEMINI_MODEL_OVERRIDE", "gemini-2.5-flash")
         model_config = request.model_configuration or self._get_default_model_config(
-            "gemini-2.0-flash"
+            default_model
         )
 
         # Prepare the request payload
@@ -526,7 +528,7 @@ class GoogleProvider(LLMProviderInterface):
                 headers=headers,
                 retry_config=self.retry_config,
                 circuit_breaker=self.circuit_breaker,
-                timeout=30,
+                timeout=300,  # 5 minutes timeout for complex questions
             )
         except Exception as e:
             raise LLMError(f"Google API request failed: {str(e)}", ErrorType.API_ERROR)
@@ -572,6 +574,14 @@ class GoogleProvider(LLMProviderInterface):
         return [
             ModelConfig(
                 provider=LLMProvider.GOOGLE,
+                model_name="gemini-2.5-flash",
+                model_size=ModelSize.LARGE,
+                input_cost_per_1k=0.00001,  # Very low cost for Gemini 2.5
+                output_cost_per_1k=0.00002,
+                max_tokens=8192,
+            ),
+            ModelConfig(
+                provider=LLMProvider.GOOGLE,
                 model_name="gemini-2.0-flash",
                 model_size=ModelSize.LARGE,
                 input_cost_per_1k=0.00001,  # Very low cost for Gemini
@@ -599,7 +609,9 @@ class GoogleProvider(LLMProviderInterface):
     def _get_default_model_config(self, model_name: str) -> ModelConfig:
         """Get default model config by name."""
         models = {model.model_name: model for model in self.get_available_models()}
-        return models.get(model_name, models["gemini-2.0-flash"])
+        # Use gemini-1.5-flash as fallback for better stability
+        fallback = models.get("gemini-1.5-flash", list(models.values())[0])
+        return models.get(model_name, fallback)
 
     def calculate_cost(
         self, prompt_tokens: int, completion_tokens: int, model_config: ModelConfig
@@ -753,11 +765,15 @@ async def setup_llm_providers(
             LLMProvider.GOOGLE, google_provider, rate_limit_config
         )
 
-        # Set default model for Google
+        # Set default model for Google - use stable 1.5 model
         default_models = google_provider.get_available_models()
+        preferred_model = os.getenv("GEMINI_MODEL_OVERRIDE", "gemini-1.5-flash")
         default_model = next(
-            (m for m in default_models if m.model_name == "gemini-2.0-flash"),
-            default_models[0],  # Fallback to first model if gemini-2.0-flash not found
+            (m for m in default_models if m.model_name == preferred_model),
+            next(
+                (m for m in default_models if m.model_name == "gemini-1.5-flash"),
+                default_models[0],  # Fallback to first model if neither found
+            )
         )
         llm_manager.set_default_model(LLMProvider.GOOGLE, default_model)
 

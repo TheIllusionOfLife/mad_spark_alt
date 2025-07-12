@@ -215,7 +215,16 @@ class CreativityEvaluator:
         for i, result in enumerate(results):
             evaluator_name = evaluators[i].name
 
-            if isinstance(result, Exception):
+            # Check if result is an exception (more robust for Python 3.13)
+            is_exception = False
+            try:
+                if isinstance(result, BaseException):
+                    is_exception = True
+            except Exception:
+                # If isinstance fails, check if it has exception attributes
+                is_exception = hasattr(result, '__traceback__') and hasattr(result, 'args')
+            
+            if is_exception:
                 self.logger.error(f"Evaluator {evaluator_name} failed: {result}")
                 # Create empty result for failed evaluator
                 empty_result = EvaluationResult(
