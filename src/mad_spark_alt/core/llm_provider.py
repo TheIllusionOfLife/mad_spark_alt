@@ -506,8 +506,10 @@ class GoogleProvider(LLMProviderInterface):
         max_output_tokens = request.max_tokens
         if model_config.model_name == "gemini-2.5-flash":
             # 2.5-flash uses many tokens for internal reasoning, so increase output limit
-            max_output_tokens = max(request.max_tokens * 3, 2048)  # At least 3x the requested tokens
-        
+            max_output_tokens = max(
+                request.max_tokens * 3, 2048
+            )  # At least 3x the requested tokens
+
         payload = {
             "contents": [{"parts": [{"text": full_prompt}]}],
             "generationConfig": {
@@ -545,9 +547,11 @@ class GoogleProvider(LLMProviderInterface):
         try:
             candidate = response_data["candidates"][0]
             content_data = candidate["content"]
-            
+
             # Handle cases where parts might not exist (e.g., MAX_TOKENS with no content)
-            if content_data.get("parts"):  # More Pythonic check for existing, non-empty list
+            if content_data.get(
+                "parts"
+            ):  # More Pythonic check for existing, non-empty list
                 content = content_data["parts"][0]["text"]
             else:
                 # Fallback for empty content due to finish reasons like MAX_TOKENS
@@ -557,10 +561,14 @@ class GoogleProvider(LLMProviderInterface):
                     "SAFETY": "[Content blocked by safety filters]",
                     "RECITATION": "[Content blocked due to recitation concerns]",
                 }
-                content = reason_messages.get(finish_reason, f"[No content generated - finish reason: {finish_reason}]")
+                content = reason_messages.get(
+                    finish_reason,
+                    f"[No content generated - finish reason: {finish_reason}]",
+                )
         except (KeyError, IndexError) as e:
             raise LLMError(
-                f"Invalid response format from Google API: {e}", ErrorType.API_ERROR,
+                f"Invalid response format from Google API: {e}",
+                ErrorType.API_ERROR,
             ) from e
 
         # Extract usage information
