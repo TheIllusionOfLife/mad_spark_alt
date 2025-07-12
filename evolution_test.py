@@ -93,20 +93,25 @@ async def test_evolution_system() -> bool:
 
             # Show best evolved ideas
             print("\n🏆 Top 3 Evolved Ideas:")
-            # Sort population by fitness to match best_ideas order
-            sorted_population = sorted(
-                evolution_result.final_population, 
-                key=lambda x: x.overall_fitness, 
-                reverse=True
-            )
+            
+            # Create a mapping from idea content to fitness score
+            fitness_map = {
+                individual.idea.content: individual.overall_fitness
+                for individual in evolution_result.final_population
+            }
             
             for i, idea in enumerate(evolution_result.best_ideas[:3], 1):
                 print(f"  {i}. {truncate_text(idea.content, 100)}")
 
-                # Display fitness from sorted population
-                if i <= len(sorted_population):
-                    individual = sorted_population[i - 1]
-                    print(f"     🎯 Fitness: {individual.overall_fitness:.3f}")
+                # Display fitness score if available
+                if idea.content in fitness_map:
+                    print(f"     🎯 Fitness: {fitness_map[idea.content]:.3f}")
+                else:
+                    # Fallback: try to find by partial match (in case content was modified)
+                    for content, fitness in fitness_map.items():
+                        if content.startswith(idea.content[:50]):  # Compare first 50 chars
+                            print(f"     🎯 Fitness: {fitness:.3f}")
+                            break
 
             return True
 
