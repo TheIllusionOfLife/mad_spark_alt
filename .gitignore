@@ -69,5 +69,21 @@ test_input*.txt
 .dmypy.json
 dmypy.json
 
+# QADI generated results and artifacts
+qadi_results_*.txt
+qadi_results_*.json
+performance_report.json
+tokyo_results.txt
+test.md
+test_results.md
+
+# Debug and development files
+debug_*.py
+test_*.py
+trace_*.py
+fix_*.py
+run_*.py
+profile_*.py
+
 # uv
 .python-version

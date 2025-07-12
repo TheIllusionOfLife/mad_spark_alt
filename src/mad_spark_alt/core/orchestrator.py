@@ -261,7 +261,10 @@ class QADIOrchestrator:
 
         result_dict = {}
         for method, result in zip(available_methods, results):
-            if isinstance(result, Exception):
+            # Check if result is an exception (more robust for Python 3.13)
+            is_exception = isinstance(result, BaseException)
+
+            if is_exception:
                 logger.error(f"Error in {method.value}: {result}")
                 result_dict[method] = IdeaGenerationResult(
                     agent_name="error",

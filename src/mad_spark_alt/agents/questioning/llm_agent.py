@@ -502,7 +502,7 @@ Rank these questions from best to worst based on the evaluation criteria."""
 
             return selected_questions
 
-        except (json.JSONDecodeError, Exception) as e:
+        except Exception as e:
             logger.warning(f"Question ranking failed, using fallback selection: {e}")
             # Fallback: return first max_questions, ensuring strategy diversity
             strategies_used: set = set()

@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""
+Simple QADI runner without timeouts.
+Usage: ./qadi "your question here"
+"""
+
+import asyncio
+import os
+import sys
+from pathlib import Path
+
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent))
+
+# Load .env file
+env_path = Path(__file__).parent / ".env"
+if env_path.exists():
+    with open(env_path) as f:
+        for line in f:
+            if line.strip() and not line.startswith('#'):
+                key, value = line.strip().split('=', 1)
+                os.environ[key] = value
+
+from mad_spark_alt.core import SmartQADIOrchestrator
+
+async def main():
+    if len(sys.argv) < 2:
+        print("Usage: ./qadi 'your question here'")
+        sys.exit(1)
+    
+    question = " ".join(sys.argv[1:])
+    print(f"🤔 Processing: {question}\n")
+    
+    orchestrator = SmartQADIOrchestrator()
+    await orchestrator.ensure_agents_ready()
+    
+    result = await orchestrator.run_qadi_cycle(
+        problem_statement=question,
+        context="Generate thoughtful and creative insights",
+        cycle_config={
+            "max_ideas_per_method": 3,
+            "require_reasoning": True,
+        }
+    )
+    
+    print(f"\n✅ Completed in {result.execution_time:.2f}s")
+    print(f"💰 Cost: ${result.llm_cost:.4f}")
+    
+    # Show all ideas
+    for phase_name, phase_result in result.phases.items():
+        if phase_result.generated_ideas:
+            print(f"\n{phase_name.upper()}:")
+            for idea in phase_result.generated_ideas:
+                print(f"• {idea.content}")
+
+if __name__ == "__main__":
+    asyncio.run(main())

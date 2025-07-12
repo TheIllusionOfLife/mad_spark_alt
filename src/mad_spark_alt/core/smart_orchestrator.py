@@ -21,6 +21,7 @@ from .interfaces import (
 )
 from .orchestrator import QADICycleResult
 from .smart_registry import SmartAgentRegistry, smart_registry
+from .conclusion_synthesizer import ConclusionSynthesizer, Conclusion
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ class SmartQADICycleResult(QADICycleResult):
     )  # method -> agent_type (LLM/template)
     llm_cost: float = 0.0  # Total LLM cost for the cycle
     setup_time: float = 0.0  # Time spent on agent setup
+    conclusion: Optional[Conclusion] = None  # Synthesized conclusion
 
 
 class SmartQADIOrchestrator:
@@ -169,14 +171,17 @@ class SmartQADIOrchestrator:
         # Synthesize final ideas from all phases
         result.synthesized_ideas = self._synthesize_ideas(result.phases)
 
+        # Generate conclusion from all ideas
+        await self._synthesize_conclusion(result, problem_statement, context)
+
         end_time = time.time()
         result.execution_time = end_time - start_time
 
         logger.info(
             f"Smart QADI cycle {cycle_id} completed in {result.execution_time:.2f}s"
         )
-        if total_llm_cost > 0:
-            logger.info(f"Total LLM cost: ${total_llm_cost:.4f}")
+        if result.llm_cost > 0:
+            logger.info(f"Total LLM cost: ${result.llm_cost:.4f}")
 
         return result
 
@@ -272,6 +277,49 @@ class SmartQADIOrchestrator:
         except Exception as e:
             logger.error(f"Template fallback also failed for {method.value}: {e}")
             return None
+
+    async def _synthesize_conclusion(
+        self,
+        result: SmartQADICycleResult,
+        problem_statement: str,
+        context: Optional[str] = None,
+    ) -> None:
+        """
+        Synthesize conclusion from generated ideas.
+
+        Args:
+            result: The QADI cycle result to add conclusion to
+            problem_statement: The original problem statement
+            context: Optional additional context
+        """
+        if result.synthesized_ideas:
+            try:
+                conclusion_synthesizer = ConclusionSynthesizer(use_llm=True)
+
+                # Group ideas by phase for conclusion synthesis
+                ideas_by_phase: Dict[str, List[GeneratedIdea]] = {}
+                for idea in result.synthesized_ideas:
+                    phase = idea.metadata.get("phase", "unknown")
+                    if phase not in ideas_by_phase:
+                        ideas_by_phase[phase] = []
+                    ideas_by_phase[phase].append(idea)
+
+                result.conclusion = await conclusion_synthesizer.synthesize_conclusion(
+                    problem_statement=problem_statement,
+                    ideas_by_phase=ideas_by_phase,
+                    context=context,
+                )
+
+                # Add cost of conclusion synthesis
+                if (
+                    hasattr(result.conclusion, "metadata")
+                    and "llm_cost" in result.conclusion.metadata
+                ):
+                    result.llm_cost += result.conclusion.metadata["llm_cost"]
+
+            except Exception as e:
+                logger.error(f"Failed to synthesize conclusion: {e}")
+                # Continue without conclusion rather than failing the whole cycle
 
     def _create_template_agent(
         self, method: ThinkingMethod
@@ -380,7 +428,8 @@ class SmartQADIOrchestrator:
 
         result_dict = {}
         for method, result in zip(available_methods, results):
-            if isinstance(result, Exception):
+            # Check if result is an exception
+            if isinstance(result, BaseException):
                 logger.error(f"Error in {method.value}: {result}")
                 result_dict[method] = (
                     IdeaGenerationResult(

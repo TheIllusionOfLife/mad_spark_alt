@@ -550,7 +550,7 @@ Rank these logical analyses from best to worst based on the evaluation criteria.
 
             return selected_analyses
 
-        except (json.JSONDecodeError, Exception) as e:
+        except Exception as e:
             logger.warning(f"Analysis ranking failed, using fallback selection: {e}")
             # Fallback: return first max_analyses, ensuring framework diversity
             frameworks_used: set = set()

@@ -343,7 +343,9 @@ async def safe_aiohttp_request(
 
     async def _make_request() -> Any:
         try:
-            timeout = aiohttp.ClientTimeout(total=kwargs.pop("timeout", 30))
+            timeout = aiohttp.ClientTimeout(
+                total=kwargs.pop("timeout", 300)
+            )  # Default 5 minutes
 
             async with session.request(
                 method, url, timeout=timeout, **kwargs
@@ -358,14 +360,21 @@ async def safe_aiohttp_request(
 
                 return response_data
 
-        except aiohttp.ClientTimeout:  # type: ignore
-            raise LLMTimeoutError("Request timed out")
+        except asyncio.TimeoutError as e:
+            raise LLMTimeoutError("Request timed out") from e
         except aiohttp.ClientError as e:
-            raise NetworkError(f"Network error: {str(e)}")
+            raise NetworkError(f"Network error: {str(e)}") from e
+        except Exception as e:
+            if "timeout" in str(e).lower():
+                raise LLMTimeoutError("Request timed out") from e
+            raise NetworkError(f"Network error: {str(e)}") from e
 
     # Apply circuit breaker if provided
     if circuit_breaker:
-        request_func = lambda: circuit_breaker.call(_make_request)
+
+        async def request_func() -> Any:
+            return await circuit_breaker.call(_make_request)
+
     else:
         request_func = _make_request
 

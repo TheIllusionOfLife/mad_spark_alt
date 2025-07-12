@@ -37,13 +37,29 @@ def extract_json_from_response(text: str) -> Optional[str]:
     if match:
         return match.group(1).strip()
 
-    # Pattern 2: Look for JSON objects with proper braces (supports nested structures)
-    json_object_pattern = r"\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}"
-    object_matches = re.findall(json_object_pattern, text, re.DOTALL)
+    # Pattern 2: Look for JSON objects with proper braces (improved for deeper nesting)
+    # Use multiple strategies for better matching
+    json_patterns = [
+        r"\{[^{}]*\}",  # Simple objects without nesting
+        r"\{(?:[^{}]|(?:\{[^{}]*\}))*\}",  # Objects with one level of nesting
+        r"\{(?:[^{}]|(?:\{(?:[^{}]|(?:\{[^{}]*\}))*\}))*\}",  # Objects with two levels of nesting
+    ]
 
-    # Pattern 3: Look for JSON arrays with proper brackets
-    json_array_pattern = r"\[(?:[^\[\]]|\[(?:[^\[\]]|\[[^\[\]]*\])*\])*\]"
-    array_matches = re.findall(json_array_pattern, text, re.DOTALL)
+    object_matches = []
+    for pattern in json_patterns:
+        matches = re.findall(pattern, text, re.DOTALL)
+        object_matches.extend(matches)
+
+    # Pattern 3: Look for JSON arrays with improved bracket matching
+    array_patterns = [
+        r"\[[^\[\]]*\]",  # Simple arrays without nesting
+        r"\[(?:[^\[\]]|(?:\[[^\[\]]*\]))*\]",  # Arrays with one level of nesting
+    ]
+
+    array_matches = []
+    for pattern in array_patterns:
+        matches = re.findall(pattern, text, re.DOTALL)
+        array_matches.extend(matches)
 
     all_matches = object_matches + array_matches
     if all_matches:
