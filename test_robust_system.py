@@ -54,6 +54,17 @@ async def test_robust_system():
             print(f"✅ Success! Completed in {result.execution_time:.2f}s")
             print(f"💰 Cost: ${result.llm_cost:.4f}")
             
+            # Assertions to verify correct behavior
+            assert result is not None, "Result should not be None"
+            assert result.execution_time > 0, "Execution time should be positive"
+            assert result.execution_time < 120, "Execution should complete within timeout"
+            assert len(result.phases) >= 3, "Should have at least 3 QADI phases"
+            assert result.llm_cost >= 0, "LLM cost should be non-negative"
+            
+            # Verify at least some phases generated ideas
+            total_ideas = sum(len(phase_result.generated_ideas) for phase_result in result.phases.values())
+            assert total_ideas > 0, f"Should generate at least some ideas, got {total_ideas}"
+            
             # Show phase summary
             for phase_name, phase_result in result.phases.items():
                 ideas_count = len(phase_result.generated_ideas)
