@@ -773,7 +773,7 @@ async def setup_llm_providers(
             next(
                 (m for m in default_models if m.model_name == "gemini-1.5-flash"),
                 default_models[0],  # Fallback to first model if neither found
-            )
+            ),
         )
         llm_manager.set_default_model(LLMProvider.GOOGLE, default_model)
 

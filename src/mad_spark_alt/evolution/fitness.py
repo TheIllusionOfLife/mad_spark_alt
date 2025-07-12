@@ -94,8 +94,10 @@ class FitnessEvaluator:
                     is_exception = True
             except Exception:
                 # If isinstance fails, check if it has exception attributes
-                is_exception = hasattr(result, '__traceback__') and hasattr(result, 'args')
-            
+                is_exception = hasattr(result, "__traceback__") and hasattr(
+                    result, "args"
+                )
+
             if is_exception:
                 logger.error(f"Error evaluating idea {i}: {result}")
                 # Create default fitness for failed evaluations

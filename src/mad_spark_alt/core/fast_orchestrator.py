@@ -23,14 +23,14 @@ logger = logging.getLogger(__name__)
 class FastQADIOrchestrator(SmartQADIOrchestrator):
     """
     Optimized QADI orchestrator that runs phases in parallel for faster execution.
-    
+
     Key optimizations:
     1. Parallel phase execution instead of sequential
     2. Batched LLM calls where possible
     3. Optimized context building
     4. Optional caching support
     """
-    
+
     def __init__(
         self,
         registry: Optional[SmartAgentRegistry] = None,
@@ -43,8 +43,10 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
         self.enable_parallel = enable_parallel
         self.enable_batching = enable_batching
         self.enable_cache = enable_cache
-        self._cache: Optional[Dict[str, SmartQADICycleResult]] = {} if enable_cache else None
-        
+        self._cache: Optional[Dict[str, SmartQADICycleResult]] = (
+            {} if enable_cache else None
+        )
+
     async def run_qadi_cycle(
         self,
         problem_statement: str,
@@ -53,27 +55,27 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
     ) -> SmartQADICycleResult:
         """
         Run complete QADI cycle with parallel execution optimization.
-        
+
         Instead of running phases sequentially (Q→A→D→I), run them in parallel
         for ~70% speedup. Context enhancement is simplified since phases run
         simultaneously.
         """
         cycle_id = str(uuid.uuid4())[:8]
         logger.info(f"Starting FAST QADI cycle {cycle_id}")
-        
+
         start_time = time.time()
         config = cycle_config or {}
-        
+
         # Setup status tracking
         setup_status = await self.ensure_agents_ready()
-        
+
         # Check cache if enabled
         if self.enable_cache and self._cache and problem_statement in self._cache:
             logger.info("Cache hit - returning cached result")
             cached = self._cache[problem_statement]
             cached.execution_time = time.time() - start_time
             return cached
-        
+
         # Define QADI phases
         QADI_METHODS = [
             ThinkingMethod.QUESTIONING,
@@ -81,7 +83,7 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
             ThinkingMethod.DEDUCTION,
             ThinkingMethod.INDUCTION,
         ]
-        
+
         if self.enable_parallel:
             # Run all phases in parallel
             logger.info("Running QADI phases in PARALLEL for speed")
@@ -94,7 +96,7 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
             phase_results = await self._run_phases_sequential(
                 problem_statement, QADI_METHODS, context, config
             )
-        
+
         # Process results
         result = SmartQADICycleResult(
             problem_statement=problem_statement,
@@ -111,30 +113,31 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
             },
             setup_time=0,
         )
-        
+
         # Aggregate results from all phases
         total_llm_cost = 0.0
         for method, (phase_result, agent_type) in phase_results.items():
             result.phases[method.value] = phase_result
             result.agent_types[method.value] = agent_type
-            
+
             # Track costs
             if phase_result.generated_ideas:
                 for idea in phase_result.generated_ideas:
                     if "llm_cost" in idea.metadata:
                         total_llm_cost += idea.metadata["llm_cost"]
-        
+
         result.llm_cost = total_llm_cost
-        
+
         # Synthesize final ideas
         result.synthesized_ideas = self._synthesize_ideas(result.phases)
-        
+
         # Generate conclusion from all ideas
         if result.synthesized_ideas:
             try:
                 from .conclusion_synthesizer import ConclusionSynthesizer
+
                 conclusion_synthesizer = ConclusionSynthesizer(use_llm=True)
-                
+
                 # Group ideas by phase for conclusion synthesis
                 ideas_by_phase: Dict[str, List[GeneratedIdea]] = {}
                 for idea in result.synthesized_ideas:
@@ -142,35 +145,38 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
                     if phase not in ideas_by_phase:
                         ideas_by_phase[phase] = []
                     ideas_by_phase[phase].append(idea)
-                
+
                 result.conclusion = await conclusion_synthesizer.synthesize_conclusion(
                     problem_statement=problem_statement,
                     ideas_by_phase=ideas_by_phase,
-                    context=context
+                    context=context,
                 )
-                
+
                 # Add cost of conclusion synthesis if available
-                if hasattr(result.conclusion, 'metadata') and 'llm_cost' in result.conclusion.metadata:
-                    result.llm_cost += result.conclusion.metadata['llm_cost']
-                    
+                if (
+                    hasattr(result.conclusion, "metadata")
+                    and "llm_cost" in result.conclusion.metadata
+                ):
+                    result.llm_cost += result.conclusion.metadata["llm_cost"]
+
             except Exception as e:
                 logger.error(f"Failed to synthesize conclusion: {e}")
                 # Continue without conclusion rather than failing the whole cycle
-        
+
         # Calculate execution time
         result.execution_time = time.time() - start_time
-        
+
         logger.info(
             f"FAST QADI cycle completed in {result.execution_time:.2f}s "
             f"(vs ~110s sequential)"
         )
-        
+
         # Cache result if enabled
         if self.enable_cache and self._cache is not None:
             self._cache[problem_statement] = result
-        
+
         return result
-    
+
     async def _run_phases_parallel(
         self,
         problem_statement: str,
@@ -179,20 +185,18 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
         config: Dict[str, Any],
     ) -> Dict[ThinkingMethod, Tuple[IdeaGenerationResult, str]]:
         """Run all QADI phases in parallel for maximum speed."""
-        
+
         # Create tasks for all phases
         tasks = []
         for method in methods:
             # Use same context for all phases in parallel mode
             # (no sequential context enhancement possible)
-            task = self._run_smart_phase(
-                method, problem_statement, context, config
-            )
+            task = self._run_smart_phase(method, problem_statement, context, config)
             tasks.append(task)
-        
+
         # Run all phases simultaneously
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         # Process results
         phase_results = {}
         for method, result in zip(methods, results):
@@ -209,9 +213,9 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
                 phase_results[method] = (error_result, "error")
             else:
                 phase_results[method] = result  # type: ignore[assignment]
-        
+
         return phase_results
-    
+
     async def _run_phases_sequential(
         self,
         problem_statement: str,
@@ -221,7 +225,7 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
     ) -> Dict[ThinkingMethod, Tuple[IdeaGenerationResult, str]]:
         """Fall back to sequential execution if parallel disabled."""
         phase_results: Dict[ThinkingMethod, Tuple[IdeaGenerationResult, str]] = {}
-        
+
         for i, method in enumerate(methods):
             # Build enhanced context for sequential mode
             if i == 0:
@@ -229,18 +233,14 @@ class FastQADIOrchestrator(SmartQADIOrchestrator):
             else:
                 # Use previous results to enhance context
                 previous_results = [
-                    phase_results[m][0]
-                    for m in methods[:i]
-                    if m in phase_results
+                    phase_results[m][0] for m in methods[:i] if m in phase_results
                 ]
-                phase_context = self._build_enhanced_context(
-                    context, *previous_results
-                )
-            
+                phase_context = self._build_enhanced_context(context, *previous_results)
+
             # Run phase
             result = await self._run_smart_phase(
                 method, problem_statement, phase_context, config
             )
             phase_results[method] = result
-        
+
         return phase_results

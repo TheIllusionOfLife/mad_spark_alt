@@ -54,6 +54,7 @@ try:
 except ImportError as e:
     # Fallback to smart orchestrator if robust version not available
     import logging
+
     logging.debug(f"Failed to import RobustQADIOrchestrator: {e}")
     RobustQADIOrchestrator = SmartQADIOrchestrator  # type: ignore[misc,assignment]
     RobustQADICycleResult = SmartQADICycleResult  # type: ignore[misc]

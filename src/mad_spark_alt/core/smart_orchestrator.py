@@ -175,7 +175,7 @@ class SmartQADIOrchestrator:
         if result.synthesized_ideas:
             try:
                 conclusion_synthesizer = ConclusionSynthesizer(use_llm=True)
-                
+
                 # Group ideas by phase for conclusion synthesis
                 ideas_by_phase: Dict[str, List[GeneratedIdea]] = {}
                 for idea in result.synthesized_ideas:
@@ -183,17 +183,20 @@ class SmartQADIOrchestrator:
                     if phase not in ideas_by_phase:
                         ideas_by_phase[phase] = []
                     ideas_by_phase[phase].append(idea)
-                
+
                 result.conclusion = await conclusion_synthesizer.synthesize_conclusion(
                     problem_statement=problem_statement,
                     ideas_by_phase=ideas_by_phase,
-                    context=context
+                    context=context,
                 )
-                
+
                 # Add cost of conclusion synthesis
-                if hasattr(result.conclusion, 'metadata') and 'llm_cost' in result.conclusion.metadata:
-                    result.llm_cost += result.conclusion.metadata['llm_cost']
-                    
+                if (
+                    hasattr(result.conclusion, "metadata")
+                    and "llm_cost" in result.conclusion.metadata
+                ):
+                    result.llm_cost += result.conclusion.metadata["llm_cost"]
+
             except Exception as e:
                 logger.error(f"Failed to synthesize conclusion: {e}")
                 # Continue without conclusion rather than failing the whole cycle

@@ -222,8 +222,10 @@ class CreativityEvaluator:
                     is_exception = True
             except Exception:
                 # If isinstance fails, check if it has exception attributes
-                is_exception = hasattr(result, '__traceback__') and hasattr(result, 'args')
-            
+                is_exception = hasattr(result, "__traceback__") and hasattr(
+                    result, "args"
+                )
+
             if is_exception:
                 self.logger.error(f"Evaluator {evaluator_name} failed: {result}")
                 # Create empty result for failed evaluator

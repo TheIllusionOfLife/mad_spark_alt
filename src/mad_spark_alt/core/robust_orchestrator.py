@@ -28,18 +28,18 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
     """
     Robust version of SmartQADIOrchestrator with comprehensive timeout handling.
     """
-    
+
     def __init__(
         self,
         registry: Optional[SmartAgentRegistry] = None,
         default_timeout: float = 300.0,  # 5 minutes total
-        phase_timeout: float = 75.0,     # 75 seconds per phase (for 4 phases)
+        phase_timeout: float = 75.0,  # 75 seconds per phase (for 4 phases)
         auto_setup: bool = True,
     ):
         super().__init__(registry, auto_setup)
         self.default_timeout = default_timeout
         self.phase_timeout = phase_timeout
-        
+
     async def run_qadi_cycle(
         self,
         problem_statement: str,
@@ -51,30 +51,32 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
         """
         # Create timeout manager
         timeout_mgr = TimeoutManager(self.default_timeout)
-        
+
         # Generate cycle ID
         cycle_id = str(uuid.uuid4())[:8]
         start_time = time.time()
-        
+
         # Initialize tracking
         phases: Dict[str, IdeaGenerationResult] = {}
         synthesized_ideas: List[GeneratedIdea] = []
         llm_cost = 0.0
         agent_types: Dict[str, str] = {}
-        
-        logger.info(f"Starting QADI cycle {cycle_id} with {timeout_mgr.total_timeout}s timeout")
-        
+
+        logger.info(
+            f"Starting QADI cycle {cycle_id} with {timeout_mgr.total_timeout}s timeout"
+        )
+
         # Ensure agents are ready (with timeout)
         try:
             await asyncio.wait_for(
                 self.ensure_agents_ready(),
-                timeout=min(10, timeout_mgr.get_remaining_time())
+                timeout=min(10, timeout_mgr.get_remaining_time()),
             )
         except TimeoutError:
             logger.error("Agent setup timed out, using template agents")
             # Force template agents on timeout
             self._force_template_agents()
-        
+
         # Define QADI phases
         qadi_phases = [
             ThinkingMethod.QUESTIONING,
@@ -82,21 +84,21 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
             ThinkingMethod.DEDUCTION,
             ThinkingMethod.INDUCTION,
         ]
-        
+
         # Run each phase with individual timeout
         for phase_method in qadi_phases:
             phase_name = phase_method.value
-            
+
             # Check if we have time left
             remaining_time = timeout_mgr.get_remaining_time()
             if remaining_time <= 0:
                 logger.warning(f"Skipping {phase_name} - total timeout exceeded")
                 phases[phase_name] = self._create_timeout_result(phase_method)
                 continue
-            
+
             # Calculate phase timeout
             phase_timeout = min(self.phase_timeout, remaining_time)
-            
+
             # Run phase with timeout
             phase_start = time.time()
             try:
@@ -106,15 +108,15 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
                         problem_statement,
                         context,
                         cycle_config,
-                        previous_results=synthesized_ideas
+                        previous_results=synthesized_ideas,
                     ),
-                    timeout=phase_timeout
+                    timeout=phase_timeout,
                 )
-                
+
                 # Record phase time
                 phase_duration = time.time() - phase_start
                 timeout_mgr.record_phase_time(phase_name, phase_duration)
-                
+
                 # Process result
                 if phase_result and phase_result != "TIMEOUT":
                     phases[phase_name] = phase_result[0]
@@ -130,15 +132,15 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
                 else:
                     phases[phase_name] = self._create_empty_result(phase_method)
                     agent_types[phase_name] = "template"
-                    
+
             except Exception as e:
                 logger.error(f"Error in {phase_name}: {e}")
                 phases[phase_name] = self._create_error_result(phase_method, str(e))
                 agent_types[phase_name] = "error"
-        
+
         # Create final result
         execution_time = time.time() - start_time
-        
+
         return SmartQADICycleResult(
             problem_statement=problem_statement,
             cycle_id=cycle_id,
@@ -149,10 +151,10 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
             agent_types=agent_types,
             metadata={
                 "timeout_summary": timeout_mgr.get_summary(),
-                "config": cycle_config or {}
-            }
+                "config": cycle_config or {},
+            },
         )
-    
+
     async def _run_robust_phase(
         self,
         method: ThinkingMethod,
@@ -168,37 +170,48 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
             if not agent:
                 logger.warning(f"No agent found for {method.value}")
                 return None
-            
+
             # Create request with previous context
             request = IdeaGenerationRequest(
                 problem_statement=problem_statement,
-                context=f"{context or ''} Previous ideas: {[idea.content for idea in previous_results[:3]]}" if previous_results else context,
+                context=(
+                    f"{context or ''} Previous ideas: {[idea.content for idea in previous_results[:3]]}"
+                    if previous_results
+                    else context
+                ),
                 target_thinking_methods=[method],
-                max_ideas_per_method=config.get("max_ideas_per_method", 3) if config else 3,
-                require_reasoning=config.get("require_reasoning", False) if config else False,
-                generation_config={"phase": method.value}
+                max_ideas_per_method=(
+                    config.get("max_ideas_per_method", 3) if config else 3
+                ),
+                require_reasoning=(
+                    config.get("require_reasoning", False) if config else False
+                ),
+                generation_config={"phase": method.value},
             )
-            
+
             # Run with timeout
             result = await asyncio.wait_for(
-                agent.generate_ideas(request),
-                timeout=60  # 60 seconds per agent call
+                agent.generate_ideas(request), timeout=60  # 60 seconds per agent call
             )
-            
+
             # Determine agent type
-            agent_type = "LLM" if hasattr(agent, "is_llm_powered") and agent.is_llm_powered else "template"
-            
+            agent_type = (
+                "LLM"
+                if hasattr(agent, "is_llm_powered") and agent.is_llm_powered
+                else "template"
+            )
+
             return (result, agent_type)
-            
+
         except Exception as e:
             logger.error(f"Phase {method.value} failed: {e}")
             return None
-    
+
     def _force_template_agents(self) -> None:
         """Force the use of template agents."""
         # Clear any LLM agent preferences
         self.registry._agent_preferences.clear()
-        
+
         # Re-register template agents with enhanced error handling
         successful_registrations = 0
         for agent_class in [
@@ -210,15 +223,23 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
             try:
                 self.registry.base_registry.register(agent_class)  # type: ignore[type-abstract]
                 successful_registrations += 1
-                logger.debug(f"Successfully registered template agent: {agent_class.__name__}")
+                logger.debug(
+                    f"Successfully registered template agent: {agent_class.__name__}"
+                )
             except Exception as e:
-                logger.error(f"Failed to register template agent {agent_class.__name__}: {e}")
-        
+                logger.error(
+                    f"Failed to register template agent {agent_class.__name__}: {e}"
+                )
+
         if successful_registrations == 0:
-            logger.critical("Failed to register any template agents - system may be unstable")
+            logger.critical(
+                "Failed to register any template agents - system may be unstable"
+            )
         else:
-            logger.info(f"Registered {successful_registrations}/4 template agents successfully")
-    
+            logger.info(
+                f"Registered {successful_registrations}/4 template agents successfully"
+            )
+
     def _create_timeout_result(self, method: ThinkingMethod) -> IdeaGenerationResult:
         """Create a result for a timed-out phase."""
         return IdeaGenerationResult(
@@ -227,10 +248,12 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
             generated_ideas=[],
             execution_time=0.0,
             error_message="Phase skipped due to timeout",
-            generation_metadata={"timeout": True}
+            generation_metadata={"timeout": True},
         )
-    
-    def _create_fallback_result(self, method: ThinkingMethod) -> Tuple[IdeaGenerationResult, str]:
+
+    def _create_fallback_result(
+        self, method: ThinkingMethod
+    ) -> Tuple[IdeaGenerationResult, str]:
         """Create a fallback result for timeout."""
         result = IdeaGenerationResult(
             agent_name="fallback",
@@ -242,14 +265,14 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
                     agent_name="fallback",
                     generation_prompt="timeout_fallback",
                     confidence_score=0.1,
-                    metadata={"fallback": True}
+                    metadata={"fallback": True},
                 )
             ],
             execution_time=0.0,
-            generation_metadata={"fallback": True}
+            generation_metadata={"fallback": True},
         )
         return (result, "fallback")
-    
+
     def _create_empty_result(self, method: ThinkingMethod) -> IdeaGenerationResult:
         """Create an empty result."""
         return IdeaGenerationResult(
@@ -257,10 +280,12 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
             thinking_method=method,
             generated_ideas=[],
             execution_time=0.0,
-            generation_metadata={"empty": True}
+            generation_metadata={"empty": True},
         )
-    
-    def _create_error_result(self, method: ThinkingMethod, error: str) -> IdeaGenerationResult:
+
+    def _create_error_result(
+        self, method: ThinkingMethod, error: str
+    ) -> IdeaGenerationResult:
         """Create an error result."""
         return IdeaGenerationResult(
             agent_name="error",
@@ -268,7 +293,7 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
             generated_ideas=[],
             execution_time=0.0,
             error_message=error,
-            generation_metadata={"error": True}
+            generation_metadata={"error": True},
         )
 
 

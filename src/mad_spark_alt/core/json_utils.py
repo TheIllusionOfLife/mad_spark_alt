@@ -40,22 +40,22 @@ def extract_json_from_response(text: str) -> Optional[str]:
     # Pattern 2: Look for JSON objects with proper braces (improved for deeper nesting)
     # Use multiple strategies for better matching
     json_patterns = [
-        r'\{[^{}]*\}',  # Simple objects without nesting
-        r'\{(?:[^{}]|(?:\{[^{}]*\}))*\}',  # Objects with one level of nesting
-        r'\{(?:[^{}]|(?:\{(?:[^{}]|(?:\{[^{}]*\}))*\}))*\}',  # Objects with two levels of nesting
+        r"\{[^{}]*\}",  # Simple objects without nesting
+        r"\{(?:[^{}]|(?:\{[^{}]*\}))*\}",  # Objects with one level of nesting
+        r"\{(?:[^{}]|(?:\{(?:[^{}]|(?:\{[^{}]*\}))*\}))*\}",  # Objects with two levels of nesting
     ]
-    
+
     object_matches = []
     for pattern in json_patterns:
         matches = re.findall(pattern, text, re.DOTALL)
         object_matches.extend(matches)
 
-    # Pattern 3: Look for JSON arrays with improved bracket matching  
+    # Pattern 3: Look for JSON arrays with improved bracket matching
     array_patterns = [
-        r'\[[^\[\]]*\]',  # Simple arrays without nesting
-        r'\[(?:[^\[\]]|(?:\[[^\[\]]*\]))*\]',  # Arrays with one level of nesting
+        r"\[[^\[\]]*\]",  # Simple arrays without nesting
+        r"\[(?:[^\[\]]|(?:\[[^\[\]]*\]))*\]",  # Arrays with one level of nesting
     ]
-    
+
     array_matches = []
     for pattern in array_patterns:
         matches = re.findall(pattern, text, re.DOTALL)

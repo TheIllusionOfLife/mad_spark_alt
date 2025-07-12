@@ -343,7 +343,9 @@ async def safe_aiohttp_request(
 
     async def _make_request() -> Any:
         try:
-            timeout = aiohttp.ClientTimeout(total=kwargs.pop("timeout", 300))  # Default 5 minutes
+            timeout = aiohttp.ClientTimeout(
+                total=kwargs.pop("timeout", 300)
+            )  # Default 5 minutes
 
             async with session.request(
                 method, url, timeout=timeout, **kwargs
@@ -369,8 +371,10 @@ async def safe_aiohttp_request(
 
     # Apply circuit breaker if provided
     if circuit_breaker:
+
         async def request_func() -> Any:
             return await circuit_breaker.call(_make_request)
+
     else:
         request_func = _make_request
 
