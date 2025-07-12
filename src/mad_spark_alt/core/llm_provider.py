@@ -609,8 +609,8 @@ class GoogleProvider(LLMProviderInterface):
     def _get_default_model_config(self, model_name: str) -> ModelConfig:
         """Get default model config by name."""
         models = {model.model_name: model for model in self.get_available_models()}
-        # Use gemini-1.5-flash as fallback for better stability
-        fallback = models.get("gemini-1.5-flash", list(models.values())[0])
+        # Use gemini-2.5-flash as fallback for better stability
+        fallback = models.get("gemini-2.5-flash", list(models.values())[0])
         return models.get(model_name, fallback)
 
     def calculate_cost(
@@ -765,13 +765,13 @@ async def setup_llm_providers(
             LLMProvider.GOOGLE, google_provider, rate_limit_config
         )
 
-        # Set default model for Google - use stable 1.5 model
+        # Set default model for Google - use latest 2.5 model
         default_models = google_provider.get_available_models()
-        preferred_model = os.getenv("GEMINI_MODEL_OVERRIDE", "gemini-1.5-flash")
+        preferred_model = os.getenv("GEMINI_MODEL_OVERRIDE", "gemini-2.5-flash")
         default_model = next(
             (m for m in default_models if m.model_name == preferred_model),
             next(
-                (m for m in default_models if m.model_name == "gemini-1.5-flash"),
+                (m for m in default_models if m.model_name == "gemini-2.5-flash"),
                 default_models[0],  # Fallback to first model if neither found
             ),
         )
