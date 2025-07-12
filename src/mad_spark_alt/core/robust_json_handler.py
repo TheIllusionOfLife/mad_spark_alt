@@ -136,8 +136,8 @@ def _extract_key_values(text: str, keys: List[str]) -> Dict[str, Any]:
                 try:
                     # Try to parse as JSON
                     result[key] = json.loads(value)
-                except:
-                    # Keep as string
+                except (json.JSONDecodeError, ValueError, TypeError):
+                    # Keep as string if JSON parsing fails
                     result[key] = value
                 break
     
