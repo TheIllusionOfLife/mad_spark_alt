@@ -62,6 +62,8 @@ async def test_custom_prompt(problem: str, context: str = "") -> Optional[bool]:
         return False
     except Exception as e:
         print(f"❌ Error during execution: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 

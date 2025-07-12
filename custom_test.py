@@ -5,7 +5,6 @@ This shows how to use the system with your own prompts.
 """
 
 import asyncio
-from datetime import datetime, timezone
 from typing import Optional, Any
 
 from mad_spark_alt.core import SmartQADIOrchestrator
@@ -37,7 +36,6 @@ async def test_with_custom_prompt(
     try:
         # Run QADI cycle
         print("🚀 Starting QADI cycle...")
-        start_time = datetime.now(timezone.utc)
 
         result = await orchestrator.run_qadi_cycle(
             problem_statement=problem_statement,
@@ -45,7 +43,6 @@ async def test_with_custom_prompt(
             cycle_config={"max_ideas_per_method": max_ideas, "require_reasoning": True},
         )
 
-        end_time = datetime.now(timezone.utc)
         print(f"✅ QADI cycle completed in {result.execution_time:.2f}s")
         print(f"💰 Total LLM cost: ${result.llm_cost:.4f}")
         print("=" * 60)
