@@ -158,7 +158,29 @@ Focus on practical, actionable advice that directly addresses the original probl
     
     def _parse_llm_conclusion(self, llm_response: str) -> Conclusion:
         """Parse LLM response into Conclusion object."""
-        # Initialize with defaults
+        # Try JSON parsing first with robust handler
+        try:
+            from .robust_json_handler import extract_json_from_response
+            
+            # Attempt to extract structured JSON response
+            json_data = extract_json_from_response(
+                llm_response,
+                expected_keys=["summary", "key_insights", "recommendations", "next_steps"],
+                fallback=None
+            )
+            
+            if json_data and isinstance(json_data, dict):
+                return Conclusion(
+                    summary=json_data.get("summary", ""),
+                    key_insights=json_data.get("key_insights", []),
+                    actionable_recommendations=json_data.get("recommendations", []),
+                    next_steps=json_data.get("next_steps", []),
+                    metadata={"parsing_method": "json", "llm_cost": 0.0}
+                )
+        except Exception as e:
+            logger.debug(f"JSON parsing failed, using text parsing fallback: {e}")
+        
+        # Fallback to text parsing
         summary = ""
         key_insights = []
         recommendations = []
@@ -208,7 +230,8 @@ Focus on practical, actionable advice that directly addresses the original probl
             key_insights=key_insights,
             actionable_recommendations=recommendations,
             next_steps=next_steps,
-            confidence_level=0.85
+            confidence_level=0.85,
+            metadata={"parsing_method": "text_fallback", "llm_cost": 0.0}
         )
     
     def _synthesize_with_template(

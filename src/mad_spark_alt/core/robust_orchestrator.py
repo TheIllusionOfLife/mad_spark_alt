@@ -203,7 +203,8 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
         # Clear any LLM agent preferences
         self.registry._agent_preferences.clear()
         
-        # Re-register template agents
+        # Re-register template agents with enhanced error handling
+        successful_registrations = 0
         for agent_class in [
             QuestioningAgent,
             AbductionAgent,
@@ -213,8 +214,15 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
             try:
                 agent = agent_class()
                 self.registry.base_registry.register(agent)
+                successful_registrations += 1
+                logger.debug(f"Successfully registered template agent: {agent_class.__name__}")
             except Exception as e:
-                logger.error(f"Failed to register {agent_class.__name__}: {e}")
+                logger.error(f"Failed to register template agent {agent_class.__name__}: {e}")
+        
+        if successful_registrations == 0:
+            logger.critical("Failed to register any template agents - system may be unstable")
+        else:
+            logger.info(f"Registered {successful_registrations}/4 template agents successfully")
     
     def _create_timeout_result(self, method: ThinkingMethod) -> IdeaGenerationResult:
         """Create a result for a timed-out phase."""
