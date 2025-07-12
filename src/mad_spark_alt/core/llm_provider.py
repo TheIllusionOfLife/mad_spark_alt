@@ -547,24 +547,21 @@ class GoogleProvider(LLMProviderInterface):
             content_data = candidate["content"]
             
             # Handle cases where parts might not exist (e.g., MAX_TOKENS with no content)
-            if "parts" in content_data and len(content_data["parts"]) > 0:
+            if content_data.get("parts"):  # More Pythonic check for existing, non-empty list
                 content = content_data["parts"][0]["text"]
             else:
                 # Fallback for empty content due to finish reasons like MAX_TOKENS
                 finish_reason = candidate.get("finishReason", "UNKNOWN")
-                if finish_reason == "MAX_TOKENS":
-                    content = "[Content generation stopped due to token limit - try reducing max_tokens or prompt length]"
-                elif finish_reason == "SAFETY":
-                    content = "[Content blocked by safety filters]"
-                elif finish_reason == "RECITATION":
-                    content = "[Content blocked due to recitation concerns]"
-                else:
-                    content = f"[No content generated - finish reason: {finish_reason}]"
-                    
+                reason_messages = {
+                    "MAX_TOKENS": "[Content generation stopped due to token limit - try reducing max_tokens or prompt length]",
+                    "SAFETY": "[Content blocked by safety filters]",
+                    "RECITATION": "[Content blocked due to recitation concerns]",
+                }
+                content = reason_messages.get(finish_reason, f"[No content generated - finish reason: {finish_reason}]")
         except (KeyError, IndexError) as e:
             raise LLMError(
-                f"Invalid response format from Google API: {e}", ErrorType.API_ERROR
-            )
+                f"Invalid response format from Google API: {e}", ErrorType.API_ERROR,
+            ) from e
 
         # Extract usage information
         usage_metadata = response_data.get("usageMetadata", {})
@@ -788,7 +785,7 @@ async def setup_llm_providers(
             LLMProvider.GOOGLE, google_provider, rate_limit_config
         )
 
-        # Set default model for Google - use latest 2.5 model
+        # Set default model for Google - use 2.5-flash with enhanced token handling
         default_models = google_provider.get_available_models()
         preferred_model = os.getenv("GEMINI_MODEL_OVERRIDE", "gemini-2.5-flash")
         default_model = next(
