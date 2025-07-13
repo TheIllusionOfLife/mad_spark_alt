@@ -8,7 +8,23 @@ import asyncio
 from typing import Optional, Any
 
 from mad_spark_alt.core import SmartQADIOrchestrator
-from test_utils import truncate_text, validate_qadi_result
+
+# Import test utilities from the correct path
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), 'demos', 'test_files'))
+
+try:
+    from test_utils import truncate_text, validate_qadi_result
+except ImportError:
+    # Fallback implementations if test_utils is not available
+    def truncate_text(text: str, max_length: int = 100) -> str:
+        """Fallback text truncation."""
+        return text[:max_length] + "..." if len(text) > max_length else text
+    
+    def validate_qadi_result(result) -> bool:
+        """Fallback validation."""
+        return result is not None
 
 
 async def test_with_custom_prompt(

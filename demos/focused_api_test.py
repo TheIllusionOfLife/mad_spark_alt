@@ -8,29 +8,44 @@ import os
 import sys
 from pathlib import Path
 
-# Load .env file
-env_path = Path(__file__).parent / ".env"
-if env_path.exists():
-    with open(env_path) as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                key, value = line.split('=', 1)
-                os.environ[key] = value
+def load_env():
+    """Load .env file if it exists."""
+    env_path = Path(__file__).parent / ".env"
+    if env_path.exists():
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ[key] = value
 
-print("🧪 FOCUSED API TEST: Enhanced QADI System")
-print("=" * 60)
+def check_setup():
+    """Check if environment is set up correctly."""
+    # Load environment if not already loaded
+    load_env()
+    
+    # Add src to path if running directly
+    src_path = os.path.join(os.path.dirname(__file__), 'src')
+    if src_path not in sys.path:
+        sys.path.insert(0, src_path)
+    
+    # Check API key when running directly
+    if __name__ == "__main__":
+        print("🧪 FOCUSED API TEST: Enhanced QADI System")
+        print("=" * 60)
+        
+        google_key = os.getenv('GOOGLE_API_KEY')
+        if google_key:
+            print(f"✅ Google API Key: Available (...{google_key[-6:]})")
+            return True
+        else:
+            print("❌ No API key found")
+            sys.exit(1)
+    
+    return True
 
-# Check API key
-google_key = os.getenv('GOOGLE_API_KEY')
-if google_key:
-    print(f"✅ Google API Key: Available (...{google_key[-6:]})")
-else:
-    print("❌ No API key found")
-    sys.exit(1)
-
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+# Initialize when imported
+check_setup()
 
 async def test_template_vs_llm_comparison():
     """Compare template vs LLM agents if available."""
