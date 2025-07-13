@@ -82,56 +82,56 @@ uv run python qadi_evolution_demo.py "how to improve productivity"
 
 ### Example Session Comparison:
 
-**Prompt**: "How to reduce stress at work"
+**Prompt**: "How to create artificial general intelligence"
 
-**Simple Approach Output**:
+**Simple Approach Output** (`qadi.py`):
 ```
-QUESTION: What are the main stressors?
-HYPOTHESIS: Better time management helps
-DEDUCTION: Organized people are less stressed
-ANSWER1: Make a daily schedule
-ANSWER2: Use time blocking techniques  
-ANSWER3: Prioritize important tasks
+QUESTION: What are the minimal necessary computational principles?
+HYPOTHESIS: AGI requires causal understanding, not just correlations
+DEDUCTION: True AGI needs extreme energy efficiency and rapid learning
+ANSWER1: Focus on reverse-engineering biological brain principles
+ANSWER2: Develop AI with internal predictive world models
+ANSWER3: Invest in neuromorphic hardware for continuous learning
 ```
 
-**Multi-Agent Approach Output**:
+**Multi-Agent Approach Output** (`qadi_simple_multi.py`):
 ```
-QUESTIONING Phase (LLM Agent):
-• What specific workplace dynamics create psychological pressure?
-• How do environmental factors interact with personal stress responses?
+❓ QUESTIONING Phase:
+• What fundamental cognitive architectures enable adaptability and transfer learning?
+• Is AGI emergent from complexity or requires specific principles?
 
-ABDUCTION Phase (LLM Agent):
-• Hypothesis: Stress emerges from misalignment between expectations and control
-• Creative insight: Micro-recovery moments might be more effective than long breaks
+💡 ABDUCTION Phase:
+• AGI emerges from systems generating internal predictive models of existence
+• Requires symbiotic cognitive architecture with competing meta-cognitive modules
 
-DEDUCTION Phase (LLM Agent):
-• Logical validation: If stress = pressure - control, then increasing control or reducing pressure helps
-• Systematic analysis: Environmental, social, and cognitive factors contribute differently
+🔍 DEDUCTION Phase:
+• If AGI needs general understanding, it must synthesize multiple knowledge types
+• Logical requirement: Self-referential learning and conceptual coherence
 
-INDUCTION Phase (LLM Agent):
-• Pattern synthesis: Effective stress reduction requires addressing multiple levels simultaneously
-• General principle: Sustainable stress management needs both reactive and proactive strategies
+🎯 INDUCTION Phase:
+• Pattern: Shift from task optimization to internal model refinement
+• General principle: Dynamic self-organizing architectures bridge engineered/emergent
 
-SYNTHESIZED CONCLUSION:
-A multi-layered approach addressing environmental design, expectation management, 
-micro-recovery practices, and control enhancement provides more sustainable stress 
-reduction than simple time management alone.
+✨ SYNTHESIS:
+1. Design AI with "conceptual surprise" as learning signal
+2. Engineer symbiotic meta-cognitive architectures
+3. Cultivate coherence through internal meaning-space construction
 ```
 
 ## 🚀 Quick Demo Commands
 
 ```bash
-# 1. See the simple approach (your concern)
+# 1. See the simple approach (single prompt)
 uv run python qadi.py "improve team collaboration"
 
-# 2. Experience the multi-agent system
-uv run python qadi_multi_agent.py "improve team collaboration"
+# 2. Experience the WORKING multi-agent system with Google API ⭐
+uv run python qadi_simple_multi.py "improve team collaboration"
 
-# 3. Compare both side-by-side
-uv run python compare_qadi_approaches.py "improve team collaboration"
+# 3. NEVER use template agents (meaningless responses)
+# uv run python qadi_working.py  # ❌ DON'T USE THIS
 
-# 4. See genetic evolution in action
-uv run python qadi_evolution_demo.py "improve team collaboration"
+# 4. Try experimental LLM agents (may timeout)
+uv run python qadi_multi_agent_fixed.py "improve team collaboration"
 ```
 
 ## 📊 Impact Summary
