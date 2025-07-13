@@ -4,7 +4,28 @@ This directory contains various QADI (Question → Abduction → Deduction → I
 
 ## 🎯 Available Tools
 
-### 1. `qadi.py` - Fast Single-Prompt QADI
+### 1. `qadi_simple_multi.py` - Multi-Agent QADI (Recommended) ⭐
+**Usage**: `uv run python qadi_simple_multi.py "Your question"`
+
+**What it does**:
+- Uses Google API with multiple simple LLM calls
+- 4 specialized thinking phases (Question, Abduction, Deduction, Induction)
+- Progressive reasoning - each phase builds on previous insights
+- Final synthesis combining all perspectives
+- No timeout issues
+
+**Example**:
+```bash
+uv run python qadi_simple_multi.py "how to create AGI"
+uv run python qadi_simple_multi.py "improve team productivity"
+```
+
+**Pros**: Real LLM insights, multi-perspective analysis, reliable execution
+**Cons**: Multiple API calls (higher cost than single prompt)
+
+---
+
+### 2. `qadi.py` - Fast Single-Prompt QADI
 **Usage**: `uv run python qadi.py "Your question"`
 
 **What it does**: 
@@ -20,27 +41,6 @@ uv run python qadi.py "how to improve team productivity"
 
 **Pros**: Fast, simple, low cost
 **Cons**: Limited depth, essentially a formatted prompt wrapper
-
----
-
-### 2. `qadi_working.py` - Multi-Agent QADI (Reliable) ⭐
-**Usage**: `uv run python qadi_working.py "Your question"`
-
-**What it does**:
-- Uses the complete Mad Spark Alt multi-agent system
-- 4 specialized thinking agents (Question, Abduction, Deduction, Induction)
-- Template agents for reliable execution (no timeout issues)
-- Structured QADI methodology
-- True multi-agent collaboration
-
-**Example**:
-```bash
-uv run python qadi_working.py "how can AI improve healthcare"
-uv run python qadi_working.py "sustainable energy solutions"
-```
-
-**Pros**: Reliable execution, multi-agent benefits, structured thinking, fast
-**Cons**: Uses template responses (not LLM-generated content)
 
 ### 3. `qadi_multi_agent_fixed.py` - LLM Multi-Agent (Experimental) ⚠️
 **Usage**: `uv run python qadi_multi_agent_fixed.py "Your question" [--evolve]`
@@ -85,7 +85,22 @@ uv run python compare_qadi_approaches.py "improve online learning"
 
 ---
 
-### 5. `qadi_evolution_demo.py` - Genetic Evolution Showcase 🧬
+### 5. `qadi_working.py` - Template Agent Demo (NOT RECOMMENDED) ❌
+**Usage**: `uv run python qadi_working.py "Your question"`
+
+**What it does**:
+- Uses template agents that produce generic, meaningless responses
+- Does NOT use any LLM or Google API
+- Only useful for understanding the multi-agent architecture
+
+**Why NOT to use**:
+- Template responses don't engage with your actual question
+- No real insights or analysis
+- Produces the same generic output for any input
+
+---
+
+### 6. `qadi_evolution_demo.py` - Genetic Evolution Showcase 🧬
 **Usage**: `uv run python qadi_evolution_demo.py "Your question"`
 
 **What it does**:
@@ -142,24 +157,28 @@ uv run python qadi_evolution_demo.py "how to reduce stress"
 
 ## 🎯 When to Use Which Tool
 
+### Use `qadi_simple_multi.py` when: ⭐ RECOMMENDED
+- You want real multi-agent analysis with Google API
+- You need multiple perspectives on complex problems
+- You want progressive reasoning that builds insights
+- You need reliable execution without timeouts
+- Quality is more important than cost
+
 ### Use `qadi.py` when:
 - You need quick answers
 - Cost is a major concern
 - Simple 3-answer format is sufficient
 - You're doing rapid iteration
 
-### Use `qadi_working.py` when:
-- You need deep, multi-perspective analysis
-- Quality is more important than speed
-- You want rich reasoning trails
-- You're solving complex problems
-- You want to leverage multi-agent capabilities reliably
-- You want to avoid timeout issues
-
 ### Use `qadi_multi_agent_fixed.py` when:
-- You want LLM-powered reasoning (experimental)
-- You're willing to risk timeouts for richer content
-- You're debugging the LLM agent system
+- You want to experiment with advanced LLM agents
+- You're willing to risk timeouts
+- You're debugging the full system
+
+### NEVER use `qadi_working.py`:
+- Template agents are meaningless
+- Does not use Google API or any LLM
+- Produces generic responses regardless of input
 
 ### Use `compare_qadi_approaches.py` when:
 - You want to understand the differences
@@ -175,13 +194,13 @@ uv run python qadi_evolution_demo.py "how to reduce stress"
 
 ## 📊 Performance Characteristics
 
-| Tool | Speed | Cost | Depth | Agents | Evolution | Reliability |
-|------|-------|------|-------|--------|-----------|-------------|
-| `qadi.py` | Fast (7-12s) | Low | Basic | 1 | No | ✅ High |
-| `qadi_working.py` | Fast (<1s) | None | High | 4 | No | ✅ High |
-| `qadi_multi_agent_fixed.py` | Slow (timeout risk) | High | Highest | 4+ | Optional | ⚠️ Experimental |
-| `compare_qadi_approaches.py` | Variable | Medium | Comparison | Both | No | ✅ High |
-| `qadi_evolution_demo.py` | Slow (30-60s) | High | Highest | 4+ | Yes | ⚠️ Experimental |
+| Tool | Speed | Cost | Depth | Uses LLM | Reliability | Recommended |
+|------|-------|------|-------|----------|-------------|-------------|
+| `qadi_simple_multi.py` | Medium (20-30s) | Medium | High | ✅ Google API | ✅ High | ⭐ YES |
+| `qadi.py` | Fast (7-12s) | Low | Basic | ✅ Google API | ✅ High | For quick use |
+| `qadi_multi_agent_fixed.py` | Slow (timeout risk) | High | Highest | ✅ Multiple | ⚠️ Experimental | No |
+| `qadi_working.py` | Fast (<1s) | None | Meaningless | ❌ Templates | ✅ High | ❌ NEVER |
+| `qadi_evolution_demo.py` | Slow (30-60s) | High | Highest | ✅ Multiple | ⚠️ Experimental | No |
 
 ## 🔍 Key Differences from Simple Prompting
 
@@ -253,11 +272,14 @@ uv run python minimal_qadi_test.py
 
 **Immediate Solutions**:
 ```bash
-# ✅ Reliable multi-agent (recommended)
-uv run python qadi_working.py "your question"
+# ✅ BEST: Multi-agent with Google API (recommended)
+uv run python qadi_simple_multi.py "your question"
 
 # ✅ Simple fast approach
 uv run python qadi.py "your question"
+
+# ❌ NEVER use template agents
+# uv run python qadi_working.py  # DON'T USE THIS
 
 # ⚠️ Experimental LLM version (may timeout)
 uv run python qadi_multi_agent_fixed.py "your question"
@@ -272,15 +294,21 @@ uv run python qadi_multi_agent_fixed.py "your question"
 **Debug Mode**:
 ```bash
 export LOG_LEVEL=DEBUG
-uv run python qadi_working.py "your question"
+uv run python qadi_simple_multi.py "your question"
 ```
 
 **For detailed timeout analysis, see**: `TIMEOUT_ANALYSIS.md`
 
 ## 🎯 Conclusion
 
-These tools showcase the evolution from simple prompt engineering to sophisticated multi-agent AI systems. While `qadi.py` provides a fast baseline, the multi-agent tools demonstrate the true potential of the Mad Spark Alt framework for generating high-quality, evolved solutions to complex problems.
+These tools showcase the evolution from simple prompt engineering to sophisticated multi-agent AI systems. While `qadi.py` provides a fast baseline, **`qadi_simple_multi.py` demonstrates true multi-agent benefits using Google API** with reliable execution and real LLM-powered insights.
 
-**`qadi_working.py` provides immediate multi-agent benefits** with reliable execution, while the LLM-powered versions showcase advanced capabilities (with some experimental limitations).
+## ⚠️ IMPORTANT: Always Use Google API
 
-Mad Spark Alt successfully demonstrates that it's much more than just a prompt wrapper - it's a comprehensive framework for AI-powered collaborative thinking and solution optimization.
+**Template agents are meaningless** - they produce generic responses that don't engage with your actual question. Always use tools that leverage Google API or other LLMs for real insights:
+
+✅ **USE**: `qadi_simple_multi.py` (multi-agent with Google API)
+✅ **USE**: `qadi.py` (simple but uses Google API)
+❌ **NEVER USE**: `qadi_working.py` (template agents, no LLM)
+
+Mad Spark Alt successfully demonstrates that it's much more than just a prompt wrapper - it's a comprehensive framework for AI-powered collaborative thinking that **requires real LLM integration to provide value**.
