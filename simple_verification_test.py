@@ -95,7 +95,7 @@ async def test_template_qadi():
     print("=" * 50)
     
     try:
-        from mad_spark_alt.core import QADIOrchestrator
+        from mad_spark_alt.core.orchestrator import QADIOrchestrator
         from mad_spark_alt.agents import QuestioningAgent, AbductionAgent, DeductionAgent, InductionAgent
         
         # Create agents

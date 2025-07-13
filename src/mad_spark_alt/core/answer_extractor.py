@@ -323,25 +323,40 @@ class TemplateAnswerExtractor:
         self, qadi_content: str, topic: str, number: int
     ) -> str:
         """Convert questioning phase output to actionable advice."""
-        return f"Identify and address the core elements of {topic} through systematic analysis"
+        # Extract actionable insight from the QADI question
+        if "?" in qadi_content:
+            # Transform question into action
+            action_words = qadi_content.replace("?", "").strip()
+            return f"Investigate {action_words} to improve {topic}"
+        return f"Based on questioning '{qadi_content}', explore {topic} systematically"
 
     def _convert_hypothesis_to_solution(
         self, qadi_content: str, topic: str, number: int
     ) -> str:
         """Convert abduction phase output to creative solution."""
-        return f"Explore innovative approaches to {topic} by looking for unexpected connections and novel patterns"
+        # Use the actual hypothesis from QADI
+        if len(qadi_content) > 20:
+            key_insight = qadi_content[:100] + "..." if len(qadi_content) > 100 else qadi_content
+            return f"Implement hypothesis: {key_insight}"
+        return f"Test the hypothesis '{qadi_content}' for {topic}"
 
     def _convert_logic_to_steps(
         self, qadi_content: str, topic: str, number: int
     ) -> str:
         """Convert deduction phase output to concrete steps."""
-        return f"Create a logical implementation plan for {topic} considering immediate and long-term consequences"
+        # Transform logical deduction into actionable step
+        if "if" in qadi_content.lower() or "then" in qadi_content.lower():
+            return f"Step {number}: {qadi_content}"
+        return f"Apply logical principle: {qadi_content} to {topic}"
 
     def _convert_pattern_to_strategy(
         self, qadi_content: str, topic: str, number: int
     ) -> str:
         """Convert induction phase output to strategic approach."""
-        return f"Apply proven patterns and principles to {topic} based on successful approaches from similar challenges"
+        # Use the actual pattern identified by QADI
+        if "pattern" in qadi_content.lower() or "trend" in qadi_content.lower():
+            return f"Strategy: Leverage {qadi_content}"
+        return f"Apply pattern: {qadi_content} systematically to {topic}"
 
     def _create_synthetic_answer(
         self, question: str, number: int, qadi_results: Dict[str, List[GeneratedIdea]]

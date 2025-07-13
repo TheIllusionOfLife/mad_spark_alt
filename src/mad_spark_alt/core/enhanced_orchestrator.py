@@ -129,7 +129,8 @@ class EnhancedQADIOrchestrator(SmartQADIOrchestrator):
         ideas_by_phase: Dict[str, List[GeneratedIdea]] = {}
 
         for idea in ideas:
-            phase = idea.metadata.get("phase", "unknown")
+            # Handle cases where metadata might be None
+            phase = idea.metadata.get("phase", "unknown") if idea.metadata else "unknown"
             if phase not in ideas_by_phase:
                 ideas_by_phase[phase] = []
             ideas_by_phase[phase].append(idea)
