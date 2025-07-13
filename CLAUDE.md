@@ -8,11 +8,20 @@ Mad Spark Alt is a sophisticated Multi-Agent Idea Generation System powered by L
 
 ### Current State: Advanced LLM-Powered System ✅
 The system provides an intelligent multi-agent framework with:
-1. **Smart QADI Orchestration** - AI-powered workflows with automatic LLM preference
-2. **Dual Agent System** - LLM-powered agents with template-based fallbacks
+1. **Smart QADI Orchestration** - AI-powered workflows with LLM integration
+2. **LLM-Only Agent System** - Template agents are meaningless and should NEVER be used
 3. **Multi-Provider Support** - OpenAI, Anthropic, and Google API integration
 4. **Cost-Aware Processing** - Real-time LLM usage tracking and optimization
-5. **Robust Error Handling** - Graceful degradation when APIs unavailable
+5. **Google API Priority** - Always use real LLM APIs for meaningful insights
+
+## ⚠️ CRITICAL: Never Use Template Agents
+
+**Template agents produce generic, meaningless responses that don't engage with the actual question.**
+
+- ❌ NEVER use `qadi_working.py` or any template-only implementations
+- ✅ ALWAYS use tools that leverage Google API or other LLMs
+- ✅ Use `qadi_simple_multi.py` for multi-agent analysis with Google API
+- ✅ Use `qadi.py` for quick single-prompt analysis with Google API
 
 ## Commands
 
@@ -62,9 +71,12 @@ uv run mad-spark list-evaluators
 # Evaluate single text
 uv run mad-spark evaluate "The AI dreamed of electric sheep"
 
-# Run QADI demos
-uv run python examples/qadi_demo.py
-uv run python examples/llm_showcase_demo.py
+# Run QADI with Google API (RECOMMENDED)
+uv run python qadi_simple_multi.py "Your question here"  # Multi-agent
+uv run python qadi.py "Your question here"  # Simple version
+
+# ❌ NEVER run template demos - they produce meaningless output
+# DO NOT USE: qadi_working.py or template-only demos
 ```
 
 ### API Keys Required for LLM Features
@@ -78,11 +90,11 @@ export GOOGLE_API_KEY="your-key"
 
 ### Core Components
 
-1. **Dual Agent System**
-   - Each thinking method has template AND LLM implementations
-   - Template agents: Fast, no dependencies, consistent output
+1. **LLM-Only Agent System**
+   - Each thinking method MUST use LLM implementations
+   - Template agents are meaningless - NEVER use them
    - LLM agents: Sophisticated reasoning, require API keys
-   - Automatic preference for LLM with graceful fallback
+   - Always prioritize Google API or other LLM providers
 
 2. **Smart Orchestration** (`core/smart_orchestrator.py`)
    - `SmartQADIOrchestrator`: Manages intelligent agent selection
@@ -131,7 +143,7 @@ export GOOGLE_API_KEY="your-key"
 
 4. **Error Handling**
    - Individual phase failures don't crash the cycle
-   - Automatic fallback to template agents
+   - Use simplified LLM calls when complex orchestration fails
    - Comprehensive logging throughout
 
 ### Project Structure
@@ -146,7 +158,7 @@ src/mad_spark_alt/
 │   ├── llm_provider.py     # LLM integration layer
 │   └── json_utils.py       # Robust JSON parsing
 ├── agents/                  # QADI thinking agents
-│   ├── questioning/        # Both template and LLM agents
+│   ├── questioning/        # LLM agents only (ignore templates)
 │   ├── abduction/          # Hypothesis generation
 │   ├── deduction/          # Logical reasoning
 │   └── induction/          # Pattern synthesis
@@ -157,8 +169,8 @@ src/mad_spark_alt/
 
 ### Testing Strategy
 - Mock LLM API calls to avoid costs
-- Test both LLM and template agent paths
-- Verify fallback behavior
+- Test LLM agent paths only
+- Verify API integration
 - Check cost tracking accuracy
 
 ### CI/CD Pipeline
@@ -171,7 +183,7 @@ src/mad_spark_alt/
 ## Important Notes
 
 1. **Always use `uv run`** prefix for CLI commands due to package installation method
-2. **LLM agents require API keys** - system gracefully falls back to templates without them
+2. **LLM agents require API keys** - system MUST have API keys to function properly
 3. **Cost tracking is automatic** - check `result.llm_cost` after orchestration
 4. **All operations are async** - use `asyncio.run()` for synchronous contexts
 5. **JSON parsing is critical** - LLMs often return markdown-wrapped JSON
@@ -181,8 +193,8 @@ src/mad_spark_alt/
 # Verify installation
 uv run mad-spark --help
 
-# Test QADI system (shows LLM vs template comparison)
-uv run python examples/qadi_demo.py
+# Test QADI system with Google API
+uv run python qadi_simple_multi.py "Test question"
 
 # Check available agents
 uv run python -c "
@@ -210,9 +222,9 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Fix Pattern**: Check datetime fields, Optional annotations, type imports
 
 ### LLM Integration Patterns
-- **Dual Agent System**: Every thinking agent has LLM + template versions
+- **LLM-Only System**: Only use LLM agents, never templates
 - **Cost Tracking**: Distributed across generated ideas automatically
-- **Fallback**: Graceful degradation when API keys missing
+- **API Priority**: Google API is preferred for reliability
 
 ### Registry Architecture
 - **Global Registry**: Use `agent_registry` and `evaluator_registry`
