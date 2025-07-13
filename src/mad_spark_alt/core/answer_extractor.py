@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .interfaces import GeneratedIdea
 from .json_utils import safe_json_parse
-from .llm_provider import llm_manager, LLMRequest
+from .llm_provider import LLMRequest, llm_manager
 
 logger = logging.getLogger(__name__)
 
@@ -24,18 +24,18 @@ def _validate_prompt_content(prompt: str) -> str:
     """Validate and sanitize prompt content for LLM safety."""
     if not prompt or not prompt.strip():
         raise ValueError("Prompt cannot be empty")
-    
+
     # Remove potentially harmful content
     sanitized = prompt.strip()
-    
+
     # Basic length validation (prevent extremely long prompts)
     if len(sanitized) > 50000:  # 50k character limit
         logger.warning(f"Prompt truncated from {len(sanitized)} to 50000 characters")
         sanitized = sanitized[:50000] + "..."
-    
+
     # Remove null bytes and other control characters
-    sanitized = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', sanitized)
-    
+    sanitized = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", "", sanitized)
+
     return sanitized
 
 
@@ -479,7 +479,9 @@ class EnhancedAnswerExtractor:
             except (asyncio.TimeoutError, ValueError, json.JSONDecodeError) as e:
                 logger.warning(f"LLM extraction failed, falling back to template: {e}")
             except Exception as e:
-                logger.warning(f"Unexpected error in LLM extraction, falling back to template: {e}")
+                logger.warning(
+                    f"Unexpected error in LLM extraction, falling back to template: {e}"
+                )
 
         # Fallback to template extraction
         result = self.template_extractor.extract_answers(
