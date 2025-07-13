@@ -180,9 +180,9 @@ async def compare_approaches(prompt: str):
     # Quality comparison
     if simple_result and multi_result:
         print(f"\n📈 PERFORMANCE COMPARISON:")
-        time_ratio = multi_result['execution_time'] / simple_result['execution_time']
+        time_ratio = multi_result['execution_time'] / simple_result['execution_time'] if simple_result['execution_time'] > 0 else float('inf')
         cost_ratio = multi_result['cost'] / simple_result['cost'] if simple_result['cost'] > 0 else float('inf')
-        idea_ratio = multi_result['total_ideas'] / simple_result['total_ideas']
+        idea_ratio = multi_result['total_ideas'] / simple_result['total_ideas'] if simple_result['total_ideas'] > 0 else float('inf')
         
         print(f"   ⏱️  Time ratio: {time_ratio:.1f}x (multi-agent vs simple)")
         print(f"   💰 Cost ratio: {cost_ratio:.1f}x (multi-agent vs simple)")
