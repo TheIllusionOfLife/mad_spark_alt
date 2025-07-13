@@ -614,7 +614,7 @@ If you use Mad Spark Alt in your research, please cite:
 
 #### Recently Completed
 
-- ✅ [PR #23]: Enhanced QADI with Answer Extraction Layer - Successfully merged to main
+- ✅ [PR #23](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/23): Enhanced QADI with Answer Extraction Layer - Successfully merged to main
   - **Created answer extraction layer**: Bridges abstract QADI insights to practical user answers
   - **Built comprehensive QADI tools suite**: Multiple command-line tools demonstrating multi-agent superiority
   - **Fixed critical template agent issue**: Updated all documentation to warn against meaningless template responses
@@ -622,9 +622,9 @@ If you use Mad Spark Alt in your research, please cite:
   - **Resolved timeout issues**: Diagnosed SmartQADIOrchestrator hangs, provided working alternatives
   - **Fixed review-identified bugs**: Division by zero handling, markdown formatting compliance
 
-- ✅ [PR #22]: Documentation handover from previous session
-- ✅ [PR #21]: Fix Google API Integration and Improve Gemini Compatibility
-- ✅ [PR #20]: Fix Missing Deduction/Induction Agents
+- ✅ [PR #22](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/22): Documentation handover from previous session
+- ✅ [PR #21](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/21): Fix Google API Integration and Improve Gemini Compatibility
+- ✅ [PR #20](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/20): Fix Missing Deduction/Induction Agents
 
 #### Next Priority Tasks
 
@@ -664,7 +664,10 @@ If you use Mad Spark Alt in your research, please cite:
 - **Sequential LLM calls more reliable** than complex async orchestration for multi-agent simulation
 - **Documentation clarity critical** - Users were confused by template agent examples
 - **Division by zero common** in performance comparisons - always check denominators
-- **PR reviews need systematic approach** - Check all three GitHub API endpoints
+- **PR reviews need systematic approach** - Check all three GitHub API endpoints:
+  - Issues API (`/repos/{owner}/{repo}/issues/{number}/comments`) for general PR comments
+  - Reviews API (`/repos/{owner}/{repo}/pulls/{number}/reviews`) for formal review submissions
+  - Pull comments API (`/repos/{owner}/{repo}/pulls/{number}/comments`) for line-specific code comments
 
 - **Gemini 2.5-flash Token Management**: Model uses extensive tokens for internal reasoning (1023/1033), requiring 3x token allocation
 - **Google API Response Robustness**: Empty content.parts arrays are normal on finish reasons like MAX_TOKENS
