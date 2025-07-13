@@ -14,7 +14,7 @@ This document provides the academic foundation and research background for the M
 
 ### Origin and Philosophy
 
-The QADI (Question → Abduction → Deduction → Induction) methodology is based on the "Shin Logical Thinking" framework, which structures creative problem-solving through four distinct cognitive phases:
+The QADI (Question → Abduction → Deduction → Induction) methodology is based on structured logical thinking principles, which organize creative problem-solving through four distinct cognitive phases:
 
 1. **Questioning (Q)**: Problem framing and hypothesis formation
 2. **Abduction (A)**: Creative hypothesis generation and "best explanation" inference

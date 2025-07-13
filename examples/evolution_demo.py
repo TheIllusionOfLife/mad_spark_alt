@@ -7,21 +7,15 @@ and optimized using genetic algorithms.
 
 import asyncio
 import logging
+import os
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 
-from mad_spark_alt.agents import (
-    QuestioningAgent,
-    AbductionAgent,
-    DeductionAgent,
-    InductionAgent,
-)
 from mad_spark_alt.core import (
     GeneratedIdea,
     IdeaGenerationRequest,
-    QADIOrchestrator,
-    agent_registry,
-    register_agent,
+    SmartQADIOrchestrator,
 )
 from mad_spark_alt.evolution import (
     EvolutionConfig,
@@ -30,6 +24,15 @@ from mad_spark_alt.evolution import (
     GeneticAlgorithm,
     SelectionStrategy,
 )
+
+# Load .env file if it exists
+env_path = Path(__file__).parent.parent / ".env"
+if env_path.exists():
+    with open(env_path) as f:
+        for line in f:
+            if line.strip() and not line.startswith('#') and '=' in line:
+                key, value = line.strip().split('=', 1)
+                os.environ[key] = value.strip('"').strip("'")
 
 # Configure logging
 logging.basicConfig(
@@ -41,7 +44,7 @@ logger = logging.getLogger(__name__)
 async def generate_initial_ideas(
     problem_statement: str, context: str
 ) -> List[GeneratedIdea]:
-    """Generate initial ideas using QADI agents.
+    """Generate initial ideas using LLM-powered QADI agents.
     
     Args:
         problem_statement: The problem or challenge to generate ideas for.
@@ -52,23 +55,10 @@ async def generate_initial_ideas(
     """
     logger.info("=== Phase 1: Generating Initial Ideas with QADI ===")
 
-    # Register all agents
-    register_agent(QuestioningAgent)
-    register_agent(AbductionAgent)
-    register_agent(DeductionAgent)
-    register_agent(InductionAgent)
+    # Use SmartQADIOrchestrator which automatically uses LLM agents when available
+    orchestrator = SmartQADIOrchestrator()
 
-    # Create orchestrator with all agents
-    agents = [
-        agent_registry.get_agent("QuestioningAgent"),
-        agent_registry.get_agent("AbductionAgent"),
-        agent_registry.get_agent("DeductionAgent"),
-        agent_registry.get_agent("InductionAgent"),
-    ]
-
-    orchestrator = QADIOrchestrator([a for a in agents if a])
-
-    # Generate ideas
+    # Generate ideas using LLM-powered agents
     result = await orchestrator.run_qadi_cycle(
         problem_statement=problem_statement,
         context=context,

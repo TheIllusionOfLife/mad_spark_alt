@@ -48,14 +48,46 @@ uv run python qadi_simple_multi.py "How can we reduce plastic waste?"
 uv run python qadi.py "How can we reduce plastic waste?"
 ```
 
+### Example Prompts to Try
+
+**Business & Innovation**
+- "How can small businesses compete with large corporations in the digital age?"
+- "What innovative business models could address climate change?"
+- "How might we revolutionize remote work collaboration?"
+
+**Technology & Society**
+- "How can AI improve healthcare accessibility in rural areas?"
+- "What are creative solutions to digital privacy concerns?"
+- "How might we bridge the digital divide in education?"
+
+**Environmental & Sustainability**
+- "How can cities become carbon-neutral by 2030?"
+- "What innovative approaches could solve ocean plastic pollution?"
+- "How might vertical farming transform urban food systems?"
+
+**Creative & Abstract**
+- "What if gravity worked differently on weekends?"
+- "How would society change if we could share dreams?"
+- "Design a new sport for zero-gravity environments"
+
 ### CLI Tools
 
 ```bash
+# Evaluate idea creativity
+uv run mad-spark evaluate "The AI dreamed of electric sheep in quantum meadows"
+
+# Evaluate with verbose output
+uv run mad-spark evaluate "Blockchain social media platform" --verbose
+
+# Compare multiple ideas
+uv run mad-spark compare "Business communication" -r "Traditional email" -r "AI video messages" -r "Holographic cards"
+
+# Batch evaluate multiple files
+echo "Smart mirrors with personalized compliments" > idea1.txt
+uv run mad-spark batch-evaluate idea1.txt idea2.txt
+
 # List available evaluators
 uv run mad-spark list-evaluators
-
-# Evaluate idea creativity
-uv run mad-spark evaluate "Your creative idea here"
 
 # Run genetic evolution demo
 uv run python examples/evolution_demo.py
@@ -65,10 +97,10 @@ uv run python examples/evolution_demo.py
 
 ```python
 import asyncio
-from mad_spark_alt.core import QADIOrchestrator
+from mad_spark_alt.core import SmartQADIOrchestrator
 
 async def generate_ideas():
-    orchestrator = QADIOrchestrator()
+    orchestrator = SmartQADIOrchestrator()  # Uses LLM agents automatically
     result = await orchestrator.run_qadi_cycle(
         problem_statement="How can we reduce plastic waste?",
         cycle_config={"max_ideas_per_method": 3}

@@ -3,7 +3,7 @@
 Demo script for the QADI cycle idea generation system.
 
 This script demonstrates the intelligent multi-agent idea generation system using
-the "Shin Logical Thinking" QADI methodology with automatic LLM agent preference.
+the QADI (Question → Abduction → Deduction → Induction) methodology with automatic LLM agent preference.
 """
 
 import asyncio
