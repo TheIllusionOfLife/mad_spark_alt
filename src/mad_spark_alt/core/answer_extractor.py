@@ -619,7 +619,9 @@ Provide exactly {max_answers} answers in valid JSON format:"""
             json_match = re.search(r'\{.*\}', response, re.DOTALL)
             if json_match:
                 try:
-                    return json.loads(json_match.group())
+                    from typing import cast
+                    parsed_json = json.loads(json_match.group())
+                    return cast(Dict[str, Any], parsed_json)
                 except json.JSONDecodeError:
                     pass
         
