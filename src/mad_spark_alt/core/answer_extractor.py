@@ -285,13 +285,28 @@ class TemplateAnswerExtractor:
     ) -> Optional[ExtractedAnswer]:
         """Convert QADI idea into explanatory answer."""
         topic = self._extract_topic_from_question(question)
+        qadi_content = idea.content
 
+        # Use the actual QADI insight to generate contextual explanations
         if phase == "induction":
-            explanation = f"The underlying pattern shows that {topic} follows predictable principles that can be leveraged systematically."
+            # Use the pattern identified by induction
+            explanation = f"Based on pattern analysis: {qadi_content}. This suggests that {topic} can be approached systematically."
         elif phase == "questioning":
-            explanation = f"Key factors to understand about {topic} include the fundamental elements that drive success."
+            # Use the insights from questioning
+            if "?" in qadi_content:
+                # Convert question to explanatory insight
+                insight = qadi_content.replace("?", "").strip()
+                explanation = f"Key insight about {topic}: Understanding {insight} is fundamental to success."
+            else:
+                explanation = f"Important factor for {topic}: {qadi_content}"
+        elif phase == "deduction":
+            # Use logical analysis from deduction
+            explanation = f"Logical analysis shows: {qadi_content}. This reasoning applies directly to {topic}."
+        elif phase == "abduction":
+            # Use creative hypothesis from abduction
+            explanation = f"Creative insight: {qadi_content}. This hypothesis offers a new perspective on {topic}."
         else:
-            explanation = f"Analysis reveals that {topic} involves multiple interconnected factors requiring strategic consideration."
+            explanation = f"From {phase} analysis: {qadi_content}"
 
         return ExtractedAnswer(
             content=explanation,
@@ -363,18 +378,30 @@ class TemplateAnswerExtractor:
     def _create_synthetic_answer(
         self, question: str, number: int, qadi_results: Dict[str, List[GeneratedIdea]]
     ) -> ExtractedAnswer:
-        """Create synthetic answer when QADI doesn't provide enough."""
+        """Create synthetic answer when QADI doesn't provide enough, incorporating available insights."""
         topic = self._extract_topic_from_question(question)
 
-        synthetic_answers = [
-            f"Research and gather information about best practices for {topic}",
-            f"Start with small, manageable steps toward {topic}",
-            f"Seek expert advice and learn from others who have succeeded with {topic}",
-            f"Measure progress and iterate your approach to {topic} based on results",
-            f"Build a support system and resources to help you achieve {topic}",
-        ]
+        # Try to incorporate any available QADI insights even in synthetic answers
+        available_insights = []
+        for phase_ideas in qadi_results.values():
+            for idea in phase_ideas:
+                if idea.content and len(idea.content.strip()) > 10:
+                    available_insights.append(idea.content[:100])
 
-        content = synthetic_answers[(number - 1) % len(synthetic_answers)]
+        if available_insights and number <= len(available_insights):
+            # Use an available insight as a starting point
+            insight = available_insights[number - 1]
+            content = f"Building on the insight '{insight}', develop a systematic approach to {topic}"
+        else:
+            # Fall back to generic synthetic answers
+            synthetic_answers = [
+                f"Research and gather information about best practices for {topic}",
+                f"Start with small, manageable steps toward {topic}",
+                f"Seek expert advice and learn from others who have succeeded with {topic}",
+                f"Measure progress and iterate your approach to {topic} based on results",
+                f"Build a support system and resources to help you achieve {topic}",
+            ]
+            content = synthetic_answers[(number - 1) % len(synthetic_answers)]
 
         return ExtractedAnswer(
             content=content,

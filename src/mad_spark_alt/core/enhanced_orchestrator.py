@@ -8,7 +8,7 @@ that converts abstract QADI insights into direct, actionable user answers.
 import asyncio
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -77,22 +77,19 @@ class EnhancedQADIOrchestrator(SmartQADIOrchestrator):
             cycle_config=cycle_config,
         )
 
-        # Convert to enhanced result by copying relevant attributes
-        # We need to be explicit about which attributes to copy to avoid
-        # issues with mock objects in tests
-        enhanced_result = EnhancedQADICycleResult(
-            problem_statement=base_result.problem_statement,
-            cycle_id=base_result.cycle_id,
-            phases=base_result.phases,
-            synthesized_ideas=base_result.synthesized_ideas,
-            execution_time=base_result.execution_time,
-            metadata=base_result.metadata,
-            timestamp=base_result.timestamp,
-            agent_types=base_result.agent_types,
-            llm_cost=base_result.llm_cost,
-            setup_time=base_result.setup_time,
-            conclusion=base_result.conclusion,
-        )
+        # Convert to enhanced result using dataclass field introspection
+        # This automatically copies all fields from the base class while being robust
+        # against future changes to SmartQADICycleResult
+        base_field_names = {f.name for f in fields(SmartQADICycleResult)}
+
+        # Only copy attributes that are defined as fields in the base dataclass
+        # This avoids issues with mock objects while being future-proof
+        field_values = {}
+        for field_name in base_field_names:
+            if hasattr(base_result, field_name):
+                field_values[field_name] = getattr(base_result, field_name)
+
+        enhanced_result = EnhancedQADICycleResult(**field_values)
 
         # Extract direct answers if requested
         if extract_answers and enhanced_result.synthesized_ideas:
