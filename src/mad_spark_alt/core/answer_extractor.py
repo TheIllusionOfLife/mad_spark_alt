@@ -336,7 +336,9 @@ class TemplateAnswerExtractor:
         """Convert abduction phase output to creative solution."""
         # Use the actual hypothesis from QADI
         if len(qadi_content) > 20:
-            key_insight = qadi_content[:100] + "..." if len(qadi_content) > 100 else qadi_content
+            key_insight = (
+                qadi_content[:100] + "..." if len(qadi_content) > 100 else qadi_content
+            )
             return f"Implement hypothesis: {key_insight}"
         return f"Test the hypothesis '{qadi_content}' for {topic}"
 
