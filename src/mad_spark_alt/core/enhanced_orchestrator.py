@@ -77,9 +77,22 @@ class EnhancedQADIOrchestrator(SmartQADIOrchestrator):
             cycle_config=cycle_config,
         )
 
-        # Convert to enhanced result using dictionary unpacking
-        # This avoids manual attribute copying and is more maintainable
-        enhanced_result = EnhancedQADICycleResult(**base_result.__dict__)
+        # Convert to enhanced result by copying relevant attributes
+        # We need to be explicit about which attributes to copy to avoid
+        # issues with mock objects in tests
+        enhanced_result = EnhancedQADICycleResult(
+            problem_statement=base_result.problem_statement,
+            cycle_id=base_result.cycle_id,
+            phases=base_result.phases,
+            synthesized_ideas=base_result.synthesized_ideas,
+            execution_time=base_result.execution_time,
+            metadata=base_result.metadata,
+            timestamp=base_result.timestamp,
+            agent_types=base_result.agent_types,
+            llm_cost=base_result.llm_cost,
+            setup_time=base_result.setup_time,
+            conclusion=base_result.conclusion,
+        )
 
         # Extract direct answers if requested
         if extract_answers and enhanced_result.synthesized_ideas:
@@ -119,7 +132,9 @@ class EnhancedQADIOrchestrator(SmartQADIOrchestrator):
 
         for idea in ideas:
             # Handle cases where metadata might be None
-            phase = idea.metadata.get("phase", "unknown") if idea.metadata else "unknown"
+            phase = (
+                idea.metadata.get("phase", "unknown") if idea.metadata else "unknown"
+            )
             if phase not in ideas_by_phase:
                 ideas_by_phase[phase] = []
             ideas_by_phase[phase].append(idea)
