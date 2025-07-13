@@ -621,7 +621,7 @@ If you use Mad Spark Alt in your research, please cite:
   - **Resolved 8 critical bugs systematically**: Through iterative fix-push-monitor cycle addressing all reviewer feedback
   - **Production-ready error handling**: Proper exception types, cancellation handling, and failure detection
   - **Method refactoring**: Broke down 141-line method into 9 focused, testable methods
-  - **Comprehensive test coverage**: 124/124 tests passing with answer extraction test suite
+  - **Core test suite passing**: 124/124 existing tests passing, with circuit breaker test coverage planned
 
 - ✅ [PR #24](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/24): Documentation handover from QADI enhancement session
 - ✅ [PR #23](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/23): Enhanced QADI with Answer Extraction Layer
@@ -652,6 +652,12 @@ If you use Mad Spark Alt in your research, please cite:
    - Context: Users would benefit from interactive web interface
    - Approach: Build simple Flask/FastAPI web app with real-time QADI processing
    - Estimate: Large
+
+5. **Restructure Documentation** (Medium Priority)
+   - Source: Claude reviewer feedback on PR #26 - README becoming too long
+   - Context: Documentation should be split into focused files for better organization
+   - Approach: Create DEVELOPMENT.md, SESSIONS.md, RESEARCH.md, keep README as quick start
+   - Estimate: Small
 
 #### Known Issues / Blockers
 
