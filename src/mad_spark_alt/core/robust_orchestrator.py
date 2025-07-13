@@ -16,10 +16,10 @@ from .interfaces import (
     ThinkingAgentInterface,
     ThinkingMethod,
 )
-from .timeout_wrapper import TimeoutManager, with_timeout, TimeoutError
 from .robust_json_handler import safe_parse_ideas_array
-from .smart_orchestrator import SmartQADIOrchestrator, SmartQADICycleResult
+from .smart_orchestrator import SmartQADICycleResult, SmartQADIOrchestrator
 from .smart_registry import SmartAgentRegistry
+from .timeout_wrapper import TimeoutError, TimeoutManager, with_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -299,8 +299,8 @@ class RobustQADIOrchestrator(SmartQADIOrchestrator):
 
 # Import at the bottom to avoid circular imports
 from ..agents import (
-    QuestioningAgent,
     AbductionAgent,
     DeductionAgent,
     InductionAgent,
+    QuestioningAgent,
 )

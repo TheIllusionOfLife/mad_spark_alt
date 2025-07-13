@@ -2,9 +2,10 @@
 Tests for the genetic algorithm implementation.
 """
 
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
 from mad_spark_alt.evolution.fitness import FitnessEvaluator

@@ -32,7 +32,7 @@ from mad_spark_alt.core import (
     ThinkingMethod,
 )
 from mad_spark_alt.core.evaluator import EvaluationSummary
-from mad_spark_alt.evolution.fitness import FitnessEvaluator, DEFAULT_FAILURE_SCORE
+from mad_spark_alt.evolution.fitness import DEFAULT_FAILURE_SCORE, FitnessEvaluator
 from mad_spark_alt.evolution.interfaces import EvolutionConfig, IndividualFitness
 
 

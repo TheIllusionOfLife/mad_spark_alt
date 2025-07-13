@@ -5,16 +5,17 @@ These tests verify that the genetic algorithm works correctly with
 the existing QADI infrastructure.
 """
 
-import pytest
 from datetime import datetime
 
-from mad_spark_alt.agents.questioning import QuestioningAgent
+import pytest
+
 from mad_spark_alt.agents.abduction import AbductionAgent
+from mad_spark_alt.agents.questioning import QuestioningAgent
 from mad_spark_alt.core import (
     IdeaGenerationRequest,
     QADIOrchestrator,
-    register_agent,
     agent_registry,
+    register_agent,
 )
 from mad_spark_alt.evolution import (
     EvolutionConfig,
