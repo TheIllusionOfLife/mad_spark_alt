@@ -528,13 +528,16 @@ class SmartQADIOrchestrator:
                 # Cast to the expected tuple type for type safety
                 typed_result: Tuple[IdeaGenerationResult, str] = result
                 phase_result, agent_type = typed_result
-                
+
                 # Check if result contains errors before recording success
-                if agent_type != "circuit_breaker_open" and not phase_result.error_message:
+                if (
+                    agent_type != "circuit_breaker_open"
+                    and not phase_result.error_message
+                ):
                     self._record_agent_success(method)
                 elif phase_result.error_message:
                     self._record_agent_failure(method)
-                    
+
                 result_dict[method] = typed_result
 
         return result_dict
@@ -566,7 +569,10 @@ class SmartQADIOrchestrator:
                     # Check if result contains errors before recording success
                     if isinstance(result, tuple) and len(result) == 2:
                         phase_result, agent_type = result
-                        if agent_type != "circuit_breaker_open" and not phase_result.error_message:
+                        if (
+                            agent_type != "circuit_breaker_open"
+                            and not phase_result.error_message
+                        ):
                             self._record_agent_success(method)
                         elif phase_result.error_message:
                             self._record_agent_failure(method)
@@ -579,7 +585,10 @@ class SmartQADIOrchestrator:
                     # Check if result contains errors before recording success
                     if isinstance(result, tuple) and len(result) == 2:
                         phase_result, agent_type = result
-                        if agent_type != "circuit_breaker_open" and not phase_result.error_message:
+                        if (
+                            agent_type != "circuit_breaker_open"
+                            and not phase_result.error_message
+                        ):
                             self._record_agent_success(method)
                         elif phase_result.error_message:
                             self._record_agent_failure(method)
