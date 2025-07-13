@@ -8,7 +8,19 @@ across various evaluators in the system.
 import asyncio
 import logging
 import re
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Set, TypeVar, TypedDict, Union, cast
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Set,
+    TypedDict,
+    TypeVar,
+    Union,
+    cast,
+)
 
 import numpy as np
 
@@ -21,12 +33,14 @@ R = TypeVar("R")
 # TypedDict definitions for structured data
 class GrammarMetricsDict(TypedDict):
     """Type definition for grammar metrics."""
+
     has_punctuation: float
     capitalization_score: float
 
 
 class ReadabilityMetricsDict(TypedDict):
     """Type definition for readability metrics."""
+
     avg_sentence_length: float
     avg_word_length: float
     sentence_length_score: float
@@ -35,6 +49,7 @@ class ReadabilityMetricsDict(TypedDict):
 
 class CodeStructureMetricsDict(TypedDict, total=False):
     """Type definition for code structure metrics."""
+
     total_lines: float
     code_lines: float
     blank_lines: float
@@ -144,8 +159,7 @@ class TextAnalyzer:
             capitalization_score = 0.0
 
         return GrammarMetricsDict(
-            has_punctuation=has_punctuation,
-            capitalization_score=capitalization_score
+            has_punctuation=has_punctuation, capitalization_score=capitalization_score
         )
 
     @staticmethod
