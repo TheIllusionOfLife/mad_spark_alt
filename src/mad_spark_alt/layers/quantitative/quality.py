@@ -10,6 +10,11 @@ from typing import Any, Dict, List, Optional, cast
 import torch
 from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 
+from ...core.evaluation_utils import (
+    CodeAnalyzer,
+    CodeStructureMetricsDict,
+    TextAnalyzer,
+)
 from ...core.interfaces import (
     AsyncEvaluatorMixin,
     EvaluationLayer,
@@ -82,7 +87,7 @@ class QualityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin):
         # Basic text quality metrics
         scores["length"] = float(len(content))
         scores["word_count"] = float(len(content.split()))
-        scores["sentence_count"] = float(len(self._split_sentences(content)))
+        scores["sentence_count"] = float(len(TextAnalyzer.split_sentences(content)))
 
         # Grammar and structure metrics
         scores["grammar_score"] = self._calculate_grammar_score(content)
@@ -140,62 +145,38 @@ class QualityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin):
             metadata=metadata,
         )
 
-    def _split_sentences(self, text: str) -> List[str]:
-        """Simple sentence splitting."""
-        sentences = re.split(r"[.!?]+", text)
-        return [s.strip() for s in sentences if s.strip()]
-
     def _calculate_grammar_score(self, text: str) -> float:
         """Basic grammar score based on simple heuristics."""
-        if not text.strip():
-            return 0.0
+        # Use TextAnalyzer for basic grammar checking
+        grammar_scores = TextAnalyzer.check_basic_grammar(text)
 
         score = 1.0
 
-        # Check for basic punctuation
-        if not re.search(r"[.!?]", text):
-            score -= 0.2
-
-        # Check for proper capitalization
-        sentences = self._split_sentences(text)
-        if sentences:
-            uncapitalized = sum(1 for s in sentences if s and not s[0].isupper())
-            score -= (uncapitalized / len(sentences)) * 0.3
+        # Apply grammar scores
+        score *= grammar_scores["has_punctuation"]
+        score *= grammar_scores["capitalization_score"]
 
         # Check for excessive repetition
-        words = text.lower().split()
-        if words:
-            word_freq: Dict[str, int] = {}
-            for word in words:
-                word_freq[word] = word_freq.get(word, 0) + 1
-
-            # Penalize if any word appears more than 20% of the time
+        word_freq = TextAnalyzer.calculate_word_frequency(text)
+        if word_freq:
+            total_words = sum(word_freq.values())
             max_freq = max(word_freq.values())
-            if max_freq / len(words) > 0.2:
+            if max_freq / total_words > 0.2:
                 score -= 0.2
 
         return max(0.0, min(1.0, score))
 
     def _calculate_readability_score(self, text: str) -> float:
         """Simple readability score based on sentence and word length."""
-        if not text.strip():
+        # Use TextAnalyzer for readability analysis
+        readability_metrics = TextAnalyzer.analyze_readability(text)
+
+        if readability_metrics["avg_sentence_length"] == 0:
             return 0.0
 
-        sentences = self._split_sentences(text)
-        words = text.split()
-
-        if not sentences or not words:
-            return 0.0
-
-        # Average sentence length (words per sentence)
-        avg_sentence_length = len(words) / len(sentences)
-
-        # Average word length
-        avg_word_length = sum(len(word) for word in words) / len(words)
-
-        # Normalize scores (optimal ranges)
-        sentence_score = 1.0 - min(abs(avg_sentence_length - 15) / 15, 1.0)
-        word_score = 1.0 - min(abs(avg_word_length - 5) / 5, 1.0)
+        # Combine the two normalized scores
+        sentence_score = readability_metrics["sentence_length_score"]
+        word_score = readability_metrics["word_length_score"]
 
         return (sentence_score + word_score) / 2
 
@@ -232,7 +213,7 @@ class QualityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin):
         score = 1.0
 
         # Check for abrupt topic changes (simplified)
-        sentences = self._split_sentences(text)
+        sentences = TextAnalyzer.split_sentences(text)
         if len(sentences) > 1:
             # Very basic coherence check - similar to readability
             consistent_length = True
@@ -268,35 +249,10 @@ class QualityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin):
 
     def _evaluate_code_quality(self, code: str) -> Dict[str, float]:
         """Evaluate code-specific quality metrics."""
-        metrics: Dict[str, float] = {}
+        # Use CodeAnalyzer for code structure analysis
+        metrics = CodeAnalyzer.analyze_code_structure(code)
 
-        # Basic syntax checks
-        lines = code.split("\n")
-        non_empty_lines = [line for line in lines if line.strip()]
-
-        metrics["code_lines"] = float(len(non_empty_lines))
-        metrics["total_lines"] = float(len(lines))
-
-        # Indentation consistency
-        if non_empty_lines:
-            indented_lines = [
-                line for line in non_empty_lines if line.startswith((" ", "\t"))
-            ]
-            metrics["indentation_ratio"] = float(
-                len(indented_lines) / len(non_empty_lines)
-            )
-        else:
-            metrics["indentation_ratio"] = 0.0
-
-        # Comment ratio
-        comment_lines = [
-            line for line in non_empty_lines if line.strip().startswith("#")
-        ]
-        metrics["comment_ratio"] = (
-            float(len(comment_lines) / len(non_empty_lines)) if non_empty_lines else 0.0
-        )
-
-        # Basic structure score
+        # Calculate structure score based on analyzed metrics
         structure_components = [
             min(metrics["indentation_ratio"] * 2, 1.0),  # Good indentation
             min(metrics["comment_ratio"] * 5, 1.0),  # Some comments
@@ -305,7 +261,7 @@ class QualityEvaluator(EvaluatorInterface, AsyncEvaluatorMixin):
             sum(structure_components) / len(structure_components)
         )
 
-        return metrics
+        return cast(Dict[str, float], dict(metrics))
 
     def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate configuration."""
