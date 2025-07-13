@@ -77,20 +77,9 @@ class EnhancedQADIOrchestrator(SmartQADIOrchestrator):
             cycle_config=cycle_config,
         )
 
-        # Convert to enhanced result
-        enhanced_result = EnhancedQADICycleResult(
-            problem_statement=base_result.problem_statement,
-            cycle_id=base_result.cycle_id,
-            phases=base_result.phases,
-            synthesized_ideas=base_result.synthesized_ideas,
-            execution_time=base_result.execution_time,
-            metadata=base_result.metadata,
-            timestamp=base_result.timestamp,
-            agent_types=base_result.agent_types,
-            llm_cost=base_result.llm_cost,
-            setup_time=base_result.setup_time,
-            conclusion=base_result.conclusion,
-        )
+        # Convert to enhanced result using dictionary unpacking
+        # This avoids manual attribute copying and is more maintainable
+        enhanced_result = EnhancedQADICycleResult(**base_result.__dict__)
 
         # Extract direct answers if requested
         if extract_answers and enhanced_result.synthesized_ideas:
@@ -196,5 +185,5 @@ class EnhancedQADIOrchestrator(SmartQADIOrchestrator):
                     print(f"  {i}. {idea.content}")
 
 
-# Global instance
-enhanced_orchestrator = EnhancedQADIOrchestrator()
+# Global instance - removed to reduce coupling
+# Create instances where needed instead of using a global

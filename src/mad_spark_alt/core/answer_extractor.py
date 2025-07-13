@@ -427,5 +427,5 @@ class EnhancedAnswerExtractor:
         )
 
 
-# Global instance
-answer_extractor = EnhancedAnswerExtractor()
+# Global instance - removed to reduce coupling
+# Create instances where needed instead of using a global

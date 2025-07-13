@@ -169,6 +169,10 @@ async def show_qadi_value():
     print("  • Strategic thinking prevents recurring issues")
     print("  • Combines creativity with logical implementation")
 
+async def main():
+    """Run all demo functions in a single event loop."""
+    await demo_improved_qadi()
+    await show_qadi_value()
+
 if __name__ == "__main__":
-    asyncio.run(demo_improved_qadi())
-    asyncio.run(show_qadi_value())
+    asyncio.run(main())
