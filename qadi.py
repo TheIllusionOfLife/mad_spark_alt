@@ -62,7 +62,7 @@ ANSWER3: [Third practical answer based on the deduction]"""
     
     request = LLMRequest(
         user_prompt=qadi_prompt,
-        max_tokens=500,
+        max_tokens=1000,  # Increased from 500
         temperature=0.7
     )
     
