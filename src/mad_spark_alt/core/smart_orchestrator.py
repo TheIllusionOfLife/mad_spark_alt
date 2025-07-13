@@ -80,9 +80,8 @@ class AgentCircuitBreaker:
         if self.last_failure_time:
             elapsed = time.time() - self.last_failure_time
             if elapsed > self.cooldown_seconds:
-                # Try to close the circuit
-                self.is_open = False
-                self.consecutive_failures = 0
+                # Half-open state: allow one attempt. The circuit will be fully
+                # closed on the next call to record_success().
                 return True
 
         return False

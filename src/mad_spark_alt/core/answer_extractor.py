@@ -542,7 +542,7 @@ class EnhancedAnswerExtractor:
             response_content = response.content
 
         except asyncio.TimeoutError:
-            raise Exception("LLM extraction timed out")
+            raise
 
         # Parse LLM response
         parsed_response = self._parse_llm_response(response_content)
