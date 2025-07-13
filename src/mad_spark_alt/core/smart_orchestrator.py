@@ -576,7 +576,8 @@ class SmartQADIOrchestrator:
                         elif phase_result.error_message:
                             self._record_agent_failure(method)
                     else:
-                        self._record_agent_success(method)
+                        # Unexpected result format should be treated as failure
+                        self._record_agent_failure(method)
                     result_dict[method] = result
                 else:
                     # Try to get result with short timeout
@@ -592,7 +593,8 @@ class SmartQADIOrchestrator:
                         elif phase_result.error_message:
                             self._record_agent_failure(method)
                     else:
-                        self._record_agent_success(method)
+                        # Unexpected result format should be treated as failure
+                        self._record_agent_failure(method)
                     result_dict[method] = result
             except asyncio.TimeoutError:
                 logger.warning(f"Individual timeout for {method.value}")
@@ -605,6 +607,18 @@ class SmartQADIOrchestrator:
                         error_message=f"Task timed out after {timeout_per_task}s",
                     ),
                     "timeout",
+                )
+            except asyncio.CancelledError:
+                # Task was cancelled - don't record as agent failure
+                logger.debug(f"Task cancelled for {method.value}")
+                result_dict[method] = (
+                    IdeaGenerationResult(
+                        agent_name="cancelled",
+                        thinking_method=method,
+                        generated_ideas=[],
+                        error_message="Task was cancelled",
+                    ),
+                    "cancelled",
                 )
             except Exception as e:
                 logger.error(f"Error collecting result for {method.value}: {e}")
