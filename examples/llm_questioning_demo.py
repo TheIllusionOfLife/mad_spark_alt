@@ -8,12 +8,13 @@ Large Language Models for intelligent, context-aware question generation.
 
 import asyncio
 import os
+
 from rich.console import Console
 from rich.panel import Panel
 
 from mad_spark_alt.agents.questioning.agent import QuestioningAgent
 from mad_spark_alt.agents.questioning.llm_agent import LLMQuestioningAgent
-from mad_spark_alt.core import IdeaGenerationRequest, setup_llm_providers, LLMProvider
+from mad_spark_alt.core import IdeaGenerationRequest, LLMProvider, setup_llm_providers
 
 console = Console()
 

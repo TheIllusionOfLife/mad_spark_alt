@@ -14,8 +14,8 @@ from typing import Dict, List
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
 from rich.progress import track
+from rich.table import Table
 
 from mad_spark_alt.core import (
     IdeaGenerationRequest,

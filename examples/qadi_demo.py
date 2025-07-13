@@ -18,8 +18,8 @@ from rich.table import Table
 
 from mad_spark_alt.core import (
     IdeaGenerationRequest,
-    SmartQADIOrchestrator,
     RobustQADIOrchestrator,
+    SmartQADIOrchestrator,
     ThinkingMethod,
 )
 
@@ -28,9 +28,11 @@ env_path = Path(__file__).parent.parent / ".env"
 if env_path.exists():
     with open(env_path) as f:
         for line in f:
-            if line.strip() and not line.startswith('#'):
-                key, value = line.strip().split('=', 1)
-                os.environ[key] = value
+            if line.strip() and not line.startswith("#") and "=" in line:
+                parts = line.strip().split("=", 1)
+                if len(parts) == 2:
+                    key, value = parts
+                    os.environ[key.strip()] = value.strip().strip('"').strip("'")
 
 console = Console()
 
@@ -38,35 +40,43 @@ console = Console()
 async def check_api_keys():
     """Check and display available API keys."""
     console.print("🔐 Checking API Key Availability", style="bold blue")
-    
+
     api_keys = {
         "OpenAI": os.getenv("OPENAI_API_KEY"),
         "Anthropic": os.getenv("ANTHROPIC_API_KEY"),
         "Google": os.getenv("GOOGLE_API_KEY"),
     }
-    
+
     table = Table(title="LLM Provider Status")
     table.add_column("Provider", style="cyan")
     table.add_column("Status", style="green")
     table.add_column("Agent Type", style="yellow")
-    
+
     has_api_keys = False
-    
+
     for provider, key in api_keys.items():
         if key:
             table.add_row(provider, "✅ Available", "LLM-Powered")
             has_api_keys = True
         else:
             table.add_row(provider, "❌ Missing", "Template Fallback")
-    
+
     console.print(table)
-    
+
     if has_api_keys:
-        console.print("🚀 LLM providers detected! Using intelligent AI-powered agents.", style="green")
+        console.print(
+            "🚀 LLM providers detected! Using intelligent AI-powered agents.",
+            style="green",
+        )
     else:
-        console.print("📝 No API keys found. Using template-based agents.", style="yellow")
-        console.print("💡 Set OPENAI_API_KEY, ANTHROPIC_API_KEY, or GOOGLE_API_KEY for AI-powered generation.", style="dim")
-    
+        console.print(
+            "📝 No API keys found. Using template-based agents.", style="yellow"
+        )
+        console.print(
+            "💡 Set OPENAI_API_KEY, ANTHROPIC_API_KEY, or GOOGLE_API_KEY for AI-powered generation.",
+            style="dim",
+        )
+
     return has_api_keys
 
 
@@ -77,26 +87,26 @@ async def demo_agent_setup(orchestrator: SmartQADIOrchestrator):
     console.print("=" * 60)
 
     console.print("Setting up intelligent agents with automatic LLM preference...")
-    
+
     setup_status = await orchestrator.ensure_agents_ready()
-    
+
     # Display setup results
     setup_table = Table(title="Agent Setup Results")
     setup_table.add_column("Thinking Method", style="cyan")
     setup_table.add_column("Status", style="green")
-    
+
     for method, status in setup_status.items():
         if "LLM" in status:
             setup_table.add_row(method.title(), f"🤖 {status}")
         else:
             setup_table.add_row(method.title(), f"📝 {status}")
-    
+
     console.print(setup_table)
-    
+
     # Show agent status
     agent_status = orchestrator.get_agent_status()
     console.print(f"\n✅ Setup completed: {agent_status['setup_completed']}")
-    
+
     return setup_status
 
 
@@ -123,7 +133,7 @@ async def demo_smart_qadi_cycle(problem: str):
 
     console.print(f"\n✅ Smart QADI cycle completed in {result.execution_time:.2f}s")
     console.print(f"🔍 Cycle ID: {result.cycle_id}")
-    
+
     if result.llm_cost > 0:
         console.print(f"💰 Total LLM Cost: ${result.llm_cost:.4f}")
 
@@ -132,7 +142,7 @@ async def demo_smart_qadi_cycle(problem: str):
     agent_table.add_column("Phase", style="cyan")
     agent_table.add_column("Agent Type", style="green")
     agent_table.add_column("Ideas Generated", style="yellow")
-    
+
     phase_emojis = {
         "questioning": "❓",
         "abduction": "💡",
@@ -144,17 +154,21 @@ async def demo_smart_qadi_cycle(problem: str):
         phase_result = result.phases.get(phase_name)
         idea_count = len(phase_result.generated_ideas) if phase_result else 0
         emoji = phase_emojis.get(phase_name, "🧠")
-        
-        agent_display = f"🤖 {agent_type}" if "LLM" in agent_type else f"📝 {agent_type}"
-        agent_table.add_row(f"{emoji} {phase_name.title()}", agent_display, str(idea_count))
-    
+
+        agent_display = (
+            f"🤖 {agent_type}" if "LLM" in agent_type else f"📝 {agent_type}"
+        )
+        agent_table.add_row(
+            f"{emoji} {phase_name.title()}", agent_display, str(idea_count)
+        )
+
     console.print(agent_table)
 
     # Display detailed results for each phase
     for phase_name, phase_result in result.phases.items():
         emoji = phase_emojis.get(phase_name, "🧠")
         agent_type = result.agent_types.get(phase_name, "unknown")
-        
+
         console.print(f"\n{emoji} {phase_name.title()} Phase ({agent_type}):")
 
         if phase_result.error_message:
@@ -164,28 +178,36 @@ async def demo_smart_qadi_cycle(problem: str):
 
             for i, idea in enumerate(phase_result.generated_ideas, 1):
                 console.print(f"\n   {i}. {idea.content}")
-                
+
                 # Show reasoning for LLM agents (usually more detailed)
                 if idea.reasoning and "LLM" in agent_type:
-                    reasoning = idea.reasoning[:200] + "..." if len(idea.reasoning) > 200 else idea.reasoning
+                    reasoning = (
+                        idea.reasoning[:200] + "..."
+                        if len(idea.reasoning) > 200
+                        else idea.reasoning
+                    )
                     console.print(f"      💭 Reasoning: {reasoning}", style="dim")
-                    
+
                 # Show confidence for LLM agents
-                if hasattr(idea, 'confidence_score') and idea.confidence_score:
-                    console.print(f"      📊 Confidence: {idea.confidence_score:.2f}", style="dim")
-                    
+                if hasattr(idea, "confidence_score") and idea.confidence_score:
+                    console.print(
+                        f"      📊 Confidence: {idea.confidence_score:.2f}", style="dim"
+                    )
+
                 # Show cost for LLM ideas
                 if "llm_cost" in idea.metadata and idea.metadata["llm_cost"] > 0:
-                    console.print(f"      💰 Cost: ${idea.metadata['llm_cost']:.4f}", style="dim")
+                    console.print(
+                        f"      💰 Cost: ${idea.metadata['llm_cost']:.4f}", style="dim"
+                    )
 
     # Display synthesis
     console.print(f"\n🎨 Synthesized Ideas ({len(result.synthesized_ideas)} total):")
-    
+
     for i, idea in enumerate(result.synthesized_ideas[:6], 1):  # Show first 6
         phase = idea.metadata.get("phase", "unknown")
         emoji = phase_emojis.get(phase, "🧠")
         console.print(f"  {i}. [{emoji} {phase}] {idea.content[:80]}...")
-        
+
     if len(result.synthesized_ideas) > 6:
         console.print(f"  ... and {len(result.synthesized_ideas) - 6} more ideas")
 
@@ -197,40 +219,49 @@ async def demo_agent_comparison(problem: str):
     console.print("=" * 60)
 
     console.print(f"\n🎯 Problem: [italic]{problem}[/italic]")
-    
+
     # Check if we can demo LLM agents
-    has_api_keys = any([
-        os.getenv("OPENAI_API_KEY"),
-        os.getenv("ANTHROPIC_API_KEY"),
-        os.getenv("GOOGLE_API_KEY")
-    ])
-    
+    has_api_keys = any(
+        [
+            os.getenv("OPENAI_API_KEY"),
+            os.getenv("ANTHROPIC_API_KEY"),
+            os.getenv("GOOGLE_API_KEY"),
+        ]
+    )
+
     if has_api_keys:
         console.print("🤖 Running comparison between template and LLM agents...")
-        
+
         # Create two orchestrators - one smart, one basic
         smart_orchestrator = RobustQADIOrchestrator()
-        
+
         # Run smart cycle (LLM preferred)
         smart_result = await smart_orchestrator.run_qadi_cycle(
-            problem_statement=problem,
-            cycle_config={"max_ideas_per_method": 2}
+            problem_statement=problem, cycle_config={"max_ideas_per_method": 2}
         )
-        
+
         # Display comparison
         comparison_table = Table(title="Agent Performance Comparison")
         comparison_table.add_column("Metric", style="cyan")
         comparison_table.add_column("Smart QADI", style="green")
-        
-        comparison_table.add_row("Execution Time", f"{smart_result.execution_time:.2f}s")
-        comparison_table.add_row("Total Ideas", str(len(smart_result.synthesized_ideas)))
+
+        comparison_table.add_row(
+            "Execution Time", f"{smart_result.execution_time:.2f}s"
+        )
+        comparison_table.add_row(
+            "Total Ideas", str(len(smart_result.synthesized_ideas))
+        )
         comparison_table.add_row("LLM Cost", f"${smart_result.llm_cost:.4f}")
-        comparison_table.add_row("Agent Types", ", ".join(set(smart_result.agent_types.values())))
-        
+        comparison_table.add_row(
+            "Agent Types", ", ".join(set(smart_result.agent_types.values()))
+        )
+
         console.print(comparison_table)
-        
+
     else:
-        console.print("📝 No API keys available - showing template agent capabilities...")
+        console.print(
+            "📝 No API keys available - showing template agent capabilities..."
+        )
         console.print("💡 Set API keys to see LLM agent comparison!", style="yellow")
 
 
@@ -253,13 +284,20 @@ async def main():
         problems = [
             "How can we make public transportation more sustainable while improving user experience?",
             "What innovative approaches could reduce food waste in restaurants?",
-            "How might AI enhance education without replacing human teachers?"
+            "How might AI enhance education without replacing human teachers?",
         ]
 
         for i, problem in enumerate(problems, 1):
             console.print(f"\n{'='*80}")
-            console.print(f"📋 Demo {i}: {problem[:60]}..." if len(problem) > 60 else f"📋 Demo {i}: {problem}", style="bold magenta")
-            console.print('='*80)
+            console.print(
+                (
+                    f"📋 Demo {i}: {problem[:60]}..."
+                    if len(problem) > 60
+                    else f"📋 Demo {i}: {problem}"
+                ),
+                style="bold magenta",
+            )
+            console.print("=" * 80)
 
             # Setup demo
             orchestrator = RobustQADIOrchestrator()
@@ -274,12 +312,18 @@ async def main():
 
         console.print("\n" + "=" * 80)
         console.print("🎉 Smart QADI Demo completed successfully!", style="bold green")
-        
+
         if has_api_keys:
-            console.print("🤖 You experienced AI-powered intelligent idea generation!", style="green")
+            console.print(
+                "🤖 You experienced AI-powered intelligent idea generation!",
+                style="green",
+            )
         else:
-            console.print("📝 You saw template-based generation. Try with API keys for AI power!", style="yellow")
-        
+            console.print(
+                "📝 You saw template-based generation. Try with API keys for AI power!",
+                style="yellow",
+            )
+
         console.print("\n💡 Next steps:", style="bold cyan")
         console.print("  • Set API keys for LLM-powered agents")
         console.print("  • Try the CLI: uv run mad-spark evaluate 'your idea'")

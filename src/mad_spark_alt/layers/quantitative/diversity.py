@@ -12,7 +12,6 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
 
 from ...core.evaluation_utils import (
-    AsyncBatchProcessor,
     CacheKeyGenerator,
     TextAnalyzer,
 )
