@@ -2,16 +2,18 @@
 Tests for the answer extraction components.
 """
 
-import pytest
 import asyncio
 from typing import List
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+
 from mad_spark_alt.core.answer_extractor import (
-    QuestionTypeAnalyzer,
-    TemplateAnswerExtractor,
+    AnswerExtractionResult,
     EnhancedAnswerExtractor,
     ExtractedAnswer,
-    AnswerExtractionResult,
+    QuestionTypeAnalyzer,
+    TemplateAnswerExtractor,
 )
 from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
 

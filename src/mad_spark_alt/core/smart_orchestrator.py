@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from .conclusion_synthesizer import Conclusion, ConclusionSynthesizer
 from .interfaces import (
     GeneratedIdea,
     IdeaGenerationRequest,
@@ -21,7 +22,6 @@ from .interfaces import (
 )
 from .orchestrator import QADICycleResult
 from .smart_registry import SmartAgentRegistry, smart_registry
-from .conclusion_synthesizer import ConclusionSynthesizer, Conclusion
 
 logger = logging.getLogger(__name__)
 
@@ -47,35 +47,35 @@ class SmartQADICycleResult(QADICycleResult):
 @dataclass
 class AgentCircuitBreaker:
     """Circuit breaker for agent failures."""
-    
+
     consecutive_failures: int = 0
     last_failure_time: Optional[float] = None
     is_open: bool = False
     failure_threshold: int = 3
     cooldown_seconds: float = 300  # 5 minutes
-    
+
     def record_failure(self) -> None:
         """Record a failure and potentially open the circuit."""
         self.consecutive_failures += 1
         self.last_failure_time = time.time()
-        
+
         if self.consecutive_failures >= self.failure_threshold:
             self.is_open = True
             logger.warning(
                 f"Circuit breaker opened after {self.consecutive_failures} failures"
             )
-    
+
     def record_success(self) -> None:
         """Record a success and reset the circuit."""
         self.consecutive_failures = 0
         self.is_open = False
         self.last_failure_time = None
-    
+
     def can_attempt(self) -> bool:
         """Check if we can attempt to use this agent."""
         if not self.is_open:
             return True
-            
+
         # Check if cooldown period has passed
         if self.last_failure_time:
             elapsed = time.time() - self.last_failure_time
@@ -84,7 +84,7 @@ class AgentCircuitBreaker:
                 self.is_open = False
                 self.consecutive_failures = 0
                 return True
-        
+
         return False
 
 
@@ -100,8 +100,8 @@ class SmartQADIOrchestrator:
     """
 
     def __init__(
-        self, 
-        registry: Optional[SmartAgentRegistry] = None, 
+        self,
+        registry: Optional[SmartAgentRegistry] = None,
         auto_setup: bool = True,
         phase_timeout: float = DEFAULT_PHASE_TIMEOUT,
         parallel_timeout: float = DEFAULT_PARALLEL_TIMEOUT,
@@ -121,12 +121,12 @@ class SmartQADIOrchestrator:
         self.auto_setup = auto_setup
         self._setup_completed = False
         self._setup_status: Dict[str, str] = {}
-        
+
         # Timeout configuration
         self.phase_timeout = phase_timeout
         self.parallel_timeout = parallel_timeout
         self.conclusion_timeout = conclusion_timeout
-        
+
         # Circuit breakers for each thinking method
         self._circuit_breakers: Dict[str, AgentCircuitBreaker] = {}
 
@@ -246,17 +246,19 @@ class SmartQADIOrchestrator:
                     self._run_smart_phase_with_circuit_breaker(
                         method, problem_statement, phase_context, config
                     ),
-                    timeout=self.phase_timeout
+                    timeout=self.phase_timeout,
                 )
-                
+
                 # Record success for circuit breaker
                 self._record_agent_success(method)
-                
+
             except asyncio.TimeoutError:
-                logger.warning(f"Phase {method.value} timed out after {self.phase_timeout}s")
+                logger.warning(
+                    f"Phase {method.value} timed out after {self.phase_timeout}s"
+                )
                 result.timeout_info[method.value] = self.phase_timeout
                 self._record_agent_failure(method)
-                
+
                 # Create timeout result
                 phase_result = IdeaGenerationResult(
                     agent_name="timeout",
@@ -265,11 +267,11 @@ class SmartQADIOrchestrator:
                     error_message=f"Phase timed out after {self.phase_timeout}s",
                 )
                 agent_type = "timeout"
-                
+
             except Exception as e:
                 logger.error(f"Phase {method.value} failed: {e}")
                 self._record_agent_failure(method)
-                
+
                 # Create error result
                 phase_result = IdeaGenerationResult(
                     agent_name="error",
@@ -297,10 +299,12 @@ class SmartQADIOrchestrator:
         try:
             await asyncio.wait_for(
                 self._synthesize_conclusion(result, problem_statement, context),
-                timeout=self.conclusion_timeout
+                timeout=self.conclusion_timeout,
             )
         except asyncio.TimeoutError:
-            logger.warning(f"Conclusion synthesis timed out after {self.conclusion_timeout}s")
+            logger.warning(
+                f"Conclusion synthesis timed out after {self.conclusion_timeout}s"
+            )
             result.timeout_info["conclusion"] = self.conclusion_timeout
 
         end_time = time.time()
@@ -339,7 +343,7 @@ class SmartQADIOrchestrator:
                 ),
                 "circuit_breaker_open",
             )
-        
+
         # Delegate to existing implementation
         return await self._run_smart_phase(method, problem_statement, context, config)
 
@@ -572,7 +576,7 @@ class SmartQADIOrchestrator:
             if not self._can_use_agent(method):
                 logger.warning(f"Circuit breaker open for {method.value}, skipping")
                 continue
-                
+
             agent = self.registry.get_preferred_agent(method)
             if agent:
                 available_methods.append(method)
@@ -591,10 +595,12 @@ class SmartQADIOrchestrator:
         try:
             results = await asyncio.wait_for(
                 asyncio.gather(*tasks, return_exceptions=True),
-                timeout=self.parallel_timeout
+                timeout=self.parallel_timeout,
             )
         except asyncio.TimeoutError:
-            logger.warning(f"Parallel execution timed out after {self.parallel_timeout}s")
+            logger.warning(
+                f"Parallel execution timed out after {self.parallel_timeout}s"
+            )
             # Try to collect partial results using as_completed
             return await self._collect_partial_results(tasks, available_methods)
 
@@ -621,24 +627,24 @@ class SmartQADIOrchestrator:
         return result_dict
 
     async def _collect_partial_results(
-        self, 
-        tasks: List, 
+        self,
+        tasks: List,
         available_methods: List[ThinkingMethod],
-        timeout_per_task: float = 30.0
+        timeout_per_task: float = 30.0,
     ) -> Dict[ThinkingMethod, Tuple[IdeaGenerationResult, str]]:
         """
         Collect partial results when parallel execution times out.
-        
+
         Args:
             tasks: List of asyncio tasks
             available_methods: Corresponding thinking methods
             timeout_per_task: Timeout for each individual task
-            
+
         Returns:
             Dictionary with completed results and timeout placeholders
         """
         result_dict = {}
-        
+
         # Try to get results from completed tasks
         for task, method in zip(tasks, available_methods):
             try:
@@ -675,7 +681,7 @@ class SmartQADIOrchestrator:
                     ),
                     "error",
                 )
-                
+
         return result_dict
 
     def get_agent_status(self) -> Dict[str, Any]:
@@ -688,7 +694,7 @@ class SmartQADIOrchestrator:
                 "last_failure_time": breaker.last_failure_time,
                 "can_attempt": breaker.can_attempt(),
             }
-        
+
         return {
             "setup_completed": self._setup_completed,
             "setup_status": self._setup_status,

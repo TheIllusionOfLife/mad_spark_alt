@@ -6,11 +6,11 @@ actionable conclusions and recommendations.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 from .interfaces import GeneratedIdea, ThinkingMethod
-from .llm_provider import LLMRequest, llm_manager, LLMProvider
+from .llm_provider import LLMProvider, LLMRequest, llm_manager
 
 logger = logging.getLogger(__name__)
 

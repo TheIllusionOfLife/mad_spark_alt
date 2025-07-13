@@ -19,7 +19,7 @@ from ...core.interfaces import (
     ThinkingAgentInterface,
     ThinkingMethod,
 )
-from ...core.json_utils import safe_json_parse, parse_json_list
+from ...core.json_utils import parse_json_list, safe_json_parse
 from ...core.llm_provider import (
     LLMManager,
     LLMProvider,

@@ -14,8 +14,8 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 from .interfaces import GeneratedIdea
-from .llm_provider import llm_manager
 from .json_utils import safe_json_parse
+from .llm_provider import llm_manager
 
 logger = logging.getLogger(__name__)
 
@@ -459,7 +459,7 @@ class EnhancedAnswerExtractor:
                 return await self._extract_with_llm(question, qadi_results, max_answers)
             except Exception as e:
                 logger.warning(f"LLM extraction failed, falling back to template: {e}")
-        
+
         # Fallback to template extraction
         result = self.template_extractor.extract_answers(
             question, qadi_results, max_answers
@@ -474,78 +474,80 @@ class EnhancedAnswerExtractor:
         max_answers: Optional[int],
     ) -> AnswerExtractionResult:
         """Extract answers using LLM analysis of QADI insights."""
-        
+
         if max_answers is None:
             max_answers = 5
-        
+
         # Build context from QADI results
         qadi_context = self._build_qadi_context(qadi_results)
-        
+
         # Analyze question type for better prompt formatting
         analyzer = QuestionTypeAnalyzer()
         question_type, metadata = analyzer.analyze_question(question)
-        
+
         # Create LLM prompt
         prompt = self._create_llm_extraction_prompt(
             question, qadi_context, max_answers, question_type, metadata
         )
-        
+
         # Call LLM with timeout
         try:
             from .llm_provider import LLMRequest
-            
+
             llm_request = LLMRequest(
                 user_prompt=prompt,
                 system_prompt="You are a helpful assistant that extracts direct answers from analytical insights.",
                 max_tokens=1000,
             )
-            
+
             response = await asyncio.wait_for(
                 llm_manager.generate(llm_request),
-                timeout=30.0  # 30 second timeout for extraction
+                timeout=30.0,  # 30 second timeout for extraction
             )
-            
+
             # Extract content from response
             response_content = response.content
-            
+
         except asyncio.TimeoutError:
             raise Exception("LLM extraction timed out")
-        
+
         # Parse LLM response
         parsed_response = self._parse_llm_response(response_content)
-        
+
         # Convert to ExtractedAnswer objects
         extracted_answers = self._convert_llm_answers(
             parsed_response, qadi_results, max_answers
         )
-        
+
         # Calculate total QADI ideas
         total_ideas = sum(len(ideas) for ideas in qadi_results.values())
-        
+
         # Create summary
         summary = f"Generated {len(extracted_answers)} answers using LLM analysis of {total_ideas} QADI insights."
-        
+
         return AnswerExtractionResult(
             original_question=question,
             question_type=question_type,
             direct_answers=extracted_answers,
             summary=summary,
             total_qadi_ideas=total_ideas,
-            extraction_method="llm"
+            extraction_method="llm",
         )
 
     def _build_qadi_context(self, qadi_results: Dict[str, List[GeneratedIdea]]) -> str:
         """Build formatted context from QADI results for LLM."""
         context_parts = []
-        
+
         for phase, ideas in qadi_results.items():
             if ideas:
-                phase_title = phase.replace('_', ' ').title()
+                phase_title = phase.replace("_", " ").title()
                 context_parts.append(f"\n## {phase_title} Phase:")
                 for i, idea in enumerate(ideas, 1):
                     context_parts.append(f"{i}. {idea.content}")
-        
-        return "\n".join(context_parts) if context_parts else "No QADI insights available."
+
+        return (
+            "\n".join(context_parts) if context_parts else "No QADI insights available."
+        )
 
     def _create_llm_extraction_prompt(
         self,
@@ -556,13 +558,15 @@ class EnhancedAnswerExtractor:
         metadata: Dict[str, Any],
     ) -> str:
         """Create prompt for LLM answer extraction."""
-        
+
         # Customize prompt based on question type
         if question_type == "list_request" or metadata.get("expects_list"):
             format_instruction = f"Provide exactly {max_answers} distinct, actionable answers in a numbered list format."
             answer_style = "concise, actionable items"
         elif question_type == "how_to":
-            format_instruction = f"Provide {max_answers} step-by-step approaches or methods."
+            format_instruction = (
+                f"Provide {max_answers} step-by-step approaches or methods."
+            )
             answer_style = "practical, implementable steps"
         elif question_type == "what_is":
             format_instruction = f"Provide {max_answers} key insights or explanations."
@@ -570,7 +574,7 @@ class EnhancedAnswerExtractor:
         else:
             format_instruction = f"Provide {max_answers} relevant answers."
             answer_style = "direct, helpful responses"
-        
+
         return f"""You are an expert at extracting direct, actionable answers from analytical insights.
 
 USER QUESTION: "{question}"
@@ -603,28 +607,29 @@ Provide exactly {max_answers} answers in valid JSON format:"""
 
     def _parse_llm_response(self, response: Any) -> Dict[str, Any]:
         """Parse LLM response, handling various response formats."""
-        
+
         # If response is already a dict, use it
         if isinstance(response, dict):
             return response
-        
+
         # If response is a string, try to parse as JSON
         if isinstance(response, str):
             # Try to extract JSON from markdown or other formatting
             parsed = safe_json_parse(response)
             if parsed:
                 return parsed
-            
+
             # Fallback: try to find JSON in the text
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            json_match = re.search(r"\{.*\}", response, re.DOTALL)
             if json_match:
                 try:
                     from typing import cast
+
                     parsed_json = json.loads(json_match.group())
                     return cast(Dict[str, Any], parsed_json)
                 except json.JSONDecodeError:
                     pass
-        
+
         # If all parsing fails, raise an exception
         raise ValueError(f"Could not parse LLM response: {response}")
 
@@ -635,48 +640,52 @@ Provide exactly {max_answers} answers in valid JSON format:"""
         max_answers: int,
     ) -> List[ExtractedAnswer]:
         """Convert parsed LLM response to ExtractedAnswer objects."""
-        
+
         extracted_answers = []
-        
+
         # Get answers from response
         answers = parsed_response.get("answers", [])
-        
+
         if not answers:
             # Fallback if no answers in expected format
             raise ValueError("No answers found in LLM response")
-        
+
         for i, answer in enumerate(answers[:max_answers]):
             if isinstance(answer, dict):
                 content = answer.get("content", f"Answer {i+1}")
                 confidence = float(answer.get("confidence", 0.7))
                 source_phase = answer.get("source_phase", "synthetic")
                 reasoning = answer.get("reasoning", "Generated from QADI insights")
-                
+
                 # Find source ideas if referenced
                 source_ideas = self._find_source_ideas(content, qadi_results)
-                
-                extracted_answers.append(ExtractedAnswer(
-                    content=content,
-                    confidence=confidence,
-                    source_phase=source_phase,
-                    source_ideas=source_ideas,
-                    reasoning=reasoning
-                ))
+
+                extracted_answers.append(
+                    ExtractedAnswer(
+                        content=content,
+                        confidence=confidence,
+                        source_phase=source_phase,
+                        source_ideas=source_ideas,
+                        reasoning=reasoning,
+                    )
+                )
             elif isinstance(answer, str):
                 # Simple string answer
                 source_ideas = self._find_source_ideas(answer, qadi_results)
-                extracted_answers.append(ExtractedAnswer(
-                    content=answer,
-                    confidence=0.7,
-                    source_phase="synthetic",
-                    source_ideas=source_ideas,
-                    reasoning="Generated from QADI insights"
-                ))
-        
+                extracted_answers.append(
+                    ExtractedAnswer(
+                        content=answer,
+                        confidence=0.7,
+                        source_phase="synthetic",
+                        source_ideas=source_ideas,
+                        reasoning="Generated from QADI insights",
+                    )
+                )
+
         # Ensure we have at least some answers
         if not extracted_answers:
             raise ValueError("No valid answers could be extracted from LLM response")
-        
+
         return extracted_answers
 
     def _find_source_ideas(
@@ -685,24 +694,24 @@ Provide exactly {max_answers} answers in valid JSON format:"""
         """Find QADI ideas that might have influenced this answer."""
         source_ideas = []
         answer_lower = answer_content.lower()
-        
+
         for phase, ideas in qadi_results.items():
             for idea in ideas:
                 # Simple keyword matching to find related ideas
                 idea_words = set(idea.content.lower().split())
                 answer_words = set(answer_lower.split())
-                
+
                 # If there's significant overlap, consider it a source
                 overlap = len(idea_words.intersection(answer_words))
                 if overlap >= 2:  # At least 2 words in common
                     source_ideas.append(idea.content)
-                    
+
                 if len(source_ideas) >= 3:  # Limit source ideas
                     break
-            
+
             if len(source_ideas) >= 3:
                 break
-        
+
         return source_ideas
 
 

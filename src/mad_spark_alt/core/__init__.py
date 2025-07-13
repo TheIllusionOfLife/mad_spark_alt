@@ -1,6 +1,7 @@
 """Core evaluation system components and idea generation framework."""
 
 from .evaluator import CreativityEvaluator, EvaluationSummary
+from .fast_orchestrator import FastQADIOrchestrator
 from .interfaces import (  # New idea generation interfaces
     AsyncEvaluatorInterface,
     CacheableEvaluatorInterface,
@@ -45,7 +46,6 @@ from .smart_registry import (
     setup_smart_agents,
     smart_registry,
 )
-from .fast_orchestrator import FastQADIOrchestrator
 
 # Import robust orchestrator if available
 try:

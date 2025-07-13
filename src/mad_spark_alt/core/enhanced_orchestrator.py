@@ -12,10 +12,10 @@ from dataclasses import dataclass, field, fields
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from .smart_orchestrator import SmartQADIOrchestrator, SmartQADICycleResult
-from .smart_registry import SmartAgentRegistry
-from .answer_extractor import EnhancedAnswerExtractor, AnswerExtractionResult
+from .answer_extractor import AnswerExtractionResult, EnhancedAnswerExtractor
 from .interfaces import GeneratedIdea, ThinkingMethod
+from .smart_orchestrator import SmartQADICycleResult, SmartQADIOrchestrator
+from .smart_registry import SmartAgentRegistry
 
 logger = logging.getLogger(__name__)
 
