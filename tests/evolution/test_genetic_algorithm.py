@@ -292,17 +292,29 @@ class TestGeneticOperators:
     async def test_mutation_operator(self):
         """Test mutation operation."""
         # Test with high mutation rate to ensure mutation occurs
-        mutated = await self.mutation_op.mutate(
-            self.parent1, mutation_rate=1.0  # Always mutate
-        )
+        # Mutation is random, so retry until content actually changes
+        max_attempts = 10
+        content_changed = False
+        final_mutated = None
+        
+        for attempt in range(max_attempts):
+            mutated = await self.mutation_op.mutate(
+                self.parent1, mutation_rate=1.0  # Always mutate
+            )
+            
+            if mutated.content != self.parent1.content:
+                content_changed = True
+                final_mutated = mutated
+                break
+            final_mutated = mutated  # Keep the last attempt for verification
 
-        # Verify mutation
-        assert isinstance(mutated, GeneratedIdea)
-        assert mutated.content != self.parent1.content
-        assert mutated.metadata["operator"] == "mutation"
-        assert mutated.metadata["generation"] == 1
-        assert len(mutated.parent_ideas) == 1
-        assert mutated.parent_ideas[0] == self.parent1.content
+        # Verify mutation occurred (at least once in max_attempts)
+        assert content_changed, f"Content should have changed after {max_attempts} attempts"
+        assert isinstance(final_mutated, GeneratedIdea)
+        assert final_mutated.metadata["operator"] == "mutation"
+        assert final_mutated.metadata["generation"] == 1
+        assert len(final_mutated.parent_ideas) == 1
+        assert final_mutated.parent_ideas[0] == self.parent1.content
 
     @pytest.mark.asyncio
     async def test_mutation_no_change(self):

@@ -502,11 +502,19 @@ class GoogleProvider(LLMProviderInterface):
 
         full_prompt = "\n\n".join(prompt_parts)
 
+        # Adjust max_tokens for Gemini 2.5-flash reasoning overhead
+        max_output_tokens = request.max_tokens
+        if model_config.model_name == "gemini-2.5-flash":
+            # 2.5-flash uses many tokens for internal reasoning, so increase output limit
+            max_output_tokens = max(
+                request.max_tokens * 3, 2048
+            )  # At least 3x the requested tokens
+
         payload = {
             "contents": [{"parts": [{"text": full_prompt}]}],
             "generationConfig": {
                 "temperature": request.temperature,
-                "maxOutputTokens": request.max_tokens,
+                "maxOutputTokens": max_output_tokens,
                 "topP": 0.95,
                 "topK": 40,
             },
@@ -537,11 +545,31 @@ class GoogleProvider(LLMProviderInterface):
 
         # Extract the generated content
         try:
-            content = response_data["candidates"][0]["content"]["parts"][0]["text"]
-        except (KeyError, IndexError):
+            candidate = response_data["candidates"][0]
+            content_data = candidate["content"]
+
+            # Handle cases where parts might not exist (e.g., MAX_TOKENS with no content)
+            if content_data.get(
+                "parts"
+            ):  # More Pythonic check for existing, non-empty list
+                content = content_data["parts"][0]["text"]
+            else:
+                # Fallback for empty content due to finish reasons like MAX_TOKENS
+                finish_reason = candidate.get("finishReason", "UNKNOWN")
+                reason_messages = {
+                    "MAX_TOKENS": "[Content generation stopped due to token limit - try reducing max_tokens or prompt length]",
+                    "SAFETY": "[Content blocked by safety filters]",
+                    "RECITATION": "[Content blocked due to recitation concerns]",
+                }
+                content = reason_messages.get(
+                    finish_reason,
+                    f"[No content generated - finish reason: {finish_reason}]",
+                )
+        except (KeyError, IndexError) as e:
             raise LLMError(
-                "Invalid response format from Google API", ErrorType.API_ERROR
-            )
+                f"Invalid response format from Google API: {e}",
+                ErrorType.API_ERROR,
+            ) from e
 
         # Extract usage information
         usage_metadata = response_data.get("usageMetadata", {})
@@ -609,8 +637,8 @@ class GoogleProvider(LLMProviderInterface):
     def _get_default_model_config(self, model_name: str) -> ModelConfig:
         """Get default model config by name."""
         models = {model.model_name: model for model in self.get_available_models()}
-        # Use gemini-1.5-flash as fallback for better stability
-        fallback = models.get("gemini-1.5-flash", list(models.values())[0])
+        # Use gemini-2.5-flash as fallback for latest capabilities
+        fallback = models.get("gemini-2.5-flash", list(models.values())[0])
         return models.get(model_name, fallback)
 
     def calculate_cost(
@@ -765,13 +793,13 @@ async def setup_llm_providers(
             LLMProvider.GOOGLE, google_provider, rate_limit_config
         )
 
-        # Set default model for Google - use stable 1.5 model
+        # Set default model for Google - use 2.5-flash with enhanced token handling
         default_models = google_provider.get_available_models()
-        preferred_model = os.getenv("GEMINI_MODEL_OVERRIDE", "gemini-1.5-flash")
+        preferred_model = os.getenv("GEMINI_MODEL_OVERRIDE", "gemini-2.5-flash")
         default_model = next(
             (m for m in default_models if m.model_name == preferred_model),
             next(
-                (m for m in default_models if m.model_name == "gemini-1.5-flash"),
+                (m for m in default_models if m.model_name == "gemini-2.5-flash"),
                 default_models[0],  # Fallback to first model if neither found
             ),
         )
