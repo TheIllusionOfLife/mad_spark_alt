@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-from .interfaces import GeneratedIdea, ThinkingMethod
+from .interfaces import GeneratedIdea
 
 logger = logging.getLogger(__name__)
 
