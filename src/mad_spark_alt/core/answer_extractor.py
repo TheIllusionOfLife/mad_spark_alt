@@ -652,14 +652,31 @@ Provide exactly {max_answers} answers in valid JSON format:"""
             if parsed:
                 return parsed
 
-            # Fallback: try to find JSON in the text (non-greedy)
-            json_match = re.search(r"\{.*?\}", response, re.DOTALL)
-            if json_match:
+            # Fallback: try to find complete JSON objects with proper nesting
+            json_start = response.find("{")
+            if json_start != -1:
                 try:
-                    from typing import cast
+                    # Find the matching closing brace by counting nested braces
+                    brace_count = 0
+                    json_end = json_start
+                    for i, char in enumerate(response[json_start:], json_start):
+                        if char == "{":
+                            brace_count += 1
+                        elif char == "}":
+                            brace_count -= 1
+                            if brace_count == 0:
+                                json_end = i + 1
+                                break
 
-                    parsed_json = json.loads(json_match.group())
-                    return cast(Dict[str, Any], parsed_json)
+                    if brace_count == 0:  # Found complete JSON object
+                        json_text = response[json_start:json_end]
+                        from typing import cast
+
+                        parsed_json = json.loads(json_text)
+                        return cast(Dict[str, Any], parsed_json)
+                    else:
+                        logger.debug("Incomplete JSON object found in LLM response")
+
                 except json.JSONDecodeError as e:
                     logger.debug(f"Failed to parse JSON from LLM response: {e}")
 
