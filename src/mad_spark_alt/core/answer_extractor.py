@@ -15,9 +15,28 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .interfaces import GeneratedIdea
 from .json_utils import safe_json_parse
-from .llm_provider import llm_manager
+from .llm_provider import llm_manager, LLMRequest
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_prompt_content(prompt: str) -> str:
+    """Validate and sanitize prompt content for LLM safety."""
+    if not prompt or not prompt.strip():
+        raise ValueError("Prompt cannot be empty")
+    
+    # Remove potentially harmful content
+    sanitized = prompt.strip()
+    
+    # Basic length validation (prevent extremely long prompts)
+    if len(sanitized) > 50000:  # 50k character limit
+        logger.warning(f"Prompt truncated from {len(sanitized)} to 50000 characters")
+        sanitized = sanitized[:50000] + "..."
+    
+    # Remove null bytes and other control characters
+    sanitized = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', sanitized)
+    
+    return sanitized
 
 
 @dataclass
@@ -457,8 +476,10 @@ class EnhancedAnswerExtractor:
         if self.prefer_llm and len(llm_manager.providers) > 0:
             try:
                 return await self._extract_with_llm(question, qadi_results, max_answers)
-            except Exception as e:
+            except (asyncio.TimeoutError, ValueError, json.JSONDecodeError) as e:
                 logger.warning(f"LLM extraction failed, falling back to template: {e}")
+            except Exception as e:
+                logger.warning(f"Unexpected error in LLM extraction, falling back to template: {e}")
 
         # Fallback to template extraction
         result = self.template_extractor.extract_answers(
@@ -492,16 +513,26 @@ class EnhancedAnswerExtractor:
 
         # Call LLM with timeout
         try:
-            from .llm_provider import LLMRequest
+
+            # Get the first available provider
+            if not llm_manager.providers:
+                raise ValueError("No LLM providers available for answer extraction")
+            provider = next(iter(llm_manager.providers.keys()))
+
+            # Validate and sanitize prompt content for security
+            validated_prompt = _validate_prompt_content(prompt)
+            validated_system_prompt = _validate_prompt_content(
+                "You are a helpful assistant that extracts direct answers from analytical insights."
+            )
 
             llm_request = LLMRequest(
-                user_prompt=prompt,
-                system_prompt="You are a helpful assistant that extracts direct answers from analytical insights.",
+                user_prompt=validated_prompt,
+                system_prompt=validated_system_prompt,
                 max_tokens=1000,
             )
 
             response = await asyncio.wait_for(
-                llm_manager.generate(llm_request),
+                llm_manager.generate(llm_request, provider),
                 timeout=30.0,  # 30 second timeout for extraction
             )
 
@@ -619,16 +650,16 @@ Provide exactly {max_answers} answers in valid JSON format:"""
             if parsed:
                 return parsed
 
-            # Fallback: try to find JSON in the text
-            json_match = re.search(r"\{.*\}", response, re.DOTALL)
+            # Fallback: try to find JSON in the text (non-greedy)
+            json_match = re.search(r"\{.*?\}", response, re.DOTALL)
             if json_match:
                 try:
                     from typing import cast
 
                     parsed_json = json.loads(json_match.group())
                     return cast(Dict[str, Any], parsed_json)
-                except json.JSONDecodeError:
-                    pass
+                except json.JSONDecodeError as e:
+                    logger.debug(f"Failed to parse JSON from LLM response: {e}")
 
         # If all parsing fails, raise an exception
         raise ValueError(f"Could not parse LLM response: {response}")

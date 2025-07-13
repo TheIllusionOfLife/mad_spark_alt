@@ -103,6 +103,7 @@ class SmartQADIOrchestrator:
         self,
         registry: Optional[SmartAgentRegistry] = None,
         auto_setup: bool = True,
+        *,  # Force timeout parameters to be keyword-only for backward compatibility
         phase_timeout: float = DEFAULT_PHASE_TIMEOUT,
         parallel_timeout: float = DEFAULT_PARALLEL_TIMEOUT,
         conclusion_timeout: float = DEFAULT_CONCLUSION_TIMEOUT,
@@ -195,126 +196,18 @@ class SmartQADIOrchestrator:
             f"Starting smart QADI cycle {cycle_id} for: {problem_statement[:100]}..."
         )
 
-        # Ensure agents are ready
-        setup_start = time.time()
-        setup_status = await self.ensure_agents_ready()
-        setup_time = time.time() - setup_start
-
-        config = cycle_config or {}
-        result = SmartQADICycleResult(
-            problem_statement=problem_statement,
-            cycle_id=cycle_id,
-            metadata={
-                "config": config,
-                "context": context,
-                "setup_status": setup_status,
-            },
-            setup_time=setup_time,
+        # Initialize cycle result
+        result = await self._initialize_qadi_cycle(
+            problem_statement, context, cycle_config, cycle_id
         )
 
-        # Execute QADI sequence phases
-        QADI_SEQUENCE = [
-            ThinkingMethod.QUESTIONING,
-            ThinkingMethod.ABDUCTION,
-            ThinkingMethod.DEDUCTION,
-            ThinkingMethod.INDUCTION,
-        ]
-
-        total_llm_cost = 0.0
-
-        for i, method in enumerate(QADI_SEQUENCE):
-            logger.info(f"Phase {i+1}: {method.value.title()}")
-
-            # Build enhanced context using previous phase results
-            if i == 0:
-                # First phase uses original context
-                phase_context = context
-            else:
-                # Later phases use enhanced context from previous phases
-                previous_phase_results = [
-                    result.phases.get(m.value)
-                    for m in QADI_SEQUENCE[:i]
-                    if result.phases.get(m.value) is not None
-                ]
-                phase_context = self._build_enhanced_context(
-                    context, *previous_phase_results
-                )
-
-            # Run the phase with smart agent selection and timeout
-            try:
-                phase_result, agent_type = await asyncio.wait_for(
-                    self._run_smart_phase_with_circuit_breaker(
-                        method, problem_statement, phase_context, config
-                    ),
-                    timeout=self.phase_timeout,
-                )
-
-                # Record success for circuit breaker
-                self._record_agent_success(method)
-
-            except asyncio.TimeoutError:
-                logger.warning(
-                    f"Phase {method.value} timed out after {self.phase_timeout}s"
-                )
-                result.timeout_info[method.value] = self.phase_timeout
-                self._record_agent_failure(method)
-
-                # Create timeout result
-                phase_result = IdeaGenerationResult(
-                    agent_name="timeout",
-                    thinking_method=method,
-                    generated_ideas=[],
-                    error_message=f"Phase timed out after {self.phase_timeout}s",
-                )
-                agent_type = "timeout"
-
-            except Exception as e:
-                logger.error(f"Phase {method.value} failed: {e}")
-                self._record_agent_failure(method)
-
-                # Create error result
-                phase_result = IdeaGenerationResult(
-                    agent_name="error",
-                    thinking_method=method,
-                    generated_ideas=[],
-                    error_message=str(e),
-                )
-                agent_type = "error"
-
-            result.phases[method.value] = phase_result
-            result.agent_types[method.value] = agent_type
-
-            # Track LLM costs
-            if phase_result.generated_ideas:
-                for idea in phase_result.generated_ideas:
-                    if "llm_cost" in idea.metadata:
-                        total_llm_cost += idea.metadata["llm_cost"]
-
-        result.llm_cost = total_llm_cost
-
-        # Synthesize final ideas from all phases
-        result.synthesized_ideas = self._synthesize_ideas(result.phases)
-
-        # Generate conclusion from all ideas with timeout
-        try:
-            await asyncio.wait_for(
-                self._synthesize_conclusion(result, problem_statement, context),
-                timeout=self.conclusion_timeout,
-            )
-        except asyncio.TimeoutError:
-            logger.warning(
-                f"Conclusion synthesis timed out after {self.conclusion_timeout}s"
-            )
-            result.timeout_info["conclusion"] = self.conclusion_timeout
-
-        end_time = time.time()
-        result.execution_time = end_time - start_time
-
-        logger.info(
-            f"Smart QADI cycle {cycle_id} completed in {result.execution_time:.2f}s"
+        # Execute all QADI phases
+        await self._execute_qadi_phases(
+            result, problem_statement, context, cycle_config or {}
         )
-        if result.llm_cost > 0:
-            logger.info(f"Total LLM cost: ${result.llm_cost:.4f}")
+
+        # Finalize the cycle
+        await self._finalize_qadi_cycle(result, problem_statement, context, start_time)
 
         return result
 
@@ -580,9 +473,10 @@ class SmartQADIOrchestrator:
             agent = self.registry.get_preferred_agent(method)
             if agent:
                 available_methods.append(method)
-                task = self._run_smart_phase_with_circuit_breaker(
+                task_coroutine = self._run_smart_phase_with_circuit_breaker(
                     method, problem_statement, context, config or {}
                 )
+                task = asyncio.create_task(task_coroutine)
                 tasks.append(task)
             else:
                 logger.warning(f"No agent available for {method.value}")
@@ -601,6 +495,16 @@ class SmartQADIOrchestrator:
             logger.warning(
                 f"Parallel execution timed out after {self.parallel_timeout}s"
             )
+            # Cancel all running tasks to prevent resource leaks
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+                    try:
+                        await task
+                    except (asyncio.CancelledError, Exception):
+                        # Ignore cancellation and other errors during cleanup
+                        pass
+
             # Try to collect partial results using as_completed
             return await self._collect_partial_results(tasks, available_methods)
 
@@ -620,9 +524,11 @@ class SmartQADIOrchestrator:
                     "error",
                 )
             else:
-                # Type assertion since we know it's a tuple from _run_smart_phase
+                # We know result is a tuple from _run_smart_phase_with_circuit_breaker
                 self._record_agent_success(method)
-                result_dict[method] = result  # type: ignore
+                # Cast to the expected tuple type for type safety
+                typed_result: Tuple[IdeaGenerationResult, str] = result
+                result_dict[method] = typed_result
 
         return result_dict
 
@@ -683,6 +589,192 @@ class SmartQADIOrchestrator:
                 )
 
         return result_dict
+
+    async def _initialize_qadi_cycle(
+        self,
+        problem_statement: str,
+        context: Optional[str],
+        cycle_config: Optional[Dict[str, Any]],
+        cycle_id: str,
+    ) -> SmartQADICycleResult:
+        """Initialize QADI cycle with agent setup and result structure."""
+        # Ensure agents are ready
+        setup_start = time.time()
+        setup_status = await self.ensure_agents_ready()
+        setup_time = time.time() - setup_start
+
+        config = cycle_config or {}
+        return SmartQADICycleResult(
+            problem_statement=problem_statement,
+            cycle_id=cycle_id,
+            metadata={
+                "config": config,
+                "context": context,
+                "setup_status": setup_status,
+            },
+            setup_time=setup_time,
+        )
+
+    async def _execute_qadi_phases(
+        self,
+        result: SmartQADICycleResult,
+        problem_statement: str,
+        context: Optional[str],
+        config: Dict[str, Any],
+    ) -> None:
+        """Execute all QADI phases sequentially with context building."""
+        QADI_SEQUENCE = [
+            ThinkingMethod.QUESTIONING,
+            ThinkingMethod.ABDUCTION,
+            ThinkingMethod.DEDUCTION,
+            ThinkingMethod.INDUCTION,
+        ]
+
+        total_llm_cost = 0.0
+
+        for i, method in enumerate(QADI_SEQUENCE):
+            logger.info(f"Phase {i+1}: {method.value.title()}")
+
+            # Build phase context
+            phase_context = self._build_phase_context(context, result, QADI_SEQUENCE, i)
+
+            # Execute single phase
+            phase_result, agent_type = await self._execute_single_phase(
+                method, problem_statement, phase_context, config, result
+            )
+
+            # Store phase results
+            result.phases[method.value] = phase_result
+            result.agent_types[method.value] = agent_type
+
+            # Track LLM costs
+            total_llm_cost += self._extract_llm_cost(phase_result)
+
+        result.llm_cost = total_llm_cost
+
+    def _build_phase_context(
+        self,
+        base_context: Optional[str],
+        result: SmartQADICycleResult,
+        qadi_sequence: List[ThinkingMethod],
+        phase_index: int,
+    ) -> Optional[str]:
+        """Build context for a specific phase using previous phase results."""
+        if phase_index == 0:
+            # First phase uses original context
+            return base_context
+
+        # Later phases use enhanced context from previous phases
+        previous_phase_results = [
+            result.phases.get(m.value)
+            for m in qadi_sequence[:phase_index]
+            if result.phases.get(m.value) is not None
+        ]
+        return self._build_enhanced_context(base_context, *previous_phase_results)
+
+    async def _execute_single_phase(
+        self,
+        method: ThinkingMethod,
+        problem_statement: str,
+        phase_context: Optional[str],
+        config: Dict[str, Any],
+        result: SmartQADICycleResult,
+    ) -> Tuple[IdeaGenerationResult, str]:
+        """Execute a single QADI phase with timeout and error handling."""
+        try:
+            phase_result, agent_type = await asyncio.wait_for(
+                self._run_smart_phase_with_circuit_breaker(
+                    method, problem_statement, phase_context, config
+                ),
+                timeout=self.phase_timeout,
+            )
+
+            # Only record success if we actually executed the agent
+            # (not if circuit breaker was open)
+            if agent_type != "circuit_breaker_open":
+                self._record_agent_success(method)
+            return phase_result, agent_type
+
+        except asyncio.TimeoutError:
+            return self._handle_phase_timeout(method, result)
+
+        except Exception as e:
+            return self._handle_phase_error(method, e)
+
+    def _handle_phase_timeout(
+        self, method: ThinkingMethod, result: SmartQADICycleResult
+    ) -> Tuple[IdeaGenerationResult, str]:
+        """Handle timeout during phase execution."""
+        logger.warning(f"Phase {method.value} timed out after {self.phase_timeout}s")
+        result.timeout_info[method.value] = self.phase_timeout
+        self._record_agent_failure(method)
+
+        # Create timeout result
+        phase_result = IdeaGenerationResult(
+            agent_name="timeout",
+            thinking_method=method,
+            generated_ideas=[],
+            error_message=f"Phase timed out after {self.phase_timeout}s",
+        )
+        return phase_result, "timeout"
+
+    def _handle_phase_error(
+        self, method: ThinkingMethod, error: Exception
+    ) -> Tuple[IdeaGenerationResult, str]:
+        """Handle error during phase execution."""
+        logger.error(f"Phase {method.value} failed: {error}")
+        self._record_agent_failure(method)
+
+        # Create error result
+        phase_result = IdeaGenerationResult(
+            agent_name="error",
+            thinking_method=method,
+            generated_ideas=[],
+            error_message=str(error),
+        )
+        return phase_result, "error"
+
+    def _extract_llm_cost(self, phase_result: IdeaGenerationResult) -> float:
+        """Extract LLM cost from phase result."""
+        total_cost = 0.0
+        if phase_result.generated_ideas:
+            for idea in phase_result.generated_ideas:
+                if "llm_cost" in idea.metadata:
+                    total_cost += idea.metadata["llm_cost"]
+        return total_cost
+
+    async def _finalize_qadi_cycle(
+        self,
+        result: SmartQADICycleResult,
+        problem_statement: str,
+        context: Optional[str],
+        start_time: float,
+    ) -> None:
+        """Finalize QADI cycle with synthesis and timing."""
+        # Synthesize final ideas from all phases
+        result.synthesized_ideas = self._synthesize_ideas(result.phases)
+
+        # Generate conclusion from all ideas with timeout
+        try:
+            await asyncio.wait_for(
+                self._synthesize_conclusion(result, problem_statement, context),
+                timeout=self.conclusion_timeout,
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"Conclusion synthesis timed out after {self.conclusion_timeout}s"
+            )
+            result.timeout_info["conclusion"] = self.conclusion_timeout
+
+        # Set execution time
+        end_time = time.time()
+        result.execution_time = end_time - start_time
+
+        logger.info(
+            f"Smart QADI cycle {result.cycle_id} completed in {result.execution_time:.2f}s"
+        )
+        if result.llm_cost > 0:
+            logger.info(f"Total LLM cost: ${result.llm_cost:.4f}")
 
     def get_agent_status(self) -> Dict[str, Any]:
         """Get comprehensive status of the smart orchestrator."""
