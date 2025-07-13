@@ -23,28 +23,46 @@ uv run python qadi.py "how to improve team productivity"
 
 ---
 
-### 2. `qadi_multi_agent.py` - Full Multi-Agent QADI ⭐
-**Usage**: `uv run python qadi_multi_agent.py "Your question" [--evolve]`
+### 2. `qadi_working.py` - Multi-Agent QADI (Reliable) ⭐
+**Usage**: `uv run python qadi_working.py "Your question"`
 
 **What it does**:
 - Uses the complete Mad Spark Alt multi-agent system
 - 4 specialized thinking agents (Question, Abduction, Deduction, Induction)
-- Intelligent agent selection (LLM vs template fallback)
-- Rich reasoning trails and metadata
-- Optional genetic evolution with `--evolve`
+- Template agents for reliable execution (no timeout issues)
+- Structured QADI methodology
+- True multi-agent collaboration
 
 **Example**:
 ```bash
-uv run python qadi_multi_agent.py "how can AI improve healthcare"
-uv run python qadi_multi_agent.py "sustainable energy solutions" --evolve
+uv run python qadi_working.py "how can AI improve healthcare"
+uv run python qadi_working.py "sustainable energy solutions"
 ```
 
-**Pros**: Deep analysis, specialized reasoning, extensible, rich output
-**Cons**: Slower (15-30s), higher cost
+**Pros**: Reliable execution, multi-agent benefits, structured thinking, fast
+**Cons**: Uses template responses (not LLM-generated content)
+
+### 3. `qadi_multi_agent_fixed.py` - LLM Multi-Agent (Experimental) ⚠️
+**Usage**: `uv run python qadi_multi_agent_fixed.py "Your question" [--evolve]`
+
+**What it does**:
+- Advanced version with LLM-powered agents
+- Comprehensive timeout handling and fallbacks
+- Rich LLM-generated reasoning
+- Optional genetic evolution with `--evolve`
+- **Warning**: May still timeout on complex questions
+
+**Example**:
+```bash
+uv run python qadi_multi_agent_fixed.py "simple question here"
+```
+
+**Pros**: LLM-powered insights, rich reasoning, genetic evolution
+**Cons**: May timeout, slower, higher cost, experimental
 
 ---
 
-### 3. `compare_qadi_approaches.py` - Side-by-Side Comparison
+### 4. `compare_qadi_approaches.py` - Side-by-Side Comparison
 **Usage**: `uv run python compare_qadi_approaches.py "Your question"`
 
 **What it does**:
@@ -67,7 +85,7 @@ uv run python compare_qadi_approaches.py "improve online learning"
 
 ---
 
-### 4. `qadi_evolution_demo.py` - Genetic Evolution Showcase 🧬
+### 5. `qadi_evolution_demo.py` - Genetic Evolution Showcase 🧬
 **Usage**: `uv run python qadi_evolution_demo.py "Your question"`
 
 **What it does**:
@@ -130,12 +148,18 @@ uv run python qadi_evolution_demo.py "how to reduce stress"
 - Simple 3-answer format is sufficient
 - You're doing rapid iteration
 
-### Use `qadi_multi_agent.py` when:
+### Use `qadi_working.py` when:
 - You need deep, multi-perspective analysis
 - Quality is more important than speed
 - You want rich reasoning trails
 - You're solving complex problems
-- You want to leverage the full Mad Spark Alt capabilities
+- You want to leverage multi-agent capabilities reliably
+- You want to avoid timeout issues
+
+### Use `qadi_multi_agent_fixed.py` when:
+- You want LLM-powered reasoning (experimental)
+- You're willing to risk timeouts for richer content
+- You're debugging the LLM agent system
 
 ### Use `compare_qadi_approaches.py` when:
 - You want to understand the differences
@@ -151,12 +175,13 @@ uv run python qadi_evolution_demo.py "how to reduce stress"
 
 ## 📊 Performance Characteristics
 
-| Tool | Speed | Cost | Depth | Agents | Evolution |
-|------|-------|------|-------|--------|-----------|
-| `qadi.py` | Fast (7-12s) | Low | Basic | 1 | No |
-| `qadi_multi_agent.py` | Medium (15-30s) | Medium | High | 4+ | Optional |
-| `compare_qadi_approaches.py` | Slow (both) | Medium | Comparison | Both | No |
-| `qadi_evolution_demo.py` | Slow (30-60s) | High | Highest | 4+ | Yes |
+| Tool | Speed | Cost | Depth | Agents | Evolution | Reliability |
+|------|-------|------|-------|--------|-----------|-------------|
+| `qadi.py` | Fast (7-12s) | Low | Basic | 1 | No | ✅ High |
+| `qadi_working.py` | Fast (<1s) | None | High | 4 | No | ✅ High |
+| `qadi_multi_agent_fixed.py` | Slow (timeout risk) | High | Highest | 4+ | Optional | ⚠️ Experimental |
+| `compare_qadi_approaches.py` | Variable | Medium | Comparison | Both | No | ✅ High |
+| `qadi_evolution_demo.py` | Slow (30-60s) | High | Highest | 4+ | Yes | ⚠️ Experimental |
 
 ## 🔍 Key Differences from Simple Prompting
 
@@ -211,22 +236,51 @@ ANTHROPIC_API_KEY=your_anthropic_key
 
 ## 🐛 Troubleshooting
 
-**Common Issues**:
+### Timeout Issues ⚠️
+
+**Problem**: Some LLM-powered multi-agent tools may timeout
+**Root Cause**: Complex LLM agent coordination can hang during execution
+**Solution**: Use reliable alternatives
+
+**Diagnostic Tools**:
+```bash
+# Test all components systematically
+uv run python diagnose_timeout.py
+
+# Find exact failure point
+uv run python minimal_qadi_test.py
+```
+
+**Immediate Solutions**:
+```bash
+# ✅ Reliable multi-agent (recommended)
+uv run python qadi_working.py "your question"
+
+# ✅ Simple fast approach
+uv run python qadi.py "your question"
+
+# ⚠️ Experimental LLM version (may timeout)
+uv run python qadi_multi_agent_fixed.py "your question"
+```
+
+### Other Common Issues
 
 1. **API Key Missing**: Ensure `.env` file has valid API keys
-2. **Timeout Errors**: Google API can be slow; tools have 30s timeout
-3. **Cost Concerns**: Multi-agent tools use more tokens; monitor usage
-4. **Import Errors**: Run `uv sync` to ensure dependencies are installed
+2. **Cost Concerns**: Multi-agent tools use more tokens; monitor usage
+3. **Import Errors**: Run `uv sync` to ensure dependencies are installed
 
 **Debug Mode**:
-Add debug logging by setting environment variable:
 ```bash
 export LOG_LEVEL=DEBUG
-uv run python qadi_multi_agent.py "your question"
+uv run python qadi_working.py "your question"
 ```
+
+**For detailed timeout analysis, see**: `TIMEOUT_ANALYSIS.md`
 
 ## 🎯 Conclusion
 
 These tools showcase the evolution from simple prompt engineering to sophisticated multi-agent AI systems. While `qadi.py` provides a fast baseline, the multi-agent tools demonstrate the true potential of the Mad Spark Alt framework for generating high-quality, evolved solutions to complex problems.
 
-The comparison and evolution demos clearly show why Mad Spark Alt is much more than just a prompt wrapper - it's a comprehensive framework for AI-powered collaborative thinking and solution optimization.
+**`qadi_working.py` provides immediate multi-agent benefits** with reliable execution, while the LLM-powered versions showcase advanced capabilities (with some experimental limitations).
+
+Mad Spark Alt successfully demonstrates that it's much more than just a prompt wrapper - it's a comprehensive framework for AI-powered collaborative thinking and solution optimization.
