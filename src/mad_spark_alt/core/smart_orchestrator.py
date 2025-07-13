@@ -525,9 +525,16 @@ class SmartQADIOrchestrator:
                 )
             else:
                 # We know result is a tuple from _run_smart_phase_with_circuit_breaker
-                self._record_agent_success(method)
                 # Cast to the expected tuple type for type safety
                 typed_result: Tuple[IdeaGenerationResult, str] = result
+                phase_result, agent_type = typed_result
+                
+                # Check if result contains errors before recording success
+                if agent_type != "circuit_breaker_open" and not phase_result.error_message:
+                    self._record_agent_success(method)
+                elif phase_result.error_message:
+                    self._record_agent_failure(method)
+                    
                 result_dict[method] = typed_result
 
         return result_dict
@@ -556,12 +563,28 @@ class SmartQADIOrchestrator:
             try:
                 if task.done():
                     result = task.result()
-                    self._record_agent_success(method)
+                    # Check if result contains errors before recording success
+                    if isinstance(result, tuple) and len(result) == 2:
+                        phase_result, agent_type = result
+                        if agent_type != "circuit_breaker_open" and not phase_result.error_message:
+                            self._record_agent_success(method)
+                        elif phase_result.error_message:
+                            self._record_agent_failure(method)
+                    else:
+                        self._record_agent_success(method)
                     result_dict[method] = result
                 else:
                     # Try to get result with short timeout
                     result = await asyncio.wait_for(task, timeout=timeout_per_task)
-                    self._record_agent_success(method)
+                    # Check if result contains errors before recording success
+                    if isinstance(result, tuple) and len(result) == 2:
+                        phase_result, agent_type = result
+                        if agent_type != "circuit_breaker_open" and not phase_result.error_message:
+                            self._record_agent_success(method)
+                        elif phase_result.error_message:
+                            self._record_agent_failure(method)
+                    else:
+                        self._record_agent_success(method)
                     result_dict[method] = result
             except asyncio.TimeoutError:
                 logger.warning(f"Individual timeout for {method.value}")
@@ -689,10 +712,13 @@ class SmartQADIOrchestrator:
                 timeout=self.phase_timeout,
             )
 
-            # Only record success if we actually executed the agent
-            # (not if circuit breaker was open)
-            if agent_type != "circuit_breaker_open":
+            # Only record success if we actually executed the agent successfully
+            # (not if circuit breaker was open or if result contains errors)
+            if agent_type != "circuit_breaker_open" and not phase_result.error_message:
                 self._record_agent_success(method)
+            elif phase_result.error_message:
+                # Record failure if the result contains an error message
+                self._record_agent_failure(method)
             return phase_result, agent_type
 
         except asyncio.TimeoutError:
