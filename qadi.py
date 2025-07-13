@@ -1,130 +1,135 @@
 #!/usr/bin/env python3
 """
-QADI - Question, Abduction, Deduction, Induction analysis tool.
+QADI - Question, Abduction, Deduction, Induction analysis tool
 Usage: uv run python qadi.py "Your question here"
 
-This tool uses the Mad Spark Alt system to analyze your question using
-the QADI methodology and extract practical answers.
+Analyzes questions using the QADI methodology with Google Gemini API.
 """
 import asyncio
 import sys
 import os
 from pathlib import Path
+import time
 
-# Auto-load environment variables from .env
-env_file = Path(__file__).parent / '.env'
-if env_file.exists():
-    with open(env_file) as f:
+# Load .env
+env_path = Path(__file__).parent / '.env'
+if env_path.exists():
+    with open(env_path) as f:
         for line in f:
-            line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                key, value = line.split('=', 1)
+            if line.strip() and '=' in line and not line.startswith('#'):
+                key, value = line.strip().split('=', 1)
                 os.environ[key] = value.strip('"').strip("'")
 
-# Add source to Python path
 sys.path.insert(0, str(Path(__file__).parent / 'src'))
 
-async def run_qadi_analysis(prompt: str):
-    """Run QADI analysis on the given prompt."""
-    from mad_spark_alt.core.enhanced_orchestrator import EnhancedQADIOrchestrator
-    from mad_spark_alt.core.llm_provider import setup_llm_providers
-    from mad_spark_alt.core.smart_registry import setup_smart_agents
+async def run_single_llm_qadi(prompt: str):
+    """Run QADI with just one LLM call."""
+    from mad_spark_alt.core.llm_provider import setup_llm_providers, llm_manager, LLMRequest
     
-    # Get API keys
     google_key = os.getenv('GOOGLE_API_KEY')
-    openai_key = os.getenv('OPENAI_API_KEY')
-    anthropic_key = os.getenv('ANTHROPIC_API_KEY')
-    
-    has_llm = any([google_key, openai_key, anthropic_key])
+    if not google_key:
+        print("❌ No Google API key found in .env")
+        return
     
     print(f"📝 {prompt}")
     print("=" * 70)
     
-    if has_llm:
-        # Setup LLM providers
-        print("🤖 Setting up LLM agents...", end='', flush=True)
-        try:
-            await setup_llm_providers(
-                google_api_key=google_key,
-                openai_api_key=openai_key,
-                anthropic_api_key=anthropic_key
-            )
-            await setup_smart_agents()
-            print(" ✓")
-            
-            provider = "Google" if google_key else ("OpenAI" if openai_key else "Anthropic")
-            print(f"   Using: {provider} API")
-        except Exception as e:
-            print(f" ❌ {e}")
-            has_llm = False
-    else:
-        print("📋 Using template agents (no API keys found)")
+    # Setup Google API
+    await setup_llm_providers(google_api_key=google_key)
     
-    # Create orchestrator
-    orchestrator = EnhancedQADIOrchestrator()
+    print("🤖 Using Google Gemini API")
     
-    # Configure for optimal performance
-    config = {
-        'max_ideas_per_method': 2 if has_llm else 3,
-        'parallel_execution': not (has_llm and google_key)  # Sequential for Google
-    }
+    start_time = time.time()
     
-    print("\nRunning QADI analysis...")
+    # Single LLM call that does simplified QADI
+    qadi_prompt = f"""Analyze this question using the QADI methodology:
+"{prompt}"
+
+Provide exactly 3 practical answers based on:
+1. One key question to explore
+2. One creative hypothesis
+3. One logical deduction
+
+Format:
+QUESTION: [Your question]
+HYPOTHESIS: [Your hypothesis]
+DEDUCTION: [Your logical deduction]
+ANSWER1: [First practical answer based on the question]
+ANSWER2: [Second practical answer based on the hypothesis]
+ANSWER3: [Third practical answer based on the deduction]"""
+
+    print("\nGenerating QADI analysis...", end='', flush=True)
+    
+    request = LLMRequest(
+        user_prompt=qadi_prompt,
+        max_tokens=500,
+        temperature=0.7
+    )
     
     try:
-        # Run with appropriate timeout
-        timeout = 60 if has_llm else 10
-        result = await asyncio.wait_for(
-            orchestrator.run_qadi_cycle_with_answers(
-                problem_statement=prompt,
-                max_answers=5,
-                cycle_config=config
-            ),
-            timeout=timeout
-        )
+        response = await asyncio.wait_for(llm_manager.generate(request), timeout=30)
+        print(" ✓")
         
-        # Show results
-        print(f"\n⏱️  Completed in {result.execution_time:.1f}s")
-        if has_llm:
-            print(f"💰 LLM cost: ${result.llm_cost:.4f}")
+        elapsed = time.time() - start_time
+        print(f"\n⏱️  Completed in {elapsed:.1f}s")
+        print(f"💰 Cost: ${response.cost:.4f}")
+        
+        # Parse response
+        content = response.content
+        lines = content.split('\n')
+        
+        # Extract parts
+        question = hypothesis = deduction = ""
+        answers = []
+        
+        for line in lines:
+            line = line.strip()
+            if line.startswith("QUESTION:"):
+                question = line.replace("QUESTION:", "").strip()
+            elif line.startswith("HYPOTHESIS:"):
+                hypothesis = line.replace("HYPOTHESIS:", "").strip()
+            elif line.startswith("DEDUCTION:"):
+                deduction = line.replace("DEDUCTION:", "").strip()
+            elif line.startswith("ANSWER"):
+                answer = line.split(":", 1)[1].strip() if ":" in line else line
+                if answer:
+                    answers.append(answer)
+        
+        # Display QADI thinking
+        if any([question, hypothesis, deduction]):
+            print("\n🧠 QADI ANALYSIS:")
+            print("-" * 70)
+            if question:
+                print(f"\n❓ Question: {question}")
+            if hypothesis:
+                print(f"\n💡 Hypothesis: {hypothesis}")
+            if deduction:
+                print(f"\n🔍 Deduction: {deduction}")
         
         # Display answers
-        if result.extracted_answers:
-            print(f"\n✅ {len(result.extracted_answers.direct_answers)} ANSWERS:")
+        if answers:
+            print(f"\n✅ PRACTICAL ANSWERS:")
             print("-" * 70)
-            
-            for i, answer in enumerate(result.extracted_answers.direct_answers, 1):
-                print(f"\n{i}. {answer.content}")
-                print(f"   Source: {answer.source_phase} phase")
-                if has_llm and answer.confidence > 0.7:
-                    print(f"   Confidence: High")
+            for i, answer in enumerate(answers[:3], 1):
+                print(f"\n{i}. {answer}")
         else:
-            print("\n❌ No answers could be extracted")
+            # Fallback if parsing fails
+            print(f"\n📄 Raw response:")
+            print("-" * 70)
+            print(content)
             
     except asyncio.TimeoutError:
-        print(f"\n⏱️ Analysis timed out after {timeout}s")
-        if has_llm and google_key:
-            print("💡 Tip: Google's API can be slow. Try using OpenAI or Anthropic instead.")
+        print(" ⏱️ timeout")
+        print(f"\nGoogle API timed out after 30 seconds.")
     except Exception as e:
-        print(f"\n❌ Error: {str(e)}")
-
-def main():
-    """Main entry point."""
-    if len(sys.argv) < 2:
-        print("QADI - Multi-perspective analysis tool")
-        print("\nUsage: uv run python qadi.py \"Your question here\"")
-        print("\nExamples:")
-        print('  uv run python qadi.py "What are 5 ways to improve productivity?"')
-        print('  uv run python qadi.py "How can I learn programming effectively?"')
-        print('  uv run python qadi.py "Why do startups fail?"')
-        print("\nFor LLM-powered analysis, add API keys to .env:")
-        print("  GOOGLE_API_KEY=your-key")
-        print("  OPENAI_API_KEY=your-key")
-        print("  ANTHROPIC_API_KEY=your-key")
-        sys.exit(1)
-    
-    prompt = " ".join(sys.argv[1:])  # Support multi-word prompts
-    asyncio.run(run_qadi_analysis(prompt))
+        print(f" ❌ error: {e}")
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) < 2:
+        print('Usage: uv run python qadi.py "Your question"')
+        print('\nExamples:')
+        print('  uv run python qadi.py "how to live longer"')
+        print('  uv run python qadi.py "what are 3 ways to reduce stress"')
+    else:
+        prompt = " ".join(sys.argv[1:])
+        asyncio.run(run_single_llm_qadi(prompt))
