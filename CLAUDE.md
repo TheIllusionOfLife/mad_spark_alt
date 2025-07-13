@@ -15,7 +15,9 @@ The system provides an intelligent multi-agent framework with:
 5. **Google API Priority** - Always use real LLM APIs for meaningful insights
 
 ## ⚠️ CRITICAL: Never Use Template Agents
+
 **Template agents produce generic, meaningless responses that don't engage with the actual question.**
+
 - ❌ NEVER use `qadi_working.py` or any template-only implementations
 - ✅ ALWAYS use tools that leverage Google API or other LLMs
 - ✅ Use `qadi_simple_multi.py` for multi-agent analysis with Google API

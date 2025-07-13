@@ -53,6 +53,7 @@ pip install -e .
 ## Quick Start
 
 ### ⚠️ **CRITICAL: Always Use LLM APIs**
+
 **Template agents produce meaningless generic responses. ALWAYS use Google API or other LLMs for real insights.**
 
 ### 🚀 **QADI Idea Generation** (✅ **Ready to Use**)
@@ -69,6 +70,7 @@ uv run python qadi.py "How can we reduce plastic waste?"
 ```
 
 ### 📋 **Required Setup**
+
 ```bash
 # Create .env file with your API key
 echo "GOOGLE_API_KEY=your_key_here" > .env
@@ -132,12 +134,15 @@ mad-spark evaluate "Creative text here" --jury "gpt-4,claude-3-sonnet,gemini-pro
 ### Python API
 
 #### ⚠️ **IMPORTANT: Template Agents Are Meaningless**
+
 The following examples show the API structure, but remember:
+
 - Template agents produce generic responses that don't engage with your question
 - Always use LLM-powered versions for real insights
 - Use `qadi_simple_multi.py` or `qadi.py` for actual usage
 
 #### 🎯 **QADI Idea Generation** (✅ **Implemented**)
+
 ```python
 # ⚠️ WARNING: This example shows API structure only
 # For real usage with meaningful results, use:
