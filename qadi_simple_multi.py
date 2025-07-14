@@ -244,17 +244,40 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False, 
     print("\n✨ SYNTHESIS:")
     print("-" * 70)
     
-    # Truncate each phase to avoid context window issues
-    def truncate_text(text, max_chars=800):
+    # Smart summarization to preserve key insights while fitting context window
+    def extract_key_insights(text, max_chars=600):
+        """Extract key bullet points and insights, preserving structure"""
         if len(text) <= max_chars:
             return text
-        return text[:max_chars] + "...[truncated]"
+        
+        # Extract lines starting with key markers (bullets, numbered items, etc.)
+        lines = text.split('\n')
+        key_lines = []
+        current_length = 0
+        
+        for line in lines:
+            line = line.strip()
+            if line and (line.startswith('•') or line.startswith('-') or 
+                        line.startswith('Q:') or line.startswith('H:') or 
+                        line.startswith('D:') or line.startswith('I:') or
+                        line.startswith('1.') or line.startswith('2.') or line.startswith('3.')):
+                if current_length + len(line) <= max_chars:
+                    key_lines.append(line)
+                    current_length += len(line) + 1
+                else:
+                    break
+        
+        result = '\n'.join(key_lines)
+        if len(result) < len(text):
+            result += "\n...[key insights extracted]"
+        
+        return result if result else text[:max_chars] + "...[truncated]"
     
     synthesis_prompt = f"""Based on this QADI analysis for "{prompt}":
-{truncate_text(questions)}
-{truncate_text(hypotheses)}
-{truncate_text(deductions)}
-{truncate_text(patterns)}
+{extract_key_insights(questions)}
+{extract_key_insights(hypotheses)}
+{extract_key_insights(deductions)}
+{extract_key_insights(patterns)}
 
 Provide 3 concrete, actionable recommendations that synthesize all perspectives. For each recommendation:
 - Start with a clear action verb (e.g., "Implement", "Create", "Design", "Build")
