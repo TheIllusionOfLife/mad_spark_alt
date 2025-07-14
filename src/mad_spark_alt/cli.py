@@ -23,16 +23,16 @@ from .core import (
     EvaluationSummary,
     ModelOutput,
     OutputType,
-    registry,
     SmartQADIOrchestrator,
+    registry,
 )
-from .layers.quantitative import DiversityEvaluator, QualityEvaluator
 from .evolution import (
     EvolutionConfig,
     EvolutionRequest,
     GeneticAlgorithm,
     SelectionStrategy,
 )
+from .layers.quantitative import DiversityEvaluator, QualityEvaluator
 
 console = Console()
 
