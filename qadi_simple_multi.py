@@ -11,6 +11,25 @@ import sys
 import os
 from pathlib import Path
 import time
+from mad_spark_alt.core.terminal_renderer import render_phase_indicator, render_section_header, render_summary_section
+
+
+def display_phase_results(title: str, emoji: str, content: str, prefix: str) -> None:
+    """Display phase content with prefix-based or fallback formatting."""
+    print(f"\n{emoji} {title}:")
+    
+    # Check if there are lines with the expected prefix
+    prefixed_lines = [line for line in content.split('\n') if line.strip() and line.startswith(f'{prefix}:')]
+    
+    if prefixed_lines:
+        # Use prefixed lines and strip the prefix
+        for line in prefixed_lines:
+            print(f"  • {line[2:].strip()}")
+    else:
+        # Fallback to all non-empty lines if no prefix found
+        for line in content.split('\n'):
+            if line.strip():
+                print(f"  • {line.strip()}")
 
 # Load .env
 env_path = Path(__file__).parent / '.env'
@@ -43,47 +62,67 @@ async def run_qadi_phase(phase_name: str, prompt: str, previous_insights: str = 
     else:
         # Fallback to static prompts if no classification
         regular_prompts = {
-            "questioning": f"""As a questioning specialist, generate 2 insightful questions about: "{prompt}"
+            "questioning": f"""As a questioning specialist, generate exactly 2 insightful questions about: "{prompt}"
 {previous_insights}
-Format each question on a new line starting with "Q:".""",
+IMPORTANT: Format your response as:
+Q: [First question here]
+Q: [Second question here]""",
             
-            "abduction": f"""As a hypothesis specialist, generate 2 creative hypotheses about: "{prompt}"
+            "abduction": f"""As a hypothesis specialist, generate exactly 2 creative hypotheses about: "{prompt}"
 {previous_insights}
 Consider unexpected connections and possibilities.
-Format each hypothesis on a new line starting with "H:".""",
+IMPORTANT: Format your response as:
+H: [First hypothesis here]
+H: [Second hypothesis here]""",
             
-            "deduction": f"""As a logical reasoning specialist, generate 2 logical deductions about: "{prompt}"
+            "deduction": f"""As a logical reasoning specialist, generate exactly 2 logical deductions about: "{prompt}"
 {previous_insights}
 Apply systematic reasoning and derive conclusions.
-Format each deduction on a new line starting with "D:".""",
+IMPORTANT: Format your response as:
+D: [First deduction here]
+D: [Second deduction here]""",
             
-            "induction": f"""As a pattern synthesis specialist, generate 2 pattern-based insights about: "{prompt}"
+            "induction": f"""As a pattern synthesis specialist, generate exactly 2 pattern-based insights about: "{prompt}"
 {previous_insights}
 Identify recurring themes and general principles.
-Format each insight on a new line starting with "I:"."""
+IMPORTANT: Format your response as:
+I: [First pattern/insight here]
+I: [Second pattern/insight here]"""
         }
         
         concrete_prompts = {
-            "questioning": f"""As an implementation specialist, generate 2 practical questions about: "{prompt}"
+            "questioning": f"""As an implementation specialist, generate exactly 2 practical questions about: "{prompt}"
 {previous_insights}
 Focus on implementation challenges, resource requirements, and feasibility concerns.
-Format each question on a new line starting with "Q:".""",
+
+IMPORTANT: Format your response as:
+Q: [First question here]
+Q: [Second question here]""",
             
-            "abduction": f"""As a solution architect, generate 2 specific, implementable solutions for: "{prompt}"
+            "abduction": f"""As a solution architect, generate exactly 2 specific, implementable solutions for: "{prompt}"
 {previous_insights}
 Provide concrete approaches with specific tools, methods, or technologies.
 Include real-world examples where possible.
-Format each solution on a new line starting with "H:".""",
+
+IMPORTANT: Format your response as:
+H: [First solution here]
+H: [Second solution here]""",
             
-            "deduction": f"""As a project planner, generate 2 logical implementation steps for: "{prompt}"
+            "deduction": f"""As a project planner, generate exactly 2 logical implementation steps for: "{prompt}"
 {previous_insights}
 Focus on step-by-step approaches, prerequisites, and concrete actions.
-Format each step on a new line starting with "D:".""",
+
+IMPORTANT: Format your response as:
+D: [First step here]
+D: [Second step here]""",
             
-            "induction": f"""As a best practices specialist, generate 2 concrete patterns or methodologies for: "{prompt}"
+            "induction": f"""As a best practices specialist, generate exactly 2 concrete patterns or methodologies for: "{prompt}"
 {previous_insights}
 Identify proven approaches, specific frameworks, and actionable principles.
-Format each pattern on a new line starting with "I:"."""
+
+IMPORTANT: Format your response as:
+I: [First pattern here]
+I: [Second pattern here]"""
         }
         
         phase_prompts = concrete_prompts if concrete_mode else regular_prompts
@@ -175,11 +214,10 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False, 
     all_insights = []
     
     # Phase 1: Questioning
-    print("\n❓ QUESTIONING Phase...", end='', flush=True)
     phase_start = time.time()
     questions, q_cost, model_name = await run_qadi_phase("questioning", prompt, "", concrete_mode, classification_result)
     phase_time = time.time() - phase_start
-    print(f" ✓ ({phase_time:.1f}s)")
+    render_phase_indicator("QUESTIONING Phase", "❓", "✓", phase_time)
     total_cost += q_cost
     
     # Show model info after first successful call
@@ -188,66 +226,76 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False, 
     all_insights.append(f"Questions explored:\n{questions}")
     
     # Phase 2: Abduction (using previous insights)
-    print("💡 ABDUCTION Phase...", end='', flush=True)
     phase_start = time.time()
     previous = f"Building on these questions:\n{questions}"
     hypotheses, h_cost, _ = await run_qadi_phase("abduction", prompt, previous, concrete_mode, classification_result)
     phase_time = time.time() - phase_start
-    print(f" ✓ ({phase_time:.1f}s)")
+    render_phase_indicator("ABDUCTION Phase", "💡", "✓", phase_time)
     total_cost += h_cost
     all_insights.append(f"Hypotheses generated:\n{hypotheses}")
     
     # Phase 3: Deduction (using accumulated insights)
-    print("🔍 DEDUCTION Phase...", end='', flush=True)
     phase_start = time.time()
     previous = f"Building on questions and hypotheses:\n{questions}\n{hypotheses}"
     deductions, d_cost, _ = await run_qadi_phase("deduction", prompt, previous, concrete_mode, classification_result)
     phase_time = time.time() - phase_start
-    print(f" ✓ ({phase_time:.1f}s)")
+    render_phase_indicator("DEDUCTION Phase", "🔍", "✓", phase_time)
     total_cost += d_cost
     all_insights.append(f"Logical deductions:\n{deductions}")
     
     # Phase 4: Induction (synthesizing all insights)
-    print("🎯 INDUCTION Phase...", end='', flush=True)
     phase_start = time.time()
     previous = f"Synthesizing all insights:\n{questions}\n{hypotheses}\n{deductions}"
     patterns, i_cost, _ = await run_qadi_phase("induction", prompt, previous, concrete_mode, classification_result)
     phase_time = time.time() - phase_start
-    print(f" ✓ ({phase_time:.1f}s)")
+    render_phase_indicator("INDUCTION Phase", "🎯", "✓", phase_time)
     total_cost += i_cost
     
     # Display results
-    print("\n\n🔍 MULTI-AGENT QADI ANALYSIS:")
-    print("=" * 70)
+    render_section_header("MULTI-AGENT QADI ANALYSIS", "🔍")
     
-    print("\n❓ QUESTIONING:")
-    for line in questions.split('\n'):
-        if line.strip() and line.startswith('Q:'):
-            print(f"  • {line[2:].strip()}")
-    
-    print("\n💡 ABDUCTION:")
-    for line in hypotheses.split('\n'):
-        if line.strip() and line.startswith('H:'):
-            print(f"  • {line[2:].strip()}")
-    
-    print("\n🔍 DEDUCTION:")
-    for line in deductions.split('\n'):
-        if line.strip() and line.startswith('D:'):
-            print(f"  • {line[2:].strip()}")
-    
-    print("\n🎯 INDUCTION:")
-    for line in patterns.split('\n'):
-        if line.strip() and line.startswith('I:'):
-            print(f"  • {line[2:].strip()}")
+    display_phase_results("QUESTIONING", "❓", questions, "Q")
+    display_phase_results("ABDUCTION", "💡", hypotheses, "H")
+    display_phase_results("DEDUCTION", "🔍", deductions, "D")
+    display_phase_results("INDUCTION", "🎯", patterns, "I")
     
     # Final synthesis
-    print("\n✨ SYNTHESIS:")
-    print("-" * 70)
+    render_section_header("SYNTHESIS", "✨")
+    
+    # Smart summarization to preserve key insights while fitting context window
+    def extract_key_insights(text, max_chars=600):
+        """Extract key bullet points and insights, preserving structure"""
+        if len(text) <= max_chars:
+            return text
+        
+        # Extract lines starting with key markers (bullets, numbered items, etc.)
+        lines = text.split('\n')
+        key_lines = []
+        current_length = 0
+        
+        for line in lines:
+            line = line.strip()
+            if line and (line.startswith('•') or line.startswith('-') or 
+                        line.startswith('Q:') or line.startswith('H:') or 
+                        line.startswith('D:') or line.startswith('I:') or
+                        line.startswith('1.') or line.startswith('2.') or line.startswith('3.')):
+                if current_length + len(line) <= max_chars:
+                    key_lines.append(line)
+                    current_length += len(line) + 1
+                else:
+                    break
+        
+        result = '\n'.join(key_lines)
+        if len(result) < len(text):
+            result += "\n...[key insights extracted]"
+        
+        return result if result else text[:max_chars] + "...[truncated]"
+    
     synthesis_prompt = f"""Based on this QADI analysis for "{prompt}":
-{questions}
-{hypotheses}
-{deductions}
-{patterns}
+{extract_key_insights(questions)}
+{extract_key_insights(hypotheses)}
+{extract_key_insights(deductions)}
+{extract_key_insights(patterns)}
 
 Provide 3 concrete, actionable recommendations that synthesize all perspectives. For each recommendation:
 - Start with a clear action verb (e.g., "Implement", "Create", "Design", "Build")
@@ -255,6 +303,8 @@ Provide 3 concrete, actionable recommendations that synthesize all perspectives.
 - Provide concrete examples when possible
 - Focus on practical implementation over theoretical concepts
 - Make it something someone could actually do or build
+
+IMPORTANT: Respond in the same language as the original question "{prompt}".
 
 Format as:
 1. **[Action-focused title]:** [Specific implementation details and examples]
@@ -264,34 +314,42 @@ Format as:
     from mad_spark_alt.core.llm_provider import llm_manager, LLMRequest
     request = LLMRequest(
         user_prompt=synthesis_prompt,
-        max_tokens=400,
+        max_tokens=1500,
         temperature=0.5
     )
     
     try:
-        synthesis = await asyncio.wait_for(llm_manager.generate(request), timeout=20)
-        print(synthesis.content)
+        synthesis = await asyncio.wait_for(llm_manager.generate(request), timeout=60)
+        
+        # Import Rich rendering utilities
+        from mad_spark_alt.core.terminal_renderer import render_markdown
+        
+        # Render synthesis content with proper markdown formatting
+        render_markdown(synthesis.content)
         total_cost += synthesis.cost
-    except:
-        print("(Synthesis timed out)")
+    except Exception as e:
+        print(f"(Synthesis failed: {str(e)})")
     
     # Summary
     total_time = time.time() - start_time
-    print(f"\n📊 Performance Summary:")
-    print(f"  ⏱️  Total time: {total_time:.1f}s")
-    print(f"  💰 Total cost: {format_llm_cost(total_cost)}")
-    print(f"  🤖 API calls: 5 (4 phases + synthesis)")
-    if model_name != "unknown":
-        print(f"  ✅ Model: {model_name}")
-    else:
-        print(f"  ✅ LLM mode: Multi-agent analysis")
     
-    print(f"\n💡 Advantages:")
-    print(f"  • Real LLM-powered insights (not templates)")
-    print(f"  • Multi-perspective QADI analysis")
-    print(f"  • Progressive reasoning (each phase builds on previous)")
-    print(f"  • No timeout issues")
-    print(f"  • Much richer than single prompt approach")
+    performance_items = [
+        f"⏱️  Total time: {total_time:.1f}s",
+        f"💰 Total cost: {format_llm_cost(total_cost)}",
+        f"🤖 API calls: 5 (4 phases + synthesis)",
+        f"✅ Model: {model_name}" if model_name != "unknown" else "✅ LLM mode: Multi-agent analysis"
+    ]
+    
+    advantages_items = [
+        "Real LLM-powered insights (not templates)",
+        "Multi-perspective QADI analysis", 
+        "Progressive reasoning (each phase builds on previous)",
+        "No timeout issues",
+        "Much richer than single prompt approach"
+    ]
+    
+    render_summary_section(performance_items, "Performance Summary")
+    render_summary_section(advantages_items, "💡 Advantages")
 
 def show_help():
     """Display help information."""
