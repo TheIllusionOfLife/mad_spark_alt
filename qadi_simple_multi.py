@@ -23,12 +23,12 @@ if env_path.exists():
 
 sys.path.insert(0, str(Path(__file__).parent / 'src'))
 
-async def run_qadi_phase(phase_name: str, prompt: str, previous_insights: str = ""):
+async def run_qadi_phase(phase_name: str, prompt: str, previous_insights: str = "", concrete_mode: bool = False):
     """Run a single QADI phase using simple LLM call."""
     from mad_spark_alt.core.llm_provider import setup_llm_providers, llm_manager, LLMRequest
     
-    # Phase-specific prompts
-    phase_prompts = {
+    # Phase-specific prompts for regular mode
+    regular_prompts = {
         "questioning": f"""As a questioning specialist, generate 2 insightful questions about: "{prompt}"
 {previous_insights}
 Format each question on a new line starting with "Q:".""",
@@ -49,6 +49,33 @@ Identify recurring themes and general principles.
 Format each insight on a new line starting with "I:"."""
     }
     
+    # Phase-specific prompts for concrete mode
+    concrete_prompts = {
+        "questioning": f"""As an implementation specialist, generate 2 practical questions about: "{prompt}"
+{previous_insights}
+Focus on implementation challenges, resource requirements, and feasibility concerns.
+Format each question on a new line starting with "Q:".""",
+        
+        "abduction": f"""As a solution architect, generate 2 specific, implementable solutions for: "{prompt}"
+{previous_insights}
+Provide concrete approaches with specific tools, methods, or technologies.
+Include real-world examples where possible.
+Format each solution on a new line starting with "H:".""",
+        
+        "deduction": f"""As a project planner, generate 2 logical implementation steps for: "{prompt}"
+{previous_insights}
+Focus on step-by-step approaches, prerequisites, and concrete actions.
+Format each step on a new line starting with "D:".""",
+        
+        "induction": f"""As a best practices specialist, generate 2 concrete patterns or methodologies for: "{prompt}"
+{previous_insights}
+Identify proven approaches, specific frameworks, and actionable principles.
+Format each pattern on a new line starting with "I:"."""
+    }
+    
+    # Choose prompts based on mode
+    phase_prompts = concrete_prompts if concrete_mode else regular_prompts
+    
     request = LLMRequest(
         user_prompt=phase_prompts[phase_name],
         max_tokens=300,
@@ -63,7 +90,7 @@ Format each insight on a new line starting with "I:"."""
     except Exception as e:
         return f"[{phase_name} phase error: {e}]", 0.0, "unknown"
 
-async def run_simple_multi_agent_qadi(prompt: str):
+async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False):
     """Run QADI using multiple simple LLM calls."""
     from mad_spark_alt.core.llm_provider import setup_llm_providers
     from mad_spark_alt.core.json_utils import format_llm_cost
@@ -101,7 +128,7 @@ async def run_simple_multi_agent_qadi(prompt: str):
     # Phase 1: Questioning
     print("\n❓ QUESTIONING Phase...", end='', flush=True)
     phase_start = time.time()
-    questions, q_cost, model_name = await run_qadi_phase("questioning", prompt)
+    questions, q_cost, model_name = await run_qadi_phase("questioning", prompt, "", concrete_mode)
     phase_time = time.time() - phase_start
     print(f" ✓ ({phase_time:.1f}s)")
     total_cost += q_cost
@@ -115,7 +142,7 @@ async def run_simple_multi_agent_qadi(prompt: str):
     print("💡 ABDUCTION Phase...", end='', flush=True)
     phase_start = time.time()
     previous = f"Building on these questions:\n{questions}"
-    hypotheses, h_cost, _ = await run_qadi_phase("abduction", prompt, previous)
+    hypotheses, h_cost, _ = await run_qadi_phase("abduction", prompt, previous, concrete_mode)
     phase_time = time.time() - phase_start
     print(f" ✓ ({phase_time:.1f}s)")
     total_cost += h_cost
@@ -125,7 +152,7 @@ async def run_simple_multi_agent_qadi(prompt: str):
     print("🔍 DEDUCTION Phase...", end='', flush=True)
     phase_start = time.time()
     previous = f"Building on questions and hypotheses:\n{questions}\n{hypotheses}"
-    deductions, d_cost, _ = await run_qadi_phase("deduction", prompt, previous)
+    deductions, d_cost, _ = await run_qadi_phase("deduction", prompt, previous, concrete_mode)
     phase_time = time.time() - phase_start
     print(f" ✓ ({phase_time:.1f}s)")
     total_cost += d_cost
@@ -135,7 +162,7 @@ async def run_simple_multi_agent_qadi(prompt: str):
     print("🎯 INDUCTION Phase...", end='', flush=True)
     phase_start = time.time()
     previous = f"Synthesizing all insights:\n{questions}\n{hypotheses}\n{deductions}"
-    patterns, i_cost, _ = await run_qadi_phase("induction", prompt, previous)
+    patterns, i_cost, _ = await run_qadi_phase("induction", prompt, previous, concrete_mode)
     phase_time = time.time() - phase_start
     print(f" ✓ ({phase_time:.1f}s)")
     total_cost += i_cost
@@ -173,7 +200,17 @@ async def run_simple_multi_agent_qadi(prompt: str):
 {deductions}
 {patterns}
 
-Provide 3 actionable insights that synthesize all perspectives."""
+Provide 3 concrete, actionable recommendations that synthesize all perspectives. For each recommendation:
+- Start with a clear action verb (e.g., "Implement", "Create", "Design", "Build")
+- Include specific steps or methods
+- Provide concrete examples when possible
+- Focus on practical implementation over theoretical concepts
+- Make it something someone could actually do or build
+
+Format as:
+1. **[Action-focused title]:** [Specific implementation details and examples]
+2. **[Action-focused title]:** [Specific implementation details and examples]  
+3. **[Action-focused title]:** [Specific implementation details and examples]"""
     
     from mad_spark_alt.core.llm_provider import llm_manager, LLMRequest
     request = LLMRequest(
@@ -224,6 +261,7 @@ def show_help():
     print("OPTIONS:")
     print("  -h, --help    Show this help message and exit")
     print("  --version     Show version information")
+    print("  --concrete    Use concrete mode for practical, implementable outputs")
     print()
     print("FEATURES:")
     print("  • Real LLM-powered insights (not templates)")
@@ -238,10 +276,25 @@ def show_help():
     print("  • Internet connection")
     print()
     print("EXAMPLES:")
-    print('  uv run python qadi_simple_multi.py "how to create AGI"')
-    print('  uv run python qadi_simple_multi.py "reduce climate change"')
-    print('  uv run python qadi_simple_multi.py "improve team productivity"')
-    print('  uv run python qadi_simple_multi.py "design better user interfaces"')
+    print("  Regular mode (analytical):")
+    print('    uv run python qadi_simple_multi.py "how to create AGI"')
+    print('    uv run python qadi_simple_multi.py "reduce climate change"')
+    print()
+    print("  Concrete mode (implementation-focused):")
+    print('    uv run python qadi_simple_multi.py --concrete "build a mobile game"')
+    print('    uv run python qadi_simple_multi.py --concrete "improve team productivity"')
+    print('    uv run python qadi_simple_multi.py --concrete "design better user interfaces"')
+    print()
+    print("MODES:")
+    print("  Regular Mode:")
+    print("    • Analytical and exploratory approach")
+    print("    • Focuses on deep understanding and creative insights")
+    print("    • Best for brainstorming and strategic thinking")
+    print()
+    print("  Concrete Mode (--concrete):")
+    print("    • Implementation-focused approach")
+    print("    • Emphasizes practical steps and specific solutions")
+    print("    • Best for project planning and actionable deliverables")
     print()
     print("QADI METHODOLOGY:")
     print("  Question   → Generate insightful questions about the topic")
@@ -256,6 +309,19 @@ def show_help():
     print("  • Final synthesis with 3 actionable recommendations")
     print("  • Performance metrics (time, cost, model used)")
     print("  • Cost information (shows 'Free' for low API costs)")
+    print()
+    print("PROMPT OPTIMIZATION TIPS:")
+    print("  For Concrete Results:")
+    print("    • Ask about building, creating, or implementing something")
+    print("    • Include specific constraints (time, budget, tools)")
+    print('    • Use action words: "How to build...", "Steps to create..."')
+    print('    • Example: "Build a mobile game with limited budget in 3 months"')
+    print()
+    print("  For Analytical Results:")
+    print("    • Ask about understanding, exploring, or analyzing")
+    print("    • Focus on 'why' and 'what if' questions")
+    print('    • Use exploratory words: "Explore...", "Understand...", "Analyze..."')
+    print('    • Example: "Explore the future implications of AI on society"')
 
 def show_version():
     """Display version information."""
@@ -270,5 +336,18 @@ if __name__ == "__main__":
     elif sys.argv[1] == "--version":
         show_version()
     else:
-        prompt = " ".join(sys.argv[1:])
-        asyncio.run(run_simple_multi_agent_qadi(prompt))
+        # Check for concrete mode flag
+        concrete_mode = False
+        args = sys.argv[1:]
+        
+        if "--concrete" in args:
+            concrete_mode = True
+            args.remove("--concrete")
+        
+        if not args:
+            print("Error: Please provide a question after the --concrete flag")
+            print('Usage: uv run python qadi_simple_multi.py [--concrete] "Your question"')
+            sys.exit(1)
+            
+        prompt = " ".join(args)
+        asyncio.run(run_simple_multi_agent_qadi(prompt, concrete_mode))
