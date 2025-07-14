@@ -42,14 +42,18 @@ def load_env_file() -> None:
     """Load environment variables from .env file if it exists."""
     env_path = Path(__file__).parent.parent.parent / ".env"
     if env_path.exists():
-        with open(env_path) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    key, value = line.split("=", 1)
-                    # Only set if not already in environment
-                    if key not in os.environ:
-                        os.environ[key] = value.strip('"').strip("'")
+        try:
+            with open(env_path) as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        key, value = line.split("=", 1)
+                        # Only set if not already in environment
+                        if key not in os.environ:
+                            os.environ[key] = value.strip('"').strip("'")
+        except Exception as e:
+            # Log error but don't fail - env vars might be set elsewhere
+            logging.warning(f"Failed to load .env file: {e}")
 
 
 def setup_logging(verbose: bool = False) -> None:

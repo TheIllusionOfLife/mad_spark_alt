@@ -6,7 +6,6 @@ These tests measure execution time and memory usage for key operations.
 
 import asyncio
 import time
-from typing import List
 
 import pytest
 
@@ -17,15 +16,30 @@ from mad_spark_alt.core import (
     SmartQADIOrchestrator,
     ThinkingMethod,
 )
-from mad_spark_alt.evolution import EvolutionConfig, GeneticAlgorithm, SelectionStrategy
+from mad_spark_alt.evolution import (
+    EvolutionConfig,
+    EvolutionRequest,
+    GeneticAlgorithm,
+    SelectionStrategy,
+)
 from mad_spark_alt.layers.quantitative import DiversityEvaluator, QualityEvaluator
 
 
 class TestPerformanceBenchmarks:
     """Performance benchmarking tests."""
 
+    @pytest.fixture(autouse=True)
+    def setup_teardown(self):
+        """Setup and teardown for each test."""
+        # Setup: Clear any caches or state
+        yield
+        # Teardown: Clean up resources
+        import gc
+
+        gc.collect()
+
     @pytest.mark.asyncio
-    async def test_qadi_cycle_performance(self):
+    async def test_qadi_cycle_performance(self) -> None:
         """Benchmark QADI cycle execution time."""
         orchestrator = SmartQADIOrchestrator()
 
@@ -56,13 +70,13 @@ class TestPerformanceBenchmarks:
         assert avg_time < 180  # Average should be under 3 minutes
         assert max_time < 240  # Max should be under 4 minutes
 
-        print(f"\nQADI Cycle Performance:")
+        print("\nQADI Cycle Performance:")
         print(f"  Average time: {avg_time:.2f}s")
         print(f"  Max time: {max_time:.2f}s")
         print(f"  Times: {[f'{t:.2f}s' for t in execution_times]}")
 
     @pytest.mark.asyncio
-    async def test_parallel_generation_performance(self):
+    async def test_parallel_generation_performance(self) -> None:
         """Benchmark parallel idea generation."""
         orchestrator = SmartQADIOrchestrator()
 
@@ -98,7 +112,7 @@ class TestPerformanceBenchmarks:
             assert execution_time < 60 * num_methods  # Should scale sub-linearly
 
     @pytest.mark.asyncio
-    async def test_evaluation_performance(self):
+    async def test_evaluation_performance(self) -> None:
         """Benchmark evaluation performance."""
         # Create test outputs
         outputs = [
@@ -134,7 +148,7 @@ class TestPerformanceBenchmarks:
             assert execution_time < 10  # Should evaluate 10 outputs in under 10s
 
     @pytest.mark.asyncio
-    async def test_evolution_performance(self):
+    async def test_evolution_performance(self) -> None:
         """Benchmark genetic evolution performance."""
         # Create initial population
         initial_ideas = [
@@ -157,18 +171,22 @@ class TestPerformanceBenchmarks:
             elite_size=2,
         )
 
-        ga = GeneticAlgorithm(config)
+        ga = GeneticAlgorithm()
+
+        # Create evolution request
+        evolution_request = EvolutionRequest(
+            initial_population=initial_ideas,
+            config=config,
+            context="Test evolution for performance",
+        )
 
         start_time = time.time()
-        evolved_population = await ga.evolve(
-            initial_population=initial_ideas,
-            problem_context="Test evolution for performance",
-        )
+        result = await ga.evolve(evolution_request)
         execution_time = time.time() - start_time
 
-        assert len(evolved_population) == config.population_size
+        assert len(result.final_population) == config.population_size
 
-        print(f"\nEvolution Performance:")
+        print("\nEvolution Performance:")
         print(f"  Time for {config.generations} generations: {execution_time:.2f}s")
         print(f"  Population size: {config.population_size}")
         print(f"  Time per generation: {execution_time/config.generations:.2f}s")
@@ -177,7 +195,7 @@ class TestPerformanceBenchmarks:
         assert execution_time < 60  # 3 generations should complete in under 1 minute
 
     @pytest.mark.asyncio
-    async def test_memory_usage_qadi_cycle(self):
+    async def test_memory_usage_qadi_cycle(self) -> None:
         """Test memory usage during QADI cycle."""
         # This is a simple memory tracking test
         # For detailed profiling, use memory_profiler decorators
@@ -206,7 +224,7 @@ class TestPerformanceBenchmarks:
         total_memory = sum(stat.size_diff for stat in top_stats)
         total_memory_mb = total_memory / 1024 / 1024
 
-        print(f"\nMemory Usage (QADI Cycle):")
+        print("\nMemory Usage (QADI Cycle):")
         print(f"  Total increase: {total_memory_mb:.2f} MB")
         print(f"  Ideas generated: {len(result.synthesized_ideas)}")
 
@@ -215,10 +233,10 @@ class TestPerformanceBenchmarks:
 
         tracemalloc.stop()
 
-    def test_concurrent_request_handling(self):
+    def test_concurrent_request_handling(self) -> None:
         """Test handling multiple concurrent requests."""
 
-        async def run_concurrent_test():
+        async def run_concurrent_test() -> None:
             orchestrator = SmartQADIOrchestrator()
 
             # Create multiple concurrent requests
@@ -242,7 +260,7 @@ class TestPerformanceBenchmarks:
 
             assert len(results) == num_concurrent
 
-            print(f"\nConcurrent Request Performance:")
+            print("\nConcurrent Request Performance:")
             print(f"  Requests: {num_concurrent}")
             print(f"  Total time: {execution_time:.2f}s")
             print(f"  Average time per request: {execution_time/num_concurrent:.2f}s")
