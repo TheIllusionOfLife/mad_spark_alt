@@ -175,11 +175,12 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False, 
     all_insights = []
     
     # Phase 1: Questioning
-    print("\n❓ QUESTIONING Phase...", end='', flush=True)
+    from mad_spark_alt.core.terminal_renderer import render_phase_indicator
+    
     phase_start = time.time()
     questions, q_cost, model_name = await run_qadi_phase("questioning", prompt, "", concrete_mode, classification_result)
     phase_time = time.time() - phase_start
-    print(f" ✓ ({phase_time:.1f}s)")
+    render_phase_indicator("QUESTIONING Phase", "❓", "✓", phase_time)
     total_cost += q_cost
     
     # Show model info after first successful call
@@ -188,37 +189,33 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False, 
     all_insights.append(f"Questions explored:\n{questions}")
     
     # Phase 2: Abduction (using previous insights)
-    print("💡 ABDUCTION Phase...", end='', flush=True)
     phase_start = time.time()
     previous = f"Building on these questions:\n{questions}"
     hypotheses, h_cost, _ = await run_qadi_phase("abduction", prompt, previous, concrete_mode, classification_result)
     phase_time = time.time() - phase_start
-    print(f" ✓ ({phase_time:.1f}s)")
+    render_phase_indicator("ABDUCTION Phase", "💡", "✓", phase_time)
     total_cost += h_cost
     all_insights.append(f"Hypotheses generated:\n{hypotheses}")
     
     # Phase 3: Deduction (using accumulated insights)
-    print("🔍 DEDUCTION Phase...", end='', flush=True)
     phase_start = time.time()
     previous = f"Building on questions and hypotheses:\n{questions}\n{hypotheses}"
     deductions, d_cost, _ = await run_qadi_phase("deduction", prompt, previous, concrete_mode, classification_result)
     phase_time = time.time() - phase_start
-    print(f" ✓ ({phase_time:.1f}s)")
+    render_phase_indicator("DEDUCTION Phase", "🔍", "✓", phase_time)
     total_cost += d_cost
     all_insights.append(f"Logical deductions:\n{deductions}")
     
     # Phase 4: Induction (synthesizing all insights)
-    print("🎯 INDUCTION Phase...", end='', flush=True)
     phase_start = time.time()
     previous = f"Synthesizing all insights:\n{questions}\n{hypotheses}\n{deductions}"
     patterns, i_cost, _ = await run_qadi_phase("induction", prompt, previous, concrete_mode, classification_result)
     phase_time = time.time() - phase_start
-    print(f" ✓ ({phase_time:.1f}s)")
+    render_phase_indicator("INDUCTION Phase", "🎯", "✓", phase_time)
     total_cost += i_cost
     
     # Display results
-    print("\n\n🔍 MULTI-AGENT QADI ANALYSIS:")
-    print("=" * 70)
+    render_section_header("MULTI-AGENT QADI ANALYSIS", "🔍")
     
     print("\n❓ QUESTIONING:")
     for line in questions.split('\n'):
@@ -241,8 +238,8 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False, 
             print(f"  • {line[2:].strip()}")
     
     # Final synthesis
-    print("\n✨ SYNTHESIS:")
-    print("-" * 70)
+    from mad_spark_alt.core.terminal_renderer import render_section_header
+    render_section_header("SYNTHESIS", "✨")
     
     # Smart summarization to preserve key insights while fitting context window
     def extract_key_insights(text, max_chars=600):
@@ -302,28 +299,38 @@ Format as:
     
     try:
         synthesis = await asyncio.wait_for(llm_manager.generate(request), timeout=60)
-        print(synthesis.content)
+        
+        # Import Rich rendering utilities
+        from mad_spark_alt.core.terminal_renderer import render_markdown
+        
+        # Render synthesis content with proper markdown formatting
+        render_markdown(synthesis.content)
         total_cost += synthesis.cost
     except Exception as e:
         print(f"(Synthesis failed: {str(e)})")
     
     # Summary
-    total_time = time.time() - start_time
-    print(f"\n📊 Performance Summary:")
-    print(f"  ⏱️  Total time: {total_time:.1f}s")
-    print(f"  💰 Total cost: {format_llm_cost(total_cost)}")
-    print(f"  🤖 API calls: 5 (4 phases + synthesis)")
-    if model_name != "unknown":
-        print(f"  ✅ Model: {model_name}")
-    else:
-        print(f"  ✅ LLM mode: Multi-agent analysis")
+    from mad_spark_alt.core.terminal_renderer import render_summary_section
     
-    print(f"\n💡 Advantages:")
-    print(f"  • Real LLM-powered insights (not templates)")
-    print(f"  • Multi-perspective QADI analysis")
-    print(f"  • Progressive reasoning (each phase builds on previous)")
-    print(f"  • No timeout issues")
-    print(f"  • Much richer than single prompt approach")
+    total_time = time.time() - start_time
+    
+    performance_items = [
+        f"⏱️  Total time: {total_time:.1f}s",
+        f"💰 Total cost: {format_llm_cost(total_cost)}",
+        f"🤖 API calls: 5 (4 phases + synthesis)",
+        f"✅ Model: {model_name}" if model_name != "unknown" else "✅ LLM mode: Multi-agent analysis"
+    ]
+    
+    advantages_items = [
+        "Real LLM-powered insights (not templates)",
+        "Multi-perspective QADI analysis", 
+        "Progressive reasoning (each phase builds on previous)",
+        "No timeout issues",
+        "Much richer than single prompt approach"
+    ]
+    
+    render_summary_section(performance_items, "Performance Summary")
+    render_summary_section(advantages_items, "💡 Advantages")
 
 def show_help():
     """Display help information."""
