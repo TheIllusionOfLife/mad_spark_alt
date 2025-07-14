@@ -29,7 +29,7 @@ class SmartAgentRegistry:
     - Intelligent agent selection
     """
 
-    def __init__(self, base_registry: Optional[ThinkingAgentRegistry] = None):
+    def __init__(self, base_registry: Optional[ThinkingAgentRegistry] = None) -> None:
         """
         Initialize the smart registry.
 

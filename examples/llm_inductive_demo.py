@@ -8,7 +8,7 @@ capabilities of the LLM Inductive Agent compared to template-based approaches.
 
 import asyncio
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
 from mad_spark_alt.agents.induction.agent import InductionAgent
 from mad_spark_alt.agents.induction.llm_agent import LLMInductiveAgent

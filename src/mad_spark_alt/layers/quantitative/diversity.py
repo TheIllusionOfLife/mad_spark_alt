@@ -11,6 +11,10 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
 
+from ...core.evaluation_utils import (
+    CacheKeyGenerator,
+    TextAnalyzer,
+)
 from ...core.interfaces import (
     AsyncEvaluatorMixin,
     CacheableEvaluatorMixin,
@@ -75,10 +79,10 @@ class DiversityEvaluator(
         content = str(output.content)
 
         scores = {
-            "distinct_1": self._calculate_distinct_n(content, 1),
-            "distinct_2": self._calculate_distinct_n(content, 2),
-            "distinct_3": self._calculate_distinct_n(content, 3),
-            "lexical_diversity": self._calculate_lexical_diversity(content),
+            "distinct_1": TextAnalyzer.calculate_distinct_n(content, 1),
+            "distinct_2": TextAnalyzer.calculate_distinct_n(content, 2),
+            "distinct_3": TextAnalyzer.calculate_distinct_n(content, 3),
+            "lexical_diversity": TextAnalyzer.calculate_lexical_diversity(content),
         }
 
         explanations = {
@@ -114,10 +118,10 @@ class DiversityEvaluator(
 
             # Individual diversity metrics
             scores = {
-                "distinct_1": self._calculate_distinct_n(content, 1),
-                "distinct_2": self._calculate_distinct_n(content, 2),
-                "distinct_3": self._calculate_distinct_n(content, 3),
-                "lexical_diversity": self._calculate_lexical_diversity(content),
+                "distinct_1": TextAnalyzer.calculate_distinct_n(content, 1),
+                "distinct_2": TextAnalyzer.calculate_distinct_n(content, 2),
+                "distinct_3": TextAnalyzer.calculate_distinct_n(content, 3),
+                "lexical_diversity": TextAnalyzer.calculate_lexical_diversity(content),
             }
 
             # Semantic diversity metrics (relative to other outputs)
@@ -175,7 +179,7 @@ class DiversityEvaluator(
 
         # Check cache first
         for i, text in enumerate(texts):
-            cache_key = self._get_text_cache_key(text)
+            cache_key = CacheKeyGenerator.generate_text_key(text, prefix="embed")
             if cache_key in self._embedding_cache:
                 embeddings.append(self._embedding_cache[cache_key])
             else:
@@ -191,7 +195,7 @@ class DiversityEvaluator(
             for i, embedding in enumerate(new_embeddings):
                 original_index = uncached_indices[i]
                 text = uncached_texts[i]
-                cache_key = self._get_text_cache_key(text)
+                cache_key = CacheKeyGenerator.generate_text_key(text, prefix="embed")
 
                 self._embedding_cache[cache_key] = embedding
                 embeddings[original_index] = embedding
@@ -202,30 +206,6 @@ class DiversityEvaluator(
             # Return empty array with proper shape if no embeddings
             return cast(np.ndarray, np.array([]).reshape(0, -1))
         return cast(np.ndarray, np.array(valid_embeddings))
-
-    def _calculate_distinct_n(self, text: str, n: int) -> float:
-        """Calculate distinct n-gram ratio."""
-        words = text.lower().split()
-        if len(words) < n:
-            return 1.0
-
-        ngrams = [tuple(words[i : i + n]) for i in range(len(words) - n + 1)]
-        unique_ngrams = set(ngrams)
-
-        return len(unique_ngrams) / len(ngrams) if ngrams else 0.0
-
-    def _calculate_lexical_diversity(self, text: str) -> float:
-        """Calculate lexical diversity (type-token ratio)."""
-        words = text.lower().split()
-        if not words:
-            return 0.0
-
-        unique_words = set(words)
-        return len(unique_words) / len(words)
-
-    def _get_text_cache_key(self, text: str) -> str:
-        """Generate cache key for text."""
-        return f"{hash(text)}_{len(text)}"
 
     def get_cache_key(self, request: EvaluationRequest) -> str:
         """Generate cache key for request."""

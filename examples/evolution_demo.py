@@ -6,22 +6,13 @@ and optimized using genetic algorithms.
 """
 
 import asyncio
-import logging
-from datetime import datetime
+import os
+from pathlib import Path
 from typing import List, Optional
 
-from mad_spark_alt.agents import (
-    QuestioningAgent,
-    AbductionAgent,
-    DeductionAgent,
-    InductionAgent,
-)
 from mad_spark_alt.core import (
     GeneratedIdea,
-    IdeaGenerationRequest,
-    QADIOrchestrator,
-    agent_registry,
-    register_agent,
+    SmartQADIOrchestrator,
 )
 from mad_spark_alt.evolution import (
     EvolutionConfig,
@@ -31,51 +22,43 @@ from mad_spark_alt.evolution import (
     SelectionStrategy,
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+# Load .env file if it exists
+env_path = Path(__file__).parent.parent / ".env"
+if env_path.exists():
+    with open(env_path) as f:
+        for line in f:
+            if line.strip() and not line.startswith("#") and "=" in line:
+                parts = line.strip().split("=", 1)
+                if len(parts) == 2:
+                    key, value = parts
+                    os.environ[key.strip()] = value.strip().strip('"').strip("'")
 
 
 async def generate_initial_ideas(
     problem_statement: str, context: str
 ) -> List[GeneratedIdea]:
-    """Generate initial ideas using QADI agents.
-    
+    """Generate initial ideas using LLM-powered QADI agents.
+
     Args:
         problem_statement: The problem or challenge to generate ideas for.
         context: Additional context and background information for idea generation.
-    
+
     Returns:
         List[GeneratedIdea]: A list of generated ideas from the QADI process.
     """
-    logger.info("=== Phase 1: Generating Initial Ideas with QADI ===")
+    print("=== Phase 1: Generating Initial Ideas with QADI ===")
 
-    # Register all agents
-    register_agent(QuestioningAgent)
-    register_agent(AbductionAgent)
-    register_agent(DeductionAgent)
-    register_agent(InductionAgent)
+    # Use SmartQADIOrchestrator which automatically uses LLM agents when available
+    orchestrator = SmartQADIOrchestrator()
 
-    # Create orchestrator with all agents
-    agents = [
-        agent_registry.get_agent("QuestioningAgent"),
-        agent_registry.get_agent("AbductionAgent"),
-        agent_registry.get_agent("DeductionAgent"),
-        agent_registry.get_agent("InductionAgent"),
-    ]
-
-    orchestrator = QADIOrchestrator([a for a in agents if a])
-
-    # Generate ideas
+    # Generate ideas using LLM-powered agents
     result = await orchestrator.run_qadi_cycle(
         problem_statement=problem_statement,
         context=context,
         cycle_config={"max_ideas_per_method": 5, "require_reasoning": True},
     )
 
-    logger.info(f"Generated {len(result.synthesized_ideas)} initial ideas")
+    print(f"Generated {len(result.synthesized_ideas)} initial ideas")
 
     # Display sample ideas
     print("\n📝 Sample Initial Ideas:")
@@ -90,15 +73,15 @@ async def evolve_ideas(
     initial_ideas: List[GeneratedIdea], context: str
 ) -> Optional[EvolutionResult]:
     """Evolve ideas using genetic algorithm.
-    
+
     Args:
         initial_ideas: The initial population of ideas to evolve.
         context: Additional context for evolution and fitness evaluation.
-    
+
     Returns:
         Optional[EvolutionResult]: Evolution result on success, None on failure.
     """
-    logger.info("\n=== Phase 2: Evolving Ideas with Genetic Algorithm ===")
+    print("\n=== Phase 2: Evolving Ideas with Genetic Algorithm ===")
 
     # Create genetic algorithm
     ga = GeneticAlgorithm()
@@ -123,7 +106,7 @@ async def evolve_ideas(
         max_parallel_evaluations=5,
     )
 
-    logger.info(
+    print(
         f"Evolution config: {config.generations} generations, "
         f"population size {config.population_size}"
     )
@@ -140,8 +123,8 @@ async def evolve_ideas(
     result = await ga.evolve(request)
 
     if result.success:
-        logger.info(f"Evolution completed successfully in {result.execution_time:.2f}s")
-        logger.info(f"Total generations: {result.total_generations}")
+        print(f"Evolution completed successfully in {result.execution_time:.2f}s")
+        print(f"Total generations: {result.total_generations}")
 
         # Display evolution progress
         print("\n📈 Evolution Progress:")
@@ -175,7 +158,7 @@ async def evolve_ideas(
 
         return result
     else:
-        logger.error(f"Evolution failed: {result.error_message}")
+        print(f"Evolution failed: {result.error_message}")
         return None
 
 
@@ -199,7 +182,7 @@ async def main() -> None:
         initial_ideas = await generate_initial_ideas(problem_statement, context)
 
         if not initial_ideas:
-            logger.error("No initial ideas generated")
+            print("No initial ideas generated")
             return
 
         # Phase 2: Evolve ideas
@@ -229,7 +212,7 @@ async def main() -> None:
                         print(f"  {i+1}. {parent[:70]}...")
 
     except Exception as e:
-        logger.error(f"Demo failed: {e}")
+        print(f"Demo failed: {e}")
         raise
 
 

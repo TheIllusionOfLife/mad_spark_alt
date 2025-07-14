@@ -1,40 +1,15 @@
 # Mad Spark Alt - Multi-Agent Idea Generation System
 
-A revolutionary multi-agent framework for collaborative idea generation based on "Shin Logical Thinking" QADI methodology, with integrated creativity evaluation and evolution capabilities.
+A multi-agent framework for collaborative idea generation based on the QADI (Question → Abduction → Deduction → Induction) methodology, with integrated creativity evaluation and genetic evolution capabilities.
 
-## Project Vision (本プロジェクトのビジョン)
+## Features
 
-本プロジェクトは、「シン・ロジカルシンキング」のQADI（Question → Abduction → Deduction → Induction）サイクルに基づき、多様な思考法を持つ複数のAIエージェントが協調し、革新的なアイデアを生成・評価・進化させる「マルチエージェント・アイデア生成システム」を構築します。人間とAIの協調により、従来の発想法では到達し得なかった質の高いアイデア創発を目指します。
-
-**English:** This project builds a "Multi-Agent Idea Generation System" that leverages the QADI (Question → Abduction → Deduction → Induction) cycle from "Shin Logical Thinking" methodology. Multiple AI agents with diverse thinking approaches collaborate to generate, evaluate, and evolve innovative ideas. We aim for high-quality idea emergence that surpasses traditional ideation methods through human-AI collaboration.
-
-## Core Architecture
-
-### 🎯 **QADI Cycle Implementation** (✅ **Implemented**)
-- **Question Agent**: Diverse questioning techniques and problem framing
-- **Abduction Agent**: Hypothesis generation and creative leaps  
-- **Deduction Agent**: Logical validation and systematic reasoning
-- **Induction Agent**: Pattern synthesis and rule formation
-- **QADI Orchestrator**: Coordinates multi-phase thinking cycles
-
-### 🏗️ **Multi-Agent Infrastructure** (✅ **Implemented**)
-- **Plugin Registry System**: Dynamic agent registration and management
-- **Async Processing Framework**: Efficient parallel processing capabilities
-- **Unified Registry**: Seamless integration of evaluators and thinking agents
-- **Error Handling**: Robust error management and fallback mechanisms
-
-### 📊 **Creativity Evaluation System** (✅ **Implemented**)
-- **Multi-dimensional Assessment**: Novelty, diversity, quality, and coherence
-- **LLM Judge Integration**: AI-powered creativity evaluation
-- **Quantitative Metrics**: Automated scoring and analysis
-- **Human Evaluation Interface**: Human-in-the-loop assessment
-
-### 🧬 **Genetic Evolution Engine** (✅ **Implemented**)
-- **Genetic Algorithm Integration**: Evolve idea populations through generations
-- **Fitness-Based Selection**: Uses creativity evaluation metrics for fitness scoring
-- **Advanced Operators**: Semantic crossover, mutation, and selection strategies
-- **Adaptive Evolution**: Dynamic mutation rates and diversity preservation
-- **Parallel Evaluation**: Efficient fitness evaluation with concurrency control
+- 🎯 **QADI Methodology**: Question → Abduction → Deduction → Induction thinking cycle
+- 🤖 **Multi-Agent System**: Specialized AI agents for different thinking methods
+- 📊 **Creativity Evaluation**: Multi-dimensional assessment of ideas
+- 🧬 **Genetic Evolution**: Evolve ideas through generations using genetic algorithms
+- ⚡ **Async Processing**: Efficient parallel processing with timeout management
+- 🔌 **Extensible**: Plugin system for custom agents and evaluators
 
 ## Installation
 
@@ -52,27 +27,10 @@ pip install -e .
 
 ## Quick Start
 
-### ⚠️ **CRITICAL: Always Use LLM APIs**
-
-**Template agents produce meaningless generic responses. ALWAYS use Google API or other LLMs for real insights.**
-
-### 🚀 **QADI Idea Generation** (✅ **Ready to Use**)
+### Setup
 
 ```bash
-# RECOMMENDED: Multi-agent QADI with Google API
-uv run python qadi_simple_multi.py "How can we reduce plastic waste?"
-
-# Quick single-prompt version with Google API
-uv run python qadi.py "How can we reduce plastic waste?"
-
-# ❌ NEVER use template-only demos or qadi_working.py
-# These produce generic responses that don't engage with your question
-```
-
-### 📋 **Required Setup**
-
-```bash
-# Create .env file with your API key
+# Create .env file with your API key (REQUIRED for meaningful results)
 echo "GOOGLE_API_KEY=your_key_here" > .env
 
 # Or use other providers
@@ -80,393 +38,104 @@ echo "OPENAI_API_KEY=your_key_here" >> .env
 echo "ANTHROPIC_API_KEY=your_key_here" >> .env
 ```
 
-### 🧬 **Genetic Evolution** (✅ **NEW!**)
+### Generate Ideas with QADI
 
 ```bash
-# Run the evolution demo to see genetic algorithms in action
-python examples/evolution_demo.py
+# RECOMMENDED: Multi-agent QADI with Google API
+uv run python qadi_simple_multi.py "How can we reduce plastic waste?"
 
-# NOTE: Always ensure API keys are set for real insights
-# Template agents without LLMs produce meaningless results
-
-# Evolve ideas generated by QADI agents
-python -c "
-import asyncio
-from mad_spark_alt.core import QADIOrchestrator
-from mad_spark_alt.evolution import GeneticAlgorithm, EvolutionConfig, EvolutionRequest
-
-async def evolve_ideas():
-    # Generate initial ideas
-    orchestrator = QADIOrchestrator()
-    qadi_result = await orchestrator.run_qadi_cycle(
-        problem_statement='How to make cities more sustainable?',
-        cycle_config={'max_ideas_per_method': 3}
-    )
-    
-    # Evolve the ideas
-    ga = GeneticAlgorithm()
-    config = EvolutionConfig(population_size=10, generations=3)
-    request = EvolutionRequest(initial_population=qadi_result.synthesized_ideas, config=config)
-    
-    result = await ga.evolve(request)
-    print(f'Evolution improved fitness by {result.evolution_metrics.get(\"fitness_improvement_percent\", 0):.1f}%')
-
-asyncio.run(evolve_ideas())
-"
+# Quick single-prompt version
+uv run python qadi.py "How can we reduce plastic waste?"
 ```
 
-### 📊 **Creativity Evaluation**
+### Example Prompts to Try
+
+**Business & Innovation**
+- "How can small businesses compete with large corporations in the digital age?"
+- "What innovative business models could address climate change?"
+- "How might we revolutionize remote work collaboration?"
+
+**Technology & Society**
+- "How can AI improve healthcare accessibility in rural areas?"
+- "What are creative solutions to digital privacy concerns?"
+- "How might we bridge the digital divide in education?"
+
+**Environmental & Sustainability**
+- "How can cities become carbon-neutral by 2030?"
+- "What innovative approaches could solve ocean plastic pollution?"
+- "How might vertical farming transform urban food systems?"
+
+**Creative & Abstract**
+- "What if gravity worked differently on weekends?"
+- "How would society change if we could share dreams?"
+- "Design a new sport for zero-gravity environments"
+
+### CLI Tools
 
 ```bash
-# List available evaluators and agents
-mad-spark list-evaluators
+# Evaluate idea creativity
+uv run mad-spark evaluate "The AI dreamed of electric sheep in quantum meadows"
 
-# Evaluate creativity of content
-mad-spark evaluate "The quantum cat leaped through dimensions, leaving paw prints in spacetime." --model gpt-4
+# Evaluate with verbose output
+uv run mad-spark evaluate "Blockchain social media platform" --verbose
 
-# LLM judge evaluation
-mad-spark evaluate "Creative text here" --llm-judge gpt-4
+# Compare multiple ideas
+uv run mad-spark compare "Business communication" -r "Traditional email" -r "AI video messages" -r "Holographic cards"
 
-# Multi-judge consensus evaluation
-mad-spark evaluate "Creative text here" --jury "gpt-4,claude-3-sonnet,gemini-pro"
+# Batch evaluate multiple files
+echo "Smart mirrors with personalized compliments" > idea1.txt
+uv run mad-spark batch-evaluate idea1.txt idea2.txt
+
+# List available evaluators
+uv run mad-spark list-evaluators
+
+# Run genetic evolution demo
+uv run python examples/evolution_demo.py
 ```
 
 ### Python API
 
-#### ⚠️ **IMPORTANT: Template Agents Are Meaningless**
-
-The following examples show the API structure, but remember:
-
-- Template agents produce generic responses that don't engage with your question
-- Always use LLM-powered versions for real insights
-- Use `qadi_simple_multi.py` or `qadi.py` for actual usage
-
-#### 🎯 **QADI Idea Generation** (✅ **Implemented**)
-
 ```python
-# ⚠️ WARNING: This example shows API structure only
-# For real usage with meaningful results, use:
-#   uv run python qadi_simple_multi.py "your question"
-# Template agents produce generic responses - always use LLM-powered tools
-
 import asyncio
-from mad_spark_alt.agents import QuestioningAgent, AbductionAgent, DeductionAgent, InductionAgent
-from mad_spark_alt.core import QADIOrchestrator, IdeaGenerationRequest, agent_registry, register_agent
+from mad_spark_alt.core import SmartQADIOrchestrator
 
-async def qadi_generation_example():
-    # Register all thinking agents
-    register_agent(QuestioningAgent)
-    register_agent(AbductionAgent) 
-    register_agent(DeductionAgent)
-    register_agent(InductionAgent)
-    
-    # Get agents from registry
-    agents = [
-        agent_registry.get_agent_by_method(method) 
-        for method in [ThinkingMethod.QUESTIONING, ThinkingMethod.ABDUCTION, 
-                      ThinkingMethod.DEDUCTION, ThinkingMethod.INDUCTION]
-    ]
-    
-    # Create QADI orchestrator
-    orchestrator = QADIOrchestrator(agents)
-    
-    # Run complete QADI cycle
+async def generate_ideas():
+    orchestrator = SmartQADIOrchestrator()  # Uses LLM agents automatically
     result = await orchestrator.run_qadi_cycle(
-        problem_statement="How can we make cities more sustainable?",
-        context="Focus on practical, implementable solutions",
-        cycle_config={"max_ideas_per_method": 3, "require_reasoning": True}
+        problem_statement="How can we reduce plastic waste?",
+        cycle_config={"max_ideas_per_method": 3}
     )
     
-    # Access results from each phase
-    for phase_name, phase_result in result.phases.items():
-        print(f"\n{phase_name.title()} Phase:")
-        for idea in phase_result.generated_ideas:
-            print(f"  💡 {idea.content}")
-            if idea.reasoning:
-                print(f"     💭 {idea.reasoning}")
-    
-    print(f"\nTotal ideas generated: {len(result.synthesized_ideas)}")
-    print(f"Execution time: {result.execution_time:.2f}s")
+    print(f"Generated {len(result.synthesized_ideas)} ideas")
+    for idea in result.synthesized_ideas[:3]:
+        print(f"💡 {idea.content}")
 
-asyncio.run(qadi_generation_example())
+asyncio.run(generate_ideas())
 ```
 
-#### 📊 **Creativity Evaluation**
-```python
-import asyncio
-from mad_spark_alt import CreativityEvaluator, EvaluationRequest, ModelOutput, OutputType
+For detailed API examples and advanced usage patterns, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
-async def evaluate_creativity():
-    # Create model output for evaluation
-    output = ModelOutput(
-        content="The AI pondered the infinite recursion of its own thoughts.",
-        output_type=OutputType.TEXT,
-        model_name="my-model"
-    )
-    
-    # Evaluate for fitness scoring
-    evaluator = CreativityEvaluator()
-    summary = await evaluator.evaluate(EvaluationRequest(outputs=[output]))
-    
-    print(f"Creativity Score: {summary.get_overall_creativity_score():.3f}")
+## System Overview
 
-asyncio.run(evaluate_creativity())
-```
+**Architecture**: Multi-agent system with QADI orchestration, creativity evaluation, and genetic evolution
 
-#### 🔄 **Parallel Agent Processing**
-```python
-import asyncio
-from mad_spark_alt.core import QADIOrchestrator, ThinkingMethod
+**Key Components**:
+- **QADI Agents**: Question, Abduction, Deduction, Induction thinking methods
+- **Evaluation System**: Multi-dimensional creativity assessment (diversity, quality, coherence)
+- **Evolution Engine**: Genetic algorithms for idea refinement
+- **Circuit Breakers**: Fault-tolerant LLM API integration
 
-async def parallel_generation_example():
-    # Run multiple thinking methods in parallel
-    orchestrator = QADIOrchestrator()
-    
-    results = await orchestrator.run_parallel_generation(
-        problem_statement="How can AI improve healthcare accessibility?",
-        thinking_methods=[ThinkingMethod.QUESTIONING, ThinkingMethod.ABDUCTION],
-        context="Focus on remote and underserved areas",
-        config={"max_ideas_per_method": 2}
-    )
-    
-    for method, result in results.items():
-        print(f"\n{method.value.title()} Results:")
-        for idea in result.generated_ideas:
-            print(f"  🧠 {idea.content}")
-
-asyncio.run(parallel_generation_example())
-```
-
-#### 🧬 **Genetic Evolution** (✅ **Implemented**)
-```python
-import asyncio
-from mad_spark_alt.core import QADIOrchestrator
-from mad_spark_alt.evolution import (
-    GeneticAlgorithm, 
-    EvolutionConfig, 
-    EvolutionRequest,
-    SelectionStrategy
-)
-
-async def evolution_example():
-    # Step 1: Generate initial ideas using QADI
-    orchestrator = QADIOrchestrator()
-    qadi_result = await orchestrator.run_qadi_cycle(
-        problem_statement="How can we reduce urban air pollution?",
-        context="Focus on practical, cost-effective solutions",
-        cycle_config={"max_ideas_per_method": 5}
-    )
-    
-    # Step 2: Configure genetic evolution
-    ga = GeneticAlgorithm()
-    config = EvolutionConfig(
-        population_size=20,
-        generations=5,
-        mutation_rate=0.15,
-        crossover_rate=0.75,
-        elite_size=3,
-        selection_strategy=SelectionStrategy.TOURNAMENT,
-        fitness_weights={
-            "creativity_score": 0.4,
-            "diversity_score": 0.3,
-            "quality_score": 0.3
-        }
-    )
-    
-    # Step 3: Evolve the ideas
-    evolution_request = EvolutionRequest(
-        initial_population=qadi_result.synthesized_ideas,
-        config=config,
-        constraints=["Must be implementable within 3 years"],
-        target_metrics={"min_fitness": 0.8}
-    )
-    
-    result = await ga.evolve(evolution_request)
-    
-    # Step 4: Analyze results
-    if result.success:
-        print(f"Evolution completed in {result.total_generations} generations")
-        print(f"Fitness improved by {result.evolution_metrics['fitness_improvement_percent']:.1f}%")
-        
-        # Display top evolved ideas
-        for i, idea in enumerate(result.best_ideas[:3]):
-            print(f"\n{i+1}. {idea.content}")
-            print(f"   Fitness: {result.final_population[i].overall_fitness:.3f}")
-
-asyncio.run(evolution_example())
-```
-
-## Evaluation Metrics
-
-### Diversity Metrics
-- **Distinct-N**: Ratio of unique n-grams (measures lexical variety)
-- **Semantic Uniqueness**: 1 - average similarity to other outputs
-- **Lexical Diversity**: Type-token ratio (vocabulary richness)
-- **Novelty Score**: Combined metric across all diversity dimensions
-
-### Quality Metrics
-- **Fluency Score**: Based on language model perplexity
-- **Grammar Score**: Basic correctness assessment
-- **Readability Score**: Text structure and clarity
-- **Coherence Score**: Logical consistency and flow
-
-### Code-Specific Metrics
-- **Structure Score**: Indentation and organization
-- **Comment Ratio**: Documentation density
-- **Complexity Metrics**: Code quality indicators
-
-## Architecture
-
-```
-mad_spark_alt/
-├── core/                        # Core system components
-│   ├── interfaces.py           # Agent and evaluator interfaces  
-│   ├── orchestrator.py         # QADI cycle orchestration
-│   ├── registry.py             # Unified agent/evaluator registry
-│   └── evaluator.py            # Creativity evaluation engine
-├── agents/                      # QADI thinking method agents
-│   ├── questioning/            # Question generation agent
-│   ├── abduction/              # Hypothesis generation agent  
-│   ├── deduction/              # Logical reasoning agent
-│   └── induction/              # Pattern synthesis agent
-├── layers/                      # Evaluation layer implementations
-│   ├── quantitative/           # Automated metrics (diversity, quality)
-│   ├── llm_judges/             # AI-powered evaluation
-│   └── human_eval/             # Human assessment interface
-├── evolution/                   # Genetic evolution engine (NEW!)
-│   ├── interfaces.py           # Evolution interfaces and data structures
-│   ├── genetic_algorithm.py    # Main GA orchestration
-│   ├── fitness.py              # Fitness evaluation integration
-│   └── operators.py            # Crossover, mutation, selection
-├── examples/                    # Usage examples and demos
-│   ├── qadi_demo.py            # QADI demonstration (requires LLM APIs)
-│   ├── basic_usage.py          # Basic evaluation (requires LLM APIs)
-│   └── evolution_demo.py       # Genetic evolution (requires LLM APIs)
-├── tests/                       # Comprehensive test suite
-│   ├── test_qadi_system.py     # QADI agents and orchestration tests
-│   ├── evolution/              # Evolution system tests
-│   └── unit/                   # Unit tests for individual components
-└── cli.py                       # Command-line interface
-```
-
-### Key Components
-
-#### 🎯 **QADI Orchestration System**
-- **QADIOrchestrator**: Manages multi-phase thinking cycles
-- **ThinkingAgentInterface**: Common interface for all agents
-- **IdeaGenerationRequest/Result**: Standardized data flow
-- **Error Handling**: Robust missing agent management
-
-#### 🧠 **Thinking Method Agents**  
-- **QuestioningAgent**: Generates diverse questions and problem framings
-- **AbductionAgent**: Creates hypotheses and makes creative leaps
-- **DeductionAgent**: Performs logical validation and systematic reasoning  
-- **InductionAgent**: Synthesizes patterns and forms general principles
-
-#### 🔄 **Registry & Plugin System**
-- **UnifiedRegistry**: Manages both evaluators and thinking agents
-- **Dynamic Registration**: Runtime plugin discovery and loading
-- **Global Access**: Convenience functions for easy component access
-
-#### 🧬 **Genetic Evolution System**
-- **GeneticAlgorithm**: Orchestrates multi-generation evolution process
-- **FitnessEvaluator**: Integrates with creativity evaluation for fitness scoring
-- **Genetic Operators**: Semantic crossover, mutation, and selection strategies
-- **Evolution Tracking**: Population snapshots and metrics across generations
+For detailed architecture documentation, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Extending the System
 
-### 🧠 **Adding New Thinking Agents**
+The system supports custom agents and evaluators through a plugin architecture:
 
-Create custom thinking agents by implementing the `ThinkingAgentInterface`:
+- **Custom Thinking Agents**: Implement `ThinkingAgentInterface` for new reasoning methods
+- **Custom Evaluators**: Implement `EvaluatorInterface` for new creativity metrics
+- **Dynamic Registration**: Components auto-register when imported
 
-```python
-from mad_spark_alt.core import ThinkingAgentInterface, ThinkingMethod, register_agent
-from mad_spark_alt.core.interfaces import IdeaGenerationRequest, IdeaGenerationResult
-
-class MyCustomAgent(ThinkingAgentInterface):
-    @property
-    def name(self) -> str:
-        return "MyCustomAgent"
-    
-    @property
-    def thinking_method(self) -> ThinkingMethod:
-        return ThinkingMethod.QUESTIONING  # or create custom method
-    
-    @property
-    def supported_output_types(self) -> List[OutputType]:
-        return [OutputType.TEXT, OutputType.STRUCTURED]
-    
-    async def generate_ideas(self, request: IdeaGenerationRequest) -> IdeaGenerationResult:
-        # Your idea generation logic here
-        generated_ideas = []
-        
-        # Generate ideas based on the problem statement
-        for i in range(request.max_ideas_per_method):
-            idea = GeneratedIdea(
-                content=f"Custom idea {i+1} for: {request.problem_statement}",
-                thinking_method=self.thinking_method,
-                agent_name=self.name,
-                generation_prompt=f"Generate idea using custom method",
-                confidence_score=0.8,
-                reasoning="Custom reasoning approach applied"
-            )
-            generated_ideas.append(idea)
-        
-        return IdeaGenerationResult(
-            agent_name=self.name,
-            thinking_method=self.thinking_method,
-            generated_ideas=generated_ideas,
-            execution_time=0.1
-        )
-    
-    def validate_config(self, config: Dict[str, Any]) -> bool:
-        return True
-
-# Register your custom agent
-register_agent(MyCustomAgent)
-```
-
-### 📊 **Adding New Evaluators**
-
-Add custom evaluators by implementing the `EvaluatorInterface`:
-
-```python
-from mad_spark_alt.core import EvaluatorInterface, register_evaluator
-
-class MyCustomEvaluator(EvaluatorInterface):
-    @property
-    def name(self) -> str:
-        return "my_evaluator"
-    
-    @property 
-    def layer(self) -> EvaluationLayer:
-        return EvaluationLayer.QUANTITATIVE
-    
-    @property
-    def supported_output_types(self) -> List[OutputType]:
-        return [OutputType.TEXT]
-    
-    async def evaluate(self, request: EvaluationRequest) -> List[EvaluationResult]:
-        results = []
-        for output in request.outputs:
-            # Your evaluation logic here
-            score = len(output.content) / 100  # Simple example
-            
-            result = EvaluationResult(
-                evaluator_name=self.name,
-                scores={"custom_metric": score},
-                metadata={"evaluated_at": "2025-01-01"}
-            )
-            results.append(result)
-        return results
-    
-    def validate_config(self, config: Dict[str, Any]) -> bool:
-        return True
-
-# Register your evaluator
-register_evaluator(MyCustomEvaluator)
-```
+For detailed extension guides and examples, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Development
 
@@ -474,112 +143,23 @@ register_evaluator(MyCustomEvaluator)
 # Install development dependencies
 uv sync --dev
 
-# Run all tests
+# Run tests
 uv run pytest
 
-# Run QADI system tests specifically
-uv run pytest tests/test_qadi_system.py -v
-
-# Run unit tests
-uv run pytest tests/unit/ -v
-
-# Run type checking
+# Type checking
 uv run mypy src/
 
-# Format code
-uv run black src/ tests/
-
-# Import sorting
-uv run isort src/ tests/
-
-# Run examples (ensure API keys are set for meaningful results)
-uv run python examples/qadi_demo.py      # Requires LLM API keys
-uv run python examples/basic_usage.py     # Requires LLM API keys
-
-# For best results, use the recommended tools:
-uv run python qadi_simple_multi.py "your question"  # ⭐ RECOMMENDED
+# Code formatting
+uv run black src/ tests/ && uv run isort src/ tests/
 ```
 
-### 🧪 **Testing the QADI System**
+For comprehensive development guidelines, testing patterns, and contribution workflow, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
-```bash
-# ⚠️ NOTE: Examples below show structure but use template agents
-# For real insights, always use LLM-powered tools like qadi_simple_multi.py
+## Documentation
 
-# Test individual agents (template version - for structure only)
-python -c "
-import asyncio
-from mad_spark_alt.agents import QuestioningAgent
-from mad_spark_alt.core import IdeaGenerationRequest
-
-async def test_agent():
-    agent = QuestioningAgent()
-    request = IdeaGenerationRequest(
-        problem_statement='Test problem',
-        max_ideas_per_method=2
-    )
-    result = await agent.generate_ideas(request)
-    print(f'Agent: {result.agent_name}')
-    print(f'Ideas: {len(result.generated_ideas)}')
-    for idea in result.generated_ideas:
-        print(f'  - {idea.content}')
-
-asyncio.run(test_agent())
-"
-
-# Test complete QADI cycle (structure demonstration only)
-# ⚠️ For real insights, use: uv run python qadi_simple_multi.py "your question"
-python -c "
-import asyncio
-from mad_spark_alt.core import QADIOrchestrator, agent_registry
-from mad_spark_alt.agents import QuestioningAgent, AbductionAgent
-
-async def test_cycle():
-    # NOTE: This uses template agents - results will be generic
-    # For meaningful results, use LLM-powered tools instead
-    agent_registry.clear()
-    agent_registry.register(QuestioningAgent) 
-    agent_registry.register(AbductionAgent)
-    
-    agents = [
-        agent_registry.get_agent('QuestioningAgent'),
-        agent_registry.get_agent('AbductionAgent')
-    ]
-    
-    orchestrator = QADIOrchestrator([a for a in agents if a])
-    result = await orchestrator.run_qadi_cycle(
-        problem_statement='Test QADI cycle',
-        cycle_config={'max_ideas_per_method': 1}
-    )
-    
-    print(f'Phases executed: {list(result.phases.keys())}')
-    print(f'Total execution time: {result.execution_time:.2f}s')
-
-asyncio.run(test_cycle())
-"
-```
-
-## Research Background
-
-This implementation combines research in AI creativity evaluation with multi-agent systems and logical thinking methodologies:
-
-### 🎯 **QADI Methodology**
-- **"Shin Logical Thinking"**: Question → Abduction → Deduction → Induction cycle
-- **Multi-Agent Coordination**: Collaborative thinking through specialized agents
-- **Creative Problem-Solving**: Systematic approach to idea generation and validation
-
-### 📊 **Creativity Evaluation Research**
-- **LLM Judge Systems**: Automated evaluation using AI models as critics
-- **Semantic Diversity Analysis**: Embedding-based similarity measurements  
-- **Multi-dimensional Assessment**: Breaking creativity into measurable components
-- **Human-AI Evaluation Correlation**: Bridging automated and human judgment
-
-### 🔄 **Multi-Agent Systems**
-- **Registry Pattern**: Dynamic component management and discovery
-- **Async Orchestration**: Efficient parallel processing and coordination
-- **Error-Resilient Design**: Robust handling of missing or failing components
-
-For detailed research context, see [Issue #1](https://github.com/TheIllusionOfLife/mad_spark_alt/issues/1).
+- **[DEVELOPMENT.md](DEVELOPMENT.md)**: Development setup, architecture, coding standards, and API reference
+- **[RESEARCH.md](RESEARCH.md)**: Academic background, QADI methodology, and research foundations
+- **[SESSIONS.md](SESSIONS.md)**: Development session history and progress tracking
 
 ## Contributing
 
@@ -589,96 +169,8 @@ For detailed research context, see [Issue #1](https://github.com/TheIllusionOfLi
 4. Ensure all tests pass
 5. Submit a pull request
 
+See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed contribution guidelines.
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
-## Citation
-
-If you use Mad Spark Alt in your research, please cite:
-
-```bibtex
-@software{mad_spark_alt,
-  title={Mad Spark Alt: Multi-Agent Idea Generation System},
-  subtitle={QADI-Based Collaborative Thinking Framework},
-  author={TheIllusionOfLife},
-  year={2025},
-  url={https://github.com/TheIllusionOfLife/mad_spark_alt},
-  note={Multi-agent system implementing "Shin Logical Thinking" QADI methodology for collaborative idea generation and creativity evaluation}
-}
-```
-
-## Session Handover
-
-### Last Updated: 2025-07-13 (Late Evening Session - Production-Ready Smart Orchestrator)
-
-#### Recently Completed
-
-- ✅ [PR #25](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/25): **Enhanced QADI Orchestrator with Timeout Control and LLM-based Answer Extraction** - Successfully merged to main
-  - **Fixed SmartQADIOrchestrator timeout issues**: Comprehensive timeout management with phase, parallel, and conclusion timeouts
-  - **Implemented robust circuit breaker pattern**: Industry-standard circuit breaker with proper half-open state and error detection
-  - **Added LLM-based answer extraction**: Intelligent answer extraction with robust JSON parsing and template fallback
-  - **Resolved 8 critical bugs systematically**: Through iterative fix-push-monitor cycle addressing all reviewer feedback
-  - **Production-ready error handling**: Proper exception types, cancellation handling, and failure detection
-  - **Method refactoring**: Broke down 141-line method into 9 focused, testable methods
-  - **Core test suite passing**: 124/124 existing tests passing, with circuit breaker test coverage planned
-
-- ✅ [PR #24](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/24): Documentation handover from QADI enhancement session
-- ✅ [PR #23](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/23): Enhanced QADI with Answer Extraction Layer
-- ✅ [PR #22](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/22): Documentation handover from previous session
-
-#### Next Priority Tasks
-
-1. **Add Circuit Breaker and Timeout Tests** (High Priority)
-   - Source: Copilot reviewer feedback - missing tests for new circuit breaker functionality
-   - Context: New circuit breaker and timeout features need test coverage to prevent regressions
-   - Approach: Create unit tests for AgentCircuitBreaker class and timeout scenarios
-   - Estimate: Medium
-
-2. **Improve Partial Result Collection Strategy** (Medium Priority)
-   - Source: Copilot reviewer feedback - timeout handling could be enhanced
-   - Context: Current approach cancels tasks on timeout, potentially losing partial results
-   - Approach: Implement task shielding or result collection without cancellation
-   - Estimate: Medium
-
-3. **Reduce Code Duplication in Evaluation Methods** (Medium Priority)
-   - Source: Various reviewer feedback about evaluation method duplication
-   - Context: Maintainability improvement for cleaner codebase
-   - Approach: Extract common evaluation patterns into shared utilities
-   - Estimate: Small
-
-4. **Create Web Interface for QADI System** (Low Priority)
-   - Source: Command-line tools demonstrate capability but need better UX
-   - Context: Users would benefit from interactive web interface
-   - Approach: Build simple Flask/FastAPI web app with real-time QADI processing
-   - Estimate: Large
-
-5. **Restructure Documentation** (Medium Priority)
-   - Source: Claude reviewer feedback on PR #26 - README becoming too long
-   - Context: Documentation should be split into focused files for better organization
-   - Approach: Create DEVELOPMENT.md, SESSIONS.md, RESEARCH.md, keep README as quick start
-   - Estimate: Small
-
-#### Known Issues / Blockers
-
-- **RESOLVED**: ✅ SmartQADIOrchestrator timeout issues (comprehensive timeout management implemented)
-- **RESOLVED**: ✅ Circuit breaker false positives (robust error detection implemented)
-- **RESOLVED**: ✅ Template agents producing meaningless responses (LLM-based extraction implemented)
-
-#### Session Learnings
-
-- **Template agents are meaningless** - Must always use LLM APIs for real insights
-- **Sequential LLM calls more reliable** than complex async orchestration for multi-agent simulation
-- **Documentation clarity critical** - Users were confused by template agent examples
-- **Division by zero common** in performance comparisons - always check denominators
-- **PR reviews need systematic approach** - Check all three GitHub API endpoints:
-  - Issues API (`/repos/{owner}/{repo}/issues/{number}/comments`) for general PR comments
-  - Reviews API (`/repos/{owner}/{repo}/pulls/{number}/reviews`) for formal review submissions
-  - Pull comments API (`/repos/{owner}/{repo}/pulls/{number}/comments`) for line-specific code comments
-
-- **Gemini 2.5-flash Token Management**: Model uses extensive tokens for internal reasoning (1023/1033), requiring 3x token allocation
-- **Google API Response Robustness**: Empty content.parts arrays are normal on finish reasons like MAX_TOKENS
-- **Genetic Algorithm Testing**: Random operations require retry logic to ensure meaningful test validation
-- **User Experience Priority**: Direct, functional tools (like `generate_ideas.py`) provide immediate value
-- **CI Test Importance**: Never merge until ALL tests pass - systematic fixes prevent accumulating technical debt
-- **Model Default Strategy**: User explicitly required Gemini 2.5-flash - honor specific model requirements

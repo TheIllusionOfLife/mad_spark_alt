@@ -484,27 +484,68 @@ class SmartQADIOrchestrator:
             logger.error("No agents available for any requested thinking methods")
             return {}
 
-        # Use timeout for parallel execution
+        # Use asyncio.wait for better control over timeouts and partial results
         try:
-            results = await asyncio.wait_for(
-                asyncio.gather(*tasks, return_exceptions=True),
-                timeout=self.parallel_timeout,
+            done, pending = await asyncio.wait(
+                tasks, timeout=self.parallel_timeout, return_when=asyncio.ALL_COMPLETED
             )
-        except asyncio.TimeoutError:
-            logger.warning(
-                f"Parallel execution timed out after {self.parallel_timeout}s"
-            )
-            # Cancel all running tasks to prevent resource leaks
-            for task in tasks:
-                if not task.done():
-                    task.cancel()
-                    try:
-                        await task
-                    except (asyncio.CancelledError, Exception):
-                        # Ignore cancellation and other errors during cleanup
-                        pass
 
-            # Try to collect partial results using as_completed
+            # If we have pending tasks after timeout, collect partial results
+            if pending:
+                logger.warning(
+                    f"Parallel execution timed out after {self.parallel_timeout}s. "
+                    f"{len(done)} completed, {len(pending)} timed out."
+                )
+
+                # Collect results from completed tasks
+                completed_results = []
+                for task in done:
+                    try:
+                        completed_results.append(task.result())
+                    except Exception as e:
+                        logger.error(f"Error retrieving completed result: {e}")
+
+                # Cancel pending tasks to clean up resources
+                for task in pending:
+                    task.cancel()
+
+                # Wait briefly for cancellation to complete
+                await asyncio.gather(*pending, return_exceptions=True)
+
+                # Merge completed results with timeout placeholders
+                result_dict = {}
+                task_list = list(done) + list(pending)
+
+                for i, (method, task) in enumerate(zip(available_methods, tasks)):
+                    if task in done:
+                        # Get the result from completed tasks
+                        try:
+                            idx = list(done).index(task)
+                            if idx < len(completed_results):
+                                result_dict[method] = completed_results[idx]
+                        except (ValueError, IndexError):
+                            pass
+                    else:
+                        # Create timeout result for pending tasks
+                        result_dict[method] = (
+                            IdeaGenerationResult(
+                                agent_name="timeout",
+                                thinking_method=method,
+                                generated_ideas=[],
+                                error_message=f"Task timed out after {self.parallel_timeout}s",
+                            ),
+                            "timeout",
+                        )
+                        self._record_agent_failure(method)
+
+                return result_dict
+
+            # All tasks completed within timeout
+            results = [task.result() for task in done]
+
+        except Exception as e:
+            logger.error(f"Unexpected error in parallel execution: {e}")
+            # Try to collect any partial results
             return await self._collect_partial_results(tasks, available_methods)
 
         result_dict = {}
@@ -550,6 +591,9 @@ class SmartQADIOrchestrator:
         """
         Collect partial results when parallel execution times out.
 
+        This improved version uses asyncio.wait to better handle partial results
+        without losing data from completed tasks.
+
         Args:
             tasks: List of asyncio tasks
             available_methods: Corresponding thinking methods
@@ -560,68 +604,41 @@ class SmartQADIOrchestrator:
         """
         result_dict = {}
 
-        # Try to get results from completed tasks
+        # Separate completed and pending tasks
+        completed_tasks = []
+        pending_tasks = []
+        task_to_method = {}
+
         for task, method in zip(tasks, available_methods):
+            task_to_method[task] = method
+            if task.done():
+                completed_tasks.append(task)
+            else:
+                pending_tasks.append(task)
+
+        # Collect results from already completed tasks
+        for task in completed_tasks:
+            method = task_to_method[task]
             try:
-                if task.done():
-                    result = task.result()
-                    # Check if result contains errors before recording success
-                    if isinstance(result, tuple) and len(result) == 2:
-                        phase_result, agent_type = result
-                        if (
-                            agent_type != "circuit_breaker_open"
-                            and not phase_result.error_message
-                        ):
-                            self._record_agent_success(method)
-                        elif phase_result.error_message:
-                            self._record_agent_failure(method)
-                    else:
-                        # Unexpected result format should be treated as failure
+                result = task.result()
+                # Check if result contains errors before recording success
+                if isinstance(result, tuple) and len(result) == 2:
+                    phase_result, agent_type = result
+                    if (
+                        agent_type != "circuit_breaker_open"
+                        and not phase_result.error_message
+                    ):
+                        self._record_agent_success(method)
+                    elif phase_result.error_message:
                         self._record_agent_failure(method)
-                    result_dict[method] = result
                 else:
-                    # Try to get result with short timeout
-                    result = await asyncio.wait_for(task, timeout=timeout_per_task)
-                    # Check if result contains errors before recording success
-                    if isinstance(result, tuple) and len(result) == 2:
-                        phase_result, agent_type = result
-                        if (
-                            agent_type != "circuit_breaker_open"
-                            and not phase_result.error_message
-                        ):
-                            self._record_agent_success(method)
-                        elif phase_result.error_message:
-                            self._record_agent_failure(method)
-                    else:
-                        # Unexpected result format should be treated as failure
-                        self._record_agent_failure(method)
-                    result_dict[method] = result
-            except asyncio.TimeoutError:
-                logger.warning(f"Individual timeout for {method.value}")
-                self._record_agent_failure(method)
-                result_dict[method] = (
-                    IdeaGenerationResult(
-                        agent_name="timeout",
-                        thinking_method=method,
-                        generated_ideas=[],
-                        error_message=f"Task timed out after {timeout_per_task}s",
-                    ),
-                    "timeout",
-                )
-            except asyncio.CancelledError:
-                # Task was cancelled - don't record as agent failure
-                logger.debug(f"Task cancelled for {method.value}")
-                result_dict[method] = (
-                    IdeaGenerationResult(
-                        agent_name="cancelled",
-                        thinking_method=method,
-                        generated_ideas=[],
-                        error_message="Task was cancelled",
-                    ),
-                    "cancelled",
-                )
+                    # Unexpected result format should be treated as failure
+                    self._record_agent_failure(method)
+                result_dict[method] = result
             except Exception as e:
-                logger.error(f"Error collecting result for {method.value}: {e}")
+                logger.error(
+                    f"Error collecting completed result for {method.value}: {e}"
+                )
                 self._record_agent_failure(method)
                 result_dict[method] = (
                     IdeaGenerationResult(
@@ -632,6 +649,94 @@ class SmartQADIOrchestrator:
                     ),
                     "error",
                 )
+
+        # Try to wait for pending tasks with individual timeout
+        if pending_tasks:
+            try:
+                # Wait for remaining tasks with timeout
+                done, still_pending = await asyncio.wait(
+                    pending_tasks,
+                    timeout=timeout_per_task,
+                    return_when=asyncio.ALL_COMPLETED,
+                )
+
+                # Collect newly completed tasks
+                for task in done:
+                    method = task_to_method[task]
+                    try:
+                        result = task.result()
+                        # Check if result contains errors before recording success
+                        if isinstance(result, tuple) and len(result) == 2:
+                            phase_result, agent_type = result
+                            if (
+                                agent_type != "circuit_breaker_open"
+                                and not phase_result.error_message
+                            ):
+                                self._record_agent_success(method)
+                            elif phase_result.error_message:
+                                self._record_agent_failure(method)
+                        else:
+                            # Unexpected result format should be treated as failure
+                            self._record_agent_failure(method)
+                        result_dict[method] = result
+                    except asyncio.CancelledError:
+                        # Task was cancelled - don't record as agent failure
+                        logger.debug(f"Task cancelled for {method.value}")
+                        result_dict[method] = (
+                            IdeaGenerationResult(
+                                agent_name="cancelled",
+                                thinking_method=method,
+                                generated_ideas=[],
+                                error_message="Task was cancelled",
+                            ),
+                            "cancelled",
+                        )
+                    except Exception as e:
+                        logger.error(f"Error collecting result for {method.value}: {e}")
+                        self._record_agent_failure(method)
+                        result_dict[method] = (
+                            IdeaGenerationResult(
+                                agent_name="error",
+                                thinking_method=method,
+                                generated_ideas=[],
+                                error_message=str(e),
+                            ),
+                            "error",
+                        )
+
+                # Mark still pending tasks as timeout
+                for task in still_pending:
+                    method = task_to_method[task]
+                    logger.warning(f"Individual timeout for {method.value}")
+                    self._record_agent_failure(method)
+                    result_dict[method] = (
+                        IdeaGenerationResult(
+                            agent_name="timeout",
+                            thinking_method=method,
+                            generated_ideas=[],
+                            error_message=f"Task timed out after {timeout_per_task}s",
+                        ),
+                        "timeout",
+                    )
+                    # Cancel the task to clean up
+                    task.cancel()
+
+            except Exception as e:
+                logger.error(f"Error waiting for pending tasks: {e}")
+                # Mark all remaining pending tasks as error
+                for task in pending_tasks:
+                    if task not in result_dict:
+                        method = task_to_method[task]
+                        self._record_agent_failure(method)
+                        result_dict[method] = (
+                            IdeaGenerationResult(
+                                agent_name="error",
+                                thinking_method=method,
+                                generated_ideas=[],
+                                error_message=f"Error collecting result: {str(e)}",
+                            ),
+                            "error",
+                        )
 
         return result_dict
 

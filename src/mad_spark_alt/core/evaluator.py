@@ -8,6 +8,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Union, cast
 
+from .evaluation_utils import ScoreAggregator
 from .interfaces import (
     AsyncEvaluatorInterface,
     EvaluationLayer,
@@ -63,7 +64,7 @@ class EvaluationSummary:
 class CreativityEvaluator:
     """Main orchestrator for creativity evaluation."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
         self.config = config or {}
         self.logger = logging.getLogger(__name__)
 
@@ -251,25 +252,12 @@ class CreativityEvaluator:
         self, layer_results: Dict[EvaluationLayer, List[EvaluationResult]]
     ) -> Dict[str, float]:
         """Calculate aggregate scores across all evaluations."""
-        aggregate_scores = {}
-
-        # Collect all unique score keys
-        all_score_keys: Set[str] = set()
+        # Flatten all result scores into a list of dictionaries
+        all_scores = []
         for results in layer_results.values():
             for result in results:
-                all_score_keys.update(result.scores.keys())
+                if result.scores:
+                    all_scores.append(result.scores)
 
-        # Calculate aggregates for each score type
-        for score_key in all_score_keys:
-            scores = []
-            for results in layer_results.values():
-                for result in results:
-                    if score_key in result.scores:
-                        scores.append(result.scores[score_key])
-
-            if scores:
-                aggregate_scores[f"{score_key}_mean"] = sum(scores) / len(scores)
-                aggregate_scores[f"{score_key}_max"] = max(scores)
-                aggregate_scores[f"{score_key}_min"] = min(scores)
-
-        return aggregate_scores
+        # Use ScoreAggregator to calculate aggregates
+        return ScoreAggregator.aggregate_results(all_scores)

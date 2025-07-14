@@ -17,6 +17,7 @@ from mad_spark_alt.evolution.interfaces import (
     MutationInterface,
     SelectionInterface,
 )
+from mad_spark_alt.evolution.mutation_strategies import MutationStrategyFactory
 
 
 class CrossoverOperator(CrossoverInterface):
@@ -170,15 +171,7 @@ class MutationOperator(MutationInterface):
         # Check if mutation should occur
         if random.random() < mutation_rate:
             # Choose mutation type
-            mutation_type = random.choice(
-                [
-                    "word_substitution",
-                    "phrase_reordering",
-                    "concept_addition",
-                    "concept_removal",
-                    "emphasis_change",
-                ]
-            )
+            mutation_type = random.choice(MutationStrategyFactory.get_available_types())
 
             # Apply mutation
             mutated_content = self._apply_mutation(idea.content, mutation_type)
@@ -207,112 +200,13 @@ class MutationOperator(MutationInterface):
             return idea  # No mutation
 
     def _apply_mutation(self, content: str, mutation_type: str) -> str:
-        """Apply specific mutation type to content."""
-        if mutation_type == "word_substitution":
-            # Replace random words with synonyms or related concepts
-            words = content.split()
-            if len(words) > 3:
-                idx = random.randint(0, len(words) - 1)
-                # Simple substitution - in production, use word embeddings
-                substitutions = {
-                    # Action verbs
-                    "improve": "enhance",
-                    "improves": "enhances",
-                    "create": "develop",
-                    "creates": "develops",
-                    "use": "utilize",
-                    "uses": "utilizes",
-                    "make": "construct",
-                    "makes": "constructs",
-                    "reduce": "minimize",
-                    "reduces": "minimizes",
-                    "increase": "amplify",
-                    "increases": "amplifies",
-                    "build": "construct",
-                    "builds": "constructs",
-                    "design": "architect",
-                    "designs": "architects",
-                    "implement": "deploy",
-                    "implements": "deploys",
-                    # Descriptive adjectives
-                    "innovative": "creative",
-                    "effective": "efficient",
-                    "simple": "streamlined",
-                    "complex": "sophisticated",
-                    "advanced": "cutting-edge",
-                    "modern": "contemporary",
-                    "traditional": "conventional",
-                    "unique": "distinctive",
-                    "powerful": "robust",
-                    "flexible": "adaptable",
-                    # Nouns and concepts
-                    "efficiency": "effectiveness",
-                    "idea": "concept",
-                    "ideas": "concepts",
-                    "solution": "approach",
-                    "solutions": "approaches",
-                    "method": "technique",
-                    "methods": "techniques",
-                    "system": "framework",
-                    "systems": "frameworks",
-                    "process": "procedure",
-                    "processes": "procedures",
-                    "technology": "innovation",
-                    "problem": "challenge",
-                    "problems": "challenges",
-                    "opportunity": "possibility",
-                    "opportunities": "possibilities",
-                }
-                word = words[idx].lower().strip(".,!?")
-                if word in substitutions:
-                    words[idx] = substitutions[word]
-                else:
-                    # If no substitution found, add a modifier
-                    words[idx] = f"enhanced_{words[idx]}"
-            return " ".join(words)
-
-        elif mutation_type == "phrase_reordering":
-            # Reorder phrases or sentences
-            # Handle both ". " and "." as sentence separators
-            if ". " in content:
-                sentences = content.split(". ")
-                if len(sentences) > 1:
-                    random.shuffle(sentences)
-                    return ". ".join(sentences)
-            elif "." in content:
-                # Split by "." and preserve the dots
-                sentences = [s.strip() for s in content.split(".") if s.strip()]
-                if len(sentences) > 1:
-                    random.shuffle(sentences)
-                    return ". ".join(sentences) + "."
+        """Apply specific mutation type to content using strategy pattern."""
+        try:
+            strategy = MutationStrategyFactory.get_strategy(mutation_type)
+            return strategy.apply(content)
+        except ValueError:
+            # Unknown mutation type - return content unchanged
             return content
-
-        elif mutation_type == "concept_addition":
-            # Add a related concept
-            additions = [
-                " Additionally, consider sustainability aspects.",
-                " This could also incorporate user feedback mechanisms.",
-                " Integration with existing systems would enhance adoption.",
-                " Scalability should be a key consideration.",
-            ]
-            return content + random.choice(additions)
-
-        elif mutation_type == "concept_removal":
-            # Remove a sentence (if multiple exist)
-            sentences = content.split(". ")
-            if len(sentences) > 2:
-                sentences.pop(random.randint(0, len(sentences) - 1))
-            return ". ".join(sentences)
-
-        elif mutation_type == "emphasis_change":
-            # Change emphasis or priority
-            emphasis_words = ["critically", "importantly", "primarily", "especially"]
-            words = content.split()
-            insert_pos = random.randint(0, len(words))
-            words.insert(insert_pos, random.choice(emphasis_words))
-            return " ".join(words)
-
-        return content  # Fallback
 
 
 class TournamentSelection(SelectionInterface):
