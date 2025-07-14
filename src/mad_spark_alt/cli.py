@@ -527,11 +527,19 @@ async def _run_evolution_pipeline(
                 table.add_column("Fitness", style="green", width=8)
                 table.add_column("Gen", style="yellow", width=5)
                 
-                for i, idea in enumerate(evolution_result.best_ideas[:5]):
+                # Get top individuals with fitness scores from final population
+                top_individuals = sorted(
+                    evolution_result.final_population, 
+                    key=lambda x: x.overall_fitness, 
+                    reverse=True
+                )[:5]
+                
+                for i, individual in enumerate(top_individuals):
+                    idea = individual.idea
                     table.add_row(
                         str(i + 1),
                         idea.content[:80] + "..." if len(idea.content) > 80 else idea.content,
-                        f"{idea.fitness_score:.3f}",
+                        f"{individual.overall_fitness:.3f}",
                         str(idea.metadata.get('generation', 0))
                     )
                 
@@ -555,12 +563,16 @@ async def _run_evolution_pipeline(
                         "metrics": evolution_result.evolution_metrics,
                         "best_ideas": [
                             {
-                                "content": idea.content,
-                                "fitness_score": idea.fitness_score,
-                                "generation": idea.metadata.get('generation', 0),
-                                "thinking_method": idea.thinking_method.value if hasattr(idea.thinking_method, 'value') else str(idea.thinking_method)
+                                "content": individual.idea.content,
+                                "fitness_score": individual.overall_fitness,
+                                "generation": individual.idea.metadata.get('generation', 0),
+                                "thinking_method": individual.idea.thinking_method.value if hasattr(individual.idea.thinking_method, 'value') else str(individual.idea.thinking_method)
                             }
-                            for idea in evolution_result.best_ideas[:10]
+                            for individual in sorted(
+                                evolution_result.final_population,
+                                key=lambda x: x.overall_fitness,
+                                reverse=True
+                            )[:10]
                         ]
                     }
                     
