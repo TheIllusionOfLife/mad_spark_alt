@@ -8,7 +8,7 @@ adaptive prompt selection for optimal QADI analysis results.
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Set
 
 
 class QuestionType(Enum):
@@ -56,12 +56,23 @@ class PromptClassifier:
                     "architecture", "API", "database", "algorithm", "system",
                     "software", "app", "website", "platform", "framework",
                     "programming", "technical", "engineering", "deployment",
-                    "infrastructure", "scalability", "performance", "security"
+                    "infrastructure", "scalability", "performance", "security",
+                    # New additions
+                    "REST", "microservices", "docker", "kubernetes", "cloud",
+                    "backend", "frontend", "fullstack", "DevOps", "CI/CD",
+                    "testing", "debugging", "optimization", "refactor", "migrate",
+                    "integration", "authentication", "authorization", "encryption",
+                    "server", "client", "mobile", "web", "desktop", "embedded",
+                    "git", "version", "deploy", "monitor", "scale", "cache"
                 ],
                 "phrases": [
                     "how to build", "how to implement", "technical approach",
                     "software solution", "system design", "tech stack",
-                    "development process", "coding approach"
+                    "development process", "coding approach",
+                    # New additions
+                    "REST API", "microservices architecture", "cloud migration",
+                    "continuous integration", "continuous deployment", "test automation",
+                    "performance optimization", "security implementation", "scale up"
                 ]
             },
             
@@ -71,12 +82,22 @@ class PromptClassifier:
                     "growth", "business", "company", "startup", "entrepreneur",
                     "investment", "funding", "monetize", "competition", "ROI",
                     "stakeholders", "partnership", "expansion", "operations",
-                    "productivity", "efficiency", "team", "management"
+                    "productivity", "efficiency", "team", "management",
+                    # New additions
+                    "quarterly", "annual", "KPI", "metrics", "B2B", "B2C", "SaaS",
+                    "acquisition", "retention", "churn", "CAC", "LTV", "margin",
+                    "pricing", "positioning", "branding", "marketing", "enterprise",
+                    "scale", "pivot", "disruption", "innovation", "valuation",
+                    "competitive", "differentiation", "moat", "TAM", "SAM", "SOM"
                 ],
                 "phrases": [
                     "business strategy", "market opportunity", "revenue model",
                     "growth strategy", "competitive advantage", "business plan",
-                    "team productivity", "operational efficiency"
+                    "team productivity", "operational efficiency",
+                    # New additions
+                    "increase revenue", "market share", "customer acquisition",
+                    "business model", "go to market", "product market fit",
+                    "competitive analysis", "market penetration", "value proposition"
                 ]
             },
             
@@ -85,12 +106,22 @@ class PromptClassifier:
                     "creative", "artistic", "design", "innovative", "novel",
                     "brainstorm", "imagination", "original", "unique", "inspiring",
                     "aesthetic", "visual", "artistic", "conceptual", "experimental",
-                    "unconventional", "breakthrough", "revolutionary", "visionary"
+                    "unconventional", "breakthrough", "revolutionary", "visionary",
+                    # New additions
+                    "logo", "brand", "UI", "UX", "user experience", "interface",
+                    "graphics", "illustration", "animation", "color", "typography",
+                    "layout", "composition", "style", "theme", "mood", "atmosphere",
+                    "storytelling", "narrative", "concept", "ideation", "prototype",
+                    "sketch", "mockup", "wireframe", "art", "craft", "media"
                 ],
                 "phrases": [
                     "creative solution", "artistic approach", "innovative idea",
                     "design thinking", "creative process", "artistic expression",
-                    "novel approach", "thinking outside the box"
+                    "novel approach", "thinking outside the box",
+                    # New additions
+                    "design a logo", "create a brand", "user interface design",
+                    "visual identity", "creative concept", "artistic vision",
+                    "design language", "creative direction", "brand experience"
                 ]
             },
             
@@ -99,12 +130,22 @@ class PromptClassifier:
                     "analyze", "study", "investigate", "research", "understand",
                     "explore", "examine", "evaluate", "assess", "compare",
                     "data", "evidence", "findings", "methodology", "hypothesis",
-                    "theory", "academic", "scientific", "empirical", "statistical"
+                    "theory", "academic", "scientific", "empirical", "statistical",
+                    # New additions
+                    "effectiveness", "impact", "correlation", "causation", "trend",
+                    "pattern", "insight", "observation", "experiment", "survey",
+                    "qualitative", "quantitative", "metrics", "measurement", "benchmark",
+                    "literature", "review", "meta-analysis", "case study", "sample",
+                    "variable", "control", "significance", "validation", "peer-review"
                 ],
                 "phrases": [
                     "research question", "analysis of", "study of", "investigation into",
                     "understanding of", "exploration of", "what causes", "why does",
-                    "relationship between", "impact of", "effect of"
+                    "relationship between", "impact of", "effect of",
+                    # New additions
+                    "analyze the effectiveness", "evaluate the impact", "assess the correlation",
+                    "investigate the relationship", "examine the influence", "study the effects",
+                    "research the connection", "measure the outcome", "test the hypothesis"
                 ]
             },
             
@@ -127,12 +168,21 @@ class PromptClassifier:
                     "personal", "myself", "my life", "career", "health", "habits",
                     "skills", "learning", "growth", "development", "improvement",
                     "self", "individual", "lifestyle", "wellbeing", "goals",
-                    "motivation", "confidence", "relationships", "work-life"
+                    "motivation", "confidence", "relationships", "work-life",
+                    # New additions
+                    "daily", "routine", "balance", "stress", "mindfulness", "meditation",
+                    "fitness", "nutrition", "sleep", "energy", "focus", "discipline",
+                    "happiness", "fulfillment", "purpose", "passion", "values", "beliefs",
+                    "mindset", "attitude", "resilience", "emotional", "mental", "physical"
                 ],
                 "phrases": [
                     "improve my", "develop my", "how can I", "personal growth",
                     "self improvement", "life goals", "career development",
-                    "personal skills", "individual growth"
+                    "personal skills", "individual growth",
+                    # New additions
+                    "work life balance", "daily productivity", "personal effectiveness",
+                    "career advancement", "life satisfaction", "stress management",
+                    "time management", "personal development", "self care"
                 ]
             }
         }
@@ -204,25 +254,46 @@ class PromptClassifier:
         )
     
     def _calculate_type_scores(self, question_lower: str) -> Dict[QuestionType, float]:
-        """Calculate scores for each question type."""
+        """Calculate scores for each question type using word boundary matching."""
         scores = {}
         
         for question_type, patterns in self.type_patterns.items():
             score = 0.0
+            matched_keywords = 0
             
-            # Score keywords
+            # Score keywords with word boundary matching
             for keyword in patterns["keywords"]:
-                if keyword in question_lower:
+                # Create regex pattern with word boundaries
+                # Handle special cases like "CI/CD" which contains slashes
+                if "/" in keyword or "-" in keyword:
+                    # For keywords with special chars, use exact match
+                    pattern = r'\b' + re.escape(keyword.lower()) + r'\b'
+                else:
+                    # For regular words, use case-insensitive word boundaries
+                    pattern = r'\b' + keyword.lower() + r'\b'
+                
+                if re.search(pattern, question_lower, re.IGNORECASE):
                     score += 1.0
+                    matched_keywords += 1
             
-            # Score phrases (higher weight)
+            # Score phrases (higher weight) - exact phrase matching
             for phrase in patterns["phrases"]:
-                if phrase in question_lower:
-                    score += 2.0
+                if phrase.lower() in question_lower:
+                    score += 3.0  # Increased weight for phrases
+                    matched_keywords += 1
             
-            # Normalize by total possible score
-            max_possible = len(patterns["keywords"]) + (len(patterns["phrases"]) * 2)
-            scores[question_type] = score / max_possible if max_possible > 0 else 0.0
+            # Bonus for multiple matches (indicates stronger signal)
+            if matched_keywords > 2:
+                score *= 1.2  # 20% bonus for multiple matches
+            
+            # Store raw score (not normalized yet)
+            scores[question_type] = score
+        
+        # Normalize scores relative to each other rather than max possible
+        max_score = max(scores.values()) if scores else 1.0
+        if max_score > 0:
+            for qtype in scores:
+                scores[qtype] = scores[qtype] / max_score
         
         return scores
     
@@ -231,25 +302,43 @@ class PromptClassifier:
         if not scores:
             return QuestionType.UNKNOWN, 0.0
         
-        # Find the type with highest score
-        best_type = max(scores, key=scores.get)
-        best_score = scores[best_type]
-        
-        # Calculate confidence based on score and separation from second best
-        sorted_scores = sorted(scores.values(), reverse=True)
-        
-        if best_score == 0.0:
+        # Filter out zero scores
+        non_zero_scores = {k: v for k, v in scores.items() if v > 0}
+        if not non_zero_scores:
             return QuestionType.UNKNOWN, 0.0
         
-        # Confidence is higher if there's clear separation from second best
-        if len(sorted_scores) > 1 and sorted_scores[1] > 0:
-            separation = (best_score - sorted_scores[1]) / best_score
-            confidence = min(best_score + (separation * 0.3), 1.0)
-        else:
-            confidence = best_score
+        # Find the type with highest score
+        best_type = max(non_zero_scores, key=non_zero_scores.get)
+        best_score = non_zero_scores[best_type]
         
-        # Minimum confidence threshold
-        if confidence < 0.3:
+        # Calculate confidence based on:
+        # 1. Absolute score (how many matches)
+        # 2. Separation from second best (how clear the winner is)
+        sorted_scores = sorted(non_zero_scores.values(), reverse=True)
+        
+        if len(sorted_scores) > 1:
+            second_best = sorted_scores[1]
+            # Separation factor: how much better is best than second
+            separation_factor = (best_score - second_best) / best_score if best_score > 0 else 0
+            
+            # Confidence combines normalized score and separation
+            # More weight on separation for clearer classification
+            confidence = (best_score * 0.4) + (separation_factor * 0.6)
+        else:
+            # Only one type matched - confidence based on score alone
+            confidence = best_score * 0.7  # Slightly lower confidence for single match
+        
+        # Adjust confidence based on raw match count from original scores
+        # This rewards questions that match multiple keywords
+        raw_matches = sum(1 for v in scores.values() if v > 0)
+        if raw_matches > 1:
+            confidence *= 1.1  # Boost for matching multiple types (indicates richness)
+        
+        # Ensure confidence is between 0 and 1
+        confidence = min(max(confidence, 0.0), 1.0)
+        
+        # Lower minimum confidence threshold to 15%
+        if confidence < 0.15:
             return QuestionType.UNKNOWN, confidence
         
         return best_type, confidence

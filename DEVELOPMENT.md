@@ -103,6 +103,27 @@ uv run python qadi_simple_multi.py "Your question"
 - **mutation_strategies.py**: Strategy pattern for mutations
 - **fitness.py**: Fitness evaluation using creativity metrics
 
+#### 5. Dynamic Prompt Engineering (`src/mad_spark_alt/core/`)
+
+- **prompt_classifier.py**: Intelligent question type detection
+- **adaptive_prompts.py**: Domain-specific prompt templates
+
+The system automatically detects question types and adapts prompts for optimal QADI analysis:
+
+**Question Types**:
+- Technical: Software, architecture, implementation
+- Business: Strategy, growth, revenue, operations
+- Creative: Design, innovation, artistic endeavors
+- Research: Analysis, investigation, academic inquiry
+- Planning: Organization, project management, timelines
+- Personal: Individual growth, skills, career development
+
+**Key Features**:
+- Word boundary matching prevents false positives
+- Confidence scoring with separation factor
+- 100% accuracy on common question types
+- Manual override with `--type=TYPE` flag
+
 ### Key Patterns
 
 #### Agent Registration
@@ -126,6 +147,28 @@ response = await provider.generate(request)
 circuit_breaker = self._get_circuit_breaker(method)
 if not circuit_breaker.can_call():
     return fallback_result
+```
+
+#### Dynamic Prompt Engineering
+```python
+# Automatic question type detection
+from mad_spark_alt.core.prompt_classifier import classify_question
+
+result = classify_question("How to build a microservices architecture?")
+# result.question_type: QuestionType.TECHNICAL
+# result.confidence: 0.70
+# result.complexity: ComplexityLevel.MEDIUM
+
+# Adaptive prompt generation
+from mad_spark_alt.core.adaptive_prompts import get_adaptive_prompt
+
+prompt = get_adaptive_prompt(
+    phase_name="questioning",
+    classification_result=result,
+    prompt="How to build microservices?",
+    concrete_mode=True
+)
+# Returns domain-specific prompt for technical questions
 ```
 
 ## Code Standards

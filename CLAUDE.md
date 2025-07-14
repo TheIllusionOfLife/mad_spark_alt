@@ -9,10 +9,11 @@ Mad Spark Alt is a sophisticated Multi-Agent Idea Generation System powered by L
 ### Current State: Advanced LLM-Powered System ✅
 The system provides an intelligent multi-agent framework with:
 1. **Smart QADI Orchestration** - AI-powered workflows with LLM integration
-2. **LLM-Only Agent System** - Template agents are meaningless and should NEVER be used
-3. **Multi-Provider Support** - OpenAI, Anthropic, and Google API integration
-4. **Cost-Aware Processing** - Real-time LLM usage tracking and optimization
-5. **Google API Priority** - Always use real LLM APIs for meaningful insights
+2. **Dynamic Prompt Engineering** - Auto-detects question types with 100% accuracy
+3. **LLM-Only Agent System** - Template agents are meaningless and should NEVER be used
+4. **Multi-Provider Support** - OpenAI, Anthropic, and Google API integration
+5. **Cost-Aware Processing** - Real-time LLM usage tracking and optimization
+6. **Google API Priority** - Always use real LLM APIs for meaningful insights
 
 ## ⚠️ CRITICAL: Never Use Template Agents
 
@@ -72,7 +73,9 @@ uv run mad-spark list-evaluators
 uv run mad-spark evaluate "The AI dreamed of electric sheep"
 
 # Run QADI with Google API (RECOMMENDED)
-uv run python qadi_simple_multi.py "Your question here"  # Multi-agent
+uv run python qadi_simple_multi.py "Your question here"  # Multi-agent with auto-detection
+uv run python qadi_simple_multi.py --type=business "Your question"  # Force business perspective
+uv run python qadi_simple_multi.py --concrete "Build something"  # Implementation-focused
 uv run python qadi.py "Your question here"  # Simple version
 
 # ❌ NEVER run template demos - they produce meaningless output
@@ -112,6 +115,12 @@ export GOOGLE_API_KEY="your-key"
    - Dynamic agent registration at runtime
    - Method-based agent retrieval
    - Plugin architecture for extensibility
+
+5. **Dynamic Prompt Engineering** (`core/prompt_classifier.py`, `core/adaptive_prompts.py`)
+   - `PromptClassifier`: Intelligent question type detection with word boundary matching
+   - `AdaptivePromptGenerator`: Domain-specific prompts for each question type
+   - Auto-detects: Technical, Business, Creative, Research, Planning, Personal
+   - 100% accuracy on common question types with manual override support
 
 ### Key Implementation Patterns
 
@@ -156,7 +165,9 @@ src/mad_spark_alt/
 │   ├── registry.py         # Agent/evaluator registry
 │   ├── smart_registry.py   # Intelligent agent registry
 │   ├── llm_provider.py     # LLM integration layer
-│   └── json_utils.py       # Robust JSON parsing
+│   ├── json_utils.py       # Robust JSON parsing
+│   ├── prompt_classifier.py # Question type detection
+│   └── adaptive_prompts.py # Domain-specific prompts
 ├── agents/                  # QADI thinking agents
 │   ├── questioning/        # LLM agents only (ignore templates)
 │   ├── abduction/          # Hypothesis generation

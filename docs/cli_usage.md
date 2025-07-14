@@ -21,18 +21,23 @@ mad-spark --help
 
 ### Required Environment Variables
 
-For LLM judge functionality, set up API keys:
+For QADI multi-agent analysis and LLM functionality, set up API keys:
 
 ```bash
-# OpenAI API
+# Google Gemini API (RECOMMENDED - primary LLM provider)
+export GOOGLE_API_KEY="your-google-api-key"
+
+# Optional: OpenAI API (alternative LLM provider)
 export OPENAI_API_KEY="your-openai-api-key"
 
-# Anthropic Claude API  
+# Optional: Anthropic Claude API (alternative LLM provider)  
 export ANTHROPIC_API_KEY="your-anthropic-api-key"
 
-# Google Gemini API
-export GOOGLE_API_KEY="your-google-api-key"
+# Alternative: Create .env file in project root
+echo "GOOGLE_API_KEY=your-key-here" > .env
 ```
+
+**Note**: At least one LLM API key is required for the QADI system to function. Google API is recommended for best results and lowest cost.
 
 ### Optional Configuration
 
@@ -161,17 +166,89 @@ mad-spark diversity-analysis file1.txt file2.txt file3.txt --metric all
 
 ## QADI System Commands
 
-### QADI Demo and Examples
+### QADI Multi-Agent Analysis (Recommended)
+
+The primary QADI interface uses `qadi_simple_multi.py` with automatic question type detection:
 
 ```bash
-# Run interactive QADI demonstration
-python examples/qadi_demo.py
+# Basic QADI with auto question type detection
+uv run python qadi_simple_multi.py "How can we improve urban sustainability?"
 
-# Run basic usage examples
-python examples/basic_usage.py
+# View help and all options
+uv run python qadi_simple_multi.py --help
 
-# Quick QADI test
-mad-spark qadi-test "How can we improve urban sustainability?"
+# Manual question type override for specific perspective
+uv run python qadi_simple_multi.py --type=business "How to monetize renewable energy"
+uv run python qadi_simple_multi.py --type=technical "Build a microservices architecture"
+uv run python qadi_simple_multi.py --type=creative "Design an interactive art installation"
+
+# Concrete mode for implementation-focused results
+uv run python qadi_simple_multi.py --concrete "Build a mobile game"
+uv run python qadi_simple_multi.py --concrete --type=business "Launch a SaaS startup"
+
+# Combined options for maximum control
+uv run python qadi_simple_multi.py --type=technical --concrete "Build REST API"
+```
+
+### Question Types and Usage
+
+The system automatically detects these question types:
+
+- **Technical**: Software, architecture, implementation, coding
+- **Business**: Strategy, growth, revenue, market, operations  
+- **Creative**: Design, innovation, artistic, brainstorming
+- **Research**: Analysis, investigation, academic, data
+- **Planning**: Organization, project management, timelines
+- **Personal**: Individual growth, skills, career development
+
+```bash
+# Examples for each question type
+uv run python qadi_simple_multi.py "How to implement OAuth authentication?"        # → Technical
+uv run python qadi_simple_multi.py "How can startups compete with big tech?"       # → Business  
+uv run python qadi_simple_multi.py "Design a logo for sustainable fashion"         # → Creative
+uv run python qadi_simple_multi.py "What factors influence remote work success?"   # → Research
+uv run python qadi_simple_multi.py "How to plan a product roadmap?"               # → Planning
+uv run python qadi_simple_multi.py "How can I improve my productivity?"           # → Personal
+```
+
+### Legacy QADI Commands (Older Interface)
+
+```bash
+# Quick single-prompt QADI
+uv run python qadi.py "Your question here"
+
+# Interactive QADI demonstration  
+uv run python examples/qadi_demo.py
+
+# Basic usage examples
+uv run python examples/basic_usage.py
+```
+
+### Genetic Evolution CLI
+
+Use the built-in evolution command for idea refinement:
+
+```bash
+# Basic evolution (requires GOOGLE_API_KEY)
+uv run mad-spark evolve "How can we reduce food waste?"
+
+# Evolution with context and custom parameters
+uv run mad-spark evolve "Improve remote work" \
+  --context "Focus on team collaboration" \
+  --generations 5 \
+  --population 15
+
+# Quick evolution mode (faster for testing)
+uv run mad-spark evolve "Climate solutions" --quick
+
+# Save evolution results
+uv run mad-spark evolve "Innovation challenge" \
+  --output evolution_results.json \
+  --generations 3 \
+  --population 12
+
+# Evolution demo examples
+uv run python examples/evolution_demo.py
 ```
 
 ### Agent Management
