@@ -230,6 +230,7 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Global Registry**: Use `agent_registry` and `evaluator_registry`
 - **Dynamic Loading**: Agents register at module import time
 - **Clear Before Tests**: Always `agent_registry.clear()` in test setup
+- **CLI Environment Loading**: CLI must call `load_env_file()` before registry use
 
 ### QADI Orchestration
 - **Phase Order**: Question → Abduction → Deduction → Induction
@@ -240,3 +241,14 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **No Inline Imports**: All imports must be at module level for CI
 - **Relative Imports**: Use `from ...core import X` pattern
 - **Type Imports**: Use `from typing import TYPE_CHECKING` for circular deps
+
+### Performance Testing
+- **Test Naming**: Avoid `test_*.py` pattern in root tests/ (caught by .gitignore)
+- **Performance Files**: Use descriptive names like `performance_benchmarks.py`
+- **Memory Tracking**: Use `tracemalloc` for memory usage analysis
+- **Fixture Pattern**: Use `@pytest.fixture(autouse=True)` for setup/teardown
+
+### GeneticAlgorithm API
+- **Constructor**: Takes no arguments - `GeneticAlgorithm()`
+- **Evolution**: Use `EvolutionRequest` object with `evolve()` method
+- **Result Access**: Use `result.final_population` not direct population return
