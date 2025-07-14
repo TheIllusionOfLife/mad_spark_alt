@@ -264,7 +264,7 @@ Format as:
     from mad_spark_alt.core.llm_provider import llm_manager, LLMRequest
     request = LLMRequest(
         user_prompt=synthesis_prompt,
-        max_tokens=800,
+        max_tokens=1500,
         temperature=0.5
     )
     
