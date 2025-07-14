@@ -187,8 +187,8 @@ For comprehensive development guidelines, testing patterns, and contribution wor
 ### Last Updated: 2025-07-14 23:45 UTC
 
 #### Recently Completed
-- ✅ **PR #33**: Fix synthesis timeout and add Rich markdown rendering
-  - Status: **MERGED** ✓ All CI passing
+- ✅ **PR #33 [MERGED]**: Fix synthesis timeout and add Rich markdown rendering
+  - All CI passing ✓
   - Fixed synthesis timeout issues (20s→60s) and LLM token limits (400→1500)
   - Added Rich terminal rendering with graceful fallbacks
   - Enhanced QADI phase output formatting and consistency
@@ -197,7 +197,7 @@ For comprehensive development guidelines, testing patterns, and contribution wor
   - 100% reviewer satisfaction achieved through 4-phase protocol
 
 #### Next Priority Tasks
-1. **Testing Coverage**: Expand unit tests for terminal_renderer.py module
+1. **Testing Coverage**: Expand unit tests for [`terminal_renderer.py`](src/mad_spark_alt/core/terminal_renderer.py) module
    - Source: copilot-pull-request-reviewer[bot] feedback
    - Context: New Rich rendering utilities need test coverage
    - Approach: Add tests for markdown, panel, and fallback behavior
