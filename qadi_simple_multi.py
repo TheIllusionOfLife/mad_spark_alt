@@ -23,63 +23,77 @@ if env_path.exists():
 
 sys.path.insert(0, str(Path(__file__).parent / 'src'))
 
-async def run_qadi_phase(phase_name: str, prompt: str, previous_insights: str = "", concrete_mode: bool = False):
-    """Run a single QADI phase using simple LLM call."""
+async def run_qadi_phase(phase_name: str, prompt: str, previous_insights: str = "", concrete_mode: bool = False, classification_result=None):
+    """Run a single QADI phase using adaptive prompts based on question classification."""
     from mad_spark_alt.core.llm_provider import setup_llm_providers, llm_manager, LLMRequest
+    from mad_spark_alt.core.adaptive_prompts import get_adaptive_prompt, get_complexity_adjusted_params
     
-    # Phase-specific prompts for regular mode
-    regular_prompts = {
-        "questioning": f"""As a questioning specialist, generate 2 insightful questions about: "{prompt}"
+    # Get adaptive prompt if classification is available
+    if classification_result:
+        adaptive_prompt = get_adaptive_prompt(
+            phase_name=phase_name,
+            classification_result=classification_result,
+            prompt=prompt,
+            previous_insights=previous_insights,
+            concrete_mode=concrete_mode
+        )
+        
+        # Get complexity-adjusted parameters
+        llm_params = get_complexity_adjusted_params(classification_result)
+    else:
+        # Fallback to static prompts if no classification
+        regular_prompts = {
+            "questioning": f"""As a questioning specialist, generate 2 insightful questions about: "{prompt}"
 {previous_insights}
 Format each question on a new line starting with "Q:".""",
-        
-        "abduction": f"""As a hypothesis specialist, generate 2 creative hypotheses about: "{prompt}"
+            
+            "abduction": f"""As a hypothesis specialist, generate 2 creative hypotheses about: "{prompt}"
 {previous_insights}
 Consider unexpected connections and possibilities.
 Format each hypothesis on a new line starting with "H:".""",
-        
-        "deduction": f"""As a logical reasoning specialist, generate 2 logical deductions about: "{prompt}"
+            
+            "deduction": f"""As a logical reasoning specialist, generate 2 logical deductions about: "{prompt}"
 {previous_insights}
 Apply systematic reasoning and derive conclusions.
 Format each deduction on a new line starting with "D:".""",
-        
-        "induction": f"""As a pattern synthesis specialist, generate 2 pattern-based insights about: "{prompt}"
+            
+            "induction": f"""As a pattern synthesis specialist, generate 2 pattern-based insights about: "{prompt}"
 {previous_insights}
 Identify recurring themes and general principles.
 Format each insight on a new line starting with "I:"."""
-    }
-    
-    # Phase-specific prompts for concrete mode
-    concrete_prompts = {
-        "questioning": f"""As an implementation specialist, generate 2 practical questions about: "{prompt}"
+        }
+        
+        concrete_prompts = {
+            "questioning": f"""As an implementation specialist, generate 2 practical questions about: "{prompt}"
 {previous_insights}
 Focus on implementation challenges, resource requirements, and feasibility concerns.
 Format each question on a new line starting with "Q:".""",
-        
-        "abduction": f"""As a solution architect, generate 2 specific, implementable solutions for: "{prompt}"
+            
+            "abduction": f"""As a solution architect, generate 2 specific, implementable solutions for: "{prompt}"
 {previous_insights}
 Provide concrete approaches with specific tools, methods, or technologies.
 Include real-world examples where possible.
 Format each solution on a new line starting with "H:".""",
-        
-        "deduction": f"""As a project planner, generate 2 logical implementation steps for: "{prompt}"
+            
+            "deduction": f"""As a project planner, generate 2 logical implementation steps for: "{prompt}"
 {previous_insights}
 Focus on step-by-step approaches, prerequisites, and concrete actions.
 Format each step on a new line starting with "D:".""",
-        
-        "induction": f"""As a best practices specialist, generate 2 concrete patterns or methodologies for: "{prompt}"
+            
+            "induction": f"""As a best practices specialist, generate 2 concrete patterns or methodologies for: "{prompt}"
 {previous_insights}
 Identify proven approaches, specific frameworks, and actionable principles.
 Format each pattern on a new line starting with "I:"."""
-    }
-    
-    # Choose prompts based on mode
-    phase_prompts = concrete_prompts if concrete_mode else regular_prompts
+        }
+        
+        phase_prompts = concrete_prompts if concrete_mode else regular_prompts
+        adaptive_prompt = phase_prompts[phase_name]
+        llm_params = {"max_tokens": 300, "temperature": 0.7}
     
     request = LLMRequest(
-        user_prompt=phase_prompts[phase_name],
-        max_tokens=300,
-        temperature=0.7
+        user_prompt=adaptive_prompt,
+        max_tokens=llm_params["max_tokens"],
+        temperature=llm_params["temperature"]
     )
     
     try:
@@ -90,14 +104,49 @@ Format each pattern on a new line starting with "I:"."""
     except Exception as e:
         return f"[{phase_name} phase error: {e}]", 0.0, "unknown"
 
-async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False):
-    """Run QADI using multiple simple LLM calls."""
+async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False, question_type_override: str = None):
+    """Run QADI using multiple simple LLM calls with adaptive prompts."""
     from mad_spark_alt.core.llm_provider import setup_llm_providers
     from mad_spark_alt.core.json_utils import format_llm_cost
+    from mad_spark_alt.core.prompt_classifier import classify_question, QuestionType
     
     print(f"📝 {prompt}")
     print("🚀 QADI SIMPLE MULTI-AGENT (LLM Mode)")
     print("=" * 70)
+    
+    # Classify the question for adaptive prompts
+    print("🧠 Analyzing question type...", end='', flush=True)
+    classification_start = time.time()
+    classification_result = classify_question(prompt)
+    classification_time = time.time() - classification_start
+    print(f" ✓ ({classification_time:.1f}s)")
+    
+    # Apply manual override if provided
+    if question_type_override:
+        try:
+            override_type = QuestionType(question_type_override.lower())
+            original_type = classification_result.question_type
+            classification_result.question_type = override_type
+            override_applied = True
+        except ValueError:
+            print(f"⚠️  Warning: Invalid question type '{question_type_override}', using auto-detected type")
+            override_applied = False
+    else:
+        override_applied = False
+    
+    # Display classification results
+    print(f"📊 Question Analysis:")
+    if override_applied:
+        print(f"  ├─ Type: {classification_result.question_type.value.title()} (manually set)")
+        print(f"  ├─ Auto-detected: {original_type.value.title()}")
+    else:
+        print(f"  ├─ Type: {classification_result.question_type.value.title()}")
+    print(f"  ├─ Complexity: {classification_result.complexity.value.title()}")
+    print(f"  ├─ Confidence: {classification_result.confidence:.1%}")
+    if classification_result.domain_hints:
+        print(f"  └─ Domain: {', '.join(classification_result.domain_hints[:2])}")
+    else:
+        print(f"  └─ Domain: General")
     
     # Setup Google API
     google_key = os.getenv('GOOGLE_API_KEY')
@@ -105,7 +154,7 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False):
         print("❌ No Google API key found in .env")
         return
     
-    print("🤖 Setting up LLM providers...", end='', flush=True)
+    print("\n🤖 Setting up LLM providers...", end='', flush=True)
     start_time = time.time()
     
     try:
@@ -128,7 +177,7 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False):
     # Phase 1: Questioning
     print("\n❓ QUESTIONING Phase...", end='', flush=True)
     phase_start = time.time()
-    questions, q_cost, model_name = await run_qadi_phase("questioning", prompt, "", concrete_mode)
+    questions, q_cost, model_name = await run_qadi_phase("questioning", prompt, "", concrete_mode, classification_result)
     phase_time = time.time() - phase_start
     print(f" ✓ ({phase_time:.1f}s)")
     total_cost += q_cost
@@ -142,7 +191,7 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False):
     print("💡 ABDUCTION Phase...", end='', flush=True)
     phase_start = time.time()
     previous = f"Building on these questions:\n{questions}"
-    hypotheses, h_cost, _ = await run_qadi_phase("abduction", prompt, previous, concrete_mode)
+    hypotheses, h_cost, _ = await run_qadi_phase("abduction", prompt, previous, concrete_mode, classification_result)
     phase_time = time.time() - phase_start
     print(f" ✓ ({phase_time:.1f}s)")
     total_cost += h_cost
@@ -152,7 +201,7 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False):
     print("🔍 DEDUCTION Phase...", end='', flush=True)
     phase_start = time.time()
     previous = f"Building on questions and hypotheses:\n{questions}\n{hypotheses}"
-    deductions, d_cost, _ = await run_qadi_phase("deduction", prompt, previous, concrete_mode)
+    deductions, d_cost, _ = await run_qadi_phase("deduction", prompt, previous, concrete_mode, classification_result)
     phase_time = time.time() - phase_start
     print(f" ✓ ({phase_time:.1f}s)")
     total_cost += d_cost
@@ -162,7 +211,7 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False):
     print("🎯 INDUCTION Phase...", end='', flush=True)
     phase_start = time.time()
     previous = f"Synthesizing all insights:\n{questions}\n{hypotheses}\n{deductions}"
-    patterns, i_cost, _ = await run_qadi_phase("induction", prompt, previous, concrete_mode)
+    patterns, i_cost, _ = await run_qadi_phase("induction", prompt, previous, concrete_mode, classification_result)
     phase_time = time.time() - phase_start
     print(f" ✓ ({phase_time:.1f}s)")
     total_cost += i_cost
@@ -262,11 +311,16 @@ def show_help():
     print("  -h, --help    Show this help message and exit")
     print("  --version     Show version information")
     print("  --concrete    Use concrete mode for practical, implementable outputs")
+    print("  --type=TYPE   Manually set question type (technical, business, creative,")
+    print("                research, planning, personal). Auto-detected by default.")
     print()
     print("FEATURES:")
     print("  • Real LLM-powered insights (not templates)")
     print("  • Multi-perspective QADI analysis")  
     print("  • Progressive reasoning (each phase builds on previous)")
+    print("  • Adaptive prompts based on question type and complexity")
+    print("  • Auto-detection of question types and domains")
+    print("  • Manual question type override capability")
     print("  • No timeout issues")
     print("  • Smart cost display")
     print("  • Model identification (shows specific model used)")
@@ -276,14 +330,20 @@ def show_help():
     print("  • Internet connection")
     print()
     print("EXAMPLES:")
-    print("  Regular mode (analytical):")
+    print("  Regular mode (auto-detected question types):")
     print('    uv run python qadi_simple_multi.py "how to create AGI"')
     print('    uv run python qadi_simple_multi.py "reduce climate change"')
+    print('    uv run python qadi_simple_multi.py "improve team creativity"')
     print()
     print("  Concrete mode (implementation-focused):")
     print('    uv run python qadi_simple_multi.py --concrete "build a mobile game"')
     print('    uv run python qadi_simple_multi.py --concrete "improve team productivity"')
     print('    uv run python qadi_simple_multi.py --concrete "design better user interfaces"')
+    print()
+    print("  Manual question type override:")
+    print('    uv run python qadi_simple_multi.py --type=business "AI strategy"')
+    print('    uv run python qadi_simple_multi.py --type=technical "cloud architecture"')
+    print('    uv run python qadi_simple_multi.py --type=creative --concrete "logo design"')
     print()
     print("MODES:")
     print("  Regular Mode:")
@@ -296,6 +356,14 @@ def show_help():
     print("    • Emphasizes practical steps and specific solutions")
     print("    • Best for project planning and actionable deliverables")
     print()
+    print("QUESTION TYPES (AUTO-DETECTED):")
+    print("  Technical:  Implementation, architecture, development, coding")
+    print("  Business:   Strategy, growth, revenue, market, operations")
+    print("  Creative:   Design, innovation, artistic, brainstorming")
+    print("  Research:   Analysis, investigation, study, data, academic")
+    print("  Planning:   Organization, timelines, project management")
+    print("  Personal:   Individual growth, skills, habits, career")
+    print()
     print("QADI METHODOLOGY:")
     print("  Question   → Generate insightful questions about the topic")
     print("  Abduction  → Create creative hypotheses and possibilities") 
@@ -305,12 +373,18 @@ def show_help():
     print()
     print("OUTPUT:")
     print("  The tool provides structured analysis with:")
+    print("  • Question type analysis and classification confidence")
     print("  • Detailed phase-by-phase insights")
     print("  • Final synthesis with 3 actionable recommendations")
     print("  • Performance metrics (time, cost, model used)")
     print("  • Cost information (shows 'Free' for low API costs)")
     print()
     print("PROMPT OPTIMIZATION TIPS:")
+    print("  For Better Auto-Detection:")
+    print("    • Use specific keywords related to your question type")
+    print("    • Include domain-specific terms (e.g., 'API', 'revenue', 'design')")
+    print("    • Be specific about your intent (analyze vs. build vs. plan)")
+    print()
     print("  For Concrete Results:")
     print("    • Ask about building, creating, or implementing something")
     print("    • Include specific constraints (time, budget, tools)")
@@ -322,6 +396,11 @@ def show_help():
     print("    • Focus on 'why' and 'what if' questions")
     print('    • Use exploratory words: "Explore...", "Understand...", "Analyze..."')
     print('    • Example: "Explore the future implications of AI on society"')
+    print()
+    print("  Manual Override When:")
+    print("    • Auto-detection gets it wrong (low confidence)")
+    print("    • You want specific expertise perspective")
+    print("    • Question spans multiple types but you want focus")
 
 def show_version():
     """Display version information."""
@@ -336,18 +415,42 @@ if __name__ == "__main__":
     elif sys.argv[1] == "--version":
         show_version()
     else:
-        # Check for concrete mode flag
+        # Parse command line arguments
         concrete_mode = False
+        question_type_override = None
         args = sys.argv[1:]
         
+        # Handle flags
         if "--concrete" in args:
             concrete_mode = True
             args.remove("--concrete")
         
+        # Handle question type override
+        type_flag_index = None
+        for i, arg in enumerate(args):
+            if arg.startswith("--type="):
+                question_type_override = arg.split("=", 1)[1]
+                type_flag_index = i
+                break
+            elif arg == "--type" and i + 1 < len(args):
+                question_type_override = args[i + 1]
+                type_flag_index = i
+                break
+        
+        if type_flag_index is not None:
+            # Remove type flag and its value
+            if args[type_flag_index].startswith("--type="):
+                args.pop(type_flag_index)
+            else:
+                args.pop(type_flag_index)  # Remove --type
+                if type_flag_index < len(args):
+                    args.pop(type_flag_index)  # Remove the value
+        
         if not args:
-            print("Error: Please provide a question after the --concrete flag")
-            print('Usage: uv run python qadi_simple_multi.py [--concrete] "Your question"')
+            print("Error: Please provide a question")
+            print('Usage: uv run python qadi_simple_multi.py [OPTIONS] "Your question"')
+            print('Options: --concrete, --type=TYPE')
             sys.exit(1)
             
         prompt = " ".join(args)
-        asyncio.run(run_simple_multi_agent_qadi(prompt, concrete_mode))
+        asyncio.run(run_simple_multi_agent_qadi(prompt, concrete_mode, question_type_override))
