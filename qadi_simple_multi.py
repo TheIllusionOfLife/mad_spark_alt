@@ -218,24 +218,52 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False, 
     render_section_header("MULTI-AGENT QADI ANALYSIS", "🔍")
     
     print("\n❓ QUESTIONING:")
-    for line in questions.split('\n'):
-        if line.strip() and line.startswith('Q:'):
+    # Check if there are lines with Q: prefix, otherwise show all non-empty lines
+    q_lines = [line for line in questions.split('\n') if line.strip() and line.startswith('Q:')]
+    if q_lines:
+        for line in q_lines:
             print(f"  • {line[2:].strip()}")
+    else:
+        # Show all non-empty lines if no Q: prefix found
+        for line in questions.split('\n'):
+            if line.strip():
+                print(f"  • {line.strip()}")
     
     print("\n💡 ABDUCTION:")
-    for line in hypotheses.split('\n'):
-        if line.strip() and line.startswith('H:'):
+    # Check if there are lines with H: prefix, otherwise show all non-empty lines
+    h_lines = [line for line in hypotheses.split('\n') if line.strip() and line.startswith('H:')]
+    if h_lines:
+        for line in h_lines:
             print(f"  • {line[2:].strip()}")
+    else:
+        # Show all non-empty lines if no H: prefix found
+        for line in hypotheses.split('\n'):
+            if line.strip():
+                print(f"  • {line.strip()}")
     
     print("\n🔍 DEDUCTION:")
-    for line in deductions.split('\n'):
-        if line.strip() and line.startswith('D:'):
+    # Check if there are lines with D: prefix, otherwise show all non-empty lines
+    d_lines = [line for line in deductions.split('\n') if line.strip() and line.startswith('D:')]
+    if d_lines:
+        for line in d_lines:
             print(f"  • {line[2:].strip()}")
+    else:
+        # Show all non-empty lines if no D: prefix found
+        for line in deductions.split('\n'):
+            if line.strip():
+                print(f"  • {line.strip()}")
     
     print("\n🎯 INDUCTION:")
-    for line in patterns.split('\n'):
-        if line.strip() and line.startswith('I:'):
+    # Check if there are lines with I: prefix, otherwise show all non-empty lines
+    i_lines = [line for line in patterns.split('\n') if line.strip() and line.startswith('I:')]
+    if i_lines:
+        for line in i_lines:
             print(f"  • {line[2:].strip()}")
+    else:
+        # Show all non-empty lines if no I: prefix found
+        for line in patterns.split('\n'):
+            if line.strip():
+                print(f"  • {line.strip()}")
     
     # Final synthesis
     render_section_header("SYNTHESIS", "✨")
