@@ -53,7 +53,6 @@ class TerminalRenderer:
         content: str,
         title: str = "",
         border_style: str = "blue",
-        title_style: str = "bold",
     ) -> None:
         """
         Render content in a styled panel.
@@ -62,7 +61,6 @@ class TerminalRenderer:
             content: Content to display in panel
             title: Panel title
             border_style: Border color/style
-            title_style: Title text style
         """
         if self._fallback_mode:
             # Simple fallback without panels
@@ -73,7 +71,7 @@ class TerminalRenderer:
         else:
             try:
                 panel = Panel(
-                    content, title=title, border_style=border_style, title_align="left", title_style=title_style
+                    content, title=title, border_style=border_style, title_align="left"
                 )
                 self.console.print(panel)
             except Exception:

@@ -13,6 +13,24 @@ from pathlib import Path
 import time
 from mad_spark_alt.core.terminal_renderer import render_phase_indicator, render_section_header, render_summary_section
 
+
+def display_phase_results(title: str, emoji: str, content: str, prefix: str) -> None:
+    """Display phase content with prefix-based or fallback formatting."""
+    print(f"\n{emoji} {title}:")
+    
+    # Check if there are lines with the expected prefix
+    prefixed_lines = [line for line in content.split('\n') if line.strip() and line.startswith(f'{prefix}:')]
+    
+    if prefixed_lines:
+        # Use prefixed lines and strip the prefix
+        for line in prefixed_lines:
+            print(f"  • {line[2:].strip()}")
+    else:
+        # Fallback to all non-empty lines if no prefix found
+        for line in content.split('\n'):
+            if line.strip():
+                print(f"  • {line.strip()}")
+
 # Load .env
 env_path = Path(__file__).parent / '.env'
 if env_path.exists():
@@ -236,53 +254,10 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False, 
     # Display results
     render_section_header("MULTI-AGENT QADI ANALYSIS", "🔍")
     
-    print("\n❓ QUESTIONING:")
-    # Check if there are lines with Q: prefix, otherwise show all non-empty lines
-    q_lines = [line for line in questions.split('\n') if line.strip() and line.startswith('Q:')]
-    if q_lines:
-        for line in q_lines:
-            print(f"  • {line[2:].strip()}")
-    else:
-        # Show all non-empty lines if no Q: prefix found
-        for line in questions.split('\n'):
-            if line.strip():
-                print(f"  • {line.strip()}")
-    
-    print("\n💡 ABDUCTION:")
-    # Check if there are lines with H: prefix, otherwise show all non-empty lines
-    h_lines = [line for line in hypotheses.split('\n') if line.strip() and line.startswith('H:')]
-    if h_lines:
-        for line in h_lines:
-            print(f"  • {line[2:].strip()}")
-    else:
-        # Show all non-empty lines if no H: prefix found
-        for line in hypotheses.split('\n'):
-            if line.strip():
-                print(f"  • {line.strip()}")
-    
-    print("\n🔍 DEDUCTION:")
-    # Check if there are lines with D: prefix, otherwise show all non-empty lines
-    d_lines = [line for line in deductions.split('\n') if line.strip() and line.startswith('D:')]
-    if d_lines:
-        for line in d_lines:
-            print(f"  • {line[2:].strip()}")
-    else:
-        # Show all non-empty lines if no D: prefix found
-        for line in deductions.split('\n'):
-            if line.strip():
-                print(f"  • {line.strip()}")
-    
-    print("\n🎯 INDUCTION:")
-    # Check if there are lines with I: prefix, otherwise show all non-empty lines
-    i_lines = [line for line in patterns.split('\n') if line.strip() and line.startswith('I:')]
-    if i_lines:
-        for line in i_lines:
-            print(f"  • {line[2:].strip()}")
-    else:
-        # Show all non-empty lines if no I: prefix found
-        for line in patterns.split('\n'):
-            if line.strip():
-                print(f"  • {line.strip()}")
+    display_phase_results("QUESTIONING", "❓", questions, "Q")
+    display_phase_results("ABDUCTION", "💡", hypotheses, "H")
+    display_phase_results("DEDUCTION", "🔍", deductions, "D")
+    display_phase_results("INDUCTION", "🎯", patterns, "I")
     
     # Final synthesis
     render_section_header("SYNTHESIS", "✨")
