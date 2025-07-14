@@ -27,6 +27,7 @@ from .core import (
     SmartQADIOrchestrator,
     registry,
 )
+from .core.json_utils import format_llm_cost
 from .evolution import (
     EvolutionConfig,
     EvolutionRequest,
@@ -516,7 +517,9 @@ async def _run_evolution_pipeline(
             console.print(
                 f"[green]✅ Generated {len(initial_ideas)} initial ideas[/green]"
             )
-            console.print(f"[dim]💰 LLM Cost: ${qadi_result.llm_cost:.4f}[/dim]")
+            console.print(
+                f"[dim]💰 LLM Cost: {format_llm_cost(qadi_result.llm_cost)}[/dim]"
+            )
 
             # Phase 2: Evolution
             evolution_task = progress.add_task(

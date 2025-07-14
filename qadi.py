@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent / 'src'))
 async def run_single_llm_qadi(prompt: str):
     """Run QADI with just one LLM call."""
     from mad_spark_alt.core.llm_provider import setup_llm_providers, llm_manager, LLMRequest
+    from mad_spark_alt.core.json_utils import format_llm_cost
     
     google_key = os.getenv('GOOGLE_API_KEY')
     if not google_key:
@@ -72,7 +73,7 @@ ANSWER3: [Third practical answer based on the deduction]"""
         
         elapsed = time.time() - start_time
         print(f"\n⏱️  Completed in {elapsed:.1f}s")
-        print(f"💰 Cost: ${response.cost:.4f}")
+        print(f"💰 Cost: {format_llm_cost(response.cost)}")
         
         # Parse response
         content = response.content
