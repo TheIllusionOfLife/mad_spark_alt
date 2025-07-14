@@ -175,7 +175,7 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False, 
     all_insights = []
     
     # Phase 1: Questioning
-    from mad_spark_alt.core.terminal_renderer import render_phase_indicator
+    from mad_spark_alt.core.terminal_renderer import render_phase_indicator, render_section_header, render_summary_section
     
     phase_start = time.time()
     questions, q_cost, model_name = await run_qadi_phase("questioning", prompt, "", concrete_mode, classification_result)
@@ -238,7 +238,6 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False, 
             print(f"  • {line[2:].strip()}")
     
     # Final synthesis
-    from mad_spark_alt.core.terminal_renderer import render_section_header
     render_section_header("SYNTHESIS", "✨")
     
     # Smart summarization to preserve key insights while fitting context window
@@ -310,8 +309,6 @@ Format as:
         print(f"(Synthesis failed: {str(e)})")
     
     # Summary
-    from mad_spark_alt.core.terminal_renderer import render_summary_section
-    
     total_time = time.time() - start_time
     
     performance_items = [
