@@ -43,24 +43,32 @@ async def run_qadi_phase(phase_name: str, prompt: str, previous_insights: str = 
     else:
         # Fallback to static prompts if no classification
         regular_prompts = {
-            "questioning": f"""As a questioning specialist, generate 2 insightful questions about: "{prompt}"
+            "questioning": f"""As a questioning specialist, generate exactly 2 insightful questions about: "{prompt}"
 {previous_insights}
-Format each question on a new line starting with "Q:".""",
+IMPORTANT: Format your response as:
+Q: [First question here]
+Q: [Second question here]""",
             
-            "abduction": f"""As a hypothesis specialist, generate 2 creative hypotheses about: "{prompt}"
+            "abduction": f"""As a hypothesis specialist, generate exactly 2 creative hypotheses about: "{prompt}"
 {previous_insights}
 Consider unexpected connections and possibilities.
-Format each hypothesis on a new line starting with "H:".""",
+IMPORTANT: Format your response as:
+H: [First hypothesis here]
+H: [Second hypothesis here]""",
             
-            "deduction": f"""As a logical reasoning specialist, generate 2 logical deductions about: "{prompt}"
+            "deduction": f"""As a logical reasoning specialist, generate exactly 2 logical deductions about: "{prompt}"
 {previous_insights}
 Apply systematic reasoning and derive conclusions.
-Format each deduction on a new line starting with "D:".""",
+IMPORTANT: Format your response as:
+D: [First deduction here]
+D: [Second deduction here]""",
             
-            "induction": f"""As a pattern synthesis specialist, generate 2 pattern-based insights about: "{prompt}"
+            "induction": f"""As a pattern synthesis specialist, generate exactly 2 pattern-based insights about: "{prompt}"
 {previous_insights}
 Identify recurring themes and general principles.
-Format each insight on a new line starting with "I:"."""
+IMPORTANT: Format your response as:
+I: [First pattern/insight here]
+I: [Second pattern/insight here]"""
         }
         
         concrete_prompts = {
