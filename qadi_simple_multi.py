@@ -243,11 +243,18 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False, 
     # Final synthesis
     print("\n✨ SYNTHESIS:")
     print("-" * 70)
+    
+    # Truncate each phase to avoid context window issues
+    def truncate_text(text, max_chars=800):
+        if len(text) <= max_chars:
+            return text
+        return text[:max_chars] + "...[truncated]"
+    
     synthesis_prompt = f"""Based on this QADI analysis for "{prompt}":
-{questions}
-{hypotheses}
-{deductions}
-{patterns}
+{truncate_text(questions)}
+{truncate_text(hypotheses)}
+{truncate_text(deductions)}
+{truncate_text(patterns)}
 
 Provide 3 concrete, actionable recommendations that synthesize all perspectives. For each recommendation:
 - Start with a clear action verb (e.g., "Implement", "Create", "Design", "Build")
