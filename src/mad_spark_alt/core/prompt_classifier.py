@@ -712,7 +712,9 @@ class PromptClassifier:
 
         # Sort by domain score (descending) and format
         domains.sort(key=lambda x: x[1], reverse=True)
-        formatted_domains = [f"{domain} ({score} indicators)" for domain, score in domains]
+        formatted_domains = [
+            f"{domain} ({score} indicators)" for domain, score in domains
+        ]
 
         return formatted_domains[:3]  # Top 3 domains
 
