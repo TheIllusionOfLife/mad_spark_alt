@@ -264,7 +264,7 @@ Format as:
     from mad_spark_alt.core.llm_provider import llm_manager, LLMRequest
     request = LLMRequest(
         user_prompt=synthesis_prompt,
-        max_tokens=400,
+        max_tokens=800,
         temperature=0.5
     )
     
@@ -272,8 +272,8 @@ Format as:
         synthesis = await asyncio.wait_for(llm_manager.generate(request), timeout=60)
         print(synthesis.content)
         total_cost += synthesis.cost
-    except:
-        print("(Synthesis timed out)")
+    except Exception as e:
+        print(f"(Synthesis failed: {str(e)})")
     
     # Summary
     total_time = time.time() - start_time
