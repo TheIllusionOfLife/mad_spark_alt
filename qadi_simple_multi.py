@@ -66,6 +66,7 @@ Format each insight on a new line starting with "I:"."""
 async def run_simple_multi_agent_qadi(prompt: str):
     """Run QADI using multiple simple LLM calls."""
     from mad_spark_alt.core.llm_provider import setup_llm_providers
+    from mad_spark_alt.core.json_utils import format_llm_cost
     
     print(f"📝 {prompt}")
     print("🚀 QADI SIMPLE MULTI-AGENT (Using Google API)")
@@ -188,7 +189,7 @@ Provide 3 actionable insights that synthesize all perspectives."""
     total_time = time.time() - start_time
     print(f"\n📊 Performance Summary:")
     print(f"  ⏱️  Total time: {total_time:.1f}s")
-    print(f"  💰 Total cost: ${total_cost:.4f}")
+    print(f"  💰 Total cost: {format_llm_cost(total_cost)}")
     print(f"  🤖 API calls: 5 (4 phases + synthesis)")
     print(f"  ✅ Using: Google Gemini API")
     
