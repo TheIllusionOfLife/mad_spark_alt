@@ -5,6 +5,7 @@ Command-line interface for Mad Spark Alt.
 import asyncio
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -37,6 +38,24 @@ from .layers.quantitative import DiversityEvaluator, QualityEvaluator
 console = Console()
 
 
+def load_env_file() -> None:
+    """Load environment variables from .env file if it exists."""
+    env_path = Path(__file__).parent.parent.parent / ".env"
+    if env_path.exists():
+        try:
+            with open(env_path) as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        key, value = line.split("=", 1)
+                        # Only set if not already in environment
+                        if key not in os.environ:
+                            os.environ[key] = value.strip('"').strip("'")
+        except Exception as e:
+            # Log error but don't fail - env vars might be set elsewhere
+            logging.warning(f"Failed to load .env file: {e}")
+
+
 def setup_logging(verbose: bool = False) -> None:
     """Set up logging configuration."""
     level = logging.DEBUG if verbose else logging.INFO
@@ -55,6 +74,8 @@ def register_default_evaluators() -> None:
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
 def main(verbose: bool) -> None:
     """Mad Spark Alt - AI Creativity Evaluation System."""
+    # Load environment variables from .env file first
+    load_env_file()
     setup_logging(verbose)
     register_default_evaluators()
 
