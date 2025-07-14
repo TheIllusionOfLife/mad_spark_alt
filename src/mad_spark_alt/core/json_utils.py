@@ -185,16 +185,16 @@ def validate_json_structure(data: Dict[str, Any], required_keys: list) -> bool:
 def format_llm_cost(cost: float) -> str:
     """
     Format LLM API cost with smart thresholds for better user experience.
-    
+
     Avoids showing "$0.0000" for very low costs and provides meaningful
     cost information based on actual LLM pricing tiers.
-    
+
     Args:
         cost: LLM API cost in USD
-        
+
     Returns:
         Formatted cost string
-        
+
     Thresholds:
         - < $0.001: "Free (within API limits)"
         - $0.001-$0.10: Show actual cost with appropriate precision
