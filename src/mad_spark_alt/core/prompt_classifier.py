@@ -555,13 +555,8 @@ class PromptClassifier:
             # Score keywords with word boundary matching
             for keyword in patterns["keywords"]:
                 # Create regex pattern with word boundaries
-                # Handle special cases like "CI/CD" which contains slashes
-                if "/" in keyword or "-" in keyword:
-                    # For keywords with special chars, use exact match
-                    pattern = r"\b" + re.escape(keyword.lower()) + r"\b"
-                else:
-                    # For regular words, use case-insensitive word boundaries
-                    pattern = r"\b" + keyword.lower() + r"\b"
+                # Always escape keywords to prevent regex metacharacter issues
+                pattern = r"\b" + re.escape(keyword.lower()) + r"\b"
 
                 if re.search(pattern, question_lower, re.IGNORECASE):
                     score += 1.0
@@ -713,12 +708,13 @@ class PromptClassifier:
         for domain, keywords in self.domain_patterns.items():
             domain_score = sum(1 for keyword in keywords if keyword in question_lower)
             if domain_score > 0:
-                domains.append(f"{domain} ({domain_score} indicators)")
+                domains.append((domain, domain_score))
 
-        # Sort by number of indicators (descending)
-        domains.sort(key=lambda x: int(x.split("(")[1].split(" ")[0]), reverse=True)
+        # Sort by domain score (descending) and format
+        domains.sort(key=lambda x: x[1], reverse=True)
+        formatted_domains = [f"{domain} ({score} indicators)" for domain, score in domains]
 
-        return domains[:3]  # Top 3 domains
+        return formatted_domains[:3]  # Top 3 domains
 
 
 # Global classifier instance
