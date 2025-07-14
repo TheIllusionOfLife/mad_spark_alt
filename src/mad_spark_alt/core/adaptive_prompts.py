@@ -12,7 +12,7 @@ from .prompt_classifier import QuestionType, ComplexityLevel, ClassificationResu
 class AdaptivePromptGenerator:
     """Generates optimized prompts based on question classification."""
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the adaptive prompt generator with specialized templates."""
         
         # Technical question prompts - focus on implementation and architecture
@@ -461,6 +461,10 @@ Format each pattern on a new line starting with "I:"."""
         # Choose regular or concrete mode
         mode = "concrete" if concrete_mode else "regular"
         template = phase_prompts.get(mode, phase_prompts["regular"])
+        
+        # Ensure template is a string
+        if not isinstance(template, str):
+            template = str(template)
         
         # Format the template with the provided values
         return template.format(

@@ -8,7 +8,7 @@ adaptive prompt selection for optimal QADI analysis results.
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Set
+from typing import Dict, List, Optional, Tuple, Set, Any, cast
 
 
 class QuestionType(Enum):
@@ -45,7 +45,7 @@ class ClassificationResult:
 class PromptClassifier:
     """Classifies questions to enable adaptive prompt selection."""
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the classifier with pattern dictionaries."""
         
         # Question type patterns - keywords that indicate specific types
@@ -308,7 +308,7 @@ class PromptClassifier:
             return QuestionType.UNKNOWN, 0.0
         
         # Find the type with highest score
-        best_type = max(non_zero_scores, key=non_zero_scores.get)
+        best_type = max(non_zero_scores.keys(), key=lambda k: non_zero_scores[k])
         best_score = non_zero_scores[best_type]
         
         # Calculate confidence based on:
@@ -347,33 +347,33 @@ class PromptClassifier:
         """Detect the complexity level of the question."""
         
         # Check for simple indicators
-        simple_patterns = self.complexity_patterns[ComplexityLevel.SIMPLE]
+        simple_patterns = cast(Dict[str, Any], self.complexity_patterns[ComplexityLevel.SIMPLE])
         simple_score = 0
         
-        for indicator in simple_patterns["indicators"]:
+        for indicator in cast(List[str], simple_patterns["indicators"]):
             if indicator in question_lower:
                 simple_score += 1
         
-        for qword in simple_patterns["question_words"]:
+        for qword in cast(List[str], simple_patterns["question_words"]):
             if question_lower.startswith(qword):
                 simple_score += 1
         
-        if question_length < simple_patterns["length_threshold"]:
+        if question_length < cast(int, simple_patterns["length_threshold"]):
             simple_score += 1
         
         # Check for complex indicators
-        complex_patterns = self.complexity_patterns[ComplexityLevel.COMPLEX]
+        complex_patterns = cast(Dict[str, Any], self.complexity_patterns[ComplexityLevel.COMPLEX])
         complex_score = 0
         
-        for indicator in complex_patterns["indicators"]:
+        for indicator in cast(List[str], complex_patterns["indicators"]):
             if indicator in question_lower:
                 complex_score += 1
         
-        for qword in complex_patterns["question_words"]:
+        for qword in cast(List[str], complex_patterns["question_words"]):
             if qword in question_lower:
                 complex_score += 1
         
-        if question_length > complex_patterns["length_threshold"]:
+        if question_length > cast(int, complex_patterns["length_threshold"]):
             complex_score += 1
         
         # Determine complexity
