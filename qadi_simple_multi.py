@@ -269,7 +269,7 @@ Format as:
     )
     
     try:
-        synthesis = await asyncio.wait_for(llm_manager.generate(request), timeout=20)
+        synthesis = await asyncio.wait_for(llm_manager.generate(request), timeout=60)
         print(synthesis.content)
         total_cost += synthesis.cost
     except:
