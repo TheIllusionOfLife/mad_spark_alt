@@ -7,7 +7,7 @@ in the terminal, with graceful fallbacks for different terminal capabilities.
 
 import os
 import sys
-from typing import Optional, Union
+from typing import Optional, Union, Any
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -166,7 +166,7 @@ class TerminalRenderer:
                 for item in items:
                     self.console.print(f"  {item}")
     
-    def print(self, *args, **kwargs) -> None:
+    def print(self, *args: Any, **kwargs: Any) -> None:
         """
         Enhanced print function with Rich support.
         
@@ -191,7 +191,7 @@ def render_markdown(content: str) -> None:
     """Convenience function to render markdown."""
     get_renderer().render_markdown(content)
 
-def render_panel(content: str, title: str = "", **kwargs) -> None:
+def render_panel(content: str, title: str = "", **kwargs: Any) -> None:
     """Convenience function to render a panel."""
     get_renderer().render_panel(content, title, **kwargs)
 
