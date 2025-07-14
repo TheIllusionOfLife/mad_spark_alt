@@ -273,7 +273,44 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False, 
         
         return result if result else text[:max_chars] + "...[truncated]"
     
-    synthesis_prompt = f"""Based on this QADI analysis for "{prompt}":
+    # Detect input language to maintain consistency
+    def detect_primary_language(text):
+        """Simple language detection based on character patterns"""
+        # Count different character types
+        ascii_chars = sum(1 for c in text if ord(c) < 128)
+        cjk_chars = sum(1 for c in text if '\u3040' <= c <= '\u309F' or  # Hiragana
+                                           '\u30A0' <= c <= '\u30FF' or  # Katakana
+                                           '\u4E00' <= c <= '\u9FFF')     # CJK
+        
+        total_chars = len(text.replace(' ', ''))
+        if total_chars == 0:
+            return 'en'
+        
+        cjk_ratio = cjk_chars / total_chars
+        return 'ja' if cjk_ratio > 0.3 else 'en'
+    
+    input_language = detect_primary_language(prompt)
+    
+    if input_language == 'ja':
+        synthesis_prompt = f"""この QADI 分析「{prompt}」に基づいて:
+{extract_key_insights(questions)}
+{extract_key_insights(hypotheses)}
+{extract_key_insights(deductions)}
+{extract_key_insights(patterns)}
+
+すべての視点を統合した3つの具体的で実行可能な推奨事項を提供してください。各推奨事項について:
+- 明確なアクション動詞で始める（例：「実装する」「作成する」「設計する」「構築する」）
+- 具体的な手順や方法を含める
+- 可能な限り具体例を提供する
+- 理論的概念よりも実践的な実装に焦点を当てる
+- 実際に誰かが実行や構築できるものにする
+
+以下の形式で回答してください:
+1. **[アクション重視のタイトル]:** [具体的な実装詳細と例]
+2. **[アクション重視のタイトル]:** [具体的な実装詳細と例]  
+3. **[アクション重視のタイトル]:** [具体的な実装詳細と例]"""
+    else:
+        synthesis_prompt = f"""Based on this QADI analysis for "{prompt}":
 {extract_key_insights(questions)}
 {extract_key_insights(hypotheses)}
 {extract_key_insights(deductions)}
