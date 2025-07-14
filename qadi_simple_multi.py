@@ -11,6 +11,7 @@ import sys
 import os
 from pathlib import Path
 import time
+from mad_spark_alt.core.terminal_renderer import render_phase_indicator, render_section_header, render_summary_section
 
 # Load .env
 env_path = Path(__file__).parent / '.env'
@@ -72,26 +73,38 @@ I: [Second pattern/insight here]"""
         }
         
         concrete_prompts = {
-            "questioning": f"""As an implementation specialist, generate 2 practical questions about: "{prompt}"
+            "questioning": f"""As an implementation specialist, generate exactly 2 practical questions about: "{prompt}"
 {previous_insights}
 Focus on implementation challenges, resource requirements, and feasibility concerns.
-Format each question on a new line starting with "Q:".""",
+
+IMPORTANT: Format your response as:
+Q: [First question here]
+Q: [Second question here]""",
             
-            "abduction": f"""As a solution architect, generate 2 specific, implementable solutions for: "{prompt}"
+            "abduction": f"""As a solution architect, generate exactly 2 specific, implementable solutions for: "{prompt}"
 {previous_insights}
 Provide concrete approaches with specific tools, methods, or technologies.
 Include real-world examples where possible.
-Format each solution on a new line starting with "H:".""",
+
+IMPORTANT: Format your response as:
+H: [First solution here]
+H: [Second solution here]""",
             
-            "deduction": f"""As a project planner, generate 2 logical implementation steps for: "{prompt}"
+            "deduction": f"""As a project planner, generate exactly 2 logical implementation steps for: "{prompt}"
 {previous_insights}
 Focus on step-by-step approaches, prerequisites, and concrete actions.
-Format each step on a new line starting with "D:".""",
+
+IMPORTANT: Format your response as:
+D: [First step here]
+D: [Second step here]""",
             
-            "induction": f"""As a best practices specialist, generate 2 concrete patterns or methodologies for: "{prompt}"
+            "induction": f"""As a best practices specialist, generate exactly 2 concrete patterns or methodologies for: "{prompt}"
 {previous_insights}
 Identify proven approaches, specific frameworks, and actionable principles.
-Format each pattern on a new line starting with "I:"."""
+
+IMPORTANT: Format your response as:
+I: [First pattern here]
+I: [Second pattern here]"""
         }
         
         phase_prompts = concrete_prompts if concrete_mode else regular_prompts
@@ -183,8 +196,6 @@ async def run_simple_multi_agent_qadi(prompt: str, concrete_mode: bool = False, 
     all_insights = []
     
     # Phase 1: Questioning
-    from mad_spark_alt.core.terminal_renderer import render_phase_indicator, render_section_header, render_summary_section
-    
     phase_start = time.time()
     questions, q_cost, model_name = await run_qadi_phase("questioning", prompt, "", concrete_mode, classification_result)
     phase_time = time.time() - phase_start

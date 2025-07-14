@@ -5,14 +5,11 @@ This module provides a clean interface for rendering markdown and styled content
 in the terminal, with graceful fallbacks for different terminal capabilities.
 """
 
-import os
-import sys
-from typing import Optional, Union, Any
+from typing import Optional, Any
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.text import Text
-from rich.style import Style
 
 
 class TerminalRenderer:
@@ -26,7 +23,7 @@ class TerminalRenderer:
             force_color: Force color output (True/False), None for auto-detection
         """
         self.console = Console(
-            force_terminal=force_color,
+            force_terminal=True,
             color_system=(
                 "auto" if force_color is None else ("standard" if force_color else None)
             ),
@@ -76,7 +73,7 @@ class TerminalRenderer:
         else:
             try:
                 panel = Panel(
-                    content, title=title, border_style=border_style, title_align="left"
+                    content, title=title, border_style=border_style, title_align="left", title_style=title_style
                 )
                 self.console.print(panel)
             except Exception:
@@ -149,7 +146,7 @@ class TerminalRenderer:
             try:
                 status_style = "bold green" if status == "✓" else "bold red"
                 self.console.print(
-                    f"{phase_text}... [bold green]{status}[/bold green]{duration_text}"
+                    f"{phase_text}... [{status_style}]{status}[/{status_style}]{duration_text}"
                 )
             except Exception:
                 self.console.print(f"{phase_text}... {status}{duration_text}")
