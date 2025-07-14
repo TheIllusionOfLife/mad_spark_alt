@@ -57,11 +57,11 @@ Format each insight on a new line starting with "I:"."""
     
     try:
         response = await asyncio.wait_for(llm_manager.generate(request), timeout=20)
-        return response.content, response.cost
+        return response.content, response.cost, response.model
     except asyncio.TimeoutError:
-        return f"[{phase_name} phase timed out]", 0.0
+        return f"[{phase_name} phase timed out]", 0.0, "unknown"
     except Exception as e:
-        return f"[{phase_name} phase error: {e}]", 0.0
+        return f"[{phase_name} phase error: {e}]", 0.0, "unknown"
 
 async def run_simple_multi_agent_qadi(prompt: str):
     """Run QADI using multiple simple LLM calls."""
@@ -69,7 +69,7 @@ async def run_simple_multi_agent_qadi(prompt: str):
     from mad_spark_alt.core.json_utils import format_llm_cost
     
     print(f"📝 {prompt}")
-    print("🚀 QADI SIMPLE MULTI-AGENT (Using Google API)")
+    print("🚀 QADI SIMPLE MULTI-AGENT (LLM Mode)")
     print("=" * 70)
     
     # Setup Google API
@@ -78,7 +78,7 @@ async def run_simple_multi_agent_qadi(prompt: str):
         print("❌ No Google API key found in .env")
         return
     
-    print("🤖 Setting up Google API...", end='', flush=True)
+    print("🤖 Setting up LLM providers...", end='', flush=True)
     start_time = time.time()
     
     try:
@@ -101,17 +101,21 @@ async def run_simple_multi_agent_qadi(prompt: str):
     # Phase 1: Questioning
     print("\n❓ QUESTIONING Phase...", end='', flush=True)
     phase_start = time.time()
-    questions, q_cost = await run_qadi_phase("questioning", prompt)
+    questions, q_cost, model_name = await run_qadi_phase("questioning", prompt)
     phase_time = time.time() - phase_start
     print(f" ✓ ({phase_time:.1f}s)")
     total_cost += q_cost
+    
+    # Show model info after first successful call
+    if model_name != "unknown":
+        print(f"🤖 Model: {model_name}")
     all_insights.append(f"Questions explored:\n{questions}")
     
     # Phase 2: Abduction (using previous insights)
     print("💡 ABDUCTION Phase...", end='', flush=True)
     phase_start = time.time()
     previous = f"Building on these questions:\n{questions}"
-    hypotheses, h_cost = await run_qadi_phase("abduction", prompt, previous)
+    hypotheses, h_cost, _ = await run_qadi_phase("abduction", prompt, previous)
     phase_time = time.time() - phase_start
     print(f" ✓ ({phase_time:.1f}s)")
     total_cost += h_cost
@@ -121,7 +125,7 @@ async def run_simple_multi_agent_qadi(prompt: str):
     print("🔍 DEDUCTION Phase...", end='', flush=True)
     phase_start = time.time()
     previous = f"Building on questions and hypotheses:\n{questions}\n{hypotheses}"
-    deductions, d_cost = await run_qadi_phase("deduction", prompt, previous)
+    deductions, d_cost, _ = await run_qadi_phase("deduction", prompt, previous)
     phase_time = time.time() - phase_start
     print(f" ✓ ({phase_time:.1f}s)")
     total_cost += d_cost
@@ -131,7 +135,7 @@ async def run_simple_multi_agent_qadi(prompt: str):
     print("🎯 INDUCTION Phase...", end='', flush=True)
     phase_start = time.time()
     previous = f"Synthesizing all insights:\n{questions}\n{hypotheses}\n{deductions}"
-    patterns, i_cost = await run_qadi_phase("induction", prompt, previous)
+    patterns, i_cost, _ = await run_qadi_phase("induction", prompt, previous)
     phase_time = time.time() - phase_start
     print(f" ✓ ({phase_time:.1f}s)")
     total_cost += i_cost
@@ -191,7 +195,10 @@ Provide 3 actionable insights that synthesize all perspectives."""
     print(f"  ⏱️  Total time: {total_time:.1f}s")
     print(f"  💰 Total cost: {format_llm_cost(total_cost)}")
     print(f"  🤖 API calls: 5 (4 phases + synthesis)")
-    print(f"  ✅ Using: Google Gemini API")
+    if model_name != "unknown":
+        print(f"  ✅ Model: {model_name}")
+    else:
+        print(f"  ✅ LLM mode: Multi-agent analysis")
     
     print(f"\n💡 Advantages:")
     print(f"  • Real LLM-powered insights (not templates)")
