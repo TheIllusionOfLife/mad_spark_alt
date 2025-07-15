@@ -110,7 +110,7 @@ class TestEvolutionIntegration:
         assert "fitness_trend" in evolution_result.evolution_metrics
         assert (
             len(evolution_result.evolution_metrics["fitness_trend"])
-            == evolution_result.total_generations
+            == evolution_result.total_generations + 1
         )
 
     @pytest.mark.asyncio

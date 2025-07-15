@@ -9,7 +9,7 @@ import asyncio
 import logging
 import random
 import time
-from typing import List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.evolution.cached_fitness import CachedFitnessEvaluator
@@ -96,6 +96,145 @@ class GeneticAlgorithm:
             EvolutionCheckpointer(checkpoint_dir) if checkpoint_dir else None
         )
 
+    async def _run_evolution_loop(
+        self,
+        initial_population: List[IndividualFitness],
+        request: EvolutionRequest,
+        start_generation: int = 0,
+        initial_snapshots: Optional[List[PopulationSnapshot]] = None,
+        initial_evaluations: int = 0,
+    ) -> Tuple[List[IndividualFitness], List[PopulationSnapshot], int]:
+        """
+        Run the main evolution loop.
+
+        Args:
+            initial_population: Starting population
+            request: Evolution request configuration
+            start_generation: Generation to start from (for resume)
+            initial_snapshots: Existing snapshots (for resume)
+            initial_evaluations: Initial evaluation count (for resume)
+
+        Returns:
+            Tuple of (final_population, generation_snapshots, total_evaluations)
+        """
+        current_population = initial_population
+        generation_snapshots = initial_snapshots.copy() if initial_snapshots else []
+        total_evaluations = initial_evaluations
+
+        # Evolution loop
+        for generation in range(start_generation, request.config.generations):
+            logger.info(
+                f"{'Resuming' if start_generation > 0 else 'Starting'} generation {generation + 1}/{request.config.generations}"
+            )
+
+            # Create snapshot of current generation (before evolution)
+            snapshot = PopulationSnapshot.from_population(
+                generation, current_population
+            )
+
+            # Calculate population diversity
+            snapshot.diversity_score = (
+                await self.fitness_evaluator.calculate_population_diversity(
+                    current_population
+                )
+            )
+
+            generation_snapshots.append(snapshot)
+
+            # Evolve to next generation
+            current_population = await self._evolve_generation(
+                current_population, request.config, request.context, generation
+            )
+
+            # Count evaluations for new offspring
+            total_evaluations += len(current_population)
+
+            # Save checkpoint if enabled
+            if (
+                self.checkpointer
+                and self.checkpoint_interval > 0
+                and (generation + 1) % self.checkpoint_interval == 0
+            ):
+                checkpoint = EvolutionCheckpoint(
+                    generation=generation + 1,
+                    population=current_population,
+                    config=request.config,
+                    generation_snapshots=generation_snapshots.copy(),
+                    context=request.context,
+                    metadata={"total_evaluations": total_evaluations},
+                )
+                checkpoint_id = self.checkpointer.save_checkpoint(checkpoint)
+                logger.info(
+                    f"Saved checkpoint at generation {generation + 1}: {checkpoint_id}"
+                )
+
+            # Check termination criteria
+            if self._should_terminate(snapshot, request):
+                logger.info(f"Early termination at generation {generation + 1}")
+                break
+
+            # Adaptive mutation rate (if enabled)
+            if request.config.adaptive_mutation:
+                request.config.mutation_rate = self._adapt_mutation_rate(
+                    snapshot, request.config.mutation_rate
+                )
+
+        # Create final population snapshot
+        final_snapshot = PopulationSnapshot.from_population(
+            len(generation_snapshots), current_population
+        )
+        final_snapshot.diversity_score = (
+            await self.fitness_evaluator.calculate_population_diversity(
+                current_population
+            )
+        )
+        generation_snapshots.append(final_snapshot)
+
+        return current_population, generation_snapshots, total_evaluations
+
+    def _prepare_evolution_result(
+        self,
+        population: List[IndividualFitness],
+        generation_snapshots: List[PopulationSnapshot],
+        total_evaluations: int,
+        start_time: float,
+        evolution_metrics: dict,
+    ) -> EvolutionResult:
+        """
+        Prepare the final evolution result.
+
+        Args:
+            population: Final population
+            generation_snapshots: All generation snapshots
+            total_evaluations: Total number of evaluations performed
+            start_time: Evolution start time
+            evolution_metrics: Calculated evolution metrics
+
+        Returns:
+            Complete evolution result
+        """
+        # Extract best ideas
+        best_ideas = self._extract_best_ideas(population, n=10)
+
+        # Get cache stats if available
+        cache_stats: Dict[str, Any] = {}
+        if hasattr(self.fitness_evaluator, "cache") and self.fitness_evaluator.cache:
+            cache_stats = self.fitness_evaluator.cache.get_stats()
+
+        return EvolutionResult(
+            final_population=population,
+            best_ideas=best_ideas,
+            generation_snapshots=generation_snapshots,
+            total_generations=len(generation_snapshots) - 1,  # Minus final snapshot
+            execution_time=time.time() - start_time,
+            evolution_metrics={
+                **evolution_metrics,
+                "cache_stats": cache_stats,
+                "total_evaluations": total_evaluations,
+            },
+            error_message=None,
+        )
+
     async def evolve(self, request: EvolutionRequest) -> EvolutionResult:
         """
         Run the genetic evolution process.
@@ -131,87 +270,24 @@ class GeneticAlgorithm:
                 request.initial_population, request.config
             )
 
-            generation_snapshots = []
+            # Run evolution loop using helper method
             total_evaluations = len(current_population)  # Count initial evaluation
-
-            # Evolution loop
-            for generation in range(request.config.generations):
-                logger.info(
-                    f"Starting generation {generation + 1}/{request.config.generations}"
-                )
-
-                # Create snapshot of current generation
-                snapshot = PopulationSnapshot.from_population(
-                    generation, current_population
-                )
-
-                # Calculate population diversity
-                snapshot.diversity_score = (
-                    await self.fitness_evaluator.calculate_population_diversity(
-                        current_population
-                    )
-                )
-
-                generation_snapshots.append(snapshot)
-
-                # Save checkpoint if enabled
-                if (
-                    self.checkpointer
-                    and self.checkpoint_interval > 0
-                    and (generation + 1) % self.checkpoint_interval == 0
-                ):
-                    checkpoint = EvolutionCheckpoint(
-                        generation=generation + 1,
-                        population=current_population,
-                        config=request.config,
-                        generation_snapshots=generation_snapshots.copy(),
-                        context=request.context,
-                        metadata={"total_evaluations": total_evaluations},
-                    )
-                    checkpoint_id = self.checkpointer.save_checkpoint(checkpoint)
-                    logger.info(
-                        f"Saved checkpoint at generation {generation + 1}: {checkpoint_id}"
-                    )
-
-                # Check termination criteria
-                if self._should_terminate(snapshot, request):
-                    logger.info(f"Early termination at generation {generation + 1}")
-                    break
-
-                # Evolve to next generation
-                current_population = await self._evolve_generation(
-                    current_population, request.config, request.context, generation
-                )
-
-                # Adaptive mutation rate (if enabled)
-                if request.config.adaptive_mutation:
-                    request.config.mutation_rate = self._adapt_mutation_rate(
-                        snapshot, request.config.mutation_rate
-                    )
-
-            # Final population snapshot
-            final_snapshot = PopulationSnapshot.from_population(
-                len(generation_snapshots), current_population
-            )
-            final_snapshot.diversity_score = (
-                await self.fitness_evaluator.calculate_population_diversity(
-                    current_population
+            current_population, generation_snapshots, total_evaluations = (
+                await self._run_evolution_loop(
+                    current_population,
+                    request,
+                    start_generation=0,
+                    initial_evaluations=total_evaluations,
                 )
             )
-            generation_snapshots.append(final_snapshot)
-
-            # Extract best ideas
-            best_ideas = self._extract_best_ideas(current_population, n=10)
 
             # Calculate evolution metrics
             evolution_metrics = self._calculate_evolution_metrics(
                 generation_snapshots,
                 request.initial_population,
-                best_ideas,
+                [ind.idea for ind in current_population[:10]],  # Best ideas for metrics
                 request.config,
             )
-
-            execution_time = time.time() - start_time
 
             # Log cache statistics if using cached evaluator
             if isinstance(self.fitness_evaluator, CachedFitnessEvaluator):
@@ -220,15 +296,14 @@ class GeneticAlgorithm:
                     f"Evolution cache statistics - Hits: {cache_stats['hits']}, "
                     f"Misses: {cache_stats['misses']}, Hit rate: {cache_stats['hit_rate']:.2%}"
                 )
-                evolution_metrics["cache_stats"] = cache_stats
 
-            return EvolutionResult(
-                final_population=current_population,
-                best_ideas=best_ideas,
-                generation_snapshots=generation_snapshots,
-                total_generations=len(generation_snapshots),
-                execution_time=execution_time,
-                evolution_metrics=evolution_metrics,
+            # Prepare and return result using helper method
+            return self._prepare_evolution_result(
+                current_population,
+                generation_snapshots,
+                total_evaluations,
+                start_time,
+                evolution_metrics,
             )
 
         except Exception as e:
@@ -275,77 +350,27 @@ class GeneticAlgorithm:
         try:
             # Start from checkpoint state
             current_population = checkpoint.population
-            generation_snapshots = checkpoint.generation_snapshots.copy()
+            initial_snapshots = checkpoint.generation_snapshots.copy()
             total_evaluations = checkpoint.metadata.get("total_evaluations", 0)
 
-            # Continue evolution from next generation
-            for generation in range(checkpoint.generation, request.config.generations):
-                logger.info(
-                    f"Resuming generation {generation + 1}/{request.config.generations}"
+            # Continue evolution using helper method
+            current_population, generation_snapshots, total_evaluations = (
+                await self._run_evolution_loop(
+                    current_population,
+                    request,
+                    start_generation=checkpoint.generation + 1,
+                    initial_snapshots=initial_snapshots,
+                    initial_evaluations=total_evaluations,
                 )
-
-                # Evolve to next generation
-                current_population = await self._evolve_generation(
-                    current_population, request.config, request.context, generation
-                )
-
-                # Create snapshot of current generation
-                snapshot = PopulationSnapshot.from_population(
-                    generation + 1, current_population
-                )
-
-                # Calculate population diversity
-                snapshot.diversity_score = (
-                    await self.fitness_evaluator.calculate_population_diversity(
-                        current_population
-                    )
-                )
-
-                generation_snapshots.append(snapshot)
-
-                # Save checkpoint if enabled
-                if (
-                    self.checkpoint_interval > 0
-                    and (generation + 1) % self.checkpoint_interval == 0
-                ):
-                    new_checkpoint = EvolutionCheckpoint(
-                        generation=generation + 1,
-                        population=current_population,
-                        config=request.config,
-                        generation_snapshots=generation_snapshots.copy(),
-                        context=request.context,
-                        metadata={"total_evaluations": total_evaluations},
-                    )
-                    new_checkpoint_id = self.checkpointer.save_checkpoint(
-                        new_checkpoint
-                    )
-                    logger.info(
-                        f"Saved checkpoint at generation {generation + 1}: {new_checkpoint_id}"
-                    )
-
-                # Check termination criteria
-                if self._should_terminate(snapshot, request):
-                    logger.info(f"Early termination at generation {generation + 1}")
-                    break
-
-                # Adaptive mutation rate (if enabled)
-                if request.config.adaptive_mutation:
-                    request.config.mutation_rate = self._adapt_mutation_rate(
-                        snapshot, request.config.mutation_rate
-                    )
-
-            # Extract best ideas
-            best_ideas = self._extract_best_ideas(current_population, n=10)
+            )
 
             # Calculate evolution metrics
             evolution_metrics = self._calculate_evolution_metrics(
                 generation_snapshots,
                 [ind.idea for ind in checkpoint.population],
-                best_ideas,
+                [ind.idea for ind in current_population[:10]],  # Best ideas for metrics
                 request.config,
             )
-
-            execution_time = time.time() - start_time
 
             # Log cache statistics if using cached evaluator
             if isinstance(self.fitness_evaluator, CachedFitnessEvaluator):
@@ -354,15 +379,14 @@ class GeneticAlgorithm:
                     f"Evolution cache statistics - Hits: {cache_stats['hits']}, "
                     f"Misses: {cache_stats['misses']}, Hit rate: {cache_stats['hit_rate']:.2%}"
                 )
-                evolution_metrics["cache_stats"] = cache_stats
 
-            return EvolutionResult(
-                final_population=current_population,
-                best_ideas=best_ideas,
-                generation_snapshots=generation_snapshots,
-                total_generations=len(generation_snapshots),
-                execution_time=execution_time,
-                evolution_metrics=evolution_metrics,
+            # Prepare and return result using helper method
+            return self._prepare_evolution_result(
+                current_population,
+                generation_snapshots,
+                total_evaluations,
+                start_time,
+                evolution_metrics,
             )
 
         except Exception as e:
