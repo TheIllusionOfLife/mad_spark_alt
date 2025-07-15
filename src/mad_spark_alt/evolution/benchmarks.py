@@ -11,7 +11,7 @@ import json
 import time
 import tracemalloc
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -273,7 +273,7 @@ class EvolutionBenchmark:
 
     def _save_results(self, results: Dict[str, Any]) -> None:
         """Save benchmark results to file."""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         filename = f"{results['name']}_{timestamp}.json"
         filepath = self.output_dir / filename
 

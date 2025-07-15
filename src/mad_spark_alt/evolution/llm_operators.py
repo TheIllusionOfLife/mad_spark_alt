@@ -10,19 +10,25 @@ import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
-from mad_spark_alt.core.llm_provider import LLMProviderInterface, LLMRequest
+from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.core.json_utils import (
     safe_json_parse_with_validation,
     validate_crossover_response,
     validate_mutation_response,
     validate_selection_response,
 )
+from mad_spark_alt.core.llm_provider import LLMProviderInterface, LLMRequest
+from mad_spark_alt.evolution.constants import (
+    DEFAULT_LLM_TEMPERATURE,
+    DEFAULT_MAX_TOKENS,
+    MAJOR_MUTATION_THRESHOLD,
+    MINOR_MUTATION_THRESHOLD,
+)
 from mad_spark_alt.evolution.cost_estimator import estimate_token_cost
 from mad_spark_alt.evolution.interfaces import (
     CrossoverInterface,
-    MutationInterface,
     IndividualFitness,
+    MutationInterface,
 )
 from mad_spark_alt.evolution.operators import CrossoverOperator, MutationOperator
 
@@ -141,8 +147,8 @@ Return a JSON object with this structure:
             # Call LLM
             request = LLMRequest(
                 user_prompt=prompt,
-                temperature=0.7,
-                max_tokens=1000,
+                temperature=DEFAULT_LLM_TEMPERATURE,
+                max_tokens=DEFAULT_MAX_TOKENS,
             )
             response = await self.llm_provider.generate(request)
 
@@ -281,9 +287,9 @@ class LLMMutationOperator(MutationInterface):
             Mutated idea
         """
         # Map mutation rate to mutation strategies
-        if mutation_rate < 0.3:
+        if mutation_rate < MINOR_MUTATION_THRESHOLD:
             mutation_type = "minor refinement"
-        elif mutation_rate < 0.7:
+        elif mutation_rate < MAJOR_MUTATION_THRESHOLD:
             mutation_type = "moderate transformation"
         else:
             mutation_type = "radical reimagining"
@@ -323,8 +329,8 @@ Return a JSON object with this structure:
             # Call LLM
             request = LLMRequest(
                 user_prompt=prompt,
-                temperature=0.7,
-                max_tokens=1000,
+                temperature=DEFAULT_LLM_TEMPERATURE,
+                max_tokens=DEFAULT_MAX_TOKENS,
             )
             response = await self.llm_provider.generate(request)
 
@@ -448,8 +454,8 @@ Return a JSON object with this structure:
             # Call LLM
             request = LLMRequest(
                 user_prompt=prompt,
-                temperature=0.7,
-                max_tokens=1000,
+                temperature=DEFAULT_LLM_TEMPERATURE,
+                max_tokens=DEFAULT_MAX_TOKENS,
             )
             response = await self.llm_provider.generate(request)
 

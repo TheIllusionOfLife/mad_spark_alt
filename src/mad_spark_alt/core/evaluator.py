@@ -20,6 +20,13 @@ from .interfaces import (
 )
 from .registry import registry
 
+# Evaluation constants to avoid circular imports
+QUANTITATIVE_LAYER_WEIGHT = 0.3
+LLM_JUDGE_LAYER_WEIGHT = 0.5
+HUMAN_LAYER_WEIGHT = 0.2
+ZERO_SCORE = 0.0
+EQUAL_WEIGHT_CREATIVITY = 0.33
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,18 +50,18 @@ class EvaluationSummary:
 
         # Weight layers differently (this is configurable)
         layer_weights = {
-            EvaluationLayer.QUANTITATIVE: 0.3,
-            EvaluationLayer.LLM_JUDGE: 0.5,
-            EvaluationLayer.HUMAN: 0.2,
+            EvaluationLayer.QUANTITATIVE: QUANTITATIVE_LAYER_WEIGHT,
+            EvaluationLayer.LLM_JUDGE: LLM_JUDGE_LAYER_WEIGHT,
+            EvaluationLayer.HUMAN: HUMAN_LAYER_WEIGHT,
         }
 
-        total_score = 0.0
-        total_weight = 0.0
+        total_score = ZERO_SCORE
+        total_weight = ZERO_SCORE
 
         for layer, results in self.layer_results.items():
             if results:
                 layer_score = sum(r.overall_score or 0 for r in results) / len(results)
-                weight = layer_weights.get(layer, 0.33)
+                weight = layer_weights.get(layer, EQUAL_WEIGHT_CREATIVITY)
                 total_score += layer_score * weight
                 total_weight += weight
 

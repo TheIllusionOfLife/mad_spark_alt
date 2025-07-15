@@ -9,9 +9,8 @@ import hashlib
 import json
 import logging
 import time
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Optional
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.evolution.fitness import FitnessEvaluator

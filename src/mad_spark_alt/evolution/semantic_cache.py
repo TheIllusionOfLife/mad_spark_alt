@@ -5,16 +5,15 @@ This module provides semantic similarity-based caching to improve
 cache hit rates by recognizing similar ideas.
 """
 
-import hashlib
 import logging
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 try:
     import numpy as np  # type: ignore
+    from sklearn.cluster import KMeans  # type: ignore
     from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore
     from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
-    from sklearn.cluster import KMeans  # type: ignore
 
     HAS_SKLEARN = True
 except ImportError:
@@ -22,7 +21,12 @@ except ImportError:
     np = None  # type: ignore
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
-from mad_spark_alt.evolution.cached_fitness import FitnessCache, FitnessCacheEntry
+from mad_spark_alt.evolution.cached_fitness import FitnessCache
+from mad_spark_alt.evolution.constants import (
+    DEFAULT_SIMILARITY_THRESHOLD,
+    SIMILARITY_BOOST_FACTOR,
+    ZERO_SCORE,
+)
 from mad_spark_alt.evolution.interfaces import IndividualFitness
 
 logger = logging.getLogger(__name__)
@@ -40,7 +44,7 @@ class SemanticCache(FitnessCache):
         self,
         ttl_seconds: int = 3600,
         max_size: int = 1000,
-        similarity_threshold: float = 0.85,
+        similarity_threshold: float = DEFAULT_SIMILARITY_THRESHOLD,
         max_candidates: int = 10,
     ):
         """
@@ -177,7 +181,7 @@ class SemanticCache(FitnessCache):
             Similarity score (0-1)
         """
         if not self._is_fitted:
-            return 0.0
+            return ZERO_SCORE
 
         try:
             # Vectorize both ideas
@@ -189,13 +193,13 @@ class SemanticCache(FitnessCache):
 
             # Boost similarity if same thinking method
             if idea1.thinking_method == idea2.thinking_method:
-                similarity = similarity * 1.1  # 10% boost
+                similarity = similarity * SIMILARITY_BOOST_FACTOR
 
             return float(min(similarity, 1.0))
 
         except Exception as e:
             logger.error(f"Error computing similarity: {e}")
-            return 0.0
+            return ZERO_SCORE
 
     def _find_similar_cached_idea(self, idea: GeneratedIdea) -> Optional[str]:
         """
@@ -217,7 +221,7 @@ class SemanticCache(FitnessCache):
             # Get candidate keys (most recent first)
             candidate_keys = list(self._idea_contents.keys())[-self.max_candidates :]
 
-            best_similarity = 0.0
+            best_similarity = ZERO_SCORE
             best_key = None
 
             for key in candidate_keys:

@@ -6,8 +6,45 @@ genetic evolution operations.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
+from mad_spark_alt.evolution.constants import (
+    AGGRESSIVE_POPULATION_SCALE_FACTOR,
+    BUDGET_CRITICAL_THRESHOLD,
+    BUDGET_EMERGENCY_THRESHOLD,
+    BUDGET_HIGH_USAGE_THRESHOLD,
+    BUDGET_MODERATE_USAGE_THRESHOLD,
+    CLAUDE3_OPUS_INPUT_COST,
+    CLAUDE3_OPUS_OUTPUT_COST,
+    CLAUDE3_SONNET_COST_REDUCTION,
+    CLAUDE3_SONNET_INPUT_COST,
+    CLAUDE3_SONNET_OUTPUT_COST,
+    CONFIDENCE_INTERVAL_LOWER,
+    CONFIDENCE_INTERVAL_UPPER,
+    CROSSOVER_OPERATION_FRACTION,
+    CROSSOVER_TOKEN_ESTIMATE,
+    DEFAULT_CACHE_HIT_RATE,
+    DEFAULT_FALLBACK_COST,
+    GEMINI_PRO_COST_REDUCTION,
+    GEMINI_PRO_INPUT_COST,
+    GEMINI_PRO_OUTPUT_COST,
+    GPT4_INPUT_COST,
+    GPT4_OUTPUT_COST,
+    GPT4_TURBO_INPUT_COST,
+    GPT4_TURBO_OUTPUT_COST,
+    GPT35_TURBO_COST_REDUCTION,
+    GPT35_TURBO_INPUT_COST,
+    GPT35_TURBO_OUTPUT_COST,
+    INPUT_TOKEN_RATIO,
+    MIN_POPULATION_SIZE_AGGRESSIVE,
+    MIN_POPULATION_SIZE_MODERATE,
+    MODERATE_POPULATION_SCALE_FACTOR,
+    MUTATION_TOKEN_ESTIMATE,
+    OPERATOR_INPUT_RATIO,
+    OPERATOR_OUTPUT_RATIO,
+    OUTPUT_TOKEN_RATIO,
+    SELECTION_TOKEN_ESTIMATE,
+)
 from mad_spark_alt.evolution.interfaces import EvolutionConfig
 
 
@@ -36,22 +73,28 @@ class EvolutionCostEstimator:
     # Default model costs (as of 2024)
     DEFAULT_MODEL_COSTS = {
         "gpt-4": ModelCosts(
-            input_cost_per_1k_tokens=0.03, output_cost_per_1k_tokens=0.06
+            input_cost_per_1k_tokens=GPT4_INPUT_COST,
+            output_cost_per_1k_tokens=GPT4_OUTPUT_COST,
         ),
         "gpt-4-turbo": ModelCosts(
-            input_cost_per_1k_tokens=0.01, output_cost_per_1k_tokens=0.03
+            input_cost_per_1k_tokens=GPT4_TURBO_INPUT_COST,
+            output_cost_per_1k_tokens=GPT4_TURBO_OUTPUT_COST,
         ),
         "gpt-3.5-turbo": ModelCosts(
-            input_cost_per_1k_tokens=0.001, output_cost_per_1k_tokens=0.002
+            input_cost_per_1k_tokens=GPT35_TURBO_INPUT_COST,
+            output_cost_per_1k_tokens=GPT35_TURBO_OUTPUT_COST,
         ),
         "claude-3-opus": ModelCosts(
-            input_cost_per_1k_tokens=0.015, output_cost_per_1k_tokens=0.075
+            input_cost_per_1k_tokens=CLAUDE3_OPUS_INPUT_COST,
+            output_cost_per_1k_tokens=CLAUDE3_OPUS_OUTPUT_COST,
         ),
         "claude-3-sonnet": ModelCosts(
-            input_cost_per_1k_tokens=0.003, output_cost_per_1k_tokens=0.015
+            input_cost_per_1k_tokens=CLAUDE3_SONNET_INPUT_COST,
+            output_cost_per_1k_tokens=CLAUDE3_SONNET_OUTPUT_COST,
         ),
         "gemini-pro": ModelCosts(
-            input_cost_per_1k_tokens=0.001, output_cost_per_1k_tokens=0.002
+            input_cost_per_1k_tokens=GEMINI_PRO_INPUT_COST,
+            output_cost_per_1k_tokens=GEMINI_PRO_OUTPUT_COST,
         ),
     }
 
@@ -79,7 +122,7 @@ class EvolutionCostEstimator:
         config: EvolutionConfig,
         model: str = "gpt-4",
         avg_tokens_per_evaluation: int = 1000,
-        cache_hit_rate: float = 0.3,
+        cache_hit_rate: float = DEFAULT_CACHE_HIT_RATE,
         enable_llm_operators: bool = False,
     ) -> Dict[str, Any]:
         """
@@ -106,8 +149,12 @@ class EvolutionCostEstimator:
         actual_evaluations = total_evaluations - cached_evaluations
 
         # Estimate tokens for evaluations
-        eval_input_tokens = actual_evaluations * (avg_tokens_per_evaluation * 0.7)
-        eval_output_tokens = actual_evaluations * (avg_tokens_per_evaluation * 0.3)
+        eval_input_tokens = actual_evaluations * (
+            avg_tokens_per_evaluation * INPUT_TOKEN_RATIO
+        )
+        eval_output_tokens = actual_evaluations * (
+            avg_tokens_per_evaluation * OUTPUT_TOKEN_RATIO
+        )
 
         # Calculate evaluation costs
         evaluation_cost = model_cost.calculate_cost(
@@ -124,33 +171,34 @@ class EvolutionCostEstimator:
                 config.generations
                 * config.population_size
                 * config.crossover_rate
-                * 0.5
+                * CROSSOVER_OPERATION_FRACTION
             )
-            crossover_tokens = crossover_ops * 500  # Estimate 500 tokens per crossover
+            crossover_tokens = crossover_ops * CROSSOVER_TOKEN_ESTIMATE
 
             # Mutation operations
             mutation_ops = int(
                 config.generations * config.population_size * config.mutation_rate
             )
-            mutation_tokens = mutation_ops * 300  # Estimate 300 tokens per mutation
+            mutation_tokens = mutation_ops * MUTATION_TOKEN_ESTIMATE
 
             # Selection advice
             selection_ops = config.generations
-            selection_tokens = (
-                selection_ops * 1000
-            )  # Estimate 1000 tokens per selection
+            selection_tokens = selection_ops * SELECTION_TOKEN_ESTIMATE
 
             operator_tokens = crossover_tokens + mutation_tokens + selection_tokens
             operator_cost = model_cost.calculate_cost(
-                int(operator_tokens * 0.6),  # 60% input
-                int(operator_tokens * 0.4),  # 40% output
+                int(operator_tokens * OPERATOR_INPUT_RATIO),
+                int(operator_tokens * OPERATOR_OUTPUT_RATIO),
             )
 
         # Total cost
         total_cost = evaluation_cost + operator_cost
 
         # Calculate confidence interval (±20%)
-        confidence_interval = (total_cost * 0.8, total_cost * 1.2)
+        confidence_interval = (
+            total_cost * CONFIDENCE_INTERVAL_LOWER,
+            total_cost * CONFIDENCE_INTERVAL_UPPER,
+        )
 
         return {
             "estimated_cost": total_cost,
@@ -275,9 +323,9 @@ class EvolutionCostEstimator:
 
         # Suggest cheaper model
         cheaper_models = [
-            ("gpt-3.5-turbo", 0.95),  # 95% cost reduction
-            ("gemini-pro", 0.93),  # 93% cost reduction
-            ("claude-3-sonnet", 0.80),  # 80% cost reduction
+            ("gpt-3.5-turbo", GPT35_TURBO_COST_REDUCTION),
+            ("gemini-pro", GEMINI_PRO_COST_REDUCTION),
+            ("claude-3-sonnet", CLAUDE3_SONNET_COST_REDUCTION),
         ]
 
         for alt_model, reduction in cheaper_models:
@@ -410,3 +458,201 @@ def estimate_token_cost(
     return _global_cost_estimator.calculate_token_cost(
         tokens, model, assume_equal_input_output
     )
+
+
+class DynamicCostManager:
+    """
+    Dynamic cost management for evolution with budget constraints.
+
+    This class provides real-time cost monitoring and automatic
+    parameter adjustment to stay within budget limits.
+    """
+
+    def __init__(
+        self,
+        budget_limit: float,
+        cost_estimator: Optional[EvolutionCostEstimator] = None,
+    ):
+        """
+        Initialize dynamic cost manager.
+
+        Args:
+            budget_limit: Maximum budget in dollars
+            cost_estimator: Cost estimator instance (uses global if None)
+        """
+        self.budget_limit = budget_limit
+        self.cost_estimator = cost_estimator or _global_cost_estimator
+        self.accumulated_cost = 0.0
+        self.cost_history: List[Dict[str, Any]] = []
+        self.emergency_mode = False
+
+    def track_cost(self, operation_cost: float, operation_type: str) -> None:
+        """
+        Track cost from an operation and update state.
+
+        Args:
+            operation_cost: Cost of the operation
+            operation_type: Type of operation (e.g., 'fitness_evaluation', 'crossover')
+        """
+        self.accumulated_cost += operation_cost
+        self.cost_history.append(
+            {
+                "cost": operation_cost,
+                "operation_type": operation_type,
+                "accumulated_cost": self.accumulated_cost,
+                "budget_remaining": self.budget_limit - self.accumulated_cost,
+            }
+        )
+
+        # Check if we're approaching budget limit
+        budget_used_pct = self.accumulated_cost / self.budget_limit
+        if budget_used_pct > BUDGET_EMERGENCY_THRESHOLD:
+            self.emergency_mode = True
+
+    def can_afford_operation(self, estimated_cost: float) -> bool:
+        """
+        Check if an operation can be afforded within budget.
+
+        Args:
+            estimated_cost: Estimated cost of the operation
+
+        Returns:
+            True if operation is affordable
+        """
+        return (self.accumulated_cost + estimated_cost) <= self.budget_limit
+
+    def get_adaptive_config(self, base_config: EvolutionConfig) -> EvolutionConfig:
+        """
+        Generate an adapted configuration based on current cost state.
+
+        Args:
+            base_config: Base evolution configuration
+
+        Returns:
+            Adapted configuration optimized for remaining budget
+        """
+        remaining_budget = self.budget_limit - self.accumulated_cost
+        budget_used_pct = self.accumulated_cost / self.budget_limit
+
+        # Create a copy of the config to modify
+        adapted_config = EvolutionConfig(
+            population_size=base_config.population_size,
+            generations=base_config.generations,
+            mutation_rate=base_config.mutation_rate,
+            crossover_rate=base_config.crossover_rate,
+            elite_size=base_config.elite_size,
+            selection_strategy=base_config.selection_strategy,
+            parallel_evaluation=base_config.parallel_evaluation,
+            max_parallel_evaluations=base_config.max_parallel_evaluations,
+            fitness_weights=base_config.fitness_weights,
+            random_seed=base_config.random_seed,
+            timeout_seconds=base_config.timeout_seconds,
+        )
+
+        # Apply budget-based adaptations
+        if budget_used_pct > BUDGET_HIGH_USAGE_THRESHOLD:
+            # Reduce population size
+            adapted_config.population_size = max(
+                MIN_POPULATION_SIZE_AGGRESSIVE,
+                int(base_config.population_size * AGGRESSIVE_POPULATION_SCALE_FACTOR),
+            )
+            # Reduce max parallel evaluations to save on batch costs
+            adapted_config.max_parallel_evaluations = min(
+                adapted_config.max_parallel_evaluations,
+                adapted_config.population_size // 2,
+            )
+        elif budget_used_pct > BUDGET_MODERATE_USAGE_THRESHOLD:
+            adapted_config.population_size = max(
+                MIN_POPULATION_SIZE_MODERATE,
+                int(base_config.population_size * MODERATE_POPULATION_SCALE_FACTOR),
+            )
+            adapted_config.max_parallel_evaluations = min(
+                adapted_config.max_parallel_evaluations, adapted_config.population_size
+            )
+
+        return adapted_config
+
+    def get_budget_status(self) -> Dict[str, Any]:
+        """
+        Get current budget status and recommendations.
+
+        Returns:
+            Dictionary with budget status information
+        """
+        remaining_budget = self.budget_limit - self.accumulated_cost
+        budget_used_pct = self.accumulated_cost / self.budget_limit
+
+        status: Dict[str, Any] = {
+            "budget_limit": self.budget_limit,
+            "accumulated_cost": self.accumulated_cost,
+            "remaining_budget": remaining_budget,
+            "budget_used_percentage": budget_used_pct,
+            "emergency_mode": self.emergency_mode,
+            "cost_history_count": len(self.cost_history),
+        }
+
+        # Add recommendations based on budget state
+        if budget_used_pct > BUDGET_CRITICAL_THRESHOLD:
+            status["recommendation"] = "STOP: Budget nearly exhausted"
+        elif budget_used_pct > BUDGET_HIGH_USAGE_THRESHOLD:
+            status["recommendation"] = (
+                "REDUCE: Switch to smaller populations and fewer generations"
+            )
+        elif budget_used_pct > BUDGET_MODERATE_USAGE_THRESHOLD:
+            status["recommendation"] = "MODERATE: Consider reducing parallelism"
+        else:
+            status["recommendation"] = "CONTINUE: Budget usage is healthy"
+
+        return status
+
+    def estimate_remaining_operations(
+        self,
+        config: EvolutionConfig,
+        avg_cost_per_evaluation: Optional[float] = None,
+    ) -> int:
+        """
+        Estimate how many more fitness evaluations can be performed.
+
+        Args:
+            config: Current evolution configuration
+            avg_cost_per_evaluation: Average cost per evaluation (estimated if None)
+
+        Returns:
+            Estimated number of remaining evaluations possible
+        """
+        remaining_budget = self.budget_limit - self.accumulated_cost
+
+        if avg_cost_per_evaluation is None:
+            # Estimate based on recent cost history
+            if len(self.cost_history) >= 3:
+                recent_costs = [
+                    entry["cost"]
+                    for entry in self.cost_history[-3:]
+                    if entry["operation_type"] == "fitness_evaluation"
+                ]
+                avg_cost_per_evaluation = (
+                    sum(recent_costs) / len(recent_costs)
+                    if recent_costs
+                    else DEFAULT_FALLBACK_COST
+                )
+            else:
+                # Default estimate for GPT-4 with 1000 tokens
+                avg_cost_per_evaluation = estimate_token_cost(1000)
+
+        if avg_cost_per_evaluation <= 0:
+            return 0
+
+        return int(remaining_budget / avg_cost_per_evaluation)
+
+    def reset_budget(self, new_budget_limit: Optional[float] = None) -> None:
+        """
+        Reset the budget tracking state.
+
+        Args:
+            new_budget_limit: New budget limit (keeps current if None)
+        """
+        if new_budget_limit is not None:
+            self.budget_limit = new_budget_limit
+        self.accumulated_cost = 0.0
+        self.cost_history.clear()
+        self.emergency_mode = False

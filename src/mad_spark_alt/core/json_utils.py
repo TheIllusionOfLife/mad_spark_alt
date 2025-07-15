@@ -7,7 +7,7 @@ This module provides robust JSON extraction and parsing.
 
 import json
 import re
-from typing import Any, Dict, Optional, Callable
+from typing import Any, Callable, Dict, List, Optional
 
 
 def extract_json_from_response(text: str) -> Optional[str]:
@@ -121,7 +121,7 @@ def safe_json_parse(
     return fallback
 
 
-def parse_json_list(text: str, fallback: Optional[list] = None) -> list:
+def parse_json_list(text: str, fallback: Optional[List[Any]] = None) -> List[Any]:
     """
     Parse JSON array from LLM response.
 
@@ -163,6 +163,11 @@ def parse_json_list(text: str, fallback: Optional[list] = None) -> list:
             pass
 
     return fallback
+
+
+def _is_valid_non_empty_string(value: Any) -> bool:
+    """Check if value is a non-empty string."""
+    return isinstance(value, str) and value.strip()
 
 
 def validate_json_structure(data: Dict[str, Any], required_keys: list) -> bool:
@@ -211,15 +216,9 @@ def validate_crossover_response(data: Dict[str, Any]) -> bool:
             return False
         if not all(key in offspring for key in ["content", "reasoning"]):
             return False
-        if (
-            not isinstance(offspring["content"], str)
-            or not offspring["content"].strip()
-        ):
+        if not _is_valid_non_empty_string(offspring["content"]):
             return False
-        if (
-            not isinstance(offspring["reasoning"], str)
-            or not offspring["reasoning"].strip()
-        ):
+        if not _is_valid_non_empty_string(offspring["reasoning"]):
             return False
 
     return True
@@ -259,7 +258,7 @@ def validate_mutation_response(data: Dict[str, Any]) -> bool:
         return False
 
     for key in required_keys:
-        if not isinstance(mutated_idea[key], str) or not mutated_idea[key].strip():
+        if not _is_valid_non_empty_string(mutated_idea[key]):
             return False
 
     return True
@@ -310,10 +309,7 @@ def validate_selection_response(data: Dict[str, Any]) -> bool:
             0 <= score_entry["score"] <= 1
         ):
             return False
-        if (
-            not isinstance(score_entry["reasoning"], str)
-            or not score_entry["reasoning"].strip()
-        ):
+        if not _is_valid_non_empty_string(score_entry["reasoning"]):
             return False
 
     # Validate recommended_parents
@@ -324,10 +320,7 @@ def validate_selection_response(data: Dict[str, Any]) -> bool:
             return False
 
     # Validate diversity_consideration
-    if (
-        not isinstance(data["diversity_consideration"], str)
-        or not data["diversity_consideration"].strip()
-    ):
+    if not _is_valid_non_empty_string(data["diversity_consideration"]):
         return False
 
     return True
@@ -366,9 +359,9 @@ def validate_qadi_response(data: Dict[str, Any]) -> bool:
             return False
         if not all(key in idea for key in ["content", "reasoning"]):
             return False
-        if not isinstance(idea["content"], str) or not idea["content"].strip():
+        if not _is_valid_non_empty_string(idea["content"]):
             return False
-        if not isinstance(idea["reasoning"], str) or not idea["reasoning"].strip():
+        if not _is_valid_non_empty_string(idea["reasoning"]):
             return False
 
     return True

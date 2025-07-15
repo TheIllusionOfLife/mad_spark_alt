@@ -8,7 +8,7 @@ strategies to identify optimal configurations.
 import asyncio
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -25,7 +25,6 @@ from mad_spark_alt.evolution.interfaces import (
     EvolutionConfig,
     EvolutionRequest,
     EvolutionResult,
-    SelectionStrategy,
 )
 
 
@@ -421,8 +420,8 @@ class StrategyComparator:
         Args:
             path: Path to export file (JSON or CSV)
         """
-        import json
         import csv
+        import json
 
         data = []
 

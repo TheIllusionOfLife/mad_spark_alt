@@ -7,7 +7,7 @@ for the genetic evolution process.
 
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
 ProgressCallback = Callable[[Dict[str, Any]], None]
@@ -94,7 +94,7 @@ class EvolutionProgressTracker:
                 "event": "evolution_started",
                 "total_generations": total_generations,
                 "population_size": population_size,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         )
 

@@ -7,10 +7,9 @@ enabling recovery from failures and resumption of long-running evolutions.
 
 import json
 import logging
-import os
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -41,12 +40,11 @@ class EvolutionCheckpoint:
     context: Optional[str] = None
     random_state: Optional[Dict[str, Any]] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
-    checkpoint_time: Optional[datetime] = None
+    checkpoint_time: datetime = field(default_factory=datetime.now)
 
     def __post_init__(self) -> None:
         """Set checkpoint time if not provided."""
-        if self.checkpoint_time is None:
-            self.checkpoint_time = datetime.now()
+        # checkpoint_time is now automatically set via default_factory
 
 
 class EvolutionCheckpointer:
@@ -97,7 +95,7 @@ class EvolutionCheckpointer:
         """
         # Generate checkpoint ID if not provided
         if checkpoint_id is None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             checkpoint_id = f"evolution_gen{checkpoint.generation}_{timestamp}"
 
         # Prepare checkpoint data
@@ -207,7 +205,7 @@ class EvolutionCheckpointer:
                 checkpoint_time=(
                     datetime.fromisoformat(data["checkpoint_time"])
                     if data.get("checkpoint_time")
-                    else None
+                    else datetime.now(timezone.utc)
                 ),
             )
 
@@ -415,7 +413,7 @@ class EvolutionCheckpointer:
                 evaluated_at=(
                     datetime.fromisoformat(fitness_data["evaluated_at"])
                     if fitness_data.get("evaluated_at")
-                    else None
+                    else datetime.now(timezone.utc)
                 ),
             )
 
@@ -462,7 +460,7 @@ class EvolutionCheckpointer:
                 timestamp=(
                     datetime.fromisoformat(snapshot_data["timestamp"])
                     if snapshot_data.get("timestamp")
-                    else None
+                    else datetime.now(timezone.utc)
                 ),
             )
             snapshots.append(snapshot)

@@ -5,7 +5,7 @@ This module provides a clean interface for rendering markdown and styled content
 in the terminal, with graceful fallbacks for different terminal capabilities.
 """
 
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -23,11 +23,18 @@ class TerminalRenderer:
         Args:
             force_color: Force color output (True/False), None for auto-detection
         """
+        # Determine color system based on force_color setting
+        color_system: Optional[Literal["auto", "standard", "256", "truecolor", "windows"]]
+        if force_color is None:
+            color_system = "auto"
+        elif force_color:
+            color_system = "standard"
+        else:
+            color_system = None
+
         self.console = Console(
             force_terminal=True,
-            color_system=(
-                "auto" if force_color is None else ("standard" if force_color else None)
-            ),
+            color_system=color_system,
         )
         self._fallback_mode = not self.console.color_system
 

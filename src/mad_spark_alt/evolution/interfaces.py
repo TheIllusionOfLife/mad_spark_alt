@@ -7,11 +7,23 @@ using genetic algorithms.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
+from mad_spark_alt.evolution.constants import (
+    DEFAULT_CREATIVITY_WEIGHT,
+    DEFAULT_CROSSOVER_RATE,
+    DEFAULT_DIVERSITY_PRESSURE,
+    DEFAULT_DIVERSITY_WEIGHT,
+    DEFAULT_MUTATION_RATE,
+    DEFAULT_QUALITY_WEIGHT,
+    EQUAL_WEIGHT_CREATIVITY,
+    EQUAL_WEIGHT_DIVERSITY,
+    EQUAL_WEIGHT_QUALITY,
+    ZERO_SCORE,
+)
 
 
 class SelectionStrategy(Enum):
@@ -30,8 +42,8 @@ class EvolutionConfig:
 
     population_size: int = 50
     generations: int = 10
-    mutation_rate: float = 0.1
-    crossover_rate: float = 0.7
+    mutation_rate: float = DEFAULT_MUTATION_RATE
+    crossover_rate: float = DEFAULT_CROSSOVER_RATE
     elite_size: int = 2
     tournament_size: int = 3
     selection_strategy: SelectionStrategy = SelectionStrategy.TOURNAMENT
@@ -39,15 +51,15 @@ class EvolutionConfig:
     # Fitness evaluation config
     fitness_weights: Dict[str, float] = field(
         default_factory=lambda: {
-            "creativity_score": 0.4,
-            "diversity_score": 0.3,
-            "quality_score": 0.3,
+            "creativity_score": DEFAULT_CREATIVITY_WEIGHT,
+            "diversity_score": DEFAULT_DIVERSITY_WEIGHT,
+            "quality_score": DEFAULT_QUALITY_WEIGHT,
         }
     )
 
     # Advanced options
     adaptive_mutation: bool = False
-    diversity_pressure: float = 0.1
+    diversity_pressure: float = DEFAULT_DIVERSITY_PRESSURE
     parallel_evaluation: bool = True
     max_parallel_evaluations: int = 5
     random_seed: Optional[int] = None
@@ -96,24 +108,25 @@ class IndividualFitness:
     """Fitness scores for an individual idea."""
 
     idea: GeneratedIdea
-    creativity_score: float = 0.0
-    diversity_score: float = 0.0
-    quality_score: float = 0.0
-    overall_fitness: float = 0.0
+    creativity_score: float = ZERO_SCORE
+    diversity_score: float = ZERO_SCORE
+    quality_score: float = ZERO_SCORE
+    overall_fitness: float = ZERO_SCORE
     evaluation_metadata: Dict[str, Any] = field(default_factory=dict)
-    evaluated_at: Optional[datetime] = None
+    evaluated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __post_init__(self) -> None:
         """Set timestamp after initialization."""
-        if self.evaluated_at is None:
-            self.evaluated_at = datetime.now()
+        # evaluated_at is now automatically set via default_factory
 
     def calculate_overall_fitness(self, weights: Dict[str, float]) -> float:
         """Calculate weighted overall fitness score."""
         self.overall_fitness = (
-            weights.get("creativity_score", 0.33) * self.creativity_score
-            + weights.get("diversity_score", 0.33) * self.diversity_score
-            + weights.get("quality_score", 0.34) * self.quality_score
+            weights.get("creativity_score", EQUAL_WEIGHT_CREATIVITY)
+            * self.creativity_score
+            + weights.get("diversity_score", EQUAL_WEIGHT_DIVERSITY)
+            * self.diversity_score
+            + weights.get("quality_score", EQUAL_WEIGHT_QUALITY) * self.quality_score
         )
         return self.overall_fitness
 
@@ -128,12 +141,11 @@ class PopulationSnapshot:
     average_fitness: float
     worst_fitness: float
     diversity_score: float
-    timestamp: Optional[datetime] = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __post_init__(self) -> None:
         """Set timestamp after initialization."""
-        if self.timestamp is None:
-            self.timestamp = datetime.now()
+        # timestamp is now automatically set via default_factory
 
     @classmethod
     def from_population(
@@ -144,12 +156,14 @@ class PopulationSnapshot:
         return cls(
             generation=generation,
             population=population,
-            best_fitness=max(fitness_scores) if fitness_scores else 0.0,
+            best_fitness=max(fitness_scores) if fitness_scores else ZERO_SCORE,
             average_fitness=(
-                sum(fitness_scores) / len(fitness_scores) if fitness_scores else 0.0
+                sum(fitness_scores) / len(fitness_scores)
+                if fitness_scores
+                else ZERO_SCORE
             ),
-            worst_fitness=min(fitness_scores) if fitness_scores else 0.0,
-            diversity_score=0.0,  # Will be calculated by diversity metrics
+            worst_fitness=min(fitness_scores) if fitness_scores else ZERO_SCORE,
+            diversity_score=ZERO_SCORE,  # Will be calculated by diversity metrics
         )
 
 

@@ -184,7 +184,7 @@ class ThinkingAgentInterface(ABC):
 
     @abstractmethod
     async def generate_ideas(
-        self, request: IdeaGenerationRequest
+        self, request: IdeaGenerationRequest,
     ) -> IdeaGenerationResult:
         """
         Generate ideas using this agent's thinking method.
@@ -214,7 +214,7 @@ class AsyncEvaluatorMixin:
 
     @abstractmethod
     async def evaluate_batch(
-        self, requests: List[EvaluationRequest]
+        self, requests: List[EvaluationRequest],
     ) -> List[List[EvaluationResult]]:
         """
         Evaluate multiple requests in batch for efficiency.
