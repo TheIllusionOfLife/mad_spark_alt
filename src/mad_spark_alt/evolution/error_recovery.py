@@ -7,6 +7,8 @@ intelligent error handling for evolution operations.
 
 import asyncio
 import logging
+import random
+import time
 from typing import Any, Awaitable, Callable, Dict, List, Optional, TypeVar, Union
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
@@ -74,8 +76,6 @@ async def retry_with_backoff(
                 # Add jitter if enabled
                 actual_delay = delay
                 if jitter:
-                    import random
-
                     actual_delay = delay * (0.5 + random.random())
 
                 logger.warning(
@@ -331,7 +331,6 @@ class CircuitBreaker:
         Raises:
             Exception: If circuit is open or function fails
         """
-        import time
 
         # Check circuit state
         if self._state == "open":

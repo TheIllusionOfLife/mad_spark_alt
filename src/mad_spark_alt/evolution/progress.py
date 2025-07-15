@@ -5,6 +5,7 @@ This module provides real-time progress callbacks and monitoring
 for the genetic evolution process.
 """
 
+import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -294,8 +295,6 @@ class EvolutionProgressTracker:
                 callback(progress_data)
             except Exception as e:
                 # Log error but don't crash on callback failure
-                import logging
-
                 logging.error(f"Progress callback error: {e}")
 
     def _get_elapsed_time(self) -> float:
