@@ -211,7 +211,12 @@ class SemanticCache(FitnessCache):
         Returns:
             Cache key of similar idea or None
         """
-        if not self._idea_contents or not self._is_fitted or not HAS_SKLEARN or self._vectorizer is None:
+        if (
+            not self._idea_contents
+            or not self._is_fitted
+            or not HAS_SKLEARN
+            or self._vectorizer is None
+        ):
             return None
 
         try:
@@ -432,7 +437,11 @@ class SemanticClusterCache:
         Args:
             all_ideas: List of all ideas to cluster
         """
-        if len(all_ideas) < self.n_clusters or not HAS_SKLEARN or self._vectorizer is None:
+        if (
+            len(all_ideas) < self.n_clusters
+            or not HAS_SKLEARN
+            or self._vectorizer is None
+        ):
             return
 
         try:
