@@ -40,19 +40,24 @@ class FitnessCache:
     Entries expire after a configurable TTL.
     """
 
-    def __init__(self, ttl_seconds: int = 3600):
+    def __init__(self, ttl_seconds: int = 3600, max_size: int = 1000):
         """
         Initialize fitness cache.
 
         Args:
             ttl_seconds: Time-to-live for cache entries in seconds
+            max_size: Maximum number of entries in cache (LRU eviction when exceeded)
         """
         self.ttl_seconds = ttl_seconds
+        self.max_size = max_size
         self._cache: Dict[str, FitnessCacheEntry] = {}
+        self._access_order: List[str] = []  # For LRU tracking
         self._stats = {
             "hits": 0,
             "misses": 0,
             "evictions": 0,
+            "ttl_evictions": 0,
+            "lru_evictions": 0,
         }
 
     def generate_key(self, idea: GeneratedIdea, context: Optional[str] = None) -> str:
@@ -99,11 +104,17 @@ class FitnessCache:
         # Check if expired
         if time.time() - entry.timestamp > self.ttl_seconds:
             del self._cache[key]
+            if key in self._access_order:
+                self._access_order.remove(key)
             self._stats["evictions"] += 1
+            self._stats["ttl_evictions"] += 1
             self._stats["misses"] += 1
             return None
 
-        # Update hit count and stats
+        # Cache hit - update access order and stats
+        if key in self._access_order:
+            self._access_order.remove(key)
+        self._access_order.append(key)
         entry.hit_count += 1
         self._stats["hits"] += 1
 
@@ -117,18 +128,43 @@ class FitnessCache:
             key: Cache key
             fitness: Fitness score to cache
         """
+        # Update access order for LRU
+        if key in self._cache:
+            self._access_order.remove(key)
+        self._access_order.append(key)
+        
+        # Store entry
         self._cache[key] = FitnessCacheEntry(
             fitness=fitness,
             timestamp=time.time(),
         )
+        
+        # Enforce cache size limit with LRU eviction
+        self._enforce_cache_limits()
+
+    def _enforce_cache_limits(self) -> None:
+        """Enforce cache size limits using LRU eviction."""
+        while len(self._cache) > self.max_size:
+            if not self._access_order:
+                break
+            
+            # Remove least recently used item
+            lru_key = self._access_order.pop(0)
+            if lru_key in self._cache:
+                del self._cache[lru_key]
+                self._stats["evictions"] += 1
+                self._stats["lru_evictions"] += 1
 
     def clear(self) -> None:
         """Clear all cache entries."""
         self._cache.clear()
+        self._access_order.clear()
         self._stats = {
             "hits": 0,
             "misses": 0,
             "evictions": 0,
+            "ttl_evictions": 0,
+            "lru_evictions": 0,
         }
 
     def get_stats(self) -> Dict[str, float]:

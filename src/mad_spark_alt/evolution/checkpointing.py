@@ -56,14 +56,23 @@ class EvolutionCheckpointer:
     enabling recovery and resumption of evolution processes.
     """
 
-    def __init__(self, checkpoint_dir: str = ".evolution_checkpoints"):
+    def __init__(
+        self, 
+        checkpoint_dir: str = ".evolution_checkpoints",
+        max_checkpoints: int = 50,
+        max_age_days: int = 30
+    ):
         """
         Initialize checkpointer.
 
         Args:
             checkpoint_dir: Directory to store checkpoint files
+            max_checkpoints: Maximum number of checkpoints to keep (oldest deleted first)
+            max_age_days: Maximum age of checkpoints in days (older deleted)
         """
         self.checkpoint_dir = Path(checkpoint_dir)
+        self.max_checkpoints = max_checkpoints
+        self.max_age_days = max_age_days
         self._ensure_checkpoint_dir()
 
     def _ensure_checkpoint_dir(self) -> None:
@@ -108,14 +117,29 @@ class EvolutionCheckpointer:
             ),
         }
 
+        # Validate checkpoint_id to prevent path traversal
+        if not checkpoint_id or not isinstance(checkpoint_id, str):
+            raise ValueError("checkpoint_id must be a non-empty string")
+        
+        # Remove any path separators and potentially dangerous characters
+        safe_checkpoint_id = "".join(
+            c for c in checkpoint_id if c.isalnum() or c in ".-_"
+        )
+        if not safe_checkpoint_id:
+            raise ValueError("checkpoint_id contains no valid characters")
+        
         # Save to file
-        checkpoint_path = self.checkpoint_dir / f"{checkpoint_id}.json"
+        checkpoint_path = self.checkpoint_dir / f"{safe_checkpoint_id}.json"
         try:
             with open(checkpoint_path, "w") as f:
                 json.dump(checkpoint_data, f, indent=2)
             logger.info(
                 f"Saved checkpoint {checkpoint_id} at generation {checkpoint.generation}"
             )
+            
+            # Clean up old checkpoints
+            self._cleanup_old_checkpoints()
+            
             return checkpoint_id
         except Exception as e:
             logger.error(f"Failed to save checkpoint: {e}")
@@ -131,7 +155,20 @@ class EvolutionCheckpointer:
         Returns:
             The loaded checkpoint or None if not found/invalid
         """
-        checkpoint_path = self.checkpoint_dir / f"{checkpoint_id}.json"
+        # Validate checkpoint_id to prevent path traversal
+        if not checkpoint_id or not isinstance(checkpoint_id, str):
+            logger.error("checkpoint_id must be a non-empty string")
+            return None
+        
+        # Remove any path separators and potentially dangerous characters
+        safe_checkpoint_id = "".join(
+            c for c in checkpoint_id if c.isalnum() or c in ".-_"
+        )
+        if not safe_checkpoint_id:
+            logger.error("checkpoint_id contains no valid characters")
+            return None
+        
+        checkpoint_path = self.checkpoint_dir / f"{safe_checkpoint_id}.json"
 
         if not checkpoint_path.exists():
             logger.warning(f"Checkpoint {checkpoint_id} not found")
@@ -215,7 +252,20 @@ class EvolutionCheckpointer:
         Returns:
             True if deleted successfully
         """
-        checkpoint_path = self.checkpoint_dir / f"{checkpoint_id}.json"
+        # Validate checkpoint_id to prevent path traversal
+        if not checkpoint_id or not isinstance(checkpoint_id, str):
+            logger.error("checkpoint_id must be a non-empty string")
+            return False
+        
+        # Remove any path separators and potentially dangerous characters
+        safe_checkpoint_id = "".join(
+            c for c in checkpoint_id if c.isalnum() or c in ".-_"
+        )
+        if not safe_checkpoint_id:
+            logger.error("checkpoint_id contains no valid characters")
+            return False
+        
+        checkpoint_path = self.checkpoint_dir / f"{safe_checkpoint_id}.json"
 
         if checkpoint_path.exists():
             try:
@@ -226,6 +276,60 @@ class EvolutionCheckpointer:
                 logger.error(f"Failed to delete checkpoint {checkpoint_id}: {e}")
                 return False
         return False
+
+    def _cleanup_old_checkpoints(self) -> None:
+        """Clean up old checkpoints based on configured limits."""
+        import time
+        from datetime import datetime, timedelta
+        
+        if not self.checkpoint_dir.exists():
+            return
+        
+        checkpoints = []
+        current_time = time.time()
+        cutoff_time = current_time - (self.max_age_days * 24 * 3600)
+        
+        # Collect checkpoint files with their metadata
+        for checkpoint_file in self.checkpoint_dir.glob("*.json"):
+            try:
+                stat = checkpoint_file.stat()
+                checkpoints.append({
+                    "path": checkpoint_file,
+                    "mtime": stat.st_mtime,
+                    "name": checkpoint_file.stem
+                })
+            except Exception as e:
+                logger.warning(f"Failed to stat checkpoint {checkpoint_file}: {e}")
+        
+        # Remove checkpoints older than max_age_days
+        aged_out = []
+        for checkpoint in checkpoints:
+            if checkpoint["mtime"] < cutoff_time:
+                aged_out.append(checkpoint)
+        
+        for checkpoint in aged_out:
+            try:
+                checkpoint["path"].unlink()
+                logger.info(f"Deleted aged checkpoint {checkpoint['name']}")
+            except Exception as e:
+                logger.warning(f"Failed to delete aged checkpoint {checkpoint['name']}: {e}")
+        
+        # Remove aged checkpoints from list
+        checkpoints = [cp for cp in checkpoints if cp not in aged_out]
+        
+        # Enforce max_checkpoints limit by removing oldest
+        if len(checkpoints) > self.max_checkpoints:
+            # Sort by modification time (oldest first)
+            checkpoints.sort(key=lambda x: x["mtime"])
+            
+            # Remove oldest checkpoints
+            to_remove = checkpoints[:len(checkpoints) - self.max_checkpoints]
+            for checkpoint in to_remove:
+                try:
+                    checkpoint["path"].unlink()
+                    logger.info(f"Deleted excess checkpoint {checkpoint['name']}")
+                except Exception as e:
+                    logger.warning(f"Failed to delete excess checkpoint {checkpoint['name']}: {e}")
 
     def _serialize_population(
         self, population: List[IndividualFitness]
