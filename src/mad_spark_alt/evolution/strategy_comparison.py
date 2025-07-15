@@ -40,30 +40,28 @@ class StrategyResult:
         """Average best fitness across runs."""
         if not self.runs:
             return 0.0
-        return float(
-            np.mean(
-                [
-                    max(ind.overall_fitness for ind in run.final_population)
-                    for run in self.runs
-                    if run.final_population
-                ]
-            )
-        )
+        fitness_values = [
+            max(ind.overall_fitness for ind in run.final_population)
+            for run in self.runs
+            if run.final_population
+        ]
+        if not fitness_values:
+            return 0.0
+        return float(np.mean(fitness_values))
 
     @property
     def std_fitness(self) -> float:
         """Standard deviation of best fitness."""
         if not self.runs:
             return 0.0
-        return float(
-            np.std(
-                [
-                    max(ind.overall_fitness for ind in run.final_population)
-                    for run in self.runs
-                    if run.final_population
-                ]
-            )
-        )
+        fitness_values = [
+            max(ind.overall_fitness for ind in run.final_population)
+            for run in self.runs
+            if run.final_population
+        ]
+        if not fitness_values:
+            return 0.0
+        return float(np.std(fitness_values))
 
     @property
     def avg_convergence_generation(self) -> float:

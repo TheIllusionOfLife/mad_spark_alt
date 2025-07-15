@@ -40,7 +40,7 @@ class EvolutionCheckpoint:
     context: Optional[str] = None
     random_state: Optional[Dict[str, Any]] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
-    checkpoint_time: datetime = field(default_factory=datetime.now)
+    checkpoint_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __post_init__(self) -> None:
         """Set checkpoint time if not provided."""
