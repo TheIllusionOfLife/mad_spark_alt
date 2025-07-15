@@ -261,6 +261,12 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Memory Tracking**: Use `tracemalloc` for memory usage analysis
 - **Fixture Pattern**: Use `@pytest.fixture(autouse=True)` for setup/teardown
 
+### Claude Code Custom Commands
+- **$ARGUMENTS Support**: Custom commands can accept arguments via `$ARGUMENTS`
+- **Example**: `/fix_pr_since_commit 1916eed` passes "1916eed" as $ARGUMENTS
+- **Implementation**: Use `${ARGUMENTS:-default_value}` for optional parameters
+- **Usage**: Enables flexible command reuse without duplication
+
 ### GeneticAlgorithm API
 - **Constructor**: Takes no arguments - `GeneticAlgorithm()`
 - **Evolution**: Use `EvolutionRequest` object with `evolve()` method
