@@ -8,7 +8,7 @@ cache hit rates by recognizing similar ideas.
 import hashlib
 import logging
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     import numpy as np  # type: ignore
@@ -295,7 +295,7 @@ class SemanticCache(FitnessCache):
         self._idea_vectors.clear()
         self._is_fitted = False
 
-    def get_semantic_stats(self) -> Dict:
+    def get_semantic_stats(self) -> Dict[str, Any]:
         """
         Get semantic cache statistics.
 
@@ -449,7 +449,7 @@ class SemanticClusterCache:
         except Exception as e:
             logger.error(f"Error updating clusters: {e}")
 
-    def get_cluster_stats(self) -> Dict:
+    def get_cluster_stats(self) -> Dict[str, Any]:
         """
         Get statistics for each cluster.
 

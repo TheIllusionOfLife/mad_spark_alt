@@ -6,7 +6,7 @@ genetic evolution operations.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from mad_spark_alt.evolution.interfaces import EvolutionConfig
 
@@ -81,7 +81,7 @@ class EvolutionCostEstimator:
         avg_tokens_per_evaluation: int = 1000,
         cache_hit_rate: float = 0.3,
         enable_llm_operators: bool = False,
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """
         Estimate total cost for an evolution run.
 
@@ -206,7 +206,7 @@ class EvolutionCostEstimator:
             }
         )
 
-    def get_usage_statistics(self) -> Dict:
+    def get_usage_statistics(self) -> Dict[str, Any]:
         """
         Get statistics from historical usage.
 

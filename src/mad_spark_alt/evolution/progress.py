@@ -8,9 +8,9 @@ for the genetic evolution process.
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
-ProgressCallback = Callable[[Dict], None]
+ProgressCallback = Callable[[Dict[str, Any]], None]
 
 
 @dataclass
@@ -246,7 +246,7 @@ class EvolutionProgressTracker:
             }
         )
 
-    def get_summary(self) -> Dict:
+    def get_summary(self) -> Dict[str, Any]:
         """
         Get summary of evolution progress.
 

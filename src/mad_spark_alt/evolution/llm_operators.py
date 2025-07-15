@@ -411,7 +411,7 @@ class LLMSelectionAdvisor:
         population: List[IndividualFitness],
         num_parents: int,
         context: Optional[str] = None,
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """
         Provide selection advice using LLM analysis.
 
@@ -553,7 +553,7 @@ class LLMOperatorCostTracker:
         self._selection_tokens += tokens
         self._selection_cost += cost
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, Any]:
         """Get usage statistics."""
         return {
             "total_cost": self._crossover_cost

@@ -263,7 +263,7 @@ class RetryableEvaluator:
 
         return results
 
-    def get_failure_statistics(self) -> dict:
+    def get_failure_statistics(self) -> Dict[str, Any]:
         """
         Get statistics about evaluation failures.
 
