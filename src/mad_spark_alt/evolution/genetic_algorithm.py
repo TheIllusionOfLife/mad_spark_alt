@@ -215,8 +215,8 @@ class GeneticAlgorithm:
             best_ideas=best_ideas,
             generation_snapshots=generation_snapshots,
             total_generations=(
-                len(generation_snapshots) - 1 if generation_snapshots else 0
-            ),  # Snapshots include initial + evolved generations
+                len(generation_snapshots) if generation_snapshots else 0
+            ),  # Total number of generations including initial
             execution_time=time.time() - start_time,
             evolution_metrics={
                 **evolution_metrics,

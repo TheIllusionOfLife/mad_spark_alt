@@ -16,7 +16,7 @@ The test strategy focuses on:
 """
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -74,7 +74,7 @@ class TestFitnessEvaluator:
                 confidence_score=0.8 + i * 0.05,
                 reasoning="Test reasoning",
                 metadata={"test": True, "id": i},
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
             for i in range(3)
         ]
@@ -290,7 +290,7 @@ class TestFitnessEvaluator:
                     thinking_method=ThinkingMethod.QUESTIONING,
                     agent_name="TestAgent",
                     generation_prompt="Test",
-                    timestamp=datetime.utcnow().isoformat(),
+                    timestamp=datetime.now(timezone.utc).isoformat(),
                 ),
                 creativity_score=0.8,
                 diversity_score=0.7,
@@ -303,7 +303,7 @@ class TestFitnessEvaluator:
                     thinking_method=ThinkingMethod.ABDUCTION,
                     agent_name="TestAgent",
                     generation_prompt="Test",
-                    timestamp=datetime.utcnow().isoformat(),
+                    timestamp=datetime.now(timezone.utc).isoformat(),
                 ),
                 creativity_score=0.8,
                 diversity_score=0.7,
@@ -462,7 +462,7 @@ class TestFitnessEvaluator:
                     thinking_method=ThinkingMethod.QUESTIONING,
                     agent_name="TestAgent",
                     generation_prompt="Test",
-                    timestamp=datetime.utcnow().isoformat(),
+                    timestamp=datetime.now(timezone.utc).isoformat(),
                 )
                 for i in range(10)
             ]
