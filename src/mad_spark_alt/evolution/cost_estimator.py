@@ -292,7 +292,7 @@ class EvolutionCostEstimator:
         current_config: EvolutionConfig,
         target_budget: float,
         model: str = "gpt-4",
-    ) -> List[Dict]:
+    ) -> List[Dict[str, Any]]:
         """
         Suggest configuration changes to meet budget constraints.
 
@@ -307,7 +307,7 @@ class EvolutionCostEstimator:
         current_estimate = self.estimate_evolution_cost(current_config, model)
         current_cost = current_estimate["estimated_cost"]
 
-        suggestions = []
+        suggestions: List[Dict[str, Any]] = []
 
         if current_cost <= target_budget:
             suggestions.append(
