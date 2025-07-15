@@ -37,7 +37,7 @@ class RateLimitError(RetryableError):
 
 
 async def retry_with_backoff(
-    func: Callable[..., T],
+    func: Callable[[], T],
     max_retries: int = 3,
     initial_delay: float = 1.0,
     max_delay: float = 60.0,
@@ -156,8 +156,14 @@ class RetryableEvaluator:
                         idea, config or EvolutionConfig(), context
                     )
                 else:
-                    # Fallback for simple evaluators
-                    return await self.base_evaluator.evaluate(idea)
+                    # Fallback for simple evaluators - return basic fitness
+                    return IndividualFitness(
+                        idea=idea,
+                        creativity_score=0.5,
+                        diversity_score=0.5,
+                        quality_score=0.5,
+                        overall_fitness=0.5,
+                    )
 
             except asyncio.TimeoutError as e:
                 raise NetworkError(f"Evaluation timed out: {str(e)}")
@@ -337,7 +343,10 @@ class CircuitBreaker:
                 )
 
         try:
-            result = await func(*args, **kwargs)
+            if asyncio.iscoroutinefunction(func):
+                result = await func(*args, **kwargs)
+            else:
+                result = func(*args, **kwargs)
 
             # Success - update state
             if self._state == "half_open":

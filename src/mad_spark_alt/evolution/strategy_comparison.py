@@ -8,7 +8,7 @@ strategies to identify optimal configurations.
 import asyncio
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -164,7 +164,7 @@ class StrategyComparator:
             )
 
         # Sort by average fitness (descending)
-        results.sort(key=lambda x: x["avg_fitness"], reverse=True)
+        results.sort(key=lambda x: float(x["avg_fitness"]), reverse=True)
 
         return results
 

@@ -10,14 +10,14 @@ import logging
 from typing import Dict, List, Optional, Tuple
 
 try:
-    import numpy as np
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.metrics.pairwise import cosine_similarity
+    import numpy as np  # type: ignore
+    from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore
+    from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
 
     HAS_SKLEARN = True
 except ImportError:
     HAS_SKLEARN = False
-    np = None
+    np = None  # type: ignore
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.evolution.cached_fitness import FitnessCache, FitnessCacheEntry
@@ -147,7 +147,7 @@ class SemanticCache(FitnessCache):
             if idea1.thinking_method == idea2.thinking_method:
                 similarity = similarity * 1.1  # 10% boost
 
-            return min(similarity, 1.0)
+            return float(min(similarity, 1.0))
 
         except Exception as e:
             logger.error(f"Error computing similarity: {e}")
@@ -368,7 +368,7 @@ class SemanticClusterCache:
             return
 
         try:
-            from sklearn.cluster import KMeans
+            from sklearn.cluster import KMeans  # type: ignore
 
             # Vectorize all ideas
             contents = [idea.content for idea in all_ideas]
