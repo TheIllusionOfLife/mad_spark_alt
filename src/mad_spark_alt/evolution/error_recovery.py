@@ -355,7 +355,7 @@ class CircuitBreaker:
                     self._state = "closed"
                     self._failure_count = 0
 
-            return result
+            return result  # type: ignore
 
         except Exception as e:
             self._failure_count += 1
