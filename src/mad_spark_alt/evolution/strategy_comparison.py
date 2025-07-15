@@ -41,14 +41,14 @@ class StrategyResult:
         """Average best fitness across runs."""
         if not self.runs:
             return 0.0
-        return np.mean([run.best_individual.overall_fitness for run in self.runs])
+        return np.mean([max(ind.overall_fitness for ind in run.final_population) for run in self.runs if run.final_population])
 
     @property
     def std_fitness(self) -> float:
         """Standard deviation of best fitness."""
         if not self.runs:
             return 0.0
-        return np.std([run.best_individual.overall_fitness for run in self.runs])
+        return np.std([max(ind.overall_fitness for ind in run.final_population) for run in self.runs if run.final_population])
 
     @property
     def avg_convergence_generation(self) -> float:
@@ -57,22 +57,9 @@ class StrategyResult:
             return 0.0
         convergence_gens = []
         for run in self.runs:
-            # Find generation where fitness stopped improving significantly
-            fitness_history = run.fitness_history
-            if len(fitness_history) < 2:
-                convergence_gens.append(len(fitness_history))
-                continue
-
-            for i in range(1, len(fitness_history)):
-                if i >= 3:  # Check last 3 generations
-                    recent_improvement = max(fitness_history[-3:]) - min(
-                        fitness_history[-3:]
-                    )
-                    if recent_improvement < 0.01:  # Less than 1% improvement
-                        convergence_gens.append(i)
-                        break
-            else:
-                convergence_gens.append(len(fitness_history))
+            # Use total_generations as a proxy for convergence
+            # In future, we could add fitness_history to EvolutionResult
+            convergence_gens.append(run.total_generations)
 
         return np.mean(convergence_gens)
 
@@ -81,7 +68,7 @@ class StrategyResult:
         """Average final population diversity."""
         if not self.runs:
             return 0.0
-        return np.mean([run.population_diversity for run in self.runs])
+        return np.mean([run.evolution_metrics.get('population_diversity', 0.5) for run in self.runs])
 
     @property
     def convergence_rate(self) -> float:
@@ -112,7 +99,7 @@ class StrategyComparator:
     initial conditions to fairly evaluate their performance.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize strategy comparator."""
         self._results: Dict[str, StrategyResult] = {}
 
