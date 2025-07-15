@@ -7,7 +7,7 @@ intelligent error handling for evolution operations.
 
 import asyncio
 import logging
-from typing import Any, Callable, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.evolution.fitness import FitnessEvaluator

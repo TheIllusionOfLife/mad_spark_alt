@@ -185,11 +185,12 @@ class EvolutionBenchmark:
         # Create request
         request = EvolutionRequest(
             initial_population=initial_ideas[: config.population_size],
+            config=config,
             context="Benchmark run",
         )
 
         # Run evolution
-        result = await algorithm.evolve(request, config)
+        result = await algorithm.evolve(request)
 
         return result
 
@@ -357,7 +358,7 @@ class InstrumentedGeneticAlgorithm(GeneticAlgorithm):
         super().__init__()
         self.metrics = metrics
         self.process = process
-        self._generation_start_time = None
+        self._generation_start_time: Optional[float] = None
 
     async def evolve(
         self,
@@ -405,8 +406,9 @@ class InstrumentedGeneticAlgorithm(GeneticAlgorithm):
         result = await super()._evolve_generation(population, config, context, generation)
 
         # Record generation time
-        generation_time = time.time() - self._generation_start_time
-        self.metrics.generation_times.append(generation_time)
+        if self._generation_start_time is not None:
+            generation_time = time.time() - self._generation_start_time
+            self.metrics.generation_times.append(generation_time)
 
         # Record fitness progression
         if result:
