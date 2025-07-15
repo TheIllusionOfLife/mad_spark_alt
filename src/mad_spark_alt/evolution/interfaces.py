@@ -49,7 +49,7 @@ class EvolutionConfig:
     adaptive_mutation: bool = False
     diversity_pressure: float = 0.1
     parallel_evaluation: bool = True
-    max_parallel_evaluations: int = 10
+    max_parallel_evaluations: int = 5
     random_seed: Optional[int] = None
 
     # Timeout configuration
