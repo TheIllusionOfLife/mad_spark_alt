@@ -470,13 +470,14 @@ def evolve(
 
     # Run the evolution pipeline
     asyncio.run(
-        _run_evolution_pipeline(problem, context, generations, population, output)
+        _run_evolution_pipeline(problem, context, quick, generations, population, output)
     )
 
 
 async def _run_evolution_pipeline(
     problem: str,
     context: str,
+    quick: bool,
     generations: int,
     population: int,
     output_file: Optional[str],
