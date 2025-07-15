@@ -52,6 +52,20 @@ class EvolutionConfig:
     max_parallel_evaluations: int = 10
     random_seed: Optional[int] = None
 
+    # Timeout configuration
+    timeout_seconds: Optional[float] = None
+    adaptive_timeout: bool = False
+
+    # Progress tracking
+    enable_progress_tracking: bool = False
+    enable_cost_estimation: bool = False
+
+    # Advanced caching
+    enable_semantic_cache: bool = False
+
+    # LLM operators
+    enable_llm_operators: bool = False
+
     def validate(self) -> bool:
         """Validate configuration parameters."""
         if self.population_size < 2:
@@ -63,6 +77,8 @@ class EvolutionConfig:
         if self.elite_size >= self.population_size:
             return False
         if self.tournament_size > self.population_size:
+            return False
+        if self.max_parallel_evaluations > self.population_size:
             return False
         return True
 

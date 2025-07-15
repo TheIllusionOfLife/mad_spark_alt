@@ -108,7 +108,7 @@ async def evolve_ideas(
         adaptive_mutation=True,
         diversity_pressure=0.1,
         parallel_evaluation=True,
-        max_parallel_evaluations=5,
+        max_parallel_evaluations=8,
     )
 
     print(

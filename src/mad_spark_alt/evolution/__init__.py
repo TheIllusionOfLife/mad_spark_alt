@@ -29,6 +29,18 @@ from mad_spark_alt.evolution.operators import (
     RouletteWheelSelection,
     TournamentSelection,
 )
+from mad_spark_alt.evolution.progress import EvolutionProgressTracker, ProgressCallback
+from mad_spark_alt.evolution.cost_estimator import EvolutionCostEstimator
+from mad_spark_alt.evolution.error_recovery import RetryableEvaluator
+from mad_spark_alt.evolution.semantic_cache import SemanticCache
+from mad_spark_alt.evolution.strategy_comparison import StrategyComparator
+from mad_spark_alt.evolution.benchmarks import EvolutionBenchmark
+from mad_spark_alt.evolution.llm_operators import (
+    LLMCrossoverOperator,
+    LLMMutationOperator,
+    LLMSelectionAdvisor,
+    LLMOperatorCostTracker,
+)
 
 __all__ = [
     # Interfaces
@@ -52,4 +64,17 @@ __all__ = [
     "RouletteWheelSelection",
     "RankSelection",
     "RandomSelection",
+    # Enhanced Features
+    "EvolutionProgressTracker",
+    "ProgressCallback",
+    "EvolutionCostEstimator",
+    "RetryableEvaluator",
+    "SemanticCache",
+    "StrategyComparator",
+    "EvolutionBenchmark",
+    # LLM Operators
+    "LLMCrossoverOperator",
+    "LLMMutationOperator",
+    "LLMSelectionAdvisor",
+    "LLMOperatorCostTracker",
 ]
