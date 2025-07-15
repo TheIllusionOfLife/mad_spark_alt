@@ -154,7 +154,11 @@ class EvolutionBenchmark:
             )
 
             metrics.total_time = time.time() - start_time
-            metrics.final_best_fitness = max(ind.overall_fitness for ind in result.final_population) if result.final_population else 0.0
+            metrics.final_best_fitness = (
+                max(ind.overall_fitness for ind in result.final_population)
+                if result.final_population
+                else 0.0
+            )
 
         finally:
             # Stop profiling
@@ -403,7 +407,9 @@ class InstrumentedGeneticAlgorithm(GeneticAlgorithm):
             self.metrics.cpu_usage.append(cpu_percent)
 
         # Run generation
-        result = await super()._evolve_generation(population, config, context, generation)
+        result = await super()._evolve_generation(
+            population, config, context, generation
+        )
 
         # Record generation time
         if self._generation_start_time is not None:
@@ -414,6 +420,5 @@ class InstrumentedGeneticAlgorithm(GeneticAlgorithm):
         if result:
             best_fitness = max(ind.overall_fitness for ind in result)
             self.metrics.fitness_progression.append(best_fitness)
-        
-        return result
 
+        return result

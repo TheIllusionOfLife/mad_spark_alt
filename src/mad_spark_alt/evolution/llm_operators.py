@@ -101,16 +101,17 @@ Return a JSON object with this structure:
         try:
             # Call LLM
             from mad_spark_alt.core.llm_provider import LLMRequest
-            
+
             request = LLMRequest(
                 user_prompt=prompt,
                 temperature=0.7,
                 max_tokens=1000,
             )
             response = await self.llm_provider.generate(request)
-            
+
             # Parse JSON response
             from mad_spark_alt.core.json_utils import safe_json_parse
+
             result = safe_json_parse(response.content)
 
             # Track costs
@@ -250,16 +251,17 @@ Return a JSON object with this structure:
         try:
             # Call LLM
             from mad_spark_alt.core.llm_provider import LLMRequest
-            
+
             request = LLMRequest(
                 user_prompt=prompt,
                 temperature=0.7,
                 max_tokens=1000,
             )
             response = await self.llm_provider.generate(request)
-            
+
             # Parse JSON response
             from mad_spark_alt.core.json_utils import safe_json_parse
+
             result = safe_json_parse(response.content)
 
             # Track costs
@@ -290,7 +292,9 @@ Return a JSON object with this structure:
 
             if self.fallback_to_traditional:
                 logger.info("Falling back to traditional mutation")
-                mutated = await self._traditional_mutation.mutate(individual, mutation_rate, context)
+                mutated = await self._traditional_mutation.mutate(
+                    individual, mutation_rate, context
+                )
                 mutated.metadata["fallback_used"] = True
                 return mutated
             else:
@@ -371,16 +375,17 @@ Return a JSON object with this structure:
         try:
             # Call LLM
             from mad_spark_alt.core.llm_provider import LLMRequest
-            
+
             request = LLMRequest(
                 user_prompt=prompt,
                 temperature=0.7,
                 max_tokens=1000,
             )
             response = await self.llm_provider.generate(request)
-            
+
             # Parse JSON response
             from mad_spark_alt.core.json_utils import safe_json_parse
+
             result = safe_json_parse(response.content)
 
             # Track costs

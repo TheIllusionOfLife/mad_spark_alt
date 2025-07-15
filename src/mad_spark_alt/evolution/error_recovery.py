@@ -314,7 +314,9 @@ class CircuitBreaker:
         self._half_open_attempts_remaining = 0
         self._state = "closed"  # closed, open, half_open
 
-    async def call(self, func: Callable[..., Union[T, Awaitable[T]]], *args: Any, **kwargs: Any) -> T:
+    async def call(
+        self, func: Callable[..., Union[T, Awaitable[T]]], *args: Any, **kwargs: Any
+    ) -> T:
         """
         Call function through circuit breaker.
 

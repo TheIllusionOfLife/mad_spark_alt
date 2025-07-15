@@ -41,14 +41,30 @@ class StrategyResult:
         """Average best fitness across runs."""
         if not self.runs:
             return 0.0
-        return float(np.mean([max(ind.overall_fitness for ind in run.final_population) for run in self.runs if run.final_population]))
+        return float(
+            np.mean(
+                [
+                    max(ind.overall_fitness for ind in run.final_population)
+                    for run in self.runs
+                    if run.final_population
+                ]
+            )
+        )
 
     @property
     def std_fitness(self) -> float:
         """Standard deviation of best fitness."""
         if not self.runs:
             return 0.0
-        return float(np.std([max(ind.overall_fitness for ind in run.final_population) for run in self.runs if run.final_population]))
+        return float(
+            np.std(
+                [
+                    max(ind.overall_fitness for ind in run.final_population)
+                    for run in self.runs
+                    if run.final_population
+                ]
+            )
+        )
 
     @property
     def avg_convergence_generation(self) -> float:
@@ -68,7 +84,14 @@ class StrategyResult:
         """Average final population diversity."""
         if not self.runs:
             return 0.0
-        return float(np.mean([run.evolution_metrics.get('population_diversity', 0.5) for run in self.runs]))
+        return float(
+            np.mean(
+                [
+                    run.evolution_metrics.get("population_diversity", 0.5)
+                    for run in self.runs
+                ]
+            )
+        )
 
     @property
     def convergence_rate(self) -> float:
@@ -322,7 +345,11 @@ class StrategyComparator:
                     history = [snap.best_fitness for snap in run.generation_snapshots]
                     all_histories.append(history)
                 else:
-                    all_histories.append([run.final_best_fitness] if hasattr(run, 'final_best_fitness') else [0.0])
+                    all_histories.append(
+                        [run.final_best_fitness]
+                        if hasattr(run, "final_best_fitness")
+                        else [0.0]
+                    )
             max_len = max(len(h) for h in all_histories)
 
             # Pad histories to same length

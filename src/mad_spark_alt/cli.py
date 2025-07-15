@@ -42,11 +42,11 @@ console = Console()
 def calculate_evolution_timeout(generations: int, population: int) -> float:
     """
     Calculate adaptive timeout based on evolution complexity.
-    
+
     Args:
         generations: Number of generations
         population: Population size
-        
+
     Returns:
         Timeout in seconds (min 60s, max 600s)
     """
