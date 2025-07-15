@@ -344,9 +344,9 @@ class CircuitBreaker:
 
         try:
             if asyncio.iscoroutinefunction(func):
-                result = await func(*args, **kwargs)
+                result = await func(*args, **kwargs)  # type: ignore
             else:
-                result = func(*args, **kwargs)
+                result = func(*args, **kwargs)  # type: ignore
 
             # Success - update state
             if self._state == "half_open":

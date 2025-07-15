@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 try:
-    import psutil
+    import psutil  # type: ignore
 
     HAS_PSUTIL = True
 except ImportError:
