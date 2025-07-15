@@ -7,7 +7,7 @@ intelligent error handling for evolution operations.
 
 import asyncio
 import logging
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+from typing import Any, Awaitable, Callable, Dict, List, Optional, TypeVar, Union
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.evolution.fitness import FitnessEvaluator
@@ -37,7 +37,7 @@ class RateLimitError(RetryableError):
 
 
 async def retry_with_backoff(
-    func: Callable[[], T],
+    func: Callable[[], Awaitable[T]],
     max_retries: int = 3,
     initial_delay: float = 1.0,
     max_delay: float = 60.0,
@@ -314,7 +314,7 @@ class CircuitBreaker:
         self._half_open_attempts_remaining = 0
         self._state = "closed"  # closed, open, half_open
 
-    async def call(self, func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
+    async def call(self, func: Callable[..., Union[T, Awaitable[T]]], *args: Any, **kwargs: Any) -> T:
         """
         Call function through circuit breaker.
 
