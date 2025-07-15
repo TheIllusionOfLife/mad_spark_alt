@@ -5,7 +5,7 @@ This module provides cost prediction and tracking for LLM-based
 genetic evolution operations.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Dict, List, Optional
 
 from mad_spark_alt.evolution.constants import (
@@ -345,16 +345,14 @@ class EvolutionCostEstimator:
         # Suggest reducing generations
         reduced_gens = max(1, int(current_config.generations * (1 - reduction_needed)))
         if reduced_gens < current_config.generations:
-            reduced_config = EvolutionConfig(
-                **{**current_config.__dict__, "generations": reduced_gens}
-            )
+            reduced_config = replace(current_config, generations=reduced_gens)
             reduced_estimate = self.estimate_evolution_cost(reduced_config, model)
             suggestions.append(
                 {
                     "type": "reduce_generations",
-                    "new_generations": str(reduced_gens),
-                    "estimated_cost": str(reduced_estimate["estimated_cost"]),
-                    "savings": str(current_cost - reduced_estimate["estimated_cost"]),
+                    "new_generations": reduced_gens,
+                    "estimated_cost": reduced_estimate["estimated_cost"],
+                    "savings": current_cost - reduced_estimate["estimated_cost"],
                 }
             )
 
@@ -363,16 +361,14 @@ class EvolutionCostEstimator:
             5, int(current_config.population_size * (1 - reduction_needed))
         )
         if reduced_pop < current_config.population_size:
-            reduced_config = EvolutionConfig(
-                **{**current_config.__dict__, "population_size": reduced_pop}
-            )
+            reduced_config = replace(current_config, population_size=reduced_pop)
             reduced_estimate = self.estimate_evolution_cost(reduced_config, model)
             suggestions.append(
                 {
                     "type": "reduce_population",
-                    "new_population": str(reduced_pop),
-                    "estimated_cost": str(reduced_estimate["estimated_cost"]),
-                    "savings": str(current_cost - reduced_estimate["estimated_cost"]),
+                    "new_population": reduced_pop,
+                    "estimated_cost": reduced_estimate["estimated_cost"],
+                    "savings": current_cost - reduced_estimate["estimated_cost"],
                 }
             )
 

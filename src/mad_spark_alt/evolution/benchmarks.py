@@ -38,7 +38,7 @@ class BenchmarkMetrics:
     """Metrics collected during benchmark run."""
 
     name: str
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Timing metrics
     total_time: float = 0.0
