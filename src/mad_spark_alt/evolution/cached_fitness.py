@@ -132,13 +132,13 @@ class FitnessCache:
         if key in self._cache:
             self._access_order.remove(key)
         self._access_order.append(key)
-        
+
         # Store entry
         self._cache[key] = FitnessCacheEntry(
             fitness=fitness,
             timestamp=time.time(),
         )
-        
+
         # Enforce cache size limit with LRU eviction
         self._enforce_cache_limits()
 
@@ -147,7 +147,7 @@ class FitnessCache:
         while len(self._cache) > self.max_size:
             if not self._access_order:
                 break
-            
+
             # Remove least recently used item
             lru_key = self._access_order.pop(0)
             if lru_key in self._cache:
