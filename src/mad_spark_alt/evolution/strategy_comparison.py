@@ -184,11 +184,12 @@ class StrategyComparator:
         algorithm = GeneticAlgorithm()
         request = EvolutionRequest(
             initial_population=initial_ideas[: config.population_size],
+            config=config,
             context="Strategy comparison test",
         )
 
         # Run evolution
-        result = await algorithm.evolve(request, config)
+        result = await algorithm.evolve(request)
 
         # Add execution time
         result.execution_time = time.time() - start_time
