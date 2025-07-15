@@ -7,7 +7,7 @@ This module provides robust JSON extraction and parsing.
 
 import json
 import re
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Callable
 
 
 def extract_json_from_response(text: str) -> Optional[str]:
@@ -180,6 +180,231 @@ def validate_json_structure(data: Dict[str, Any], required_keys: list) -> bool:
         return False
 
     return all(key in data for key in required_keys)
+
+
+def validate_crossover_response(data: Dict[str, Any]) -> bool:
+    """
+    Validate LLM crossover response structure.
+
+    Expected format:
+    {
+        "offspring1": {"content": "...", "reasoning": "..."},
+        "offspring2": {"content": "...", "reasoning": "..."}
+    }
+
+    Args:
+        data: Parsed JSON data
+
+    Returns:
+        True if structure is valid
+    """
+    if not isinstance(data, dict):
+        return False
+
+    required_keys = ["offspring1", "offspring2"]
+    if not all(key in data for key in required_keys):
+        return False
+
+    for offspring_key in required_keys:
+        offspring = data[offspring_key]
+        if not isinstance(offspring, dict):
+            return False
+        if not all(key in offspring for key in ["content", "reasoning"]):
+            return False
+        if (
+            not isinstance(offspring["content"], str)
+            or not offspring["content"].strip()
+        ):
+            return False
+        if (
+            not isinstance(offspring["reasoning"], str)
+            or not offspring["reasoning"].strip()
+        ):
+            return False
+
+    return True
+
+
+def validate_mutation_response(data: Dict[str, Any]) -> bool:
+    """
+    Validate LLM mutation response structure.
+
+    Expected format:
+    {
+        "mutated_idea": {
+            "content": "...",
+            "mutation_type": "...",
+            "reasoning": "..."
+        }
+    }
+
+    Args:
+        data: Parsed JSON data
+
+    Returns:
+        True if structure is valid
+    """
+    if not isinstance(data, dict):
+        return False
+
+    if "mutated_idea" not in data:
+        return False
+
+    mutated_idea = data["mutated_idea"]
+    if not isinstance(mutated_idea, dict):
+        return False
+
+    required_keys = ["content", "mutation_type", "reasoning"]
+    if not all(key in mutated_idea for key in required_keys):
+        return False
+
+    for key in required_keys:
+        if not isinstance(mutated_idea[key], str) or not mutated_idea[key].strip():
+            return False
+
+    return True
+
+
+def validate_selection_response(data: Dict[str, Any]) -> bool:
+    """
+    Validate LLM selection advisor response structure.
+
+    Expected format:
+    {
+        "selection_scores": [
+            {"index": 0, "score": 0.9, "reasoning": "..."},
+            ...
+        ],
+        "recommended_parents": [0, 1, ...],
+        "diversity_consideration": "..."
+    }
+
+    Args:
+        data: Parsed JSON data
+
+    Returns:
+        True if structure is valid
+    """
+    if not isinstance(data, dict):
+        return False
+
+    required_keys = [
+        "selection_scores",
+        "recommended_parents",
+        "diversity_consideration",
+    ]
+    if not all(key in data for key in required_keys):
+        return False
+
+    # Validate selection_scores
+    if not isinstance(data["selection_scores"], list):
+        return False
+    for score_entry in data["selection_scores"]:
+        if not isinstance(score_entry, dict):
+            return False
+        if not all(key in score_entry for key in ["index", "score", "reasoning"]):
+            return False
+        if not isinstance(score_entry["index"], int) or score_entry["index"] < 0:
+            return False
+        if not isinstance(score_entry["score"], (int, float)) or not (
+            0 <= score_entry["score"] <= 1
+        ):
+            return False
+        if (
+            not isinstance(score_entry["reasoning"], str)
+            or not score_entry["reasoning"].strip()
+        ):
+            return False
+
+    # Validate recommended_parents
+    if not isinstance(data["recommended_parents"], list):
+        return False
+    for parent_idx in data["recommended_parents"]:
+        if not isinstance(parent_idx, int) or parent_idx < 0:
+            return False
+
+    # Validate diversity_consideration
+    if (
+        not isinstance(data["diversity_consideration"], str)
+        or not data["diversity_consideration"].strip()
+    ):
+        return False
+
+    return True
+
+
+def validate_qadi_response(data: Dict[str, Any]) -> bool:
+    """
+    Validate QADI agent response structure.
+
+    Expected format:
+    {
+        "ideas": [
+            {"content": "...", "reasoning": "..."},
+            ...
+        ]
+    }
+
+    Args:
+        data: Parsed JSON data
+
+    Returns:
+        True if structure is valid
+    """
+    if not isinstance(data, dict):
+        return False
+
+    if "ideas" not in data:
+        return False
+
+    ideas = data["ideas"]
+    if not isinstance(ideas, list):
+        return False
+
+    for idea in ideas:
+        if not isinstance(idea, dict):
+            return False
+        if not all(key in idea for key in ["content", "reasoning"]):
+            return False
+        if not isinstance(idea["content"], str) or not idea["content"].strip():
+            return False
+        if not isinstance(idea["reasoning"], str) or not idea["reasoning"].strip():
+            return False
+
+    return True
+
+
+def safe_json_parse_with_validation(
+    text: str,
+    validator_func: Optional[Callable[[Dict[str, Any]], bool]] = None,
+    fallback: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Safely parse JSON from LLM response with optional validation.
+
+    Args:
+        text: Raw text response from LLM
+        validator_func: Optional function to validate parsed JSON structure
+        fallback: Fallback dictionary if parsing or validation fails
+
+    Returns:
+        Parsed and validated JSON dictionary or fallback
+    """
+    if fallback is None:
+        fallback = {}
+
+    # Parse JSON using existing safe_json_parse
+    parsed_data = safe_json_parse(text, fallback)
+
+    # If we got the fallback, validation would fail anyway
+    if parsed_data == fallback:
+        return fallback
+
+    # Apply validation if provided
+    if validator_func and not validator_func(parsed_data):
+        return fallback
+
+    return parsed_data
 
 
 def format_llm_cost(cost: float) -> str:

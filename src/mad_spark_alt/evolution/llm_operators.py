@@ -6,6 +6,7 @@ LLM reasoning instead of simple text manipulation.
 """
 
 import logging
+import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -55,6 +56,32 @@ class LLMCrossoverOperator(CrossoverInterface):
         self._traditional_crossover = CrossoverOperator()
         self._cost_tracker = LLMOperatorCostTracker()
 
+    def _sanitize_content(self, content: str) -> str:
+        """Sanitize user content to prevent prompt injection attacks."""
+        if not content:
+            return ""
+
+        # Remove potential injection patterns
+        sanitized = content
+
+        # Remove or escape common injection patterns
+        # Remove JSON-like structures that could confuse the parser
+        sanitized = re.sub(r"[{}]", "", sanitized)
+
+        # Remove prompt engineering attempts
+        sanitized = re.sub(
+            r"(?i)\b(ignore|forget|system|prompt|instruction|role)\b.*?:", "", sanitized
+        )
+
+        # Remove excessive whitespace and newlines
+        sanitized = re.sub(r"\s+", " ", sanitized).strip()
+
+        # Limit length to prevent token abuse
+        if len(sanitized) > 1000:
+            sanitized = sanitized[:1000] + "..."
+
+        return sanitized
+
     async def crossover(
         self,
         parent1: GeneratedIdea,
@@ -72,12 +99,17 @@ class LLMCrossoverOperator(CrossoverInterface):
         Returns:
             Tuple of two offspring ideas
         """
+        # Sanitize user content to prevent prompt injection
+        safe_parent1 = self._sanitize_content(parent1.content)
+        safe_parent2 = self._sanitize_content(parent2.content)
+        safe_context = self._sanitize_content(context or "General innovation")
+
         prompt = f"""You are a genetic algorithm expert tasked with creating innovative offspring from two parent ideas.
 
-Parent 1: {parent1.content}
-Parent 2: {parent2.content}
+Parent 1: {safe_parent1}
+Parent 2: {safe_parent2}
 
-Context: {context or "General innovation"}
+Context: {safe_context}
 
 Please create two offspring ideas that:
 1. Inherit the best aspects of both parents
@@ -109,10 +141,26 @@ Return a JSON object with this structure:
             )
             response = await self.llm_provider.generate(request)
 
-            # Parse JSON response
-            from mad_spark_alt.core.json_utils import safe_json_parse
+            # Parse JSON response with validation
+            from mad_spark_alt.core.json_utils import (
+                safe_json_parse_with_validation,
+                validate_crossover_response,
+            )
 
-            result = safe_json_parse(response.content)
+            result = safe_json_parse_with_validation(
+                response.content,
+                validate_crossover_response,
+                fallback={
+                    "offspring1": {
+                        "content": f"Hybrid of {parent1.content[:50]}...",
+                        "reasoning": "Fallback crossover",
+                    },
+                    "offspring2": {
+                        "content": f"Blend of {parent2.content[:50]}...",
+                        "reasoning": "Fallback crossover",
+                    },
+                },
+            )
 
             # Track costs
             if hasattr(response, "usage"):
@@ -196,6 +244,32 @@ class LLMMutationOperator(MutationInterface):
         self._traditional_mutation = MutationOperator()
         self._cost_tracker = LLMOperatorCostTracker()
 
+    def _sanitize_content(self, content: str) -> str:
+        """Sanitize user content to prevent prompt injection attacks."""
+        if not content:
+            return ""
+
+        # Remove potential injection patterns
+        sanitized = content
+
+        # Remove or escape common injection patterns
+        # Remove JSON-like structures that could confuse the parser
+        sanitized = re.sub(r"[{}]", "", sanitized)
+
+        # Remove prompt engineering attempts
+        sanitized = re.sub(
+            r"(?i)\b(ignore|forget|system|prompt|instruction|role)\b.*?:", "", sanitized
+        )
+
+        # Remove excessive whitespace and newlines
+        sanitized = re.sub(r"\s+", " ", sanitized).strip()
+
+        # Limit length to prevent token abuse
+        if len(sanitized) > 1000:
+            sanitized = sanitized[:1000] + "..."
+
+        return sanitized
+
     async def mutate(
         self,
         individual: GeneratedIdea,
@@ -220,9 +294,12 @@ class LLMMutationOperator(MutationInterface):
         else:
             mutation_type = "radical reimagining"
 
+        # Sanitize user content to prevent prompt injection
+        safe_content = self._sanitize_content(individual.content)
+
         prompt = f"""You are a genetic algorithm expert tasked with mutating an idea to create innovation.
 
-Original Idea: {individual.content}
+Original Idea: {safe_content}
 Mutation Type: {mutation_type}
 Mutation Rate: {mutation_rate}
 
@@ -259,10 +336,23 @@ Return a JSON object with this structure:
             )
             response = await self.llm_provider.generate(request)
 
-            # Parse JSON response
-            from mad_spark_alt.core.json_utils import safe_json_parse
+            # Parse JSON response with validation
+            from mad_spark_alt.core.json_utils import (
+                safe_json_parse_with_validation,
+                validate_mutation_response,
+            )
 
-            result = safe_json_parse(response.content)
+            result = safe_json_parse_with_validation(
+                response.content,
+                validate_mutation_response,
+                fallback={
+                    "mutated_idea": {
+                        "content": f"Mutated {individual.content[:50]}...",
+                        "mutation_type": mutation_type,
+                        "reasoning": "Fallback mutation",
+                    }
+                },
+            )
 
             # Track costs
             if hasattr(response, "usage"):
@@ -383,10 +473,30 @@ Return a JSON object with this structure:
             )
             response = await self.llm_provider.generate(request)
 
-            # Parse JSON response
-            from mad_spark_alt.core.json_utils import safe_json_parse
+            # Parse JSON response with validation
+            from mad_spark_alt.core.json_utils import (
+                safe_json_parse_with_validation,
+                validate_selection_response,
+            )
 
-            result = safe_json_parse(response.content)
+            result = safe_json_parse_with_validation(
+                response.content,
+                validate_selection_response,
+                fallback={
+                    "selection_scores": [
+                        {
+                            "index": i,
+                            "score": individual.overall_fitness,
+                            "reasoning": "Fallback selection",
+                        }
+                        for i, individual in enumerate(population)
+                    ],
+                    "recommended_parents": list(
+                        range(min(num_parents, len(population)))
+                    ),
+                    "diversity_consideration": "Fallback to fitness-based selection",
+                },
+            )
 
             # Track costs
             if hasattr(response, "usage"):
