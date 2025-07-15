@@ -146,8 +146,10 @@ class GeneticAlgorithm:
 
             generation_snapshots.append(snapshot)
 
-            # Count evaluations for new offspring
-            total_evaluations += len(current_population)
+            # Count evaluations for new offspring only (excluding preserved elite)
+            # Elite individuals are carried over without re-evaluation
+            new_evaluations = len(current_population) - request.config.elite_size
+            total_evaluations += new_evaluations
 
             # Save checkpoint if enabled
             if (
