@@ -14,6 +14,7 @@ try:
     import numpy as np  # type: ignore
     from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore
     from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
+    from sklearn.cluster import KMeans  # type: ignore
 
     HAS_SKLEARN = True
 except ImportError:
@@ -431,8 +432,6 @@ class SemanticClusterCache:
             return
 
         try:
-            from sklearn.cluster import KMeans  # type: ignore
-
             # Vectorize all ideas
             contents = [idea.content for idea in all_ideas]
             vectors = self._vectorizer.fit_transform(contents)

@@ -8,8 +8,9 @@ enabling recovery from failures and resumption of long-running evolutions.
 import json
 import logging
 import os
+import time
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -288,9 +289,6 @@ class EvolutionCheckpointer:
 
     def _cleanup_old_checkpoints(self) -> None:
         """Clean up old checkpoints based on configured limits."""
-        import time
-        from datetime import datetime, timedelta
-
         if not self.checkpoint_dir.exists():
             return
 

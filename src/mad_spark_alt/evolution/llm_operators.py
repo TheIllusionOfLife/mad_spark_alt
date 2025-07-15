@@ -11,7 +11,13 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
-from mad_spark_alt.core.llm_provider import LLMProviderInterface
+from mad_spark_alt.core.llm_provider import LLMProviderInterface, LLMRequest
+from mad_spark_alt.core.json_utils import (
+    safe_json_parse_with_validation,
+    validate_crossover_response,
+    validate_mutation_response,
+    validate_selection_response,
+)
 from mad_spark_alt.evolution.interfaces import (
     CrossoverInterface,
     MutationInterface,
@@ -132,8 +138,6 @@ Return a JSON object with this structure:
 
         try:
             # Call LLM
-            from mad_spark_alt.core.llm_provider import LLMRequest
-
             request = LLMRequest(
                 user_prompt=prompt,
                 temperature=0.7,
@@ -142,11 +146,6 @@ Return a JSON object with this structure:
             response = await self.llm_provider.generate(request)
 
             # Parse JSON response with validation
-            from mad_spark_alt.core.json_utils import (
-                safe_json_parse_with_validation,
-                validate_crossover_response,
-            )
-
             result = safe_json_parse_with_validation(
                 response.content,
                 validate_crossover_response,
@@ -327,8 +326,6 @@ Return a JSON object with this structure:
 
         try:
             # Call LLM
-            from mad_spark_alt.core.llm_provider import LLMRequest
-
             request = LLMRequest(
                 user_prompt=prompt,
                 temperature=0.7,
@@ -337,11 +334,6 @@ Return a JSON object with this structure:
             response = await self.llm_provider.generate(request)
 
             # Parse JSON response with validation
-            from mad_spark_alt.core.json_utils import (
-                safe_json_parse_with_validation,
-                validate_mutation_response,
-            )
-
             result = safe_json_parse_with_validation(
                 response.content,
                 validate_mutation_response,
@@ -464,8 +456,6 @@ Return a JSON object with this structure:
 
         try:
             # Call LLM
-            from mad_spark_alt.core.llm_provider import LLMRequest
-
             request = LLMRequest(
                 user_prompt=prompt,
                 temperature=0.7,
@@ -474,11 +464,6 @@ Return a JSON object with this structure:
             response = await self.llm_provider.generate(request)
 
             # Parse JSON response with validation
-            from mad_spark_alt.core.json_utils import (
-                safe_json_parse_with_validation,
-                validate_selection_response,
-            )
-
             result = safe_json_parse_with_validation(
                 response.content,
                 validate_selection_response,
