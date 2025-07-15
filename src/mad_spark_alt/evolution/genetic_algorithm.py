@@ -337,7 +337,9 @@ class GeneticAlgorithm:
         if not checkpoint:
             raise ValueError(f"Checkpoint {checkpoint_id} not found")
 
-        logger.info(f"Resuming evolution from generation {checkpoint.generation}")
+        logger.info(
+            f"Resuming evolution from generation {checkpoint.generation} (continuing from checkpoint saved after generation {checkpoint.generation - 1})"
+        )
 
         # Create request from checkpoint
         request = EvolutionRequest(
@@ -356,11 +358,14 @@ class GeneticAlgorithm:
             total_evaluations = checkpoint.metadata.get("total_evaluations", 0)
 
             # Continue evolution using helper method
+            # Note: checkpoint.generation is the generation number after the last evolution step
+            # The population in the checkpoint has already evolved through generation (checkpoint.generation - 1)
+            # So we resume from checkpoint.generation to continue the evolution
             current_population, generation_snapshots, total_evaluations = (
                 await self._run_evolution_loop(
                     current_population,
                     request,
-                    start_generation=checkpoint.generation + 1,
+                    start_generation=checkpoint.generation,
                     initial_snapshots=initial_snapshots,
                     initial_evaluations=total_evaluations,
                 )
