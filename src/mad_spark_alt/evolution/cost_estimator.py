@@ -55,7 +55,7 @@ class EvolutionCostEstimator:
         ),
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize cost estimator."""
         self._model_costs = self.DEFAULT_MODEL_COSTS.copy()
         self._historical_token_usage: List[Dict] = []

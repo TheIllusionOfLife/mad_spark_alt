@@ -42,7 +42,7 @@ class EvolutionProgressTracker:
     information during the evolution process.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize progress tracker."""
         self._callbacks: List[ProgressCallback] = []
         self._start_time: Optional[float] = None

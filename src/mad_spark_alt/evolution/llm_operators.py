@@ -27,7 +27,7 @@ class LLMOperatorResult:
 
     content: str
     reasoning: str
-    metadata: Dict[str, any]
+    metadata: Dict[str, Any]
 
 
 class LLMCrossoverOperator(CrossoverInterface):
@@ -100,35 +100,22 @@ Return a JSON object with this structure:
 
         try:
             # Call LLM
-            result = await self.llm_provider.generate_with_json_schema(
-                prompt,
-                response_format={
-                    "type": "object",
-                    "properties": {
-                        "offspring1": {
-                            "type": "object",
-                            "properties": {
-                                "content": {"type": "string"},
-                                "reasoning": {"type": "string"},
-                            },
-                            "required": ["content", "reasoning"],
-                        },
-                        "offspring2": {
-                            "type": "object",
-                            "properties": {
-                                "content": {"type": "string"},
-                                "reasoning": {"type": "string"},
-                            },
-                            "required": ["content", "reasoning"],
-                        },
-                    },
-                    "required": ["offspring1", "offspring2"],
-                },
+            from mad_spark_alt.core.llm_provider import LLMRequest
+            
+            request = LLMRequest(
+                prompt=prompt,
+                temperature=0.7,
+                max_tokens=1000,
             )
+            response = await self.llm_provider.generate(request)
+            
+            # Parse JSON response
+            from mad_spark_alt.core.json_utils import safe_json_parse
+            result = safe_json_parse(response.content)
 
             # Track costs
-            if hasattr(result, "usage"):
-                tokens = result.usage.get("total_tokens", 0)
+            if hasattr(response, "usage"):
+                tokens = response.usage.get("total_tokens", 0)
                 cost = self._estimate_cost(tokens)
                 self._cost_tracker.track_crossover(cost, tokens)
 
@@ -137,6 +124,7 @@ Return a JSON object with this structure:
                 content=result["offspring1"]["content"],
                 thinking_method=parent1.thinking_method,  # Inherit from parent1
                 agent_name="LLMCrossover",
+                generation_prompt=f"LLM crossover of: {parent1.content[:30]}... + {parent2.content[:30]}...",
                 metadata={
                     "crossover_reasoning": result["offspring1"]["reasoning"],
                     "parent1": parent1.content[:50] + "...",
@@ -149,6 +137,7 @@ Return a JSON object with this structure:
                 content=result["offspring2"]["content"],
                 thinking_method=parent2.thinking_method,  # Inherit from parent2
                 agent_name="LLMCrossover",
+                generation_prompt=f"LLM crossover of: {parent1.content[:30]}... + {parent2.content[:30]}...",
                 metadata={
                     "crossover_reasoning": result["offspring2"]["reasoning"],
                     "parent1": parent1.content[:50] + "...",
@@ -164,7 +153,7 @@ Return a JSON object with this structure:
 
             if self.fallback_to_traditional:
                 logger.info("Falling back to traditional crossover")
-                offspring1, offspring2 = self._traditional_crossover.crossover(
+                offspring1, offspring2 = await self._traditional_crossover.crossover(
                     parent1, parent2
                 )
                 # Mark as fallback
@@ -210,6 +199,7 @@ class LLMMutationOperator(MutationInterface):
         self,
         individual: GeneratedIdea,
         mutation_rate: float = 0.1,
+        context: Optional[str] = None,
     ) -> GeneratedIdea:
         """
         Perform intelligent mutation using LLM.
@@ -259,28 +249,22 @@ Return a JSON object with this structure:
 
         try:
             # Call LLM
-            result = await self.llm_provider.generate_with_json_schema(
-                prompt,
-                response_format={
-                    "type": "object",
-                    "properties": {
-                        "mutated_idea": {
-                            "type": "object",
-                            "properties": {
-                                "content": {"type": "string"},
-                                "mutation_type": {"type": "string"},
-                                "reasoning": {"type": "string"},
-                            },
-                            "required": ["content", "mutation_type", "reasoning"],
-                        }
-                    },
-                    "required": ["mutated_idea"],
-                },
+            from mad_spark_alt.core.llm_provider import LLMRequest
+            
+            request = LLMRequest(
+                prompt=prompt,
+                temperature=0.7,
+                max_tokens=1000,
             )
+            response = await self.llm_provider.generate(request)
+            
+            # Parse JSON response
+            from mad_spark_alt.core.json_utils import safe_json_parse
+            result = safe_json_parse(response.content)
 
             # Track costs
-            if hasattr(result, "usage"):
-                tokens = result.usage.get("total_tokens", 0)
+            if hasattr(response, "usage"):
+                tokens = response.usage.get("total_tokens", 0)
                 cost = self._estimate_cost(tokens)
                 self._cost_tracker.track_mutation(cost, tokens)
 
@@ -289,6 +273,7 @@ Return a JSON object with this structure:
                 content=result["mutated_idea"]["content"],
                 thinking_method=individual.thinking_method,
                 agent_name="LLMMutation",
+                generation_prompt=f"LLM mutation ({mutation_type}) of: {individual.content[:50]}...",
                 metadata={
                     "mutation_type": result["mutated_idea"]["mutation_type"],
                     "mutation_reasoning": result["mutated_idea"]["reasoning"],
@@ -305,7 +290,7 @@ Return a JSON object with this structure:
 
             if self.fallback_to_traditional:
                 logger.info("Falling back to traditional mutation")
-                mutated = self._traditional_mutation.mutate(individual, mutation_rate)
+                mutated = await self._traditional_mutation.mutate(individual, mutation_rate, context)
                 mutated.metadata["fallback_used"] = True
                 return mutated
             else:
@@ -385,40 +370,22 @@ Return a JSON object with this structure:
 
         try:
             # Call LLM
-            result = await self.llm_provider.generate_with_json_schema(
-                prompt,
-                response_format={
-                    "type": "object",
-                    "properties": {
-                        "selection_scores": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "index": {"type": "integer"},
-                                    "score": {"type": "number"},
-                                    "reasoning": {"type": "string"},
-                                },
-                                "required": ["index", "score", "reasoning"],
-                            },
-                        },
-                        "recommended_parents": {
-                            "type": "array",
-                            "items": {"type": "integer"},
-                        },
-                        "diversity_consideration": {"type": "string"},
-                    },
-                    "required": [
-                        "selection_scores",
-                        "recommended_parents",
-                        "diversity_consideration",
-                    ],
-                },
+            from mad_spark_alt.core.llm_provider import LLMRequest
+            
+            request = LLMRequest(
+                prompt=prompt,
+                temperature=0.7,
+                max_tokens=1000,
             )
+            response = await self.llm_provider.generate(request)
+            
+            # Parse JSON response
+            from mad_spark_alt.core.json_utils import safe_json_parse
+            result = safe_json_parse(response.content)
 
             # Track costs
-            if hasattr(result, "usage"):
-                tokens = result.usage.get("total_tokens", 0)
+            if hasattr(response, "usage"):
+                tokens = response.usage.get("total_tokens", 0)
                 cost = self._estimate_cost(tokens)
                 self._cost_tracker.track_selection(cost, tokens)
 
@@ -454,7 +421,7 @@ Return a JSON object with this structure:
 class LLMOperatorCostTracker:
     """Track costs and usage for LLM operators."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize cost tracker."""
         self._crossover_count = 0
         self._crossover_tokens = 0
