@@ -221,6 +221,8 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Pattern**: Test genetic algorithms with variance tolerance, not exact values
 - **Convention**: Use `assert final_fitness >= initial_fitness * 0.9` for randomness
 - **Gotcha**: Perfect thinking method balance isn't guaranteed in evolution
+- **Evaluation Metrics**: Count only new evaluations, excluding preserved elite individuals
+- **Checkpoint Resume**: Be clear about state vs transition numbers to avoid off-by-one errors
 
 ### Type Safety Requirements
 - **Critical Pattern**: Always handle Optional fields defensively
