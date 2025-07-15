@@ -6,10 +6,16 @@ for evolving ideas through genetic algorithms.
 """
 
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
+from mad_spark_alt.core.interfaces import GeneratedIdea
+from mad_spark_alt.evolution.constants import (
+    DEFAULT_CONFIDENCE_SCORE,
+    MUTATION_CONFIDENCE_REDUCTION,
+    SELECTION_PRESSURE_ADJUSTMENT,
+    ZERO_SCORE,
+)
 from mad_spark_alt.evolution.interfaces import (
     CrossoverInterface,
     EvolutionConfig,
@@ -67,10 +73,10 @@ class CrossoverOperator(CrossoverInterface):
 
         # Create offspring by combining components
         offspring1_content = self._combine_components(
-            p1_components[:crossover_point] + p2_components[crossover_point:]
+            p1_components[:crossover_point] + p2_components[crossover_point:],
         )
         offspring2_content = self._combine_components(
-            p2_components[:crossover_point] + p1_components[crossover_point:]
+            p2_components[:crossover_point] + p1_components[crossover_point:],
         )
 
         # Create offspring ideas
@@ -80,7 +86,8 @@ class CrossoverOperator(CrossoverInterface):
             agent_name="CrossoverOperator",
             generation_prompt=f"Crossover of ideas: '{parent1.content[:50]}...' and '{parent2.content[:50]}...'",
             confidence_score=(
-                (parent1.confidence_score or 0.5) + (parent2.confidence_score or 0.5)
+                (parent1.confidence_score or DEFAULT_CONFIDENCE_SCORE)
+                + (parent2.confidence_score or DEFAULT_CONFIDENCE_SCORE)
             )
             / 2,
             reasoning=f"Combined elements from both parent ideas at crossover point {crossover_point}",
@@ -94,7 +101,7 @@ class CrossoverOperator(CrossoverInterface):
                 )
                 + 1,
             },
-            timestamp=datetime.now().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
         offspring2 = GeneratedIdea(
@@ -103,7 +110,8 @@ class CrossoverOperator(CrossoverInterface):
             agent_name="CrossoverOperator",
             generation_prompt=f"Crossover of ideas: '{parent2.content[:50]}...' and '{parent1.content[:50]}...'",
             confidence_score=(
-                (parent1.confidence_score or 0.5) + (parent2.confidence_score or 0.5)
+                (parent1.confidence_score or DEFAULT_CONFIDENCE_SCORE)
+                + (parent2.confidence_score or DEFAULT_CONFIDENCE_SCORE)
             )
             / 2,
             reasoning=f"Combined elements from both parent ideas at crossover point {crossover_point}",
@@ -117,7 +125,7 @@ class CrossoverOperator(CrossoverInterface):
                 )
                 + 1,
             },
-            timestamp=datetime.now().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
         return offspring1, offspring2
@@ -155,7 +163,10 @@ class MutationOperator(MutationInterface):
         return True  # No specific config needed
 
     async def mutate(
-        self, idea: GeneratedIdea, mutation_rate: float, context: Optional[str] = None
+        self,
+        idea: GeneratedIdea,
+        mutation_rate: float,
+        context: Optional[str] = None,
     ) -> GeneratedIdea:
         """
         Mutate an idea with given mutation rate.
@@ -182,8 +193,8 @@ class MutationOperator(MutationInterface):
                 thinking_method=idea.thinking_method,
                 agent_name="MutationOperator",
                 generation_prompt=f"Mutation ({mutation_type}) of: '{idea.content[:50]}...'",
-                confidence_score=(idea.confidence_score or 0.5)
-                * 0.95,  # Slightly reduce confidence
+                confidence_score=(idea.confidence_score or DEFAULT_CONFIDENCE_SCORE)
+                * MUTATION_CONFIDENCE_REDUCTION,
                 reasoning=f"Applied {mutation_type} mutation to introduce variation",
                 parent_ideas=[idea.content],
                 metadata={
@@ -192,7 +203,7 @@ class MutationOperator(MutationInterface):
                     "mutation_rate": mutation_rate,
                     "generation": idea.metadata.get("generation", 0) + 1,
                 },
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
 
             return mutated_idea
@@ -334,11 +345,13 @@ class RouletteWheelSelection(SelectionInterface):
         if min_fitness < 0:
             # Shift all fitnesses to be positive
             adjusted_fitnesses = [
-                ind.overall_fitness - min_fitness + 0.001 for ind in population
+                ind.overall_fitness - min_fitness + SELECTION_PRESSURE_ADJUSTMENT
+                for ind in population
             ]
         else:
             adjusted_fitnesses = [
-                ind.overall_fitness + 0.001 for ind in population
+                ind.overall_fitness + SELECTION_PRESSURE_ADJUSTMENT
+                for ind in population
             ]  # Avoid zero
 
         total_fitness = sum(adjusted_fitnesses)
@@ -346,7 +359,7 @@ class RouletteWheelSelection(SelectionInterface):
         for _ in range(num_selected):
             # Spin the roulette wheel
             spin = random.uniform(0, total_fitness)
-            cumulative = 0.0
+            cumulative = ZERO_SCORE
 
             for i, fitness in enumerate(adjusted_fitnesses):
                 cumulative += fitness
@@ -402,7 +415,7 @@ class RankSelection(SelectionInterface):
         for _ in range(num_selected):
             # Select based on rank probability
             spin = random.uniform(0, total_rank)
-            cumulative = 0.0
+            cumulative = ZERO_SCORE
 
             for i, rank in enumerate(ranks):
                 cumulative += rank

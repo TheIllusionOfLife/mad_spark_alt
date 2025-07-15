@@ -8,7 +8,7 @@ pattern recognition, rule formation, and creative synthesis from observations.
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from ...core.interfaces import (
@@ -465,7 +465,7 @@ Using {method_name} inductive reasoning, synthesize insights that identify patte
                         "batch_cost": response.cost,
                         "generation_index": i,
                     },
-                    timestamp=datetime.now().isoformat(),
+                    timestamp=datetime.now(timezone.utc).isoformat(),
                 )
                 generated_insights.append(idea)
 

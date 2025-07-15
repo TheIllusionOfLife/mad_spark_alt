@@ -17,6 +17,16 @@ from mad_spark_alt.evolution.checkpointing import (
     EvolutionCheckpoint,
     EvolutionCheckpointer,
 )
+from mad_spark_alt.evolution.constants import (
+    HIGH_DIVERSITY_THRESHOLD,
+    LOW_DIVERSITY_THRESHOLD,
+    MAX_MUTATION_RATE,
+    MIN_MUTATION_RATE,
+    MODERATE_DIVERSITY_THRESHOLD,
+    MUTATION_RATE_DECREASE_FACTOR,
+    MUTATION_RATE_INCREASE_FACTOR,
+    ZERO_SCORE,
+)
 from mad_spark_alt.evolution.fitness import FitnessEvaluator
 from mad_spark_alt.evolution.interfaces import (
     EvolutionConfig,
@@ -253,7 +263,7 @@ class GeneticAlgorithm:
                 best_ideas=[],
                 generation_snapshots=[],
                 total_generations=0,
-                execution_time=0.0,
+                execution_time=ZERO_SCORE,
                 error_message="Invalid evolution request",
             )
 
@@ -512,7 +522,7 @@ class GeneticAlgorithm:
                 return True
 
         # Check for convergence (low diversity)
-        if snapshot.diversity_score < 0.1:
+        if snapshot.diversity_score < LOW_DIVERSITY_THRESHOLD:
             logger.warning("Population has converged (low diversity)")
             return True
 
@@ -523,11 +533,11 @@ class GeneticAlgorithm:
     ) -> float:
         """Adapt mutation rate based on population state."""
         # Increase mutation if diversity is low
-        if snapshot.diversity_score < 0.3:
-            return min(current_rate * 1.2, 0.5)
+        if snapshot.diversity_score < MODERATE_DIVERSITY_THRESHOLD:
+            return min(current_rate * MUTATION_RATE_INCREASE_FACTOR, MAX_MUTATION_RATE)
         # Decrease mutation if diversity is high
-        elif snapshot.diversity_score > 0.7:
-            return max(current_rate * 0.8, 0.01)
+        elif snapshot.diversity_score > HIGH_DIVERSITY_THRESHOLD:
+            return max(current_rate * MUTATION_RATE_DECREASE_FACTOR, MIN_MUTATION_RATE)
         return current_rate
 
     async def _apply_diversity_pressure(

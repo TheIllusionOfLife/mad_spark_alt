@@ -58,6 +58,7 @@ class LLMQuestioningAgent(ThinkingAgentInterface):
             preferred_provider: Preferred LLM provider (auto-select if None)
         """
         self._name = name
+
         from ...core.llm_provider import llm_manager as default_llm_manager
 
         self.llm_manager = llm_manager or default_llm_manager

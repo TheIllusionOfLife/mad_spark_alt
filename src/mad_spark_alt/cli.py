@@ -39,6 +39,22 @@ from .layers.quantitative import DiversityEvaluator, QualityEvaluator
 console = Console()
 
 
+def calculate_evolution_timeout(generations: int, population: int) -> float:
+    """
+    Calculate adaptive timeout based on evolution complexity.
+
+    Args:
+        generations: Number of generations
+        population: Population size
+
+    Returns:
+        Timeout in seconds (min 60s, max 600s)
+    """
+    base_timeout = 60.0  # Minimum 1 minute
+    estimated_time = generations * population * 10  # 10s per evaluation estimate
+    return min(max(base_timeout, estimated_time), 600.0)  # Max 10 minutes
+
+
 def load_env_file() -> None:
     """Load environment variables from .env file if it exists."""
     env_path = Path(__file__).parent.parent.parent / ".env"
@@ -544,7 +560,7 @@ async def _run_evolution_pipeline(
                 elite_size=2,
                 selection_strategy=SelectionStrategy.TOURNAMENT,
                 parallel_evaluation=True,
-                max_parallel_evaluations=3,
+                max_parallel_evaluations=min(8, population, len(initial_ideas)),
             )
 
             request = EvolutionRequest(
