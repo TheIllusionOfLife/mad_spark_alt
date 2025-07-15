@@ -285,7 +285,9 @@ class GeneticAlgorithm:
             evolution_metrics = self._calculate_evolution_metrics(
                 generation_snapshots,
                 request.initial_population,
-                [ind.idea for ind in current_population[:10]],  # Best ideas for metrics
+                self._extract_best_ideas(
+                    current_population, n=10
+                ),  # Extract actual best ideas by fitness
                 request.config,
             )
 
@@ -365,10 +367,18 @@ class GeneticAlgorithm:
             )
 
             # Calculate evolution metrics
+            # Extract initial ideas from the first generation snapshot for accurate metrics
+            initial_ideas = (
+                [ind.idea for ind in generation_snapshots[0].population]
+                if generation_snapshots
+                else []
+            )
             evolution_metrics = self._calculate_evolution_metrics(
                 generation_snapshots,
-                [ind.idea for ind in checkpoint.population],
-                [ind.idea for ind in current_population[:10]],  # Best ideas for metrics
+                initial_ideas,
+                self._extract_best_ideas(
+                    current_population, n=10
+                ),  # Extract actual best ideas by fitness
                 request.config,
             )
 
