@@ -5,7 +5,8 @@ This module provides a clean interface for rendering markdown and styled content
 in the terminal, with graceful fallbacks for different terminal capabilities.
 """
 
-from typing import Optional, Any
+from typing import Any, Optional
+
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
