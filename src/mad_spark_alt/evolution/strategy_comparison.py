@@ -41,14 +41,14 @@ class StrategyResult:
         """Average best fitness across runs."""
         if not self.runs:
             return 0.0
-        return np.mean([max(ind.overall_fitness for ind in run.final_population) for run in self.runs if run.final_population])
+        return float(np.mean([max(ind.overall_fitness for ind in run.final_population) for run in self.runs if run.final_population]))
 
     @property
     def std_fitness(self) -> float:
         """Standard deviation of best fitness."""
         if not self.runs:
             return 0.0
-        return np.std([max(ind.overall_fitness for ind in run.final_population) for run in self.runs if run.final_population])
+        return float(np.std([max(ind.overall_fitness for ind in run.final_population) for run in self.runs if run.final_population]))
 
     @property
     def avg_convergence_generation(self) -> float:
@@ -61,14 +61,14 @@ class StrategyResult:
             # In future, we could add fitness_history to EvolutionResult
             convergence_gens.append(run.total_generations)
 
-        return np.mean(convergence_gens)
+        return float(np.mean(convergence_gens))
 
     @property
     def avg_diversity_score(self) -> float:
         """Average final population diversity."""
         if not self.runs:
             return 0.0
-        return np.mean([run.evolution_metrics.get('population_diversity', 0.5) for run in self.runs])
+        return float(np.mean([run.evolution_metrics.get('population_diversity', 0.5) for run in self.runs]))
 
     @property
     def convergence_rate(self) -> float:
@@ -81,7 +81,7 @@ class StrategyResult:
         """Average execution time per run."""
         if not self.runs:
             return 0.0
-        return np.mean([run.execution_time for run in self.runs])
+        return float(np.mean([run.execution_time for run in self.runs]))
 
     @property
     def efficiency_score(self) -> float:
@@ -216,7 +216,7 @@ class StrategyComparator:
     def plot_comparison(
         self,
         save_path: Optional[str] = None,
-        metrics: List[str] = None,
+        metrics: Optional[List[str]] = None,
     ) -> None:
         """
         Plot strategy comparison results.
@@ -315,8 +315,14 @@ class StrategyComparator:
             if not result.runs:
                 continue
 
-            # Get fitness histories
-            all_histories = [run.fitness_history for run in result.runs]
+            # Get fitness histories from generation snapshots
+            all_histories = []
+            for run in result.runs:
+                if run.generation_snapshots:
+                    history = [snap.best_fitness for snap in run.generation_snapshots]
+                    all_histories.append(history)
+                else:
+                    all_histories.append([run.final_best_fitness] if hasattr(run, 'final_best_fitness') else [0.0])
             max_len = max(len(h) for h in all_histories)
 
             # Pad histories to same length

@@ -129,7 +129,7 @@ class RetryableEvaluator:
         self.max_retries = max_retries
         self.initial_delay = initial_delay
         self.max_delay = max_delay
-        self._failure_counts = {}
+        self._failure_counts: Dict[str, int] = {}
 
     async def evaluate(
         self,
@@ -149,7 +149,7 @@ class RetryableEvaluator:
             Fitness evaluation result
         """
 
-        async def _evaluate():
+        async def _evaluate() -> IndividualFitness:
             try:
                 if hasattr(self.base_evaluator, "evaluate_individual"):
                     return await self.base_evaluator.evaluate_individual(
@@ -220,10 +220,10 @@ class RetryableEvaluator:
 
     async def evaluate_population(
         self,
-        population: list[GeneratedIdea],
+        population: List[GeneratedIdea],
         config: Optional[EvolutionConfig] = None,
         context: Optional[str] = None,
-    ) -> list[IndividualFitness]:
+    ) -> List[IndividualFitness]:
         """
         Evaluate a population with error recovery.
 
@@ -308,7 +308,7 @@ class CircuitBreaker:
         self._half_open_attempts_remaining = 0
         self._state = "closed"  # closed, open, half_open
 
-    async def call(self, func: Callable[..., T], *args, **kwargs) -> T:
+    async def call(self, func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
         """
         Call function through circuit breaker.
 

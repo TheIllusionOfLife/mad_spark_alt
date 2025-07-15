@@ -29,6 +29,7 @@ from mad_spark_alt.evolution.interfaces import (
     EvolutionConfig,
     EvolutionRequest,
     EvolutionResult,
+    IndividualFitness,
 )
 
 
@@ -153,7 +154,7 @@ class EvolutionBenchmark:
             )
 
             metrics.total_time = time.time() - start_time
-            metrics.final_best_fitness = result.best_individual.overall_fitness
+            metrics.final_best_fitness = max(ind.overall_fitness for ind in result.final_population) if result.final_population else 0.0
 
         finally:
             # Stop profiling
@@ -361,11 +362,10 @@ class InstrumentedGeneticAlgorithm(GeneticAlgorithm):
     async def evolve(
         self,
         request: EvolutionRequest,
-        config: EvolutionConfig,
     ) -> EvolutionResult:
         """Evolve with instrumentation."""
         # Override to add instrumentation
-        result = await super().evolve(request, config)
+        result = await super().evolve(request)
 
         # Capture final metrics
         if hasattr(self, "_cache") and self._cache:
@@ -375,7 +375,13 @@ class InstrumentedGeneticAlgorithm(GeneticAlgorithm):
 
         return result
 
-    async def _evolve_generation(self, generation: int) -> None:
+    async def _evolve_generation(
+        self,
+        population: List[IndividualFitness],
+        config: EvolutionConfig,
+        context: Optional[str],
+        generation: int,
+    ) -> List[IndividualFitness]:
         """Instrumented generation evolution."""
         self._generation_start_time = time.time()
 
@@ -396,27 +402,16 @@ class InstrumentedGeneticAlgorithm(GeneticAlgorithm):
             self.metrics.cpu_usage.append(cpu_percent)
 
         # Run generation
-        await super()._evolve_generation(generation)
+        result = await super()._evolve_generation(population, config, context, generation)
 
         # Record generation time
         generation_time = time.time() - self._generation_start_time
         self.metrics.generation_times.append(generation_time)
 
         # Record fitness progression
-        if hasattr(self, "_population") and self._population:
-            best_fitness = max(ind.overall_fitness for ind in self._population)
+        if result:
+            best_fitness = max(ind.overall_fitness for ind in result)
             self.metrics.fitness_progression.append(best_fitness)
-
-    async def _evaluate_individual(self, individual: GeneratedIdea) -> Any:
-        """Instrumented individual evaluation."""
-        eval_start = time.time()
-
-        # Run evaluation
-        result = await super()._evaluate_individual(individual)
-
-        # Record evaluation time
-        eval_time = time.time() - eval_start
-        self.metrics.evaluation_times.append(eval_time)
-        self.metrics.total_evaluations += 1
-
+        
         return result
+

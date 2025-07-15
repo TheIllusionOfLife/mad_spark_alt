@@ -304,9 +304,9 @@ class EvolutionCostEstimator:
             suggestions.append(
                 {
                     "type": "reduce_generations",
-                    "new_generations": reduced_gens,
-                    "estimated_cost": reduced_estimate["estimated_cost"],
-                    "savings": current_cost - reduced_estimate["estimated_cost"],
+                    "new_generations": str(reduced_gens),
+                    "estimated_cost": str(reduced_estimate["estimated_cost"]),
+                    "savings": str(current_cost - reduced_estimate["estimated_cost"]),
                 }
             )
 
@@ -322,9 +322,9 @@ class EvolutionCostEstimator:
             suggestions.append(
                 {
                     "type": "reduce_population",
-                    "new_population": reduced_pop,
-                    "estimated_cost": reduced_estimate["estimated_cost"],
-                    "savings": current_cost - reduced_estimate["estimated_cost"],
+                    "new_population": str(reduced_pop),
+                    "estimated_cost": str(reduced_estimate["estimated_cost"]),
+                    "savings": str(current_cost - reduced_estimate["estimated_cost"]),
                 }
             )
 
