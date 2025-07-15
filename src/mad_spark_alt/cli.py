@@ -470,7 +470,9 @@ def evolve(
 
     # Run the evolution pipeline
     asyncio.run(
-        _run_evolution_pipeline(problem, context, quick, generations, population, output)
+        _run_evolution_pipeline(
+            problem, context, quick, generations, population, output
+        )
     )
 
 
@@ -602,10 +604,10 @@ async def _run_evolution_pipeline(
                 console.print(
                     f"• Best from generation: {metrics.get('best_fitness_generation', 0)}"
                 )
-                
+
                 # Show cache performance if available
-                cache_stats = metrics.get('cache_stats')
-                if cache_stats and cache_stats.get('hits', 0) > 0:
+                cache_stats = metrics.get("cache_stats")
+                if cache_stats and cache_stats.get("hits", 0) > 0:
                     console.print(f"\n[cyan]💾 Cache Performance:[/cyan]")
                     console.print(f"• Hit rate: {cache_stats.get('hit_rate', 0):.1%}")
                     console.print(f"• LLM calls saved: {cache_stats.get('hits', 0)}")

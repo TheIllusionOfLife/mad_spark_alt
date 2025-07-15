@@ -5,8 +5,9 @@ This module provides specialized prompt templates for different question types
 and complexity levels to optimize QADI analysis results.
 """
 
-from typing import Dict, Any
-from .prompt_classifier import QuestionType, ComplexityLevel, ClassificationResult
+from typing import Any, Dict
+
+from .prompt_classifier import ClassificationResult, ComplexityLevel, QuestionType
 
 
 class AdaptivePromptGenerator:

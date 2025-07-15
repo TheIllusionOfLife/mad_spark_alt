@@ -8,7 +8,7 @@ adaptive prompt selection for optimal QADI analysis results.
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Set, Any, cast
+from typing import Any, Dict, List, Optional, Set, Tuple, cast
 
 
 class QuestionType(Enum):

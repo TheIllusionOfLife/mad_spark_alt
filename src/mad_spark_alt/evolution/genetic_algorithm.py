@@ -13,7 +13,10 @@ from typing import List, Optional, Tuple, Union
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.evolution.cached_fitness import CachedFitnessEvaluator
-from mad_spark_alt.evolution.checkpointing import EvolutionCheckpoint, EvolutionCheckpointer
+from mad_spark_alt.evolution.checkpointing import (
+    EvolutionCheckpoint,
+    EvolutionCheckpointer,
+)
 from mad_spark_alt.evolution.fitness import FitnessEvaluator
 from mad_spark_alt.evolution.interfaces import (
     EvolutionConfig,
@@ -69,7 +72,9 @@ class GeneticAlgorithm:
         """
         # Use cached evaluator by default for performance
         if use_cache and fitness_evaluator is None:
-            self.fitness_evaluator: Union[FitnessEvaluator, CachedFitnessEvaluator] = CachedFitnessEvaluator(cache_ttl=cache_ttl)
+            self.fitness_evaluator: Union[FitnessEvaluator, CachedFitnessEvaluator] = (
+                CachedFitnessEvaluator(cache_ttl=cache_ttl)
+            )
         else:
             self.fitness_evaluator = fitness_evaluator or FitnessEvaluator()
         self.crossover_operator = crossover_operator or CrossoverOperator()
@@ -83,11 +88,13 @@ class GeneticAlgorithm:
             SelectionStrategy.RANK: RankSelection(),
             SelectionStrategy.RANDOM: RandomSelection(),
         }
-        
+
         # Initialize checkpointing
         self.checkpoint_dir = checkpoint_dir
         self.checkpoint_interval = checkpoint_interval
-        self.checkpointer = EvolutionCheckpointer(checkpoint_dir) if checkpoint_dir else None
+        self.checkpointer = (
+            EvolutionCheckpointer(checkpoint_dir) if checkpoint_dir else None
+        )
 
     async def evolve(self, request: EvolutionRequest) -> EvolutionResult:
         """
@@ -162,7 +169,9 @@ class GeneticAlgorithm:
                         metadata={"total_evaluations": total_evaluations},
                     )
                     checkpoint_id = self.checkpointer.save_checkpoint(checkpoint)
-                    logger.info(f"Saved checkpoint at generation {generation + 1}: {checkpoint_id}")
+                    logger.info(
+                        f"Saved checkpoint at generation {generation + 1}: {checkpoint_id}"
+                    )
 
                 # Check termination criteria
                 if self._should_terminate(snapshot, request):
@@ -232,68 +241,68 @@ class GeneticAlgorithm:
                 execution_time=time.time() - start_time,
                 error_message=str(e),
             )
-    
+
     async def resume_evolution(self, checkpoint_id: str) -> EvolutionResult:
         """
         Resume evolution from a saved checkpoint.
-        
+
         Args:
             checkpoint_id: ID of the checkpoint to resume from
-            
+
         Returns:
             EvolutionResult with the completed evolution
         """
         if not self.checkpointer:
             raise ValueError("Checkpointing not enabled for this GA instance")
-        
+
         # Load checkpoint
         checkpoint = self.checkpointer.load_checkpoint(checkpoint_id)
         if not checkpoint:
             raise ValueError(f"Checkpoint {checkpoint_id} not found")
-        
+
         logger.info(f"Resuming evolution from generation {checkpoint.generation}")
-        
+
         # Create request from checkpoint
         request = EvolutionRequest(
             initial_population=[ind.idea for ind in checkpoint.population],
             config=checkpoint.config,
             context=checkpoint.context,
         )
-        
+
         # Resume evolution
         start_time = time.time()
-        
+
         try:
             # Start from checkpoint state
             current_population = checkpoint.population
             generation_snapshots = checkpoint.generation_snapshots.copy()
             total_evaluations = checkpoint.metadata.get("total_evaluations", 0)
-            
+
             # Continue evolution from next generation
             for generation in range(checkpoint.generation, request.config.generations):
                 logger.info(
                     f"Resuming generation {generation + 1}/{request.config.generations}"
                 )
-                
+
                 # Evolve to next generation
                 current_population = await self._evolve_generation(
                     current_population, request.config, request.context, generation
                 )
-                
+
                 # Create snapshot of current generation
                 snapshot = PopulationSnapshot.from_population(
                     generation + 1, current_population
                 )
-                
+
                 # Calculate population diversity
                 snapshot.diversity_score = (
                     await self.fitness_evaluator.calculate_population_diversity(
                         current_population
                     )
                 )
-                
+
                 generation_snapshots.append(snapshot)
-                
+
                 # Save checkpoint if enabled
                 if (
                     self.checkpoint_interval > 0
@@ -307,23 +316,27 @@ class GeneticAlgorithm:
                         context=request.context,
                         metadata={"total_evaluations": total_evaluations},
                     )
-                    new_checkpoint_id = self.checkpointer.save_checkpoint(new_checkpoint)
-                    logger.info(f"Saved checkpoint at generation {generation + 1}: {new_checkpoint_id}")
-                
+                    new_checkpoint_id = self.checkpointer.save_checkpoint(
+                        new_checkpoint
+                    )
+                    logger.info(
+                        f"Saved checkpoint at generation {generation + 1}: {new_checkpoint_id}"
+                    )
+
                 # Check termination criteria
                 if self._should_terminate(snapshot, request):
                     logger.info(f"Early termination at generation {generation + 1}")
                     break
-                
+
                 # Adaptive mutation rate (if enabled)
                 if request.config.adaptive_mutation:
                     request.config.mutation_rate = self._adapt_mutation_rate(
                         snapshot, request.config.mutation_rate
                     )
-            
+
             # Extract best ideas
             best_ideas = self._extract_best_ideas(current_population, n=10)
-            
+
             # Calculate evolution metrics
             evolution_metrics = self._calculate_evolution_metrics(
                 generation_snapshots,
@@ -331,9 +344,9 @@ class GeneticAlgorithm:
                 best_ideas,
                 request.config,
             )
-            
+
             execution_time = time.time() - start_time
-            
+
             # Log cache statistics if using cached evaluator
             if isinstance(self.fitness_evaluator, CachedFitnessEvaluator):
                 cache_stats = self.fitness_evaluator.get_cache_stats()
@@ -342,7 +355,7 @@ class GeneticAlgorithm:
                     f"Misses: {cache_stats['misses']}, Hit rate: {cache_stats['hit_rate']:.2%}"
                 )
                 evolution_metrics["cache_stats"] = cache_stats
-            
+
             return EvolutionResult(
                 final_population=current_population,
                 best_ideas=best_ideas,
@@ -351,7 +364,7 @@ class GeneticAlgorithm:
                 execution_time=execution_time,
                 evolution_metrics=evolution_metrics,
             )
-            
+
         except Exception as e:
             logger.error(f"Evolution resumption failed: {e}")
             return EvolutionResult(
