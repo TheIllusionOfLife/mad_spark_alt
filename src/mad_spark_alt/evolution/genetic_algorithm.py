@@ -127,9 +127,14 @@ class GeneticAlgorithm:
                 f"{'Resuming' if start_generation > 0 else 'Starting'} generation {generation + 1}/{request.config.generations}"
             )
 
-            # Create snapshot of current generation (before evolution)
+            # Evolve to next generation
+            current_population = await self._evolve_generation(
+                current_population, request.config, request.context, generation
+            )
+
+            # Create snapshot of current generation (after evolution)
             snapshot = PopulationSnapshot.from_population(
-                generation, current_population
+                generation + 1, current_population
             )
 
             # Calculate population diversity
@@ -140,11 +145,6 @@ class GeneticAlgorithm:
             )
 
             generation_snapshots.append(snapshot)
-
-            # Evolve to next generation
-            current_population = await self._evolve_generation(
-                current_population, request.config, request.context, generation
-            )
 
             # Count evaluations for new offspring
             total_evaluations += len(current_population)
@@ -178,17 +178,6 @@ class GeneticAlgorithm:
                 request.config.mutation_rate = self._adapt_mutation_rate(
                     snapshot, request.config.mutation_rate
                 )
-
-        # Create final population snapshot
-        final_snapshot = PopulationSnapshot.from_population(
-            len(generation_snapshots), current_population
-        )
-        final_snapshot.diversity_score = (
-            await self.fitness_evaluator.calculate_population_diversity(
-                current_population
-            )
-        )
-        generation_snapshots.append(final_snapshot)
 
         return current_population, generation_snapshots, total_evaluations
 
@@ -225,7 +214,9 @@ class GeneticAlgorithm:
             final_population=population,
             best_ideas=best_ideas,
             generation_snapshots=generation_snapshots,
-            total_generations=len(generation_snapshots) - 1,  # Minus final snapshot
+            total_generations=(
+                len(generation_snapshots) - 1 if generation_snapshots else 0
+            ),  # Snapshots include initial + evolved generations
             execution_time=time.time() - start_time,
             evolution_metrics={
                 **evolution_metrics,
@@ -270,6 +261,14 @@ class GeneticAlgorithm:
                 request.initial_population, request.config
             )
 
+            # Create initial snapshot (generation 0) for the starting population
+            initial_snapshot = PopulationSnapshot.from_population(0, current_population)
+            initial_snapshot.diversity_score = (
+                await self.fitness_evaluator.calculate_population_diversity(
+                    current_population
+                )
+            )
+
             # Run evolution loop using helper method
             total_evaluations = len(current_population)  # Count initial evaluation
             current_population, generation_snapshots, total_evaluations = (
@@ -277,6 +276,7 @@ class GeneticAlgorithm:
                     current_population,
                     request,
                     start_generation=0,
+                    initial_snapshots=[initial_snapshot],
                     initial_evaluations=total_evaluations,
                 )
             )
