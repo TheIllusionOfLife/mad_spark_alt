@@ -7,10 +7,10 @@ LLM reasoning instead of simple text manipulation.
 
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
-from mad_spark_alt.core.llm_provider import LLMProvider
+from mad_spark_alt.core.llm_provider import LLMProviderInterface
 from mad_spark_alt.evolution.interfaces import (
     CrossoverInterface,
     MutationInterface,
@@ -40,7 +40,7 @@ class LLMCrossoverOperator(CrossoverInterface):
 
     def __init__(
         self,
-        llm_provider: LLMProvider,
+        llm_provider: LLMProviderInterface,
         fallback_to_traditional: bool = True,
     ):
         """
@@ -103,7 +103,7 @@ Return a JSON object with this structure:
             from mad_spark_alt.core.llm_provider import LLMRequest
             
             request = LLMRequest(
-                prompt=prompt,
+                user_prompt=prompt,
                 temperature=0.7,
                 max_tokens=1000,
             )
@@ -180,7 +180,7 @@ class LLMMutationOperator(MutationInterface):
 
     def __init__(
         self,
-        llm_provider: LLMProvider,
+        llm_provider: LLMProviderInterface,
         fallback_to_traditional: bool = True,
     ):
         """
@@ -252,7 +252,7 @@ Return a JSON object with this structure:
             from mad_spark_alt.core.llm_provider import LLMRequest
             
             request = LLMRequest(
-                prompt=prompt,
+                user_prompt=prompt,
                 temperature=0.7,
                 max_tokens=1000,
             )
@@ -310,7 +310,7 @@ class LLMSelectionAdvisor:
     semantic analysis of idea quality and potential.
     """
 
-    def __init__(self, llm_provider: LLMProvider):
+    def __init__(self, llm_provider: LLMProviderInterface):
         """
         Initialize selection advisor.
 
@@ -373,7 +373,7 @@ Return a JSON object with this structure:
             from mad_spark_alt.core.llm_provider import LLMRequest
             
             request = LLMRequest(
-                prompt=prompt,
+                user_prompt=prompt,
                 temperature=0.7,
                 max_tokens=1000,
             )
