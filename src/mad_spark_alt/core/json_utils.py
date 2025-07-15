@@ -167,7 +167,7 @@ def parse_json_list(text: str, fallback: Optional[List[Any]] = None) -> List[Any
 
 def _is_valid_non_empty_string(value: Any) -> bool:
     """Check if value is a non-empty string."""
-    return isinstance(value, str) and value.strip()
+    return isinstance(value, str) and bool(value.strip())
 
 
 def validate_json_structure(data: Dict[str, Any], required_keys: list) -> bool:
