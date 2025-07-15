@@ -163,7 +163,10 @@ class MutationOperator(MutationInterface):
         return True  # No specific config needed
 
     async def mutate(
-        self, idea: GeneratedIdea, mutation_rate: float, context: Optional[str] = None,
+        self,
+        idea: GeneratedIdea,
+        mutation_rate: float,
+        context: Optional[str] = None,
     ) -> GeneratedIdea:
         """
         Mutate an idea with given mutation rate.

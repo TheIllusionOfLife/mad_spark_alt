@@ -60,6 +60,7 @@ class LLMQuestioningAgent(ThinkingAgentInterface):
         self._name = name
 
         from ...core.llm_provider import llm_manager as default_llm_manager
+
         self.llm_manager = llm_manager or default_llm_manager
         self.preferred_provider = preferred_provider
         self._questioning_strategies = self._load_questioning_strategies()

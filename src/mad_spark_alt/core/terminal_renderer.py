@@ -24,7 +24,9 @@ class TerminalRenderer:
             force_color: Force color output (True/False), None for auto-detection
         """
         # Determine color system based on force_color setting
-        color_system: Optional[Literal["auto", "standard", "256", "truecolor", "windows"]]
+        color_system: Optional[
+            Literal["auto", "standard", "256", "truecolor", "windows"]
+        ]
         if force_color is None:
             color_system = "auto"
         elif force_color:
