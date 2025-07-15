@@ -180,7 +180,7 @@ class SemanticCache(FitnessCache):
         Returns:
             Similarity score (0-1)
         """
-        if not self._is_fitted:
+        if not self._is_fitted or not HAS_SKLEARN or self._vectorizer is None:
             return ZERO_SCORE
 
         try:
@@ -211,7 +211,7 @@ class SemanticCache(FitnessCache):
         Returns:
             Cache key of similar idea or None
         """
-        if not self._idea_contents or not self._is_fitted:
+        if not self._idea_contents or not self._is_fitted or not HAS_SKLEARN or self._vectorizer is None:
             return None
 
         try:
@@ -249,7 +249,7 @@ class SemanticCache(FitnessCache):
 
     def _update_vectors(self) -> None:
         """Update TF-IDF vectors for all cached ideas."""
-        if len(self._idea_contents) < 2:
+        if len(self._idea_contents) < 2 or not HAS_SKLEARN or self._vectorizer is None:
             return
 
         try:
@@ -366,7 +366,7 @@ class SemanticClusterCache:
         Returns:
             Cluster ID (0 to n_clusters-1)
         """
-        if not self._is_fitted:
+        if not self._is_fitted or not HAS_SKLEARN or self._vectorizer is None:
             return 0
 
         try:
@@ -432,7 +432,7 @@ class SemanticClusterCache:
         Args:
             all_ideas: List of all ideas to cluster
         """
-        if len(all_ideas) < self.n_clusters:
+        if len(all_ideas) < self.n_clusters or not HAS_SKLEARN or self._vectorizer is None:
             return
 
         try:
