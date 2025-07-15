@@ -342,3 +342,71 @@ class EvolutionCostEstimator:
             )
 
         return suggestions
+
+    def calculate_token_cost(
+        self,
+        tokens: int,
+        model: str = "gpt-4",
+        assume_equal_input_output: bool = True,
+    ) -> float:
+        """
+        Calculate cost for a given number of tokens.
+
+        This is a centralized cost calculation method that replaces
+        the duplicated _estimate_cost methods in LLM operators.
+
+        Args:
+            tokens: Total number of tokens
+            model: Model name (defaults to GPT-4)
+            assume_equal_input_output: If True, assumes equal input/output split
+
+        Returns:
+            Estimated cost in dollars
+        """
+        if model not in self._model_costs:
+            # Fall back to GPT-4 pricing if model not found
+            model = "gpt-4"
+
+        model_costs = self._model_costs[model]
+
+        if assume_equal_input_output:
+            # For simplicity, assume roughly equal input/output split
+            input_tokens = tokens // 2
+            output_tokens = tokens - input_tokens
+            return model_costs.calculate_cost(input_tokens, output_tokens)
+        else:
+            # Use average of input/output costs
+            avg_cost_per_1k = (
+                model_costs.input_cost_per_1k_tokens
+                + model_costs.output_cost_per_1k_tokens
+            ) / 2
+            return (tokens / 1000) * avg_cost_per_1k
+
+
+# Global cost estimator instance for centralized access
+_global_cost_estimator = EvolutionCostEstimator()
+
+
+def estimate_token_cost(
+    tokens: int,
+    model: str = "gpt-4",
+    assume_equal_input_output: bool = True,
+) -> float:
+    """
+    Convenience function for token cost estimation.
+
+    This function provides a simple interface to the centralized
+    cost calculation logic, making it easy to replace duplicated
+    _estimate_cost methods throughout the codebase.
+
+    Args:
+        tokens: Total number of tokens
+        model: Model name (defaults to GPT-4)
+        assume_equal_input_output: If True, assumes equal input/output split
+
+    Returns:
+        Estimated cost in dollars
+    """
+    return _global_cost_estimator.calculate_token_cost(
+        tokens, model, assume_equal_input_output
+    )

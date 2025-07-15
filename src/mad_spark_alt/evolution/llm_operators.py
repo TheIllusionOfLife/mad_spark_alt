@@ -18,6 +18,7 @@ from mad_spark_alt.core.json_utils import (
     validate_mutation_response,
     validate_selection_response,
 )
+from mad_spark_alt.evolution.cost_estimator import estimate_token_cost
 from mad_spark_alt.evolution.interfaces import (
     CrossoverInterface,
     MutationInterface,
@@ -164,7 +165,7 @@ Return a JSON object with this structure:
             # Track costs
             if hasattr(response, "usage"):
                 tokens = response.usage.get("total_tokens", 0)
-                cost = self._estimate_cost(tokens)
+                cost = estimate_token_cost(tokens)
                 self._cost_tracker.track_crossover(cost, tokens)
 
             # Create offspring ideas
@@ -210,12 +211,6 @@ Return a JSON object with this structure:
                 return offspring1, offspring2
             else:
                 raise
-
-    def _estimate_cost(self, tokens: int) -> float:
-        """Estimate cost based on token usage."""
-        # Rough estimate - adjust based on actual model pricing
-        cost_per_1k_tokens = 0.03  # Example for GPT-4
-        return (tokens / 1000) * cost_per_1k_tokens
 
 
 class LLMMutationOperator(MutationInterface):
@@ -349,7 +344,7 @@ Return a JSON object with this structure:
             # Track costs
             if hasattr(response, "usage"):
                 tokens = response.usage.get("total_tokens", 0)
-                cost = self._estimate_cost(tokens)
+                cost = estimate_token_cost(tokens)
                 self._cost_tracker.track_mutation(cost, tokens)
 
             # Create mutated idea
@@ -381,11 +376,6 @@ Return a JSON object with this structure:
                 return mutated
             else:
                 raise
-
-    def _estimate_cost(self, tokens: int) -> float:
-        """Estimate cost based on token usage."""
-        cost_per_1k_tokens = 0.03  # Example for GPT-4
-        return (tokens / 1000) * cost_per_1k_tokens
 
 
 class LLMSelectionAdvisor:
@@ -486,7 +476,7 @@ Return a JSON object with this structure:
             # Track costs
             if hasattr(response, "usage"):
                 tokens = response.usage.get("total_tokens", 0)
-                cost = self._estimate_cost(tokens)
+                cost = estimate_token_cost(tokens)
                 self._cost_tracker.track_selection(cost, tokens)
 
             return result
@@ -511,11 +501,6 @@ Return a JSON object with this structure:
                 "recommended_parents": sorted_indices[:num_parents],
                 "diversity_consideration": "Fallback to fitness-based selection",
             }
-
-    def _estimate_cost(self, tokens: int) -> float:
-        """Estimate cost based on token usage."""
-        cost_per_1k_tokens = 0.03  # Example for GPT-4
-        return (tokens / 1000) * cost_per_1k_tokens
 
 
 class LLMOperatorCostTracker:
