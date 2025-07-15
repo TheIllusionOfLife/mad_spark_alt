@@ -7,6 +7,7 @@ cache hit rates by recognizing similar ideas.
 
 import hashlib
 import logging
+import time
 from typing import Dict, List, Optional, Tuple
 
 try:
@@ -107,6 +108,48 @@ class SemanticCache(FitnessCache):
 
         # Update vectorizer if needed
         self._update_vectors()
+
+    def get(self, key: str) -> Optional[IndividualFitness]:
+        """
+        Retrieve a fitness score from cache with vector cleanup on TTL eviction.
+
+        Args:
+            key: Cache key
+
+        Returns:
+            Cached fitness score or None if not found/expired
+        """
+        if key not in self._cache:
+            self._stats["misses"] += 1
+            return None
+
+        entry = self._cache[key]
+
+        # Check if expired
+        if time.time() - entry.timestamp > self.ttl_seconds:
+            del self._cache[key]
+            if key in self._access_order:
+                self._access_order.remove(key)
+
+            # Clean up semantic data for expired entry
+            if key in self._idea_contents:
+                del self._idea_contents[key]
+            if key in self._idea_vectors:
+                del self._idea_vectors[key]
+
+            self._stats["evictions"] += 1
+            self._stats["ttl_evictions"] += 1
+            self._stats["misses"] += 1
+            return None
+
+        # Cache hit - update access order and stats
+        if key in self._access_order:
+            self._access_order.remove(key)
+        self._access_order.append(key)
+        entry.hit_count += 1
+        self._stats["hits"] += 1
+
+        return entry.fitness
 
     def get_semantic(self, idea: GeneratedIdea) -> Optional[IndividualFitness]:
         """
@@ -223,6 +266,26 @@ class SemanticCache(FitnessCache):
 
         except Exception as e:
             logger.error(f"Error updating vectors: {e}")
+
+    def _enforce_cache_limits(self) -> None:
+        """Enforce cache size limits using LRU eviction with vector cleanup."""
+        while len(self._cache) > self.max_size:
+            if not self._access_order:
+                break
+
+            # Remove least recently used item
+            lru_key = self._access_order.pop(0)
+            if lru_key in self._cache:
+                del self._cache[lru_key]
+
+                # Clean up semantic data for evicted entry
+                if lru_key in self._idea_contents:
+                    del self._idea_contents[lru_key]
+                if lru_key in self._idea_vectors:
+                    del self._idea_vectors[lru_key]
+
+                self._stats["evictions"] += 1
+                self._stats["lru_evictions"] += 1
 
     def clear(self) -> None:
         """Clear cache and semantic indices."""
