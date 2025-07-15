@@ -526,7 +526,12 @@ async def _run_evolution_pipeline(
                 f"Evolving ideas ({generations} generations)...", total=None
             )
 
-            ga = GeneticAlgorithm()
+            ga = GeneticAlgorithm(
+                use_cache=True,
+                cache_ttl=3600,
+                checkpoint_dir=".evolution_checkpoints" if not quick else None,
+                checkpoint_interval=3 if not quick else 0,
+            )
 
             config = EvolutionConfig(
                 population_size=min(population, len(initial_ideas)),
@@ -596,6 +601,13 @@ async def _run_evolution_pipeline(
                 console.print(
                     f"• Best from generation: {metrics.get('best_fitness_generation', 0)}"
                 )
+                
+                # Show cache performance if available
+                cache_stats = metrics.get('cache_stats')
+                if cache_stats and cache_stats.get('hits', 0) > 0:
+                    console.print(f"\n[cyan]💾 Cache Performance:[/cyan]")
+                    console.print(f"• Hit rate: {cache_stats.get('hit_rate', 0):.1%}")
+                    console.print(f"• LLM calls saved: {cache_stats.get('hits', 0)}")
 
                 # Save to file if requested
                 if output_file:

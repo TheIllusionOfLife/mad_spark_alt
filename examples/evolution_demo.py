@@ -83,8 +83,13 @@ async def evolve_ideas(
     """
     print("\n=== Phase 2: Evolving Ideas with Genetic Algorithm ===")
 
-    # Create genetic algorithm
-    ga = GeneticAlgorithm()
+    # Create genetic algorithm with caching and checkpointing
+    ga = GeneticAlgorithm(
+        use_cache=True,  # Enable fitness caching
+        cache_ttl=3600,  # 1 hour cache
+        checkpoint_dir=".evolution_checkpoints",  # Enable checkpointing
+        checkpoint_interval=2,  # Save every 2 generations
+    )
 
     # Configure evolution
     config = EvolutionConfig(
@@ -155,6 +160,15 @@ async def evolve_ideas(
         print(f"- Final best fitness: {metrics.get('final_best_fitness', 0):.3f}")
         print(f"- Best generation: {metrics.get('best_fitness_generation', 0)}")
         print(f"- Total ideas evaluated: {metrics.get('total_ideas_evaluated', 0)}")
+        
+        # Display cache statistics if available
+        cache_stats = metrics.get('cache_stats')
+        if cache_stats:
+            print("\n💾 Cache Performance:")
+            print(f"- Cache hits: {cache_stats.get('hits', 0)}")
+            print(f"- Cache misses: {cache_stats.get('misses', 0)}")
+            print(f"- Hit rate: {cache_stats.get('hit_rate', 0):.1%}")
+            print(f"- Performance boost: ~{cache_stats.get('hit_rate', 0) * 100:.0f}% reduction in LLM calls")
 
         return result
     else:
