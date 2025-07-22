@@ -13,14 +13,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .interfaces import (
     GeneratedIdea,
-    IdeaGenerationRequest,
-    IdeaGenerationResult,
     ThinkingMethod,
 )
-from .json_utils import safe_json_parse
 from .llm_provider import LLMRequest, llm_manager
 from .qadi_prompts import PHASE_HYPERPARAMETERS, QADIPrompts, calculate_hypothesis_score
-from .smart_registry import smart_registry
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +76,7 @@ class SimpleQADIOrchestrator:
     - Unified evaluation scoring
     """
 
-    def __init__(self, temperature_override: Optional[float] = None):
+    def __init__(self, temperature_override: Optional[float] = None) -> None:
         """
         Initialize the orchestrator.
 
