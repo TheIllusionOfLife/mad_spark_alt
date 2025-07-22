@@ -118,15 +118,9 @@ class SimpleQADIOrchestrator:
         try:
             # Phase 1: Question - Extract core question
             logger.info("Running Question phase")
-            core_question, questioning_cost = await self._run_questioning_phase(
-                full_input, max_retries
-            )
+            core_question = await self._run_questioning_phase(full_input, max_retries)
             result.core_question = core_question
-            result.total_llm_cost += questioning_cost
-            result.phase_results["questioning"] = {
-                "question": core_question,
-                "cost": questioning_cost,
-            }
+            result.phase_results["questioning"] = {"question": core_question}
 
             # Phase 2: Abduction - Generate hypotheses
             logger.info("Running Abduction phase")
@@ -180,11 +174,10 @@ class SimpleQADIOrchestrator:
 
     async def _run_questioning_phase(
         self, user_input: str, max_retries: int
-    ) -> Tuple[str, float]:
+    ) -> str:
         """Extract the core question from user input."""
         prompt = self.prompts.get_questioning_prompt(user_input)
         hyperparams = PHASE_HYPERPARAMETERS["questioning"]
-        total_cost = 0.0
 
         for attempt in range(max_retries + 1):
             try:
@@ -196,15 +189,14 @@ class SimpleQADIOrchestrator:
                 )
 
                 response = await llm_manager.generate(request)
-                total_cost += response.cost
 
                 # Extract the core question
                 content = response.content.strip()
                 match = re.search(r"Q:\s*(.+)", content)
                 if match:
-                    return match.group(1).strip(), total_cost
+                    return match.group(1).strip()
                 # Fallback: use the whole response if no Q: prefix
-                return content.replace("Q:", "").strip(), total_cost
+                return content.replace("Q:", "").strip()
 
             except Exception as e:
                 if attempt == max_retries:
