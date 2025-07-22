@@ -18,15 +18,15 @@ from pathlib import Path
 from typing import Optional
 
 try:
+    from mad_spark_alt.core import setup_llm_providers
     from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
     from mad_spark_alt.core.terminal_renderer import render_markdown
-    from mad_spark_alt.core import setup_llm_providers
 except ImportError:
     # Fallback if package is not installed
     sys.path.insert(0, str(Path(__file__).parent / "src"))
+    from mad_spark_alt.core import setup_llm_providers
     from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
     from mad_spark_alt.core.terminal_renderer import render_markdown
-    from mad_spark_alt.core import setup_llm_providers
 
 
 async def run_qadi_analysis(
@@ -157,11 +157,11 @@ def main() -> None:
             await setup_llm_providers(
                 openai_api_key=os.getenv("OPENAI_API_KEY"),
                 anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
-                google_api_key=os.getenv("GOOGLE_API_KEY")
+                google_api_key=os.getenv("GOOGLE_API_KEY"),
             )
         except Exception as e:
             print(f"Warning: Failed to initialize LLM providers: {e}")
-        
+
         await run_qadi_analysis(
             args.input, temperature=args.temperature, verbose=args.verbose
         )

@@ -432,7 +432,11 @@ class SimpleQADIOrchestrator:
                 # Extract verification examples
                 examples = []
                 for i in range(1, 4):
-                    pattern = rf"{i}\.\s*(.+?)(?={i+1}\.|Conclusion:|$)"
+                    # Handle the last example specially
+                    if i < 3:
+                        pattern = rf"{i}\.\s*(.+?)(?={i+1}\.|Conclusion:|$)"
+                    else:
+                        pattern = rf"{i}\.\s*(.+?)(?=Conclusion:|$)"
                     match = re.search(pattern, content, re.DOTALL)
                     if match:
                         examples.append(match.group(1).strip())
