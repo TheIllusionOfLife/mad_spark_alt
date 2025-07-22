@@ -223,7 +223,7 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
         
         # Very large token counts
         cost = cost_utils.calculate_llm_cost(1000000, 500000, "gemini-2.5-flash")
-        assert cost == 0.45  # (1000000/1000 * 0.00015) + (500000/1000 * 0.0006) = 0.15 + 0.3 = 0.45
+        assert cost == pytest.approx(0.45)  # (1000000/1000 * 0.00015) + (500000/1000 * 0.0006) = 0.15 + 0.3 = 0.45
         
         # Unknown model falls back to Gemini 2.5 Flash
         cost = cost_utils.calculate_llm_cost(100, 100, "unknown-model")
@@ -294,7 +294,7 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
         )
         assert input_tokens == 100
         assert output_tokens == 200
-        assert cost == 0.000135  # (100/1000 * 0.00015) + (200/1000 * 0.0006) = 0.000015 + 0.00012 = 0.000135
+        assert cost == pytest.approx(0.000135)  # (100/1000 * 0.00015) + (200/1000 * 0.0006) = 0.000015 + 0.00012 = 0.000135
         
         # Alternative format
         cost, input_tokens, output_tokens = cost_utils.calculate_cost_with_usage(
@@ -303,7 +303,7 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
         )
         assert input_tokens == 150
         assert output_tokens == 250
-        assert cost == 0.0001725  # (150/1000 * 0.00015) + (250/1000 * 0.0006) = 0.0000225 + 0.00015 = 0.0001725
+        assert cost == pytest.approx(0.0001725)  # (150/1000 * 0.00015) + (250/1000 * 0.0006) = 0.0000225 + 0.00015 = 0.0001725
         
         # Empty usage dict
         cost, input_tokens, output_tokens = cost_utils.calculate_cost_with_usage(
