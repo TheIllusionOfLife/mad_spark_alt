@@ -22,16 +22,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from mad_spark_alt.core import (
-    CreativityEvaluator,
-    EvaluationLayer,
-    EvaluationRequest,
-    EvaluationResult,
     GeneratedIdea,
-    ModelOutput,
-    OutputType,
     ThinkingMethod,
 )
-from mad_spark_alt.core.evaluator import EvaluationSummary
+from mad_spark_alt.core.unified_evaluator import UnifiedEvaluator, HypothesisEvaluation
 from mad_spark_alt.evolution.fitness import DEFAULT_FAILURE_SCORE, FitnessEvaluator
 from mad_spark_alt.evolution.interfaces import EvolutionConfig, IndividualFitness
 
@@ -41,13 +35,13 @@ class TestFitnessEvaluator:
 
     def setup_method(self) -> None:
         """Set up test fixtures."""
-        # Create mock creativity evaluator
-        self.mock_creativity_evaluator = MagicMock(spec=CreativityEvaluator)
-        self.mock_creativity_evaluator.evaluate = AsyncMock()
+        # Create mock unified evaluator
+        self.mock_unified_evaluator = MagicMock(spec=UnifiedEvaluator)
+        self.mock_unified_evaluator.evaluate_hypothesis = AsyncMock()
 
         # Create fitness evaluator
         self.fitness_evaluator = FitnessEvaluator(
-            creativity_evaluator=self.mock_creativity_evaluator
+            unified_evaluator=self.mock_unified_evaluator
         )
 
         # Create test configuration
@@ -58,9 +52,11 @@ class TestFitnessEvaluator:
             crossover_rate=0.7,
             elite_size=1,
             fitness_weights={
-                "creativity_score": 0.4,
-                "diversity_score": 0.3,
-                "quality_score": 0.3,
+                "novelty": 0.2,
+                "impact": 0.3,
+                "cost_efficiency": 0.2,
+                "feasibility": 0.2,
+                "risk": 0.1,
             },
         )
 
@@ -82,40 +78,22 @@ class TestFitnessEvaluator:
     @pytest.mark.asyncio
     async def test_evaluate_individual_success(self) -> None:
         """Test successful individual fitness evaluation."""
-        # Mock evaluation summary
-        mock_summary = EvaluationSummary(
-            request_id="test-request",
-            total_outputs=1,
-            total_evaluators=2,
-            execution_time=0.1,
-            layer_results={
-                EvaluationLayer.QUANTITATIVE: [
-                    EvaluationResult(
-                        evaluator_name="diversity",
-                        layer=EvaluationLayer.QUANTITATIVE,
-                        scores={
-                            "distinct_1": 0.8,
-                            "distinct_2": 0.7,
-                            "semantic_uniqueness": 0.9,
-                            "lexical_diversity": 0.75,
-                        },
-                    ),
-                    EvaluationResult(
-                        evaluator_name="quality",
-                        layer=EvaluationLayer.QUANTITATIVE,
-                        scores={
-                            "readability_score": 0.85,
-                            "grammar_score": 0.9,
-                            "coherence_score": 0.8,
-                            "fluency_score": 0.88,
-                        },
-                    ),
-                ]
+        # Mock evaluation result
+        mock_evaluation = HypothesisEvaluation(
+            content="Test idea 0: Solution for sustainability",
+            scores={
+                "novelty": 0.8,
+                "impact": 0.85,
+                "cost": 0.3,  # Low cost is good
+                "feasibility": 0.9,
+                "risks": 0.2  # Low risk is good
             },
+            overall_score=0.82,
+            explanations={"reasoning": "Test evaluation reasoning"},
+            metadata={"llm_cost": 0.001}
         )
-        mock_summary.get_overall_creativity_score = MagicMock(return_value=0.82)
 
-        self.mock_creativity_evaluator.evaluate.return_value = mock_summary
+        self.mock_unified_evaluator.evaluate_hypothesis.return_value = mock_evaluation
 
         # Evaluate individual
         idea = self.test_ideas[0]
@@ -126,23 +104,28 @@ class TestFitnessEvaluator:
         # Verify results
         assert isinstance(fitness, IndividualFitness)
         assert fitness.idea == idea
-        assert fitness.creativity_score == 0.82
-        assert fitness.diversity_score == pytest.approx(0.7875, rel=1e-3)
-        assert fitness.quality_score == pytest.approx(0.8575, rel=1e-3)
-        assert fitness.overall_fitness > 0
+        # creativity_score maps to novelty
+        assert fitness.creativity_score == 0.8
+        # diversity_score is average of novelty and impact
+        assert fitness.diversity_score == pytest.approx((0.8 + 0.85) / 2, rel=1e-3)
+        # quality_score maps to feasibility
+        assert fitness.quality_score == 0.9
+        assert fitness.overall_fitness == pytest.approx(0.82, rel=1e-3)
+        # Check metadata contains all scores
+        assert "unified_scores" in fitness.evaluation_metadata
+        assert fitness.evaluation_metadata["unified_scores"]["novelty"] == 0.8
 
         # Verify evaluation was called correctly
-        self.mock_creativity_evaluator.evaluate.assert_called_once()
-        call_args = self.mock_creativity_evaluator.evaluate.call_args[0][0]
-        assert isinstance(call_args, EvaluationRequest)
-        assert len(call_args.outputs) == 1
-        assert call_args.evaluation_config["context"] == "Test context"
+        self.mock_unified_evaluator.evaluate_hypothesis.assert_called_once()
+        call_args = self.mock_unified_evaluator.evaluate_hypothesis.call_args
+        assert call_args[1]["hypothesis"] == idea.content
+        assert call_args[1]["context"] == "Test context"
 
     @pytest.mark.asyncio
     async def test_evaluate_individual_failure(self) -> None:
         """Test individual fitness evaluation with error."""
         # Mock evaluation failure
-        self.mock_creativity_evaluator.evaluate.side_effect = Exception(
+        self.mock_unified_evaluator.evaluate_hypothesis.side_effect = Exception(
             "Evaluation failed"
         )
 
@@ -264,24 +247,6 @@ class TestFitnessEvaluator:
     @pytest.mark.asyncio
     async def test_calculate_population_diversity(self) -> None:
         """Test population diversity calculation."""
-        # Mock the creativity evaluator to return diversity metrics
-        mock_summary = EvaluationSummary(
-            request_id="diversity-test",
-            total_outputs=3,
-            total_evaluators=1,
-            execution_time=0.1,
-            layer_results={
-                EvaluationLayer.QUANTITATIVE: [
-                    EvaluationResult(
-                        evaluator_name="diversity",
-                        layer=EvaluationLayer.QUANTITATIVE,
-                        scores={"semantic_uniqueness": 0.8},
-                    )
-                ]
-            },
-        )
-        self.mock_creativity_evaluator.evaluate.return_value = mock_summary
-
         # Create fitness individuals with varying content
         diverse_individuals = [
             IndividualFitness(
@@ -328,92 +293,6 @@ class TestFitnessEvaluator:
         )
         assert single_diversity == 1.0
 
-    def test_extract_diversity_score(self) -> None:
-        """Test diversity score extraction from evaluation results."""
-        # Create layer results with diversity metrics
-        layer_results = {
-            EvaluationLayer.QUANTITATIVE: [
-                EvaluationResult(
-                    evaluator_name="diversity",
-                    layer=EvaluationLayer.QUANTITATIVE,
-                    scores={
-                        "distinct_1": 0.8,
-                        "distinct_2": 0.7,
-                        "semantic_uniqueness": 0.9,
-                        "unrelated_metric": 0.5,
-                    },
-                ),
-                EvaluationResult(
-                    evaluator_name="other",
-                    layer=EvaluationLayer.QUANTITATIVE,
-                    scores={"lexical_diversity": 0.75, "other_metric": 0.6},
-                ),
-            ]
-        }
-
-        # Extract diversity score
-        score = self.fitness_evaluator._extract_diversity_score(layer_results)
-
-        # Should average the diversity metrics: (0.8 + 0.7 + 0.9 + 0.75) / 4
-        assert score == pytest.approx(0.7875, rel=1e-3)
-
-    def test_extract_quality_score(self) -> None:
-        """Test quality score extraction from evaluation results."""
-        # Create layer results with quality metrics
-        layer_results = {
-            EvaluationLayer.QUANTITATIVE: [
-                EvaluationResult(
-                    evaluator_name="quality",
-                    layer=EvaluationLayer.QUANTITATIVE,
-                    scores={
-                        "readability_score": 0.85,
-                        "grammar_score": 0.9,
-                        "unrelated_metric": 0.5,
-                    },
-                ),
-                EvaluationResult(
-                    evaluator_name="coherence",
-                    layer=EvaluationLayer.QUANTITATIVE,
-                    scores={"coherence_score": 0.8, "fluency_score": 0.88},
-                ),
-            ]
-        }
-
-        # Extract quality score
-        score = self.fitness_evaluator._extract_quality_score(layer_results)
-
-        # Should average the quality metrics: (0.85 + 0.9 + 0.8 + 0.88) / 4
-        assert score == pytest.approx(0.8575, rel=1e-3)
-
-    def test_extract_scores_empty_results(self) -> None:
-        """Test score extraction with empty results."""
-        empty_results = {EvaluationLayer.QUANTITATIVE: []}
-
-        # Both should return default failure score
-        diversity = self.fitness_evaluator._extract_diversity_score(empty_results)
-        quality = self.fitness_evaluator._extract_quality_score(empty_results)
-
-        assert diversity == DEFAULT_FAILURE_SCORE
-        assert quality == DEFAULT_FAILURE_SCORE
-
-    def test_extract_scores_no_matching_metrics(self) -> None:
-        """Test score extraction with no matching metrics."""
-        results = {
-            EvaluationLayer.QUANTITATIVE: [
-                EvaluationResult(
-                    evaluator_name="other",
-                    layer=EvaluationLayer.QUANTITATIVE,
-                    scores={"unrelated_1": 0.8, "unrelated_2": 0.7},
-                )
-            ]
-        }
-
-        # Should return default failure score when no metrics match
-        diversity = self.fitness_evaluator._extract_diversity_score(results)
-        quality = self.fitness_evaluator._extract_quality_score(results)
-
-        assert diversity == DEFAULT_FAILURE_SCORE
-        assert quality == DEFAULT_FAILURE_SCORE
 
     @pytest.mark.asyncio
     async def test_semaphore_concurrency_control(self) -> None:
