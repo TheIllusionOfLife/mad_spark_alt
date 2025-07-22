@@ -103,7 +103,7 @@ def main(verbose: bool) -> None:
         anthropic_key = os.getenv("ANTHROPIC_API_KEY")
         google_key = os.getenv("GOOGLE_API_KEY")
         
-        async def init_llm():
+        async def init_llm() -> None:
             await setup_llm_providers(
                 openai_api_key=openai_key,
                 anthropic_api_key=anthropic_key,
