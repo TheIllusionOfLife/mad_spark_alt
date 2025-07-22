@@ -35,6 +35,10 @@ _MODEL_COSTS = {
         input_cost_per_1k_tokens=0.0005,
         output_cost_per_1k_tokens=0.0015,
     ),
+    "gpt-4o-mini": ModelCosts(
+        input_cost_per_1k_tokens=0.00015,
+        output_cost_per_1k_tokens=0.0006,
+    ),
     "claude-3-opus": ModelCosts(
         input_cost_per_1k_tokens=0.015,
         output_cost_per_1k_tokens=0.075,
@@ -42,6 +46,10 @@ _MODEL_COSTS = {
     "claude-3-sonnet": ModelCosts(
         input_cost_per_1k_tokens=0.003,
         output_cost_per_1k_tokens=0.015,
+    ),
+    "claude-3-haiku-20240307": ModelCosts(
+        input_cost_per_1k_tokens=0.00025,
+        output_cost_per_1k_tokens=0.00125,
     ),
     "gemini-pro": ModelCosts(
         input_cost_per_1k_tokens=0.00025,
