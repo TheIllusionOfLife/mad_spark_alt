@@ -80,16 +80,6 @@ class SmartAgentRegistry:
         """
         available = []
 
-        # Check OpenAI
-        if os.getenv("OPENAI_API_KEY"):
-            available.append(LLMProvider.OPENAI)
-            self._llm_availability[LLMProvider.OPENAI] = True
-
-        # Check Anthropic
-        if os.getenv("ANTHROPIC_API_KEY"):
-            available.append(LLMProvider.ANTHROPIC)
-            self._llm_availability[LLMProvider.ANTHROPIC] = True
-
         # Check Google
         if os.getenv("GOOGLE_API_KEY"):
             available.append(LLMProvider.GOOGLE)
@@ -111,10 +101,13 @@ class SmartAgentRegistry:
         self._llm_setup_attempted = True
 
         try:
+            google_api_key = os.getenv("GOOGLE_API_KEY")
+            if not google_api_key:
+                logger.error("Google API key not found")
+                return False
+            
             await setup_llm_providers(
-                openai_api_key=os.getenv("OPENAI_API_KEY"),
-                anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
-                google_api_key=os.getenv("GOOGLE_API_KEY"),
+                google_api_key=google_api_key,
             )
             logger.info("LLM providers setup successful")
             return True
@@ -146,13 +139,9 @@ class SmartAgentRegistry:
 
         status = {}
 
-        # Determine preferred provider (prefer Anthropic > OpenAI > Google)
+        # Use Google as the only available provider
         preferred_provider = None
-        if LLMProvider.ANTHROPIC in available_providers:
-            preferred_provider = LLMProvider.ANTHROPIC
-        elif LLMProvider.OPENAI in available_providers:
-            preferred_provider = LLMProvider.OPENAI
-        elif LLMProvider.GOOGLE in available_providers:
+        if LLMProvider.GOOGLE in available_providers:
             preferred_provider = LLMProvider.GOOGLE
 
         provider_name = preferred_provider.value if preferred_provider else "None"
