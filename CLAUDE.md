@@ -82,10 +82,8 @@ uv run python qadi.py "Your question here"  # Simple version
 # DO NOT USE: qadi_working.py or template-only demos
 ```
 
-### API Keys Required for LLM Features
+### API Key Required for LLM Features
 ```bash
-export OPENAI_API_KEY="your-key"
-export ANTHROPIC_API_KEY="your-key"
 export GOOGLE_API_KEY="your-key"
 ```
 
@@ -106,7 +104,7 @@ export GOOGLE_API_KEY="your-key"
    - Enhanced context building between phases
 
 3. **LLM Integration** (`core/llm_provider.py`)
-   - Unified interface for OpenAI, Anthropic, Google
+   - Google Gemini API integration
    - Robust JSON parsing with markdown extraction
    - Cost calculation and tracking
    - Retry logic with exponential backoff
@@ -194,7 +192,7 @@ src/mad_spark_alt/
 ## Important Notes
 
 1. **Always use `uv run`** prefix for CLI commands due to package installation method
-2. **LLM agents require API keys** - system MUST have API keys to function properly
+2. **LLM agents require Google API key** - system MUST have GOOGLE_API_KEY to function properly
 3. **Cost tracking is automatic** - check `result.llm_cost` after orchestration
 4. **All operations are async** - use `asyncio.run()` for synchronous contexts
 5. **JSON parsing is critical** - LLMs often return markdown-wrapped JSON

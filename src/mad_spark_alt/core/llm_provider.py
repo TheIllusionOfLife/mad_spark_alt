@@ -26,6 +26,7 @@ from .retry import (
     RetryConfig,
     safe_aiohttp_request,
 )
+from .cost_utils import calculate_llm_cost_from_config
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +34,6 @@ logger = logging.getLogger(__name__)
 class LLMProvider(Enum):
     """Supported LLM providers."""
 
-    OPENAI = "openai"
-    ANTHROPIC = "anthropic"
     GOOGLE = "google"
 
 
@@ -189,281 +188,6 @@ class RateLimiter:
         self._semaphore.release()
 
 
-class OpenAIProvider(LLMProviderInterface):
-    """OpenAI API provider implementation."""
-
-    def __init__(self, api_key: str, retry_config: Optional[RetryConfig] = None):
-        self.api_key = api_key
-        self.base_url = "https://api.openai.com/v1"
-        self._session: Optional[aiohttp.ClientSession] = None
-        self.retry_config = retry_config or RetryConfig()
-        self.circuit_breaker = CircuitBreaker()
-
-    async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create aiohttp session."""
-        if self._session is None or self._session.closed:
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            }
-            self._session = aiohttp.ClientSession(headers=headers)
-        return self._session
-
-    async def generate(self, request: LLMRequest) -> LLMResponse:
-        """Generate text using OpenAI API."""
-        session = await self._get_session()
-
-        messages = []
-        if request.system_prompt:
-            messages.append({"role": "system", "content": request.system_prompt})
-        messages.append({"role": "user", "content": request.user_prompt})
-
-        model_name = (
-            request.model_configuration.model_name
-            if request.model_configuration
-            else "gpt-4o-mini"
-        )
-
-        payload = {
-            "model": model_name,
-            "messages": messages,
-            "max_tokens": request.max_tokens,
-            "temperature": request.temperature,
-            "top_p": request.top_p,
-        }
-
-        if request.stop_sequences:
-            payload["stop"] = request.stop_sequences
-
-        start_time = time.time()
-
-        try:
-            data = await safe_aiohttp_request(
-                session=session,
-                method="POST",
-                url=f"{self.base_url}/chat/completions",
-                json=payload,
-                retry_config=self.retry_config,
-                circuit_breaker=self.circuit_breaker,
-                timeout=300,  # 5 minutes timeout for complex questions
-            )
-
-            response_time = time.time() - start_time
-
-            content = data["choices"][0]["message"]["content"]
-            usage = data.get("usage", {})
-
-            model_config = (
-                request.model_configuration
-                or self._get_default_model_config(model_name)
-            )
-            cost = self.calculate_cost(
-                usage.get("prompt_tokens", 0),
-                usage.get("completion_tokens", 0),
-                model_config,
-            )
-
-            return LLMResponse(
-                content=content,
-                provider=LLMProvider.OPENAI,
-                model=model_name,
-                usage=usage,
-                cost=cost,
-                response_time=response_time,
-                metadata={"choices": len(data["choices"])},
-            )
-
-        except LLMError:
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error in OpenAI request: {e}")
-            raise LLMError(f"OpenAI request failed: {str(e)}", ErrorType.UNKNOWN)
-
-    def calculate_cost(
-        self, input_tokens: int, output_tokens: int, model_config: ModelConfig
-    ) -> float:
-        """Calculate cost for OpenAI request."""
-        input_cost = (input_tokens / 1000) * model_config.input_cost_per_1k
-        output_cost = (output_tokens / 1000) * model_config.output_cost_per_1k
-        return input_cost + output_cost
-
-    def get_available_models(self) -> List[ModelConfig]:
-        """Get available OpenAI models."""
-        return [
-            ModelConfig(
-                provider=LLMProvider.OPENAI,
-                model_name="gpt-4o",
-                model_size=ModelSize.LARGE,
-                input_cost_per_1k=0.005,
-                output_cost_per_1k=0.015,
-                max_tokens=128000,
-            ),
-            ModelConfig(
-                provider=LLMProvider.OPENAI,
-                model_name="gpt-4o-mini",
-                model_size=ModelSize.SMALL,
-                input_cost_per_1k=0.00015,
-                output_cost_per_1k=0.0006,
-                max_tokens=128000,
-            ),
-            ModelConfig(
-                provider=LLMProvider.OPENAI,
-                model_name="gpt-4-turbo",
-                model_size=ModelSize.LARGE,
-                input_cost_per_1k=0.01,
-                output_cost_per_1k=0.03,
-                max_tokens=128000,
-            ),
-        ]
-
-    def _get_default_model_config(self, model_name: str) -> ModelConfig:
-        """Get default model config by name."""
-        models = {model.model_name: model for model in self.get_available_models()}
-        return models.get(model_name, models["gpt-4o-mini"])
-
-    async def close(self) -> None:
-        """Close the session."""
-        if self._session and not self._session.closed:
-            await self._session.close()
-
-
-class AnthropicProvider(LLMProviderInterface):
-    """Anthropic API provider implementation."""
-
-    def __init__(self, api_key: str, retry_config: Optional[RetryConfig] = None):
-        self.api_key = api_key
-        self.base_url = "https://api.anthropic.com/v1"
-        self._session: Optional[aiohttp.ClientSession] = None
-        self.retry_config = retry_config or RetryConfig()
-        self.circuit_breaker = CircuitBreaker()
-
-    async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create aiohttp session."""
-        if self._session is None or self._session.closed:
-            headers = {
-                "x-api-key": self.api_key,
-                "Content-Type": "application/json",
-                "anthropic-version": "2023-06-01",
-            }
-            self._session = aiohttp.ClientSession(headers=headers)
-        return self._session
-
-    async def generate(self, request: LLMRequest) -> LLMResponse:
-        """Generate text using Anthropic API."""
-        session = await self._get_session()
-
-        model_name = (
-            request.model_configuration.model_name
-            if request.model_configuration
-            else "claude-3-haiku-20240307"
-        )
-
-        payload = {
-            "model": model_name,
-            "max_tokens": request.max_tokens,
-            "temperature": request.temperature,
-            "top_p": request.top_p,
-            "messages": [{"role": "user", "content": request.user_prompt}],
-        }
-
-        if request.system_prompt:
-            payload["system"] = request.system_prompt
-
-        if request.stop_sequences:
-            payload["stop_sequences"] = request.stop_sequences
-
-        start_time = time.time()
-
-        try:
-            data = await safe_aiohttp_request(
-                session=session,
-                method="POST",
-                url=f"{self.base_url}/messages",
-                json=payload,
-                retry_config=self.retry_config,
-                circuit_breaker=self.circuit_breaker,
-                timeout=300,  # 5 minutes timeout for complex questions
-            )
-
-            response_time = time.time() - start_time
-
-            content = data["content"][0]["text"]
-            usage = data.get("usage", {})
-
-            model_config = (
-                request.model_configuration
-                or self._get_default_model_config(model_name)
-            )
-            cost = self.calculate_cost(
-                usage.get("input_tokens", 0),
-                usage.get("output_tokens", 0),
-                model_config,
-            )
-
-            return LLMResponse(
-                content=content,
-                provider=LLMProvider.ANTHROPIC,
-                model=model_name,
-                usage=usage,
-                cost=cost,
-                response_time=response_time,
-                metadata={"stop_reason": data.get("stop_reason")},
-            )
-
-        except LLMError:
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error in Anthropic request: {e}")
-            raise LLMError(f"Anthropic request failed: {str(e)}", ErrorType.UNKNOWN)
-
-    def calculate_cost(
-        self, input_tokens: int, output_tokens: int, model_config: ModelConfig
-    ) -> float:
-        """Calculate cost for Anthropic request."""
-        input_cost = (input_tokens / 1000) * model_config.input_cost_per_1k
-        output_cost = (output_tokens / 1000) * model_config.output_cost_per_1k
-        return input_cost + output_cost
-
-    def get_available_models(self) -> List[ModelConfig]:
-        """Get available Anthropic models."""
-        return [
-            ModelConfig(
-                provider=LLMProvider.ANTHROPIC,
-                model_name="claude-3-opus-20240229",
-                model_size=ModelSize.XLARGE,
-                input_cost_per_1k=0.015,
-                output_cost_per_1k=0.075,
-                max_tokens=200000,
-            ),
-            ModelConfig(
-                provider=LLMProvider.ANTHROPIC,
-                model_name="claude-3-sonnet-20240229",
-                model_size=ModelSize.LARGE,
-                input_cost_per_1k=0.003,
-                output_cost_per_1k=0.015,
-                max_tokens=200000,
-            ),
-            ModelConfig(
-                provider=LLMProvider.ANTHROPIC,
-                model_name="claude-3-haiku-20240307",
-                model_size=ModelSize.SMALL,
-                input_cost_per_1k=0.00025,
-                output_cost_per_1k=0.00125,
-                max_tokens=200000,
-            ),
-        ]
-
-    def _get_default_model_config(self, model_name: str) -> ModelConfig:
-        """Get default model config by name."""
-        models = {model.model_name: model for model in self.get_available_models()}
-        return models.get(model_name, models["claude-3-haiku-20240307"])
-
-    async def close(self) -> None:
-        """Close the session."""
-        if self._session and not self._session.closed:
-            await self._session.close()
-
-
 class GoogleProvider(LLMProviderInterface):
     """Google Gemini API provider implementation."""
 
@@ -484,10 +208,9 @@ class GoogleProvider(LLMProviderInterface):
         """Generate text using Google Gemini API."""
         session = await self._get_session()
 
-        # Get model config - use latest 2.5 model by default
-        default_model = os.getenv("GEMINI_MODEL_OVERRIDE", "gemini-2.5-flash")
+        # Always use Gemini 2.5 Flash
         model_config = request.model_configuration or self._get_default_model_config(
-            default_model
+            "gemini-2.5-flash"
         )
 
         # Prepare the request payload
@@ -580,9 +303,7 @@ class GoogleProvider(LLMProviderInterface):
         )
 
         # Calculate cost based on model pricing
-        input_cost = (prompt_tokens / 1000) * model_config.input_cost_per_1k
-        output_cost = (completion_tokens / 1000) * model_config.output_cost_per_1k
-        total_cost = input_cost + output_cost
+        total_cost = self.calculate_cost(prompt_tokens, completion_tokens, model_config)
 
         return LLMResponse(
             content=content,
@@ -604,32 +325,8 @@ class GoogleProvider(LLMProviderInterface):
                 provider=LLMProvider.GOOGLE,
                 model_name="gemini-2.5-flash",
                 model_size=ModelSize.LARGE,
-                input_cost_per_1k=0.00001,  # Very low cost for Gemini 2.5
-                output_cost_per_1k=0.00002,
-                max_tokens=8192,
-            ),
-            ModelConfig(
-                provider=LLMProvider.GOOGLE,
-                model_name="gemini-2.0-flash",
-                model_size=ModelSize.LARGE,
-                input_cost_per_1k=0.00001,  # Very low cost for Gemini
-                output_cost_per_1k=0.00002,
-                max_tokens=8192,
-            ),
-            ModelConfig(
-                provider=LLMProvider.GOOGLE,
-                model_name="gemini-1.5-flash",
-                model_size=ModelSize.MEDIUM,
-                input_cost_per_1k=0.000075,
-                output_cost_per_1k=0.0003,
-                max_tokens=8192,
-            ),
-            ModelConfig(
-                provider=LLMProvider.GOOGLE,
-                model_name="gemini-1.5-pro",
-                model_size=ModelSize.LARGE,
-                input_cost_per_1k=0.00125,
-                output_cost_per_1k=0.005,
+                input_cost_per_1k=0.00015,  # $0.15 per million tokens
+                output_cost_per_1k=0.0006,  # $0.60 per million tokens
                 max_tokens=8192,
             ),
         ]
@@ -637,17 +334,20 @@ class GoogleProvider(LLMProviderInterface):
     def _get_default_model_config(self, model_name: str) -> ModelConfig:
         """Get default model config by name."""
         models = {model.model_name: model for model in self.get_available_models()}
-        # Use gemini-2.5-flash as fallback for latest capabilities
-        fallback = models.get("gemini-2.5-flash", list(models.values())[0])
-        return models.get(model_name, fallback)
+        # Always use gemini-2.5-flash
+        return models.get(model_name, models["gemini-2.5-flash"])
 
     def calculate_cost(
-        self, prompt_tokens: int, completion_tokens: int, model_config: ModelConfig
+        self, input_tokens: int, output_tokens: int, model_config: ModelConfig
     ) -> float:
         """Calculate cost based on token usage and model pricing."""
-        input_cost = (prompt_tokens / 1000) * model_config.input_cost_per_1k
-        output_cost = (completion_tokens / 1000) * model_config.output_cost_per_1k
-        return input_cost + output_cost
+        # Use centralized cost calculation with ModelConfig costs directly
+        return calculate_llm_cost_from_config(
+            input_tokens,
+            output_tokens,
+            model_config.input_cost_per_1k,
+            model_config.output_cost_per_1k,
+        )
 
     async def close(self) -> None:
         """Close the session."""
@@ -753,56 +453,20 @@ llm_manager = LLMManager()
 
 
 async def setup_llm_providers(
-    openai_api_key: Optional[str] = None,
-    anthropic_api_key: Optional[str] = None,
-    google_api_key: Optional[str] = None,
+    google_api_key: str,
     rate_limit_config: Optional[RateLimitConfig] = None,
 ) -> LLMManager:
-    """Setup LLM providers with API keys."""
-    if openai_api_key:
-        openai_provider = OpenAIProvider(openai_api_key)
-        llm_manager.register_provider(
-            LLMProvider.OPENAI, openai_provider, rate_limit_config
-        )
+    """Setup Google LLM provider with API key."""
+    google_provider = GoogleProvider(google_api_key)
+    llm_manager.register_provider(
+        LLMProvider.GOOGLE, google_provider, rate_limit_config
+    )
 
-        # Set default model for OpenAI
-        default_models = openai_provider.get_available_models()
-        default_model = next(
-            (m for m in default_models if m.model_name == "gpt-4o-mini"),
-            default_models[0],  # Fallback to first model if gpt-4o-mini not found
-        )
-        llm_manager.set_default_model(LLMProvider.OPENAI, default_model)
-
-    if anthropic_api_key:
-        anthropic_provider = AnthropicProvider(anthropic_api_key)
-        llm_manager.register_provider(
-            LLMProvider.ANTHROPIC, anthropic_provider, rate_limit_config
-        )
-
-        # Set default model for Anthropic
-        default_models = anthropic_provider.get_available_models()
-        default_model = next(
-            (m for m in default_models if m.model_name == "claude-3-haiku-20240307"),
-            default_models[0],  # Fallback to first model if claude-3-haiku not found
-        )
-        llm_manager.set_default_model(LLMProvider.ANTHROPIC, default_model)
-
-    if google_api_key:
-        google_provider = GoogleProvider(google_api_key)
-        llm_manager.register_provider(
-            LLMProvider.GOOGLE, google_provider, rate_limit_config
-        )
-
-        # Set default model for Google - use 2.5-flash with enhanced token handling
-        default_models = google_provider.get_available_models()
-        preferred_model = os.getenv("GEMINI_MODEL_OVERRIDE", "gemini-2.5-flash")
-        default_model = next(
-            (m for m in default_models if m.model_name == preferred_model),
-            next(
-                (m for m in default_models if m.model_name == "gemini-2.5-flash"),
-                default_models[0],  # Fallback to first model if neither found
-            ),
-        )
-        llm_manager.set_default_model(LLMProvider.GOOGLE, default_model)
+    # Set default model for Google - always use Gemini 2.5 Flash
+    default_models = google_provider.get_available_models()
+    if not default_models:
+        raise RuntimeError("No available models found for the Google provider.")
+    default_model = default_models[0]  # Only one model available
+    llm_manager.set_default_model(LLMProvider.GOOGLE, default_model)
 
     return llm_manager

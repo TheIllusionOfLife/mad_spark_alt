@@ -97,18 +97,14 @@ def main(verbose: bool) -> None:
     setup_logging(verbose)
     register_default_evaluators()
 
-    # Initialize LLM providers if API keys are available
-    openai_key = os.getenv("OPENAI_API_KEY")
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    # Initialize Google LLM provider if API key is available
     google_key = os.getenv("GOOGLE_API_KEY")
 
-    # Only initialize if we have at least one API key
-    if openai_key or anthropic_key or google_key:
+    # Only initialize if we have Google API key
+    if google_key:
 
         async def init_llm() -> None:
             await setup_llm_providers(
-                openai_api_key=openai_key,
-                anthropic_api_key=anthropic_key,
                 google_api_key=google_key,
             )
 
@@ -138,7 +134,9 @@ def main(verbose: bool) -> None:
                     f"[red]Unexpected error during LLM initialization: {e}[/red]"
                 )
     elif verbose:
-        console.print("[yellow]Info: No API keys found, LLM features disabled[/yellow]")
+        console.print(
+            "[yellow]Info: GOOGLE_API_KEY not found, LLM features disabled[/yellow]"
+        )
 
 
 @main.command()
