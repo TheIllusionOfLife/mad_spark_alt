@@ -104,6 +104,7 @@ def main(verbose: bool) -> None:
 
     # Only initialize if we have at least one API key
     if openai_key or anthropic_key or google_key:
+
         async def init_llm() -> None:
             await setup_llm_providers(
                 openai_api_key=openai_key,
