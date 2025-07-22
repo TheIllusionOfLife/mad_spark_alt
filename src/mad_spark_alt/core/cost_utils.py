@@ -39,11 +39,42 @@ __all__ = [
     "ModelCosts",
     "calculate_cost_with_usage",
     "calculate_llm_cost",
+    "calculate_llm_cost_from_config",
     "calculate_token_cost",
     "estimate_token_cost",
     "get_available_models",
     "get_model_costs",
 ]
+
+
+def calculate_llm_cost_from_config(
+    input_tokens: int,
+    output_tokens: int,
+    input_cost_per_1k: float,
+    output_cost_per_1k: float,
+) -> float:
+    """
+    Calculate cost for LLM usage using provided cost rates.
+    
+    This function uses cost values directly from ModelConfig objects,
+    avoiding model name mismatch issues.
+    
+    Args:
+        input_tokens: Number of input/prompt tokens
+        output_tokens: Number of output/completion tokens
+        input_cost_per_1k: Cost per 1k input tokens (from ModelConfig)
+        output_cost_per_1k: Cost per 1k output tokens (from ModelConfig)
+        
+    Returns:
+        Total cost in USD
+        
+    Example:
+        >>> cost = calculate_llm_cost_from_config(1000, 500, 0.00015, 0.0006)
+        >>> print(f"Cost: ${cost:.4f}")
+    """
+    input_cost = (input_tokens / 1000) * input_cost_per_1k
+    output_cost = (output_tokens / 1000) * output_cost_per_1k
+    return input_cost + output_cost
 
 
 def calculate_llm_cost(
@@ -57,10 +88,10 @@ def calculate_llm_cost(
     Args:
         input_tokens: Number of input/prompt tokens
         output_tokens: Number of output/completion tokens
-        model: Model name (always "gemini-2.5-flash")
+        model: Model name (defaults to "gemini-2.5-flash")
 
     Returns:
-        Total cost in dollars
+        Total cost in USD
 
     Example:
         >>> cost = calculate_llm_cost(1000, 500, "gemini-2.5-flash")
@@ -96,7 +127,7 @@ def calculate_token_cost(
         input_output_ratio: Ratio of input tokens (0.5 = equal split)
 
     Returns:
-        Estimated cost in dollars
+        Estimated cost in USD
     """
     input_tokens = int(total_tokens * input_output_ratio)
     output_tokens = total_tokens - input_tokens
@@ -117,7 +148,7 @@ def estimate_token_cost(
         assume_equal_input_output: If True, assumes equal input/output split
 
     Returns:
-        Estimated cost in dollars
+        Estimated cost in USD
     """
     if assume_equal_input_output:
         return calculate_token_cost(tokens, model, 0.5)

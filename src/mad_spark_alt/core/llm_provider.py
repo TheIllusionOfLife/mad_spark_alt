@@ -26,7 +26,7 @@ from .retry import (
     RetryConfig,
     safe_aiohttp_request,
 )
-from .cost_utils import calculate_llm_cost
+from .cost_utils import calculate_llm_cost_from_config
 
 logger = logging.getLogger(__name__)
 
@@ -338,12 +338,15 @@ class GoogleProvider(LLMProviderInterface):
         return models.get(model_name, models["gemini-2.5-flash"])
 
     def calculate_cost(
-        self, prompt_tokens: int, completion_tokens: int, model_config: ModelConfig
+        self, input_tokens: int, output_tokens: int, model_config: ModelConfig
     ) -> float:
         """Calculate cost based on token usage and model pricing."""
-        # Use centralized cost calculation
-        return calculate_llm_cost(
-            prompt_tokens, completion_tokens, model_config.model_name
+        # Use centralized cost calculation with ModelConfig costs directly
+        return calculate_llm_cost_from_config(
+            input_tokens, 
+            output_tokens,
+            model_config.input_cost_per_1k,
+            model_config.output_cost_per_1k
         )
 
     async def close(self) -> None:
@@ -461,6 +464,8 @@ async def setup_llm_providers(
 
     # Set default model for Google - always use Gemini 2.5 Flash
     default_models = google_provider.get_available_models()
+    if not default_models:
+        raise RuntimeError("No available models found for the Google provider.")
     default_model = default_models[0]  # Only one model available
     llm_manager.set_default_model(LLMProvider.GOOGLE, default_model)
 
