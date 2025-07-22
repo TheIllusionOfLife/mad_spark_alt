@@ -13,14 +13,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .interfaces import (
     GeneratedIdea,
-    IdeaGenerationRequest,
-    IdeaGenerationResult,
     ThinkingMethod,
 )
-from .json_utils import safe_json_parse
 from .llm_provider import LLMRequest, llm_manager
 from .qadi_prompts import PHASE_HYPERPARAMETERS, QADIPrompts, calculate_hypothesis_score
-from .smart_registry import smart_registry
 
 logger = logging.getLogger(__name__)
 
@@ -122,9 +118,15 @@ class SimpleQADIOrchestrator:
         try:
             # Phase 1: Question - Extract core question
             logger.info("Running Question phase")
-            core_question = await self._run_questioning_phase(full_input, max_retries)
+            core_question, questioning_cost = await self._run_questioning_phase(
+                full_input, max_retries
+            )
             result.core_question = core_question
-            result.phase_results["questioning"] = {"question": core_question}
+            result.total_llm_cost += questioning_cost
+            result.phase_results["questioning"] = {
+                "question": core_question,
+                "cost": questioning_cost,
+            }
 
             # Phase 2: Abduction - Generate hypotheses
             logger.info("Running Abduction phase")
@@ -176,10 +178,13 @@ class SimpleQADIOrchestrator:
 
         return result
 
-    async def _run_questioning_phase(self, user_input: str, max_retries: int) -> str:
+    async def _run_questioning_phase(
+        self, user_input: str, max_retries: int
+    ) -> Tuple[str, float]:
         """Extract the core question from user input."""
         prompt = self.prompts.get_questioning_prompt(user_input)
         hyperparams = PHASE_HYPERPARAMETERS["questioning"]
+        total_cost = 0.0
 
         for attempt in range(max_retries + 1):
             try:
@@ -191,18 +196,15 @@ class SimpleQADIOrchestrator:
                 )
 
                 response = await llm_manager.generate(request)
-                self.total_llm_cost = (
-                    getattr(self, "total_llm_cost", 0.0) + response.cost
-                )
+                total_cost += response.cost
 
                 # Extract the core question
                 content = response.content.strip()
                 match = re.search(r"Q:\s*(.+)", content)
                 if match:
-                    return match.group(1).strip()
-                else:
-                    # Fallback: use the whole response if no Q: prefix
-                    return content.replace("Q:", "").strip()
+                    return match.group(1).strip(), total_cost
+                # Fallback: use the whole response if no Q: prefix
+                return content.replace("Q:", "").strip(), total_cost
 
             except Exception as e:
                 if attempt == max_retries:
@@ -348,7 +350,7 @@ class SimpleQADIOrchestrator:
             if match:
                 try:
                     return float(match.group(1))
-                except:
+                except (ValueError, TypeError):
                     return 0.5
             return 0.5
 

@@ -11,7 +11,7 @@ The QADI process:
 4. I (Induction): Verify the answer with examples
 """
 
-from typing import Any, Dict
+from typing import Dict
 
 
 class QADIPrompts:

@@ -165,25 +165,38 @@ Risks: [score] - [one line explanation]
         explanations = {}
 
         criteria = ["novelty", "impact", "cost", "feasibility", "risks"]
-
+        
+        # More robust parsing: process line by line
+        lines = response.split('\n')
+        
         for criterion in criteria:
-            # Look for pattern like "Novelty: 0.7 - explanation"
-            pattern = (
-                rf'{criterion}:\s*([0-9.]+)\s*[-–]\s*(.+?)(?={"|".join(criteria)}:|$)'
-            )
-            match = re.search(pattern, response, re.IGNORECASE | re.DOTALL)
-
-            if match:
-                try:
-                    score = float(match.group(1))
-                    # Ensure score is between 0 and 1
-                    score = max(0.0, min(1.0, score))
-                    scores[criterion] = score
-                    explanations[criterion] = match.group(2).strip()
-                except ValueError:
-                    scores[criterion] = 0.5
-                    explanations[criterion] = "Failed to parse score"
-            else:
+            found = False
+            for line in lines:
+                line = line.strip()
+                if line.lower().startswith(criterion.lower() + ':'):
+                    # Extract score and explanation from this line
+                    # Pattern: "Criterion: score - explanation" or "Criterion: score explanation"
+                    pattern = rf'{criterion}:\s*([0-9.]+)(?:\s*[-–]\s*(.*))?'
+                    match = re.search(pattern, line, re.IGNORECASE)
+                    
+                    if match:
+                        try:
+                            score = float(match.group(1))
+                            # Ensure score is between 0 and 1
+                            score = max(0.0, min(1.0, score))
+                            scores[criterion] = score
+                            # Get explanation if available, otherwise use default
+                            explanation = match.group(2) if match.group(2) else "Score provided"
+                            explanations[criterion] = explanation.strip()
+                            found = True
+                            break
+                        except ValueError:
+                            scores[criterion] = 0.5
+                            explanations[criterion] = "Failed to parse score"
+                            found = True
+                            break
+            
+            if not found:
                 scores[criterion] = 0.5
                 explanations[criterion] = "Not evaluated"
 

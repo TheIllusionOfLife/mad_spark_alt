@@ -69,7 +69,7 @@ async def run_qadi_analysis(
         # Show evaluation scores if verbose
         if verbose and result.hypothesis_scores:
             print("### Evaluation Scores:\n")
-            for i, (hypothesis, scores) in enumerate(zip(result.hypotheses, result.hypothesis_scores)):
+            for i, (_, scores) in enumerate(zip(result.hypotheses, result.hypothesis_scores)):
                 print(f"**H{i+1} Scores:**")
                 print(f"  - Novelty: {scores.novelty:.2f}")
                 print(f"  - Impact: {scores.impact:.2f}")
@@ -108,7 +108,7 @@ async def run_qadi_analysis(
             traceback.print_exc()
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Run QADI hypothesis-driven analysis on any input"
@@ -133,10 +133,9 @@ def main():
     args = parser.parse_args()
     
     # Validate temperature if provided
-    if args.temperature is not None:
-        if args.temperature < 0.0 or args.temperature > 2.0:
-            print(f"Error: Temperature must be between 0.0 and 2.0 (got {args.temperature})")
-            sys.exit(1)
+    if args.temperature is not None and not 0.0 <= args.temperature <= 2.0:
+        print(f"Error: Temperature must be between 0.0 and 2.0 (got {args.temperature})")
+        sys.exit(1)
     
     # Load environment variables
     from dotenv import load_dotenv
