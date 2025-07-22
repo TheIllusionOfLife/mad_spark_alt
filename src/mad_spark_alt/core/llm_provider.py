@@ -284,10 +284,8 @@ class OpenAIProvider(LLMProviderInterface):
         self, input_tokens: int, output_tokens: int, model_config: ModelConfig
     ) -> float:
         """Calculate cost for OpenAI request."""
-        # Use the costs from model_config directly
-        input_cost = (input_tokens / 1000) * model_config.input_cost_per_1k
-        output_cost = (output_tokens / 1000) * model_config.output_cost_per_1k
-        return input_cost + output_cost
+        # Use centralized cost calculation
+        return calculate_llm_cost(input_tokens, output_tokens, model_config.model_name)
 
     def get_available_models(self) -> List[ModelConfig]:
         """Get available OpenAI models."""
@@ -422,10 +420,8 @@ class AnthropicProvider(LLMProviderInterface):
         self, input_tokens: int, output_tokens: int, model_config: ModelConfig
     ) -> float:
         """Calculate cost for Anthropic request."""
-        # Use the costs from model_config directly
-        input_cost = (input_tokens / 1000) * model_config.input_cost_per_1k
-        output_cost = (output_tokens / 1000) * model_config.output_cost_per_1k
-        return input_cost + output_cost
+        # Use centralized cost calculation
+        return calculate_llm_cost(input_tokens, output_tokens, model_config.model_name)
 
     def get_available_models(self) -> List[ModelConfig]:
         """Get available Anthropic models."""
@@ -646,10 +642,8 @@ class GoogleProvider(LLMProviderInterface):
         self, prompt_tokens: int, completion_tokens: int, model_config: ModelConfig
     ) -> float:
         """Calculate cost based on token usage and model pricing."""
-        # Use the costs from model_config directly
-        input_cost = (prompt_tokens / 1000) * model_config.input_cost_per_1k
-        output_cost = (completion_tokens / 1000) * model_config.output_cost_per_1k
-        return input_cost + output_cost
+        # Use centralized cost calculation
+        return calculate_llm_cost(prompt_tokens, completion_tokens, model_config.model_name)
 
     async def close(self) -> None:
         """Close the session."""

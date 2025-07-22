@@ -5,8 +5,12 @@ This module provides a unified interface for calculating costs across
 the entire codebase, eliminating duplicated cost calculation logic.
 """
 
+import logging
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Dict, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -18,7 +22,7 @@ class ModelCosts:
 
 
 # Default model costs (as of 2024)
-DEFAULT_MODEL_COSTS = {
+_MODEL_COSTS = {
     "gpt-4": ModelCosts(
         input_cost_per_1k_tokens=0.03,
         output_cost_per_1k_tokens=0.06,
@@ -45,12 +49,18 @@ DEFAULT_MODEL_COSTS = {
     ),
 }
 
+# Make the costs immutable to prevent accidental modifications
+DEFAULT_MODEL_COSTS = MappingProxyType(_MODEL_COSTS)
+
 # Re-export for convenience
 __all__ = [
+    "ModelCosts",
+    "calculate_cost_with_usage",
     "calculate_llm_cost",
     "calculate_token_cost",
-    "get_model_costs",
     "estimate_token_cost",
+    "get_available_models",
+    "get_model_costs",
 ]
 
 
@@ -77,11 +87,8 @@ def calculate_llm_cost(
     model_costs = get_model_costs(model)
     if model_costs is None:
         # Fall back to GPT-4 costs if model not found
-        model_costs = get_model_costs("gpt-4")
-        if model_costs is None:  # This should never happen, but for type safety
-            model_costs = ModelCosts(
-                input_cost_per_1k_tokens=0.03, output_cost_per_1k_tokens=0.06
-            )
+        logger.warning("Model '%s' not found, falling back to 'gpt-4' costs.", model)
+        model_costs = DEFAULT_MODEL_COSTS["gpt-4"]
 
     input_cost = (input_tokens / 1000) * model_costs.input_cost_per_1k_tokens
     output_cost = (output_tokens / 1000) * model_costs.output_cost_per_1k_tokens
@@ -155,7 +162,7 @@ def get_available_models() -> Dict[str, ModelCosts]:
     Returns:
         Dictionary mapping model names to ModelCosts
     """
-    return DEFAULT_MODEL_COSTS.copy()
+    return dict(DEFAULT_MODEL_COSTS)
 
 
 def calculate_cost_with_usage(
@@ -172,14 +179,9 @@ def calculate_cost_with_usage(
     Returns:
         Tuple of (total_cost, input_tokens, output_tokens)
     """
-    input_tokens = usage.get("prompt_tokens", 0)
-    output_tokens = usage.get("completion_tokens", 0)
-
-    # Handle different API response formats
-    if input_tokens == 0 and output_tokens == 0:
-        # Try alternative keys
-        input_tokens = usage.get("input_tokens", 0)
-        output_tokens = usage.get("output_tokens", 0)
+    # Prioritize 'prompt_tokens'/'completion_tokens', but fall back to 'input_tokens'/'output_tokens'.
+    input_tokens = usage.get("prompt_tokens", usage.get("input_tokens", 0))
+    output_tokens = usage.get("completion_tokens", usage.get("output_tokens", 0))
 
     cost = calculate_llm_cost(input_tokens, output_tokens, model)
 
