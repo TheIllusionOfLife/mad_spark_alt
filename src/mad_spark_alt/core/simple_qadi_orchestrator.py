@@ -484,9 +484,9 @@ class SimpleQADIOrchestrator:
         def extract_score(criterion: str, text: str) -> float:
             # Try multiple patterns to handle different formatting
             patterns = [
-                rf"{criterion}:\s*([0-9.]+)",  # "Novelty: 0.8"
-                rf"{criterion}\s*-\s*([0-9.]+)",  # "Novelty - 0.8"
-                rf"{criterion}\s*:\s*([0-9.]+)/?",  # "Novelty: 0.8/" or "Novelty: 0.8"
+                rf"{criterion}:\s*(-?[0-9.]+)",  # "Novelty: 0.8" or "Novelty: -0.2"
+                rf"{criterion}\s*-\s*(-?[0-9.]+)",  # "Novelty - 0.8"
+                rf"{criterion}\s*:\s*(-?[0-9.]+)/?",  # "Novelty: 0.8/" or "Novelty: 0.8"
             ]
 
             for pattern in patterns:
