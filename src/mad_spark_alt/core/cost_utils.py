@@ -27,7 +27,7 @@ class ModelCosts:
 _MODEL_COSTS = {
     "gemini-2.5-flash": ModelCosts(
         input_cost_per_1k_tokens=0.00015,  # $0.15 per million tokens = $0.00015 per 1k tokens
-        output_cost_per_1k_tokens=0.0006,   # $0.60 per million tokens = $0.0006 per 1k tokens
+        output_cost_per_1k_tokens=0.0006,  # $0.60 per million tokens = $0.0006 per 1k tokens
     ),
 }
 
@@ -69,7 +69,9 @@ def calculate_llm_cost(
     model_costs = get_model_costs(model)
     if model_costs is None:
         # Fall back to Gemini 2.5 Flash costs if model not found
-        logger.warning("Model '%s' not found, falling back to 'gemini-2.5-flash' costs.", model)
+        logger.warning(
+            "Model '%s' not found, falling back to 'gemini-2.5-flash' costs.", model
+        )
         model_costs = DEFAULT_MODEL_COSTS["gemini-2.5-flash"]
 
     input_cost = (input_tokens / 1000) * model_costs.input_cost_per_1k_tokens

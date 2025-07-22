@@ -105,7 +105,7 @@ class SmartAgentRegistry:
             if not google_api_key:
                 logger.error("Google API key not found")
                 return False
-            
+
             await setup_llm_providers(
                 google_api_key=google_api_key,
             )

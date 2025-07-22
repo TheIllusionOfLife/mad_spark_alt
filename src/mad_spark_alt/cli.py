@@ -134,7 +134,9 @@ def main(verbose: bool) -> None:
                     f"[red]Unexpected error during LLM initialization: {e}[/red]"
                 )
     elif verbose:
-        console.print("[yellow]Info: GOOGLE_API_KEY not found, LLM features disabled[/yellow]")
+        console.print(
+            "[yellow]Info: GOOGLE_API_KEY not found, LLM features disabled[/yellow]"
+        )
 
 
 @main.command()

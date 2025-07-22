@@ -188,7 +188,6 @@ class RateLimiter:
         self._semaphore.release()
 
 
-
 class GoogleProvider(LLMProviderInterface):
     """Google Gemini API provider implementation."""
 
@@ -343,7 +342,9 @@ class GoogleProvider(LLMProviderInterface):
     ) -> float:
         """Calculate cost based on token usage and model pricing."""
         # Use centralized cost calculation
-        return calculate_llm_cost(prompt_tokens, completion_tokens, model_config.model_name)
+        return calculate_llm_cost(
+            prompt_tokens, completion_tokens, model_config.model_name
+        )
 
     async def close(self) -> None:
         """Close the session."""
