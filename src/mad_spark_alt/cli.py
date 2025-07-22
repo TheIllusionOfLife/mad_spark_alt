@@ -24,9 +24,9 @@ from .core import (
     EvaluationSummary,
     ModelOutput,
     OutputType,
-    SmartQADIOrchestrator,
     registry,
 )
+from .core.simple_qadi_orchestrator import SimpleQADIOrchestrator
 from .core.json_utils import format_llm_cost
 from .evolution import (
     EvolutionConfig,
@@ -438,6 +438,11 @@ def _summary_to_dict(summary: EvaluationSummary) -> Dict[str, Any]:
 @click.option("--quick", "-q", is_flag=True, help="Quick mode: faster execution")
 @click.option("--generations", "-g", default=3, help="Number of evolution generations")
 @click.option("--population", "-p", default=12, help="Population size for evolution")
+@click.option(
+    "--temperature", "-t",
+    type=click.FloatRange(0.0, 2.0),
+    help="Temperature for hypothesis generation (0.0-2.0, default: 0.8)"
+)
 @click.option("--output", "-o", type=click.Path(), help="Save results to file")
 def evolve(
     problem: str,
@@ -445,6 +450,7 @@ def evolve(
     quick: bool,
     generations: int,
     population: int,
+    temperature: Optional[float],
     output: Optional[str],
 ) -> None:
     """Evolve ideas using QADI methodology + Genetic Algorithm.
@@ -453,6 +459,7 @@ def evolve(
       mad-spark evolve "How can we reduce food waste?"
       mad-spark evolve "Improve remote work" --context "Focus on team collaboration"
       mad-spark evolve "Climate solutions" --quick --generations 2
+      mad-spark evolve "New product ideas" --temperature 1.5
     """
     import os
 
@@ -475,19 +482,20 @@ def evolve(
         generations = min(2, generations)
         population = min(8, population)
 
+    temp_display = f" | Temperature: {temperature}" if temperature else ""
     console.print(
         Panel(
             f"[bold blue]Evolution Pipeline[/bold blue]\n"
             f"Problem: {problem}\n"
             f"Context: {context}\n"
-            f"Generations: {generations} | Population: {population}"
+            f"Generations: {generations} | Population: {population}{temp_display}"
         )
     )
 
     # Run the evolution pipeline
     asyncio.run(
         _run_evolution_pipeline(
-            problem, context, quick, generations, population, output
+            problem, context, quick, generations, population, temperature, output
         )
     )
 
@@ -498,6 +506,7 @@ async def _run_evolution_pipeline(
     quick: bool,
     generations: int,
     population: int,
+    temperature: Optional[float],
     output_file: Optional[str],
 ) -> None:
     """Run the evolution pipeline with progress tracking."""
@@ -512,16 +521,12 @@ async def _run_evolution_pipeline(
         qadi_task = progress.add_task("Generating ideas with QADI...", total=None)
 
         try:
-            orchestrator = SmartQADIOrchestrator()
+            orchestrator = SimpleQADIOrchestrator(temperature_override=temperature)
 
             qadi_result = await asyncio.wait_for(
                 orchestrator.run_qadi_cycle(
-                    problem_statement=problem,
+                    user_input=problem,
                     context=context,
-                    cycle_config={
-                        "max_ideas_per_method": 2 if generations <= 2 else 3,
-                        "require_reasoning": True,
-                    },
                 ),
                 timeout=90.0,
             )
@@ -537,7 +542,7 @@ async def _run_evolution_pipeline(
                 f"[green]✅ Generated {len(initial_ideas)} initial ideas[/green]"
             )
             console.print(
-                f"[dim]💰 LLM Cost: {format_llm_cost(qadi_result.llm_cost)}[/dim]"
+                f"[dim]💰 LLM Cost: {format_llm_cost(qadi_result.total_llm_cost)}[/dim]"
             )
 
             # Phase 2: Evolution
@@ -635,7 +640,7 @@ async def _run_evolution_pipeline(
                         "context": context,
                         "execution_time": evolution_result.execution_time,
                         "generations": evolution_result.total_generations,
-                        "llm_cost": qadi_result.llm_cost,
+                        "llm_cost": qadi_result.total_llm_cost,
                         "metrics": evolution_result.evolution_metrics,
                         "best_ideas": [
                             {
