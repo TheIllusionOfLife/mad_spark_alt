@@ -1,7 +1,7 @@
 """
 Universal QADI Prompts for Hypothesis-Driven Analysis
 
-This module provides the true QADI methodology prompts based on 
+This module provides the true QADI methodology prompts based on
 hypothesis-driven consulting approach from "Shin Logical Thinking".
 
 The QADI process:
@@ -11,12 +11,12 @@ The QADI process:
 4. I (Induction): Verify the answer with examples
 """
 
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 class QADIPrompts:
     """Universal prompts for the QADI methodology."""
-    
+
     @staticmethod
     def get_questioning_prompt(user_input: str) -> str:
         """Get the prompt for extracting the core question."""
@@ -56,7 +56,9 @@ H3: [Third hypothesis]
 """
 
     @staticmethod
-    def get_deduction_prompt(user_input: str, core_question: str, hypotheses: str) -> str:
+    def get_deduction_prompt(
+        user_input: str, core_question: str, hypotheses: str
+    ) -> str:
         """Get the prompt for evaluating hypotheses and determining the answer."""
         return f"""As an analytical consultant, evaluate each hypothesis and determine the best answer to our core question.
 
@@ -135,53 +137,55 @@ Conclusion: [Is our answer universally applicable, context-specific, or needs re
 # Phase-specific hyperparameters
 PHASE_HYPERPARAMETERS = {
     "questioning": {
-        "temperature": 0.3,   # Low - need focused, precise question
-        "max_tokens": 150,    # Short - just one question
-        "top_p": 0.9
+        "temperature": 0.3,  # Low - need focused, precise question
+        "max_tokens": 150,  # Short - just one question
+        "top_p": 0.9,
     },
     "abduction": {
-        "temperature": 0.8,   # High - need creative hypotheses (default)
-        "max_tokens": 400,    # Medium - 3 hypotheses
+        "temperature": 0.8,  # High - need creative hypotheses (default)
+        "max_tokens": 400,  # Medium - 3 hypotheses
         "top_p": 0.95,
-        "user_adjustable": True  # Allow --temperature override
+        "user_adjustable": True,  # Allow --temperature override
     },
     "deduction": {
-        "temperature": 0.2,   # Very low - need analytical precision
-        "max_tokens": 800,    # Long - detailed analysis
-        "top_p": 0.9
+        "temperature": 0.2,  # Very low - need analytical precision
+        "max_tokens": 800,  # Long - detailed analysis
+        "top_p": 0.9,
     },
     "induction": {
-        "temperature": 0.5,   # Medium - balanced examples
-        "max_tokens": 600,    # Medium - 3 examples
-        "top_p": 0.9
-    }
+        "temperature": 0.5,  # Medium - balanced examples
+        "max_tokens": 600,  # Medium - 3 examples
+        "top_p": 0.9,
+    },
 }
 
 
 # Unified evaluation criteria weights
 EVALUATION_CRITERIA = {
-    "novelty": 0.2,      # How innovative/unique
-    "impact": 0.3,       # Level of positive change
-    "cost": 0.2,         # Resource efficiency (inverse - lower cost = higher score)
+    "novelty": 0.2,  # How innovative/unique
+    "impact": 0.3,  # Level of positive change
+    "cost": 0.2,  # Resource efficiency (inverse - lower cost = higher score)
     "feasibility": 0.2,  # Implementation practicality
-    "risks": 0.1         # Risk mitigation (inverse - lower risk = higher score)
+    "risks": 0.1,  # Risk mitigation (inverse - lower risk = higher score)
 }
 
 
 def calculate_hypothesis_score(scores: Dict[str, float]) -> float:
     """
     Calculate the overall score for a hypothesis using unified criteria.
-    
+
     Args:
         scores: Dictionary with keys: novelty, impact, cost, feasibility, risks
-        
+
     Returns:
         Weighted overall score between 0.0 and 1.0
     """
     return (
-        scores.get("novelty", 0.0) * EVALUATION_CRITERIA["novelty"] +
-        scores.get("impact", 0.0) * EVALUATION_CRITERIA["impact"] +
-        scores.get("cost", 0.0) * EVALUATION_CRITERIA["cost"] +  # Already inverted in prompt
-        scores.get("feasibility", 0.0) * EVALUATION_CRITERIA["feasibility"] +
-        scores.get("risks", 0.0) * EVALUATION_CRITERIA["risks"]  # Already inverted in prompt
+        scores.get("novelty", 0.0) * EVALUATION_CRITERIA["novelty"]
+        + scores.get("impact", 0.0) * EVALUATION_CRITERIA["impact"]
+        + scores.get("cost", 0.0)
+        * EVALUATION_CRITERIA["cost"]  # Already inverted in prompt
+        + scores.get("feasibility", 0.0) * EVALUATION_CRITERIA["feasibility"]
+        + scores.get("risks", 0.0)
+        * EVALUATION_CRITERIA["risks"]  # Already inverted in prompt
     )

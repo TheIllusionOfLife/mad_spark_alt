@@ -25,7 +25,7 @@ from mad_spark_alt.core import (
     GeneratedIdea,
     ThinkingMethod,
 )
-from mad_spark_alt.core.unified_evaluator import UnifiedEvaluator, HypothesisEvaluation
+from mad_spark_alt.core.unified_evaluator import HypothesisEvaluation, UnifiedEvaluator
 from mad_spark_alt.evolution.fitness import DEFAULT_FAILURE_SCORE, FitnessEvaluator
 from mad_spark_alt.evolution.interfaces import EvolutionConfig, IndividualFitness
 

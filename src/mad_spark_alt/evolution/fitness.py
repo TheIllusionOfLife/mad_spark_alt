@@ -10,7 +10,7 @@ import logging
 from typing import Dict, List, Optional
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
-from mad_spark_alt.core.unified_evaluator import UnifiedEvaluator, HypothesisEvaluation
+from mad_spark_alt.core.unified_evaluator import HypothesisEvaluation, UnifiedEvaluator
 from mad_spark_alt.evolution.interfaces import (
     EvolutionConfig,
     IndividualFitness,
@@ -150,16 +150,19 @@ class FitnessEvaluator:
                 hypothesis=idea.content,
                 context=context or idea.generation_prompt,
                 core_question=idea.metadata.get("core_question"),
-                temperature=0.3  # Low temperature for consistent evaluation
+                temperature=0.3,  # Low temperature for consistent evaluation
             )
-            
+
             # Create fitness object with 5-criteria scores
             fitness = IndividualFitness(
                 idea=idea,
                 # Map unified scores to evolution fitness fields
                 creativity_score=evaluation.scores.get("novelty", 0.0),
-                diversity_score=(evaluation.scores.get("novelty", 0.0) + 
-                               evaluation.scores.get("impact", 0.0)) / 2,  # Combined metric
+                diversity_score=(
+                    evaluation.scores.get("novelty", 0.0)
+                    + evaluation.scores.get("impact", 0.0)
+                )
+                / 2,  # Combined metric
                 quality_score=evaluation.scores.get("feasibility", 0.0),
                 overall_fitness=evaluation.overall_score,  # Already calculated by unified system
                 evaluation_metadata={
@@ -172,10 +175,10 @@ class FitnessEvaluator:
                         "cost": evaluation.scores.get("cost", 0.0),
                         "feasibility": evaluation.scores.get("feasibility", 0.0),
                         "risks": evaluation.scores.get("risks", 0.0),
-                    }
+                    },
                 },
             )
-            
+
             return fitness
 
         except Exception as e:
@@ -188,7 +191,6 @@ class FitnessEvaluator:
                 overall_fitness=0.0,
                 evaluation_metadata={"error": str(e)},
             )
-
 
     async def calculate_population_diversity(
         self, population: List[IndividualFitness]
@@ -212,21 +214,23 @@ class FitnessEvaluator:
             # In a diverse population, ideas should have high novelty relative to each other
             total_novelty = 0.0
             count = 0
-            
+
             for individual in population:
                 # Get novelty score from unified evaluation metadata
                 if "unified_scores" in individual.evaluation_metadata:
-                    novelty = individual.evaluation_metadata["unified_scores"].get("novelty", 0.0)
+                    novelty = individual.evaluation_metadata["unified_scores"].get(
+                        "novelty", 0.0
+                    )
                     total_novelty += novelty
                     count += 1
-            
+
             if count > 0:
                 avg_novelty = total_novelty / count
                 # High average novelty indicates diverse population
                 return avg_novelty
-            
+
             return DEFAULT_FAILURE_SCORE
-            
+
         except Exception as e:
             logger.error(f"Failed to calculate population diversity: {e}")
             return DEFAULT_FAILURE_SCORE

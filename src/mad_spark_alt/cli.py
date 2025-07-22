@@ -26,8 +26,8 @@ from .core import (
     OutputType,
     registry,
 )
-from .core.simple_qadi_orchestrator import SimpleQADIOrchestrator
 from .core.json_utils import format_llm_cost
+from .core.simple_qadi_orchestrator import SimpleQADIOrchestrator
 from .evolution import (
     EvolutionConfig,
     EvolutionRequest,
@@ -439,9 +439,10 @@ def _summary_to_dict(summary: EvaluationSummary) -> Dict[str, Any]:
 @click.option("--generations", "-g", default=3, help="Number of evolution generations")
 @click.option("--population", "-p", default=12, help="Population size for evolution")
 @click.option(
-    "--temperature", "-t",
+    "--temperature",
+    "-t",
     type=click.FloatRange(0.0, 2.0),
-    help="Temperature for hypothesis generation (0.0-2.0, default: 0.8)"
+    help="Temperature for hypothesis generation (0.0-2.0, default: 0.8)",
 )
 @click.option("--output", "-o", type=click.Path(), help="Save results to file")
 def evolve(
