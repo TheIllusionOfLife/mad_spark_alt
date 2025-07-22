@@ -7,7 +7,7 @@ and the evolution fitness system using the same 5-criteria scoring.
 
 import logging
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 
 from .llm_provider import llm_manager, LLMRequest
@@ -23,7 +23,7 @@ class HypothesisEvaluation:
     scores: Dict[str, float]  # novelty, impact, cost, feasibility, risks
     overall_score: float
     explanations: Dict[str, str]
-    metadata: Dict[str, any]
+    metadata: Dict[str, Any]
     
 
 class UnifiedEvaluator:
@@ -32,7 +32,7 @@ class UnifiedEvaluator:
     using the 5-criteria system: novelty, impact, cost, feasibility, risks.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the unified evaluator."""
         self.criteria = EVALUATION_CRITERIA
         

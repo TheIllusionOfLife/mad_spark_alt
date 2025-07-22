@@ -187,7 +187,7 @@ class SimpleQADIOrchestrator:
                 request = LLMRequest(
                     user_prompt=prompt,
                     temperature=hyperparams["temperature"],
-                    max_tokens=hyperparams["max_tokens"],
+                    max_tokens=int(hyperparams["max_tokens"]),
                     top_p=hyperparams.get("top_p", 0.9)
                 )
                 
@@ -229,7 +229,7 @@ class SimpleQADIOrchestrator:
                 request = LLMRequest(
                     user_prompt=prompt,
                     temperature=hyperparams["temperature"],
-                    max_tokens=hyperparams["max_tokens"],
+                    max_tokens=int(hyperparams["max_tokens"]),
                     top_p=hyperparams.get("top_p", 0.95)
                 )
                 
@@ -277,7 +277,7 @@ class SimpleQADIOrchestrator:
                 request = LLMRequest(
                     user_prompt=prompt,
                     temperature=hyperparams["temperature"],
-                    max_tokens=hyperparams["max_tokens"],
+                    max_tokens=int(hyperparams["max_tokens"]),
                     top_p=hyperparams.get("top_p", 0.9)
                 )
                 
@@ -375,7 +375,7 @@ class SimpleQADIOrchestrator:
                 request = LLMRequest(
                     user_prompt=prompt,
                     temperature=hyperparams["temperature"],
-                    max_tokens=hyperparams["max_tokens"],
+                    max_tokens=int(hyperparams["max_tokens"]),
                     top_p=hyperparams.get("top_p", 0.9)
                 )
                 
