@@ -145,9 +145,10 @@ export GOOGLE_API_KEY="your-key"
 
 3. **Cost Tracking**
    - **Centralized in cost_utils.py**: All cost calculations use unified functions
-   - **Use ModelConfig directly**: `calculate_llm_cost_from_config()` avoids model name mismatch issues  
+   - **Use ModelConfig directly**: `calculate_llm_cost_from_config()` avoids model name mismatch issues
    - Track at individual API call level and distribute costs across generated ideas
    - Report total costs in orchestration results
+   - **Example**: `cost = calculate_llm_cost_from_config(1000, 500, model_config.input_cost_per_1k, model_config.output_cost_per_1k)`
 
 4. **Error Handling**
    - Individual phase failures don't crash the cycle
