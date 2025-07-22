@@ -84,6 +84,9 @@ class SimpleQADIOrchestrator:
             temperature_override: Optional temperature override for abduction phase (0.0-2.0)
         """
         self.prompts = QADIPrompts()
+        if temperature_override is not None:
+            if not 0.0 <= temperature_override <= 2.0:
+                raise ValueError("Temperature must be between 0.0 and 2.0")
         self.temperature_override = temperature_override
 
     async def run_qadi_cycle(
@@ -173,7 +176,7 @@ class SimpleQADIOrchestrator:
             result.phase_results["induction"] = induction_result
 
         except Exception as e:
-            logger.error(f"QADI cycle failed: {e}")
+            logger.exception("QADI cycle failed")
             raise
 
         return result
@@ -207,14 +210,13 @@ class SimpleQADIOrchestrator:
                 match = re.search(r"Q:\s*(.+)", content)
                 if match:
                     return match.group(1).strip(), total_cost
-                else:
-                    # Fallback: use the whole response if no Q: prefix
-                    return content.replace("Q:", "").strip(), total_cost
+                # Fallback: use the whole response if no Q: prefix
+                return content.replace("Q:", "").strip(), total_cost
 
             except Exception as e:
                 if attempt == max_retries:
                     raise
-                logger.warning(f"Question phase attempt {attempt + 1} failed: {e}")
+                logger.warning("Question phase attempt %d failed: %s", attempt + 1, e)
                 await asyncio.sleep(1)
 
         raise RuntimeError("Failed to extract core question")
@@ -262,7 +264,7 @@ class SimpleQADIOrchestrator:
             except Exception as e:
                 if attempt == max_retries:
                     raise
-                logger.warning(f"Abduction phase attempt {attempt + 1} failed: {e}")
+                logger.warning("Abduction phase attempt %d failed: %s", attempt + 1, e)
                 await asyncio.sleep(1)
 
         raise RuntimeError("Failed to generate hypotheses")
@@ -312,9 +314,11 @@ class SimpleQADIOrchestrator:
                 plan_match = re.search(r"Action Plan:\s*(.+?)$", content, re.DOTALL)
                 if plan_match:
                     plan_text = plan_match.group(1).strip()
-                    # Extract numbered items
+                    # Extract numbered items or bullet points
                     plan_items = re.findall(
-                        r"\d+\.\s*(.+?)(?=\d+\.|$)", plan_text, re.DOTALL
+                        r"(?:\d+\.|[-*•])\s*(.+?)(?=(?:\d+\.|[-*•])|$)",
+                        plan_text,
+                        re.DOTALL,
                     )
                     action_plan = [item.strip() for item in plan_items]
 
@@ -329,7 +333,7 @@ class SimpleQADIOrchestrator:
             except Exception as e:
                 if attempt == max_retries:
                     raise
-                logger.warning(f"Deduction phase attempt {attempt + 1} failed: {e}")
+                logger.warning("Deduction phase attempt %d failed: %s", attempt + 1, e)
                 await asyncio.sleep(1)
 
         raise RuntimeError("Failed to evaluate hypotheses")
@@ -344,7 +348,7 @@ class SimpleQADIOrchestrator:
 
         if not match:
             # Log warning and return default scores if parsing fails
-            logger.warning(f"Failed to parse scores for hypothesis {hypothesis_num}")
+            logger.warning("Failed to parse scores for hypothesis %d", hypothesis_num)
             return HypothesisScore(0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
 
         section = match.group(1)
@@ -425,7 +429,7 @@ class SimpleQADIOrchestrator:
             except Exception as e:
                 if attempt == max_retries:
                     raise
-                logger.warning(f"Induction phase attempt {attempt + 1} failed: {e}")
+                logger.warning("Induction phase attempt %d failed: %s", attempt + 1, e)
                 await asyncio.sleep(1)
 
         raise RuntimeError("Failed to verify answer")

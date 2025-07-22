@@ -9,19 +9,22 @@ This script demonstrates the true QADI methodology:
 4. I: Verify with examples
 """
 
+import argparse
 import asyncio
 import os
 import sys
 import time
-import argparse
 from pathlib import Path
 from typing import Optional
 
-# Add the src directory to the path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
-from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
-from mad_spark_alt.core.terminal_renderer import render_markdown
+try:
+    from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
+    from mad_spark_alt.core.terminal_renderer import render_markdown
+except ImportError:
+    # Fallback if package is not installed
+    sys.path.insert(0, str(Path(__file__).parent / "src"))
+    from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
+    from mad_spark_alt.core.terminal_renderer import render_markdown
 
 
 async def run_qadi_analysis(

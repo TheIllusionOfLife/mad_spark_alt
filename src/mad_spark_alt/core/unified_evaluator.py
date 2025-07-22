@@ -78,7 +78,7 @@ class UnifiedEvaluator:
             )
 
         except Exception as e:
-            logger.error(f"Failed to evaluate hypothesis: {e}")
+            logger.exception("Failed to evaluate hypothesis")
             # Return default scores on failure
             default_scores = {
                 "novelty": 0.5,
@@ -91,7 +91,7 @@ class UnifiedEvaluator:
                 content=hypothesis,
                 scores=default_scores,
                 overall_score=0.5,
-                explanations={k: "Evaluation failed" for k in default_scores},
+                explanations=dict.fromkeys(default_scores, "Evaluation failed"),
                 metadata={"error": str(e)},
             )
 
@@ -121,14 +121,12 @@ class UnifiedEvaluator:
                 self.evaluate_hypothesis(h, context, core_question) for h in hypotheses
             ]
             return await asyncio.gather(*tasks)
-        else:
-            results = []
-            for hypothesis in hypotheses:
-                result = await self.evaluate_hypothesis(
-                    hypothesis, context, core_question
-                )
-                results.append(result)
-            return results
+
+        results = []
+        for hypothesis in hypotheses:
+            result = await self.evaluate_hypothesis(hypothesis, context, core_question)
+            results.append(result)
+        return results
 
     def _build_evaluation_prompt(
         self, hypothesis: str, context: str, core_question: Optional[str] = None
@@ -177,7 +175,7 @@ Risks: [score] - [one line explanation]
             # Check each criterion
             for criterion in criteria:
                 # Match "Criterion: score - explanation" format (case insensitive)
-                pattern = rf"^{criterion}:\s*([0-9.]+)\s*[-–]\s*(.+)$"
+                pattern = rf"^{criterion}:\s*([0-9.]+)\s*[-]\s*(.+)$"
                 match = re.match(pattern, line, re.IGNORECASE)
 
                 if match:
@@ -189,7 +187,9 @@ Risks: [score] - [one line explanation]
                         explanations[criterion] = match.group(2).strip()
                     except (ValueError, TypeError):
                         logger.warning(
-                            f"Failed to parse score for {criterion}: {match.group(1)}"
+                            "Failed to parse score for %s: %s",
+                            criterion,
+                            match.group(1),
                         )
                         scores[criterion] = 0.5
                         explanations[criterion] = "Failed to parse score"
@@ -198,7 +198,7 @@ Risks: [score] - [one line explanation]
         # Fill in any missing criteria with defaults
         for criterion in criteria:
             if criterion not in scores:
-                logger.warning(f"No evaluation found for criterion: {criterion}")
+                logger.warning("No evaluation found for criterion: %s", criterion)
                 scores[criterion] = 0.5
                 explanations[criterion] = "Not evaluated"
 
