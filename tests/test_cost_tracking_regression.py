@@ -165,16 +165,16 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
         
         # Simulate multiple LLM calls with cost tracking
         operations = [
-            {"input_tokens": 100, "output_tokens": 200, "expected_cost": 0.015},  # (100/1000 * 0.03) + (200/1000 * 0.06)
-            {"input_tokens": 500, "output_tokens": 1000, "expected_cost": 0.075},  # (500/1000 * 0.03) + (1000/1000 * 0.06)
-            {"input_tokens": 50, "output_tokens": 100, "expected_cost": 0.0075},  # (50/1000 * 0.03) + (100/1000 * 0.06)
+            {"input_tokens": 100, "output_tokens": 200, "expected_cost": 0.00135},  # (100/1000 * 0.00015) + (200/1000 * 0.0006)
+            {"input_tokens": 500, "output_tokens": 1000, "expected_cost": 0.000675},  # (500/1000 * 0.00015) + (1000/1000 * 0.0006) = 0.000075 + 0.0006 = 0.000675
+            {"input_tokens": 50, "output_tokens": 100, "expected_cost": 0.0000675},  # (50/1000 * 0.00015) + (100/1000 * 0.0006) = 0.0000075 + 0.00006 = 0.0000675
         ]
         
         for op in operations:
             cost = cost_utils.calculate_llm_cost(
                 op["input_tokens"], 
                 op["output_tokens"], 
-                "gpt-4"
+                "gemini-2.5-flash"
             )
             total_cost += cost
             # Verify individual cost calculation
@@ -188,28 +188,22 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
         """Test cost calculation accuracy for different model types."""
         test_cases = [
             {
-                "model": "gpt-4",
+                "model": "gemini-2.5-flash",
                 "input_tokens": 1000,
                 "output_tokens": 500,
-                "expected_cost": 0.06  # (1000/1000 * 0.03) + (500/1000 * 0.06)
+                "expected_cost": 0.00045  # (1000/1000 * 0.00015) + (500/1000 * 0.0006)
             },
             {
-                "model": "gpt-3.5-turbo",
+                "model": "gemini-2.5-flash",
                 "input_tokens": 2000,
                 "output_tokens": 1000,
-                "expected_cost": 0.0025  # (2000/1000 * 0.0005) + (1000/1000 * 0.0015)
+                "expected_cost": 0.0009  # (2000/1000 * 0.00015) + (1000/1000 * 0.0006)
             },
             {
-                "model": "claude-3-opus",
+                "model": "gemini-2.5-flash",
                 "input_tokens": 1500,
                 "output_tokens": 750,
-                "expected_cost": 0.07875  # (1500/1000 * 0.015) + (750/1000 * 0.075)
-            },
-            {
-                "model": "gemini-pro",
-                "input_tokens": 1000,
-                "output_tokens": 1000,
-                "expected_cost": 0.00125  # (1000/1000 * 0.00025) + (1000/1000 * 0.001)
+                "expected_cost": 0.000675  # (1500/1000 * 0.00015) + (750/1000 * 0.0006)
             },
         ]
         
@@ -224,20 +218,20 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
     def test_cost_tracking_edge_cases(self):
         """Test edge cases in cost tracking."""
         # Zero tokens
-        cost = cost_utils.calculate_llm_cost(0, 0, "gpt-4")
+        cost = cost_utils.calculate_llm_cost(0, 0, "gemini-2.5-flash")
         assert cost == 0.0
         
         # Very large token counts
-        cost = cost_utils.calculate_llm_cost(1000000, 500000, "gpt-4")
-        assert cost == 60.0  # (1000000/1000 * 0.03) + (500000/1000 * 0.06)
+        cost = cost_utils.calculate_llm_cost(1000000, 500000, "gemini-2.5-flash")
+        assert cost == 450.0  # (1000000/1000 * 0.00015) + (500000/1000 * 0.0006)
         
-        # Unknown model falls back to GPT-4
+        # Unknown model falls back to Gemini 2.5 Flash
         cost = cost_utils.calculate_llm_cost(100, 100, "unknown-model")
-        assert cost > 0  # Should use GPT-4 pricing
+        assert cost > 0  # Should use Gemini 2.5 Flash pricing
         
         # Fractional tokens (should handle gracefully)
-        cost = cost_utils.calculate_llm_cost(150, 75, "gpt-4")
-        assert cost == 0.009  # (150/1000 * 0.03) + (75/1000 * 0.06)
+        cost = cost_utils.calculate_llm_cost(150, 75, "gemini-2.5-flash")
+        assert cost == 0.000675  # (150/1000 * 0.00015) + (75/1000 * 0.0006)
 
     @pytest.mark.asyncio
     async def test_cost_propagation_in_error_scenarios(self, orchestrator, mock_llm_manager):
@@ -293,28 +287,28 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
 
     def test_cost_utils_usage_dict_parsing(self):
         """Test cost calculation from usage dictionaries with different formats."""
-        # OpenAI format
+        # Google format
         cost, input_tokens, output_tokens = cost_utils.calculate_cost_with_usage(
             {"prompt_tokens": 100, "completion_tokens": 200},
-            "gpt-4"
+            "gemini-2.5-flash"
         )
         assert input_tokens == 100
         assert output_tokens == 200
-        assert cost == 0.015  # (100/1000 * 0.03) + (200/1000 * 0.06)
+        assert cost == 0.00135  # (100/1000 * 0.00015) + (200/1000 * 0.0006)
         
         # Alternative format
         cost, input_tokens, output_tokens = cost_utils.calculate_cost_with_usage(
             {"input_tokens": 150, "output_tokens": 250},
-            "gpt-4"
+            "gemini-2.5-flash"
         )
         assert input_tokens == 150
         assert output_tokens == 250
-        assert cost == 0.0195  # (150/1000 * 0.03) + (250/1000 * 0.06)
+        assert cost == 0.000375  # (150/1000 * 0.00015) + (250/1000 * 0.0006)
         
         # Empty usage dict
         cost, input_tokens, output_tokens = cost_utils.calculate_cost_with_usage(
             {},
-            "gpt-4"
+            "gemini-2.5-flash"
         )
         assert input_tokens == 0
         assert output_tokens == 0
@@ -330,11 +324,11 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
         ]
         
         for input_tok, output_tok in test_tokens:
-            # Legacy calculation pattern (as it was in llm_provider.py)
-            legacy_cost = (input_tok / 1000) * 0.03 + (output_tok / 1000) * 0.06
+            # Legacy calculation pattern (as it was in llm_provider.py) for Gemini 2.5 Flash
+            legacy_cost = (input_tok / 1000) * 0.00015 + (output_tok / 1000) * 0.0006
             
             # New centralized calculation
-            new_cost = cost_utils.calculate_llm_cost(input_tok, output_tok, "gpt-4")
+            new_cost = cost_utils.calculate_llm_cost(input_tok, output_tok, "gemini-2.5-flash")
             
             # They should match exactly
             assert abs(legacy_cost - new_cost) < 0.000001, f"Cost mismatch for {input_tok}/{output_tok}"

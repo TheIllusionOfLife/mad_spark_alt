@@ -21,49 +21,13 @@ class ModelCosts:
     output_cost_per_1k_tokens: float
 
 
-# Default model costs (as of January 2025)
+# Gemini 2.5 Flash costs (as of January 2025)
 # Note: Gemini 2.5 Flash has thinking/reasoning mode that costs $3.50 per million output tokens
 # when reasoning is enabled. This utility uses standard pricing as base rates.
 _MODEL_COSTS = {
-    "gpt-4": ModelCosts(
-        input_cost_per_1k_tokens=0.03,
-        output_cost_per_1k_tokens=0.06,
-    ),
-    "gpt-4-turbo": ModelCosts(
-        input_cost_per_1k_tokens=0.01,
-        output_cost_per_1k_tokens=0.03,
-    ),
-    "gpt-3.5-turbo": ModelCosts(
-        input_cost_per_1k_tokens=0.0005,
-        output_cost_per_1k_tokens=0.0015,
-    ),
-    "gpt-4o-mini": ModelCosts(
-        input_cost_per_1k_tokens=0.00015,
-        output_cost_per_1k_tokens=0.0006,
-    ),
-    "claude-3-opus": ModelCosts(
-        input_cost_per_1k_tokens=0.015,
-        output_cost_per_1k_tokens=0.075,
-    ),
-    "claude-3-sonnet": ModelCosts(
-        input_cost_per_1k_tokens=0.003,
-        output_cost_per_1k_tokens=0.015,
-    ),
-    "claude-3-haiku-20240307": ModelCosts(
-        input_cost_per_1k_tokens=0.00025,
-        output_cost_per_1k_tokens=0.00125,
-    ),
-    "gemini-pro": ModelCosts(
-        input_cost_per_1k_tokens=0.00025,
-        output_cost_per_1k_tokens=0.001,
-    ),
     "gemini-2.5-flash": ModelCosts(
         input_cost_per_1k_tokens=0.00015,  # $0.15 per million tokens = $0.00015 per 1k tokens
         output_cost_per_1k_tokens=0.0006,   # $0.60 per million tokens = $0.0006 per 1k tokens
-    ),
-    "gemini-2.0-flash-001": ModelCosts(
-        input_cost_per_1k_tokens=0.00015,
-        output_cost_per_1k_tokens=0.0006,
     ),
 }
 
@@ -85,7 +49,7 @@ __all__ = [
 def calculate_llm_cost(
     input_tokens: int,
     output_tokens: int,
-    model: str = "gpt-4",
+    model: str = "gemini-2.5-flash",
 ) -> float:
     """
     Calculate cost for LLM usage given input and output tokens.
@@ -93,20 +57,20 @@ def calculate_llm_cost(
     Args:
         input_tokens: Number of input/prompt tokens
         output_tokens: Number of output/completion tokens
-        model: Model name (e.g., "gpt-4", "gpt-3.5-turbo", "claude-3-opus")
+        model: Model name (always "gemini-2.5-flash")
 
     Returns:
         Total cost in dollars
 
     Example:
-        >>> cost = calculate_llm_cost(1000, 500, "gpt-4")
+        >>> cost = calculate_llm_cost(1000, 500, "gemini-2.5-flash")
         >>> print(f"Cost: ${cost:.4f}")
     """
     model_costs = get_model_costs(model)
     if model_costs is None:
-        # Fall back to GPT-4 costs if model not found
-        logger.warning("Model '%s' not found, falling back to 'gpt-4' costs.", model)
-        model_costs = DEFAULT_MODEL_COSTS["gpt-4"]
+        # Fall back to Gemini 2.5 Flash costs if model not found
+        logger.warning("Model '%s' not found, falling back to 'gemini-2.5-flash' costs.", model)
+        model_costs = DEFAULT_MODEL_COSTS["gemini-2.5-flash"]
 
     input_cost = (input_tokens / 1000) * model_costs.input_cost_per_1k_tokens
     output_cost = (output_tokens / 1000) * model_costs.output_cost_per_1k_tokens
@@ -116,7 +80,7 @@ def calculate_llm_cost(
 
 def calculate_token_cost(
     total_tokens: int,
-    model: str = "gpt-4",
+    model: str = "gemini-2.5-flash",
     input_output_ratio: float = 0.5,
 ) -> float:
     """
@@ -139,7 +103,7 @@ def calculate_token_cost(
 
 def estimate_token_cost(
     tokens: int,
-    model: str = "gpt-4",
+    model: str = "gemini-2.5-flash",
     assume_equal_input_output: bool = True,
 ) -> float:
     """
@@ -147,7 +111,7 @@ def estimate_token_cost(
 
     Args:
         tokens: Total number of tokens
-        model: Model name (defaults to GPT-4)
+        model: Model name (defaults to Gemini 2.5 Flash)
         assume_equal_input_output: If True, assumes equal input/output split
 
     Returns:
@@ -185,10 +149,10 @@ def get_available_models() -> Dict[str, ModelCosts]:
 
 def calculate_cost_with_usage(
     usage: Dict[str, int],
-    model: str = "gpt-4",
+    model: str = "gemini-2.5-flash",
 ) -> Tuple[float, int, int]:
     """
-    Calculate cost from a usage dictionary (OpenAI/Anthropic format).
+    Calculate cost from a usage dictionary (Google format).
 
     Args:
         usage: Dictionary with 'prompt_tokens' and 'completion_tokens'

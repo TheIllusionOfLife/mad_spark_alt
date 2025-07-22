@@ -11,14 +11,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from mad_spark_alt.core.llm_provider import (
-    AnthropicProvider,
+    GoogleProvider,
     LLMManager,
     LLMProvider,
     LLMRequest,
     LLMResponse,
     ModelConfig,
     ModelSize,
-    OpenAIProvider,
     RateLimitConfig,
     RateLimiter,
     UsageStats,
@@ -32,16 +31,16 @@ class TestLLMProvider:
     def test_model_config_creation(self):
         """Test ModelConfig creation and validation."""
         config = ModelConfig(
-            provider=LLMProvider.OPENAI,
-            model_name="gpt-4o-mini",
-            model_size=ModelSize.SMALL,
+            provider=LLMProvider.GOOGLE,
+            model_name="gemini-2.5-flash",
+            model_size=ModelSize.LARGE,
             input_cost_per_1k=0.00015,
             output_cost_per_1k=0.0006,
         )
 
-        assert config.provider == LLMProvider.OPENAI
-        assert config.model_name == "gpt-4o-mini"
-        assert config.model_size == ModelSize.SMALL
+        assert config.provider == LLMProvider.GOOGLE
+        assert config.model_name == "gemini-2.5-flash"
+        assert config.model_size == ModelSize.LARGE
         assert config.input_cost_per_1k == 0.00015
 
     def test_llm_request_creation(self):
@@ -64,10 +63,10 @@ class TestUsageStats:
 
     def test_usage_stats_initialization(self):
         """Test UsageStats initialization."""
-        stats = UsageStats(LLMProvider.OPENAI, "gpt-4o-mini")
+        stats = UsageStats(LLMProvider.GOOGLE, "gemini-2.5-flash")
 
-        assert stats.provider == LLMProvider.OPENAI
-        assert stats.model == "gpt-4o-mini"
+        assert stats.provider == LLMProvider.GOOGLE
+        assert stats.model == "gemini-2.5-flash"
         assert stats.input_tokens == 0
         assert stats.output_tokens == 0
         assert stats.total_requests == 0
@@ -75,7 +74,7 @@ class TestUsageStats:
 
     def test_usage_stats_addition(self):
         """Test adding usage statistics."""
-        stats = UsageStats(LLMProvider.OPENAI, "gpt-4o-mini")
+        stats = UsageStats(LLMProvider.GOOGLE, "gemini-2.5-flash")
 
         stats.add_usage(100, 50, 0.05)
 
@@ -87,7 +86,7 @@ class TestUsageStats:
 
     def test_usage_stats_accumulation(self):
         """Test accumulating multiple usage entries."""
-        stats = UsageStats(LLMProvider.OPENAI, "gpt-4o-mini")
+        stats = UsageStats(LLMProvider.GOOGLE, "gemini-2.5-flash")
 
         stats.add_usage(100, 50, 0.05)
         stats.add_usage(200, 75, 0.08)
@@ -114,26 +113,26 @@ class TestLLMManager:
         manager = LLMManager()
         mock_provider = MagicMock()
 
-        manager.register_provider(LLMProvider.OPENAI, mock_provider)
+        manager.register_provider(LLMProvider.GOOGLE, mock_provider)
 
-        assert LLMProvider.OPENAI in manager.providers
-        assert manager.providers[LLMProvider.OPENAI] == mock_provider
-        assert LLMProvider.OPENAI in manager.rate_limiters
+        assert LLMProvider.GOOGLE in manager.providers
+        assert manager.providers[LLMProvider.GOOGLE] == mock_provider
+        assert LLMProvider.GOOGLE in manager.rate_limiters
 
     def test_default_model_setting(self):
         """Test setting default model configuration."""
         manager = LLMManager()
         config = ModelConfig(
-            provider=LLMProvider.OPENAI,
-            model_name="gpt-4o-mini",
-            model_size=ModelSize.SMALL,
+            provider=LLMProvider.GOOGLE,
+            model_name="gemini-2.5-flash",
+            model_size=ModelSize.LARGE,
             input_cost_per_1k=0.00015,
             output_cost_per_1k=0.0006,
         )
 
-        manager.set_default_model(LLMProvider.OPENAI, config)
+        manager.set_default_model(LLMProvider.GOOGLE, config)
 
-        assert manager.default_configs[LLMProvider.OPENAI] == config
+        assert manager.default_configs[LLMProvider.GOOGLE] == config
 
     @pytest.mark.asyncio
     async def test_generate_with_no_providers(self):
@@ -151,37 +150,36 @@ class TestLLMManager:
         request = LLMRequest(user_prompt="Test")
 
         with pytest.raises(ValueError, match="Provider .* not registered"):
-            await manager.generate(request, LLMProvider.OPENAI)
+            await manager.generate(request, LLMProvider.GOOGLE)
 
 
-class TestOpenAIProvider:
-    """Test OpenAI provider implementation."""
+class TestGoogleProvider:
+    """Test Google provider implementation."""
 
-    def test_openai_provider_initialization(self):
-        """Test OpenAIProvider initialization."""
-        provider = OpenAIProvider("test_api_key")
+    def test_google_provider_initialization(self):
+        """Test GoogleProvider initialization."""
+        provider = GoogleProvider("test_api_key")
 
         assert provider.api_key == "test_api_key"
-        assert provider.base_url == "https://api.openai.com/v1"
+        assert provider.base_url == "https://generativelanguage.googleapis.com/v1beta"
         assert provider.retry_config is not None
         assert provider.circuit_breaker is not None
 
     def test_get_available_models(self):
-        """Test getting available OpenAI models."""
-        provider = OpenAIProvider("test_api_key")
+        """Test getting available Google models."""
+        provider = GoogleProvider("test_api_key")
         models = provider.get_available_models()
 
-        assert len(models) > 0
-        assert any(model.model_name == "gpt-4o-mini" for model in models)
-        assert any(model.model_name == "gpt-4o" for model in models)
+        assert len(models) == 1
+        assert models[0].model_name == "gemini-2.5-flash"
 
     def test_calculate_cost(self):
-        """Test cost calculation for OpenAI."""
-        provider = OpenAIProvider("test_api_key")
+        """Test cost calculation for Google."""
+        provider = GoogleProvider("test_api_key")
         config = ModelConfig(
-            provider=LLMProvider.OPENAI,
-            model_name="gpt-4o-mini",
-            model_size=ModelSize.SMALL,
+            provider=LLMProvider.GOOGLE,
+            model_name="gemini-2.5-flash",
+            model_size=ModelSize.LARGE,
             input_cost_per_1k=0.00015,
             output_cost_per_1k=0.0006,
         )
@@ -192,9 +190,9 @@ class TestOpenAIProvider:
         assert cost == expected_cost
 
     @pytest.mark.asyncio
-    async def test_openai_provider_session_management(self):
-        """Test OpenAI provider session management."""
-        provider = OpenAIProvider("test_api_key")
+    async def test_google_provider_session_management(self):
+        """Test Google provider session management."""
+        provider = GoogleProvider("test_api_key")
 
         # Test session creation
         session1 = await provider._get_session()
@@ -206,44 +204,6 @@ class TestOpenAIProvider:
 
         # Test session cleanup
         await provider.close()
-
-
-class TestAnthropicProvider:
-    """Test Anthropic provider implementation."""
-
-    def test_anthropic_provider_initialization(self):
-        """Test AnthropicProvider initialization."""
-        provider = AnthropicProvider("test_api_key")
-
-        assert provider.api_key == "test_api_key"
-        assert provider.base_url == "https://api.anthropic.com/v1"
-        assert provider.retry_config is not None
-        assert provider.circuit_breaker is not None
-
-    def test_get_available_models(self):
-        """Test getting available Anthropic models."""
-        provider = AnthropicProvider("test_api_key")
-        models = provider.get_available_models()
-
-        assert len(models) > 0
-        assert any(model.model_name == "claude-3-haiku-20240307" for model in models)
-        assert any(model.model_name == "claude-3-sonnet-20240229" for model in models)
-
-    def test_calculate_cost(self):
-        """Test cost calculation for Anthropic."""
-        provider = AnthropicProvider("test_api_key")
-        config = ModelConfig(
-            provider=LLMProvider.ANTHROPIC,
-            model_name="claude-3-haiku-20240307",
-            model_size=ModelSize.SMALL,
-            input_cost_per_1k=0.00025,
-            output_cost_per_1k=0.00125,
-        )
-
-        cost = provider.calculate_cost(1000, 500, config)
-        expected_cost = (1000 / 1000) * 0.00025 + (500 / 1000) * 0.00125
-
-        assert cost == expected_cost
 
 
 class TestRateLimiting:
@@ -369,8 +329,8 @@ class TestIntegration:
         # Create mock response
         mock_response = LLMResponse(
             content="The capital of France is Paris.",
-            provider=LLMProvider.OPENAI,
-            model="gpt-4o-mini",
+            provider=LLMProvider.GOOGLE,
+            model="gemini-2.5-flash",
             usage={"prompt_tokens": 10, "completion_tokens": 8},
             cost=0.001,
             response_time=0.5,
@@ -382,19 +342,19 @@ class TestIntegration:
 
         # Setup manager
         manager = LLMManager()
-        manager.register_provider(LLMProvider.OPENAI, mock_provider)
+        manager.register_provider(LLMProvider.GOOGLE, mock_provider)
 
         # Test request
         request = LLMRequest(user_prompt="What is the capital of France?")
-        response = await manager.generate(request, LLMProvider.OPENAI)
+        response = await manager.generate(request, LLMProvider.GOOGLE)
 
         assert response.content == "The capital of France is Paris."
-        assert response.provider == LLMProvider.OPENAI
+        assert response.provider == LLMProvider.GOOGLE
         assert response.cost == 0.001
 
         # Check usage tracking
         assert len(manager.usage_stats) == 1
-        stats_key = "openai:gpt-4o-mini"
+        stats_key = "google:gemini-2.5-flash"
         assert stats_key in manager.usage_stats
         assert manager.usage_stats[stats_key].total_requests == 1
 
@@ -406,13 +366,13 @@ class TestIntegration:
 
         # Setup manager
         manager = LLMManager()
-        manager.register_provider(LLMProvider.OPENAI, mock_provider)
+        manager.register_provider(LLMProvider.GOOGLE, mock_provider)
 
         # Test request that should fail
         request = LLMRequest(user_prompt="Test")
 
         with pytest.raises(LLMError):
-            await manager.generate(request, LLMProvider.OPENAI)
+            await manager.generate(request, LLMProvider.GOOGLE)
 
 
 # Fixtures for testing
@@ -420,9 +380,9 @@ class TestIntegration:
 def sample_model_config():
     """Sample model configuration for testing."""
     return ModelConfig(
-        provider=LLMProvider.OPENAI,
-        model_name="gpt-4o-mini",
-        model_size=ModelSize.SMALL,
+        provider=LLMProvider.GOOGLE,
+        model_name="gemini-2.5-flash",
+        model_size=ModelSize.LARGE,
         input_cost_per_1k=0.00015,
         output_cost_per_1k=0.0006,
     )
@@ -444,8 +404,8 @@ def sample_llm_response():
     """Sample LLM response for testing."""
     return LLMResponse(
         content="The capital of France is Paris.",
-        provider=LLMProvider.OPENAI,
-        model="gpt-4o-mini",
+        provider=LLMProvider.GOOGLE,
+        model="gemini-2.5-flash",
         usage={"prompt_tokens": 10, "completion_tokens": 8},
         cost=0.001,
         response_time=0.5,
