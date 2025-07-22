@@ -255,6 +255,21 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Relative Imports**: Use `from ...core import X` pattern
 - **Type Imports**: Use `from typing import TYPE_CHECKING` for circular deps
 
+### Deprecation Best Practices
+- **Module-Level Warnings**: Issue deprecation warnings at module import time
+- **Clear Migration Path**: Always specify what to use instead
+- **Stack Level**: Use `stacklevel=2` for warnings to show caller location
+- **Example**:
+  ```python
+  import warnings
+  warnings.warn(
+      "module_name is deprecated and will be removed in v2.0.0. "
+      "Use NewModule instead.",
+      DeprecationWarning,
+      stacklevel=2
+  )
+  ```
+
 ### Performance Testing
 - **Test Naming**: Avoid `test_*.py` pattern in root tests/ (caught by .gitignore)
 - **Performance Files**: Use descriptive names like `performance_benchmarks.py`
