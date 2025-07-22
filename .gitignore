@@ -77,6 +77,9 @@ tokyo_results.txt
 test.md
 test_results.md
 
+# Benchmark result files (timestamped)
+benchmarks/test_benchmark_*.json
+
 # Debug and development files
 debug_*.py
 test_*.py

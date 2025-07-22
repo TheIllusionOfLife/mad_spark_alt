@@ -98,11 +98,12 @@ def main(verbose: bool) -> None:
     register_default_evaluators()
 
     # Initialize LLM providers if API keys are available
-    try:
-        openai_key = os.getenv("OPENAI_API_KEY")
-        anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-        google_key = os.getenv("GOOGLE_API_KEY")
+    openai_key = os.getenv("OPENAI_API_KEY")
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    google_key = os.getenv("GOOGLE_API_KEY")
 
+    # Only initialize if we have at least one API key
+    if openai_key or anthropic_key or google_key:
         async def init_llm() -> None:
             await setup_llm_providers(
                 openai_api_key=openai_key,
@@ -111,16 +112,32 @@ def main(verbose: bool) -> None:
             )
 
         try:
-            asyncio.get_event_loop().run_until_complete(init_llm())
-        except RuntimeError:
-            # No event loop, create one
-            asyncio.run(init_llm())
-    except Exception as e:
-        # LLM setup failed, but continue (some commands don't need LLMs)
-        if verbose:
-            console.print(
-                f"[yellow]Warning: LLM providers not initialized: {e}[/yellow]"
-            )
+            # Check if event loop is running (e.g., in Jupyter notebooks)
+            try:
+                loop = asyncio.get_running_loop()
+                # Event loop is running, we can't use run_until_complete
+                if verbose:
+                    console.print(
+                        "[yellow]Warning: Cannot initialize LLM providers in running event loop[/yellow]"
+                    )
+            except RuntimeError:
+                # No event loop is running, we can create one
+                try:
+                    asyncio.run(init_llm())
+                except Exception as e:
+                    # Log specific LLM initialization errors
+                    if verbose:
+                        console.print(
+                            f"[red]Error: LLM provider initialization failed: {e}[/red]"
+                        )
+        except Exception as e:
+            # Catch-all for unexpected errors
+            if verbose:
+                console.print(
+                    f"[red]Unexpected error during LLM initialization: {e}[/red]"
+                )
+    elif verbose:
+        console.print("[yellow]Info: No API keys found, LLM features disabled[/yellow]")
 
 
 @main.command()
