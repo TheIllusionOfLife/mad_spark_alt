@@ -12,7 +12,7 @@ import re
 import warnings
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple, cast
+from typing import Any, Dict, List, Tuple, cast
 
 # Issue deprecation warning when module is imported
 warnings.warn(

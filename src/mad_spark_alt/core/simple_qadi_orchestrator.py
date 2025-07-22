@@ -256,7 +256,10 @@ class SimpleQADIOrchestrator:
                 if match:
                     return match.group(1).strip(), total_cost
                 # Fallback: use the whole response if no Q: prefix
-                return content.replace(QUESTION_PREFIX, "").strip(), total_cost
+                # Safe removal of prefix only from start of string
+                if content.startswith(QUESTION_PREFIX):
+                    return content[len(QUESTION_PREFIX) :].strip(), total_cost
+                return content.strip(), total_cost
 
             except Exception as e:
                 if attempt == max_retries:
@@ -401,7 +404,9 @@ class SimpleQADIOrchestrator:
                 # Extract action plan
                 action_plan = []
                 plan_match = re.search(
-                    rf"{ACTION_PLAN_PREFIX}\s*(.+?)$", content, re.DOTALL
+                    rf"{ACTION_PLAN_PREFIX}\s*(.+?)$",
+                    content,
+                    re.DOTALL,
                 )
                 if plan_match:
                     plan_text = plan_match.group(1).strip()
@@ -461,11 +466,9 @@ class SimpleQADIOrchestrator:
 
             # Check if we've reached the next hypothesis or end section
             if in_section:
-                if (
-                    re.match(rf"^(?:-\s*)?H{hypothesis_num + 1}:", line)
-                    or line.startswith(ANSWER_PREFIX)
-                    or line.startswith(ACTION_PLAN_PREFIX)
-                ):
+                if re.match(
+                    rf"^(?:-\s*)?H{hypothesis_num + 1}:", line
+                ) or line.startswith((ANSWER_PREFIX, ACTION_PLAN_PREFIX)):
                     break
                 section_lines.append(line)
 
@@ -584,7 +587,9 @@ class SimpleQADIOrchestrator:
 
                 # Extract conclusion
                 conclusion_match = re.search(
-                    rf"{CONCLUSION_PREFIX}\s*(.+?)$", content, re.DOTALL
+                    rf"{CONCLUSION_PREFIX}\s*(.+?)$",
+                    content,
+                    re.DOTALL,
                 )
                 conclusion = (
                     conclusion_match.group(1).strip() if conclusion_match else ""
