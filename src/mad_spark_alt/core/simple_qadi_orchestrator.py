@@ -84,13 +84,15 @@ class SimpleQADIOrchestrator:
             temperature_override: Optional temperature override for abduction phase (0.0-2.0)
         """
         self.prompts = QADIPrompts()
-        if temperature_override is not None:
-            if not 0.0 <= temperature_override <= 2.0:
-                raise ValueError("Temperature must be between 0.0 and 2.0")
+        if temperature_override is not None and not 0.0 <= temperature_override <= 2.0:
+            raise ValueError("Temperature must be between 0.0 and 2.0")
         self.temperature_override = temperature_override
 
     async def run_qadi_cycle(
-        self, user_input: str, context: Optional[str] = None, max_retries: int = 2
+        self,
+        user_input: str,
+        context: Optional[str] = None,
+        max_retries: int = 2,
     ) -> SimpleQADIResult:
         """
         Run a complete QADI cycle on the user input.
@@ -122,7 +124,8 @@ class SimpleQADIOrchestrator:
             # Phase 1: Question - Extract core question
             logger.info("Running Question phase")
             core_question, questioning_cost = await self._run_questioning_phase(
-                full_input, max_retries
+                full_input,
+                max_retries,
             )
             result.core_question = core_question
             result.total_llm_cost += questioning_cost
@@ -134,7 +137,9 @@ class SimpleQADIOrchestrator:
             # Phase 2: Abduction - Generate hypotheses
             logger.info("Running Abduction phase")
             hypotheses, abduction_cost = await self._run_abduction_phase(
-                full_input, core_question, max_retries
+                full_input,
+                core_question,
+                max_retries,
             )
             result.hypotheses = hypotheses
             result.total_llm_cost += abduction_cost
@@ -151,13 +156,16 @@ class SimpleQADIOrchestrator:
                         confidence_score=0.8,  # Default high confidence for hypotheses
                         reasoning="Generated as potential answer to core question",
                         metadata={"hypothesis_index": i},
-                    )
+                    ),
                 )
 
             # Phase 3: Deduction - Evaluate and conclude
             logger.info("Running Deduction phase")
             deduction_result = await self._run_deduction_phase(
-                full_input, core_question, hypotheses, max_retries
+                full_input,
+                core_question,
+                hypotheses,
+                max_retries,
             )
             result.hypothesis_scores = deduction_result["scores"]
             result.final_answer = deduction_result["answer"]
@@ -168,21 +176,26 @@ class SimpleQADIOrchestrator:
             # Phase 4: Induction - Verify answer
             logger.info("Running Induction phase")
             induction_result = await self._run_induction_phase(
-                full_input, core_question, result.final_answer, max_retries
+                full_input,
+                core_question,
+                result.final_answer,
+                max_retries,
             )
             result.verification_examples = induction_result["examples"]
             result.verification_conclusion = induction_result["conclusion"]
             result.total_llm_cost += induction_result["cost"]
             result.phase_results["induction"] = induction_result
 
-        except Exception as e:
+        except Exception:
             logger.exception("QADI cycle failed")
             raise
 
         return result
 
     async def _run_questioning_phase(
-        self, user_input: str, max_retries: int
+        self,
+        user_input: str,
+        max_retries: int,
     ) -> Tuple[str, float]:
         """Extract the core question from user input.
 
@@ -222,7 +235,10 @@ class SimpleQADIOrchestrator:
         raise RuntimeError("Failed to extract core question")
 
     async def _run_abduction_phase(
-        self, user_input: str, core_question: str, max_retries: int
+        self,
+        user_input: str,
+        core_question: str,
+        max_retries: int,
     ) -> Tuple[List[str], float]:
         """Generate hypotheses to answer the core question."""
         prompt = self.prompts.get_abduction_prompt(user_input, core_question)
@@ -252,7 +268,11 @@ class SimpleQADIOrchestrator:
 
                 # Look for H1:, H2:, H3: patterns
                 for i in range(1, 4):
-                    pattern = rf"H{i}:\s*(.+?)(?=H{i+1}:|$)"
+                    # Handle H3 specially since there's no H4
+                    if i < 3:
+                        pattern = rf"H{i}:\s*(.+?)(?=H{i+1}:|$)"
+                    else:
+                        pattern = rf"H{i}:\s*(.+?)$"
                     match = re.search(pattern, content, re.DOTALL)
                     if match:
                         hypothesis = match.group(1).strip()
@@ -281,7 +301,9 @@ class SimpleQADIOrchestrator:
         hypotheses_text = "\n".join([f"H{i+1}: {h}" for i, h in enumerate(hypotheses)])
 
         prompt = self.prompts.get_deduction_prompt(
-            user_input, core_question, hypotheses_text
+            user_input,
+            core_question,
+            hypotheses_text,
         )
         hyperparams = PHASE_HYPERPARAMETERS["deduction"]
 
@@ -385,7 +407,11 @@ class SimpleQADIOrchestrator:
         )
 
     async def _run_induction_phase(
-        self, user_input: str, core_question: str, answer: str, max_retries: int
+        self,
+        user_input: str,
+        core_question: str,
+        answer: str,
+        max_retries: int,
     ) -> Dict[str, Any]:
         """Verify the answer with examples."""
         prompt = self.prompts.get_induction_prompt(user_input, core_question, answer)

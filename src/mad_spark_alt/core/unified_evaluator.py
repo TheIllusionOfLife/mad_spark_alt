@@ -60,7 +60,10 @@ class UnifiedEvaluator:
 
         try:
             request = LLMRequest(
-                user_prompt=prompt, temperature=temperature, max_tokens=400, top_p=0.9
+                user_prompt=prompt,
+                temperature=temperature,
+                max_tokens=400,
+                top_p=0.9,
             )
 
             response = await llm_manager.generate(request)
@@ -129,7 +132,10 @@ class UnifiedEvaluator:
         return results
 
     def _build_evaluation_prompt(
-        self, hypothesis: str, context: str, core_question: Optional[str] = None
+        self,
+        hypothesis: str,
+        context: str,
+        core_question: Optional[str] = None,
     ) -> str:
         """Build the evaluation prompt for a hypothesis."""
         question_context = f"\nCore Question: {core_question}" if core_question else ""
@@ -156,7 +162,8 @@ Risks: [score] - [one line explanation]
 """
 
     def _parse_evaluation_response(
-        self, response: str
+        self,
+        response: str,
     ) -> Tuple[Dict[str, float], Dict[str, str]]:
         """Parse the LLM evaluation response into scores and explanations."""
         scores = {}

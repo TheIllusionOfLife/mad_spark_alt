@@ -41,7 +41,7 @@ class TestFitnessEvaluator:
 
         # Create fitness evaluator
         self.fitness_evaluator = FitnessEvaluator(
-            unified_evaluator=self.mock_unified_evaluator
+            unified_evaluator=self.mock_unified_evaluator,
         )
 
         # Create test configuration
@@ -86,11 +86,11 @@ class TestFitnessEvaluator:
                 "impact": 0.85,
                 "cost": 0.3,  # Low cost is good
                 "feasibility": 0.9,
-                "risks": 0.2  # Low risk is good
+                "risks": 0.2,  # Low risk is good
             },
             overall_score=0.82,
             explanations={"reasoning": "Test evaluation reasoning"},
-            metadata={"llm_cost": 0.001}
+            metadata={"llm_cost": 0.001},
         )
 
         self.mock_unified_evaluator.evaluate_hypothesis.return_value = mock_evaluation
