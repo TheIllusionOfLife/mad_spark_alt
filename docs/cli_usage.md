@@ -2,7 +2,7 @@
 
 ## Overview
 
-Mad Spark Alt provides a comprehensive command-line interface for both creativity evaluation and QADI idea generation. This guide covers all available commands and usage patterns.
+Mad Spark Alt provides a comprehensive command-line interface for hypothesis-driven QADI analysis, idea evolution, and creativity evaluation. This guide covers all available commands and usage patterns.
 
 ## Installation and Setup
 
@@ -14,7 +14,7 @@ pip install -e .
 uv sync
 
 # Verify installation
-mad-spark --help
+uv run mad-spark --help  # Note: use 'uv run' prefix with uv installation
 ```
 
 ## Environment Setup
@@ -56,25 +56,99 @@ export MAD_SPARK_LOG_LEVEL="DEBUG"
 All commands support these global options:
 
 ```bash
-mad-spark --help                    # Show help
-mad-spark --verbose                 # Enable verbose output
-mad-spark --config CONFIG_FILE     # Use custom config file
+uv run mad-spark --help                    # Show help
+uv run mad-spark --verbose                 # Enable verbose output
 ```
 
 ### Core Commands
 
 ```bash
 # Main help
-mad-spark --help
+uv run mad-spark --help
 
 # List available evaluators
-mad-spark list-evaluators
+uv run mad-spark list-evaluators
+```
 
-# Show system status
-mad-spark status
+## 🧬 Evolution Command (MOST POWERFUL FEATURE)
 
-# Show version information
-mad-spark version
+The `evolve` command combines QADI hypothesis generation with genetic algorithms to find optimal solutions:
+
+### Basic Evolution Usage
+
+```bash
+# Basic evolution
+uv run mad-spark evolve "How can we reduce food waste?"
+
+# With custom context
+uv run mad-spark evolve "Improve customer service" --context "E-commerce platform"
+
+# Quick mode (faster, smaller population)
+uv run mad-spark evolve "Climate solutions" --quick
+
+# Save results to file
+uv run mad-spark evolve "New product ideas" --output results.json
+```
+
+### Advanced Evolution Options
+
+```bash
+# Custom evolution parameters
+uv run mad-spark evolve "Business strategies" \
+  --generations 5 \          # Number of evolution generations (default: 3)
+  --population 20 \          # Population size (default: 12)
+  --temperature 1.5          # Creativity level 0.0-2.0 (default: 0.8)
+
+# Full example with all options
+uv run mad-spark evolve "How to increase team productivity" \
+  --context "Remote software development team" \
+  --generations 10 \
+  --population 30 \
+  --temperature 1.2 \
+  --output evolution_results.json
+```
+
+### Temperature Control
+
+The `--temperature` flag controls creativity in hypothesis generation:
+- `0.0-0.5`: Conservative, practical ideas
+- `0.6-1.0`: Balanced creativity (default: 0.8)
+- `1.1-2.0`: Highly creative, unconventional ideas
+
+### Evolution Process
+
+1. **QADI Analysis**: Generates initial hypotheses
+2. **Fitness Evaluation**: Scores on 5 criteria (novelty, impact, cost, feasibility, risks)
+3. **Selection**: Best ideas selected for breeding
+4. **Crossover**: Combines elements from parent ideas
+5. **Mutation**: Introduces variations
+6. **Repeat**: Continues for specified generations
+
+### Example Output
+
+```
+🧬 Evolution Pipeline
+Problem: How can we reduce plastic waste in oceans?
+Generations: 5 | Population: 12 | Temperature: 0.8
+
+✅ Generated 3 initial hypotheses
+💰 LLM Cost: $0.0234
+
+✅ Evolution completed in 45.2s
+
+🏆 Top Evolved Ideas:
+1. Autonomous ocean drones with ML-powered plastic detection... (Fitness: 0.892)
+2. Blockchain-tracked plastic credits incentivizing cleanup... (Fitness: 0.847)
+3. Bioengineered bacteria that safely decompose ocean plastic... (Fitness: 0.823)
+
+📊 Results:
+• Fitness improvement: 47.3%
+• Ideas evaluated: 60
+• Best from generation: 4
+
+💾 Cache Performance:
+• Hit rate: 65%
+• LLM calls saved: 39
 ```
 
 ## Creativity Evaluation Commands

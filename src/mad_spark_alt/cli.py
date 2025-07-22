@@ -24,10 +24,11 @@ from .core import (
     EvaluationSummary,
     ModelOutput,
     OutputType,
-    SmartQADIOrchestrator,
     registry,
+    setup_llm_providers,
 )
 from .core.json_utils import format_llm_cost
+from .core.simple_qadi_orchestrator import SimpleQADIOrchestrator
 from .evolution import (
     EvolutionConfig,
     EvolutionRequest,
@@ -95,6 +96,49 @@ def main(verbose: bool) -> None:
     load_env_file()
     setup_logging(verbose)
     register_default_evaluators()
+
+    # Initialize LLM providers if API keys are available
+    openai_key = os.getenv("OPENAI_API_KEY")
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    google_key = os.getenv("GOOGLE_API_KEY")
+
+    # Only initialize if we have at least one API key
+    if openai_key or anthropic_key or google_key:
+
+        async def init_llm() -> None:
+            await setup_llm_providers(
+                openai_api_key=openai_key,
+                anthropic_api_key=anthropic_key,
+                google_api_key=google_key,
+            )
+
+        try:
+            # Check if event loop is running (e.g., in Jupyter notebooks)
+            try:
+                loop = asyncio.get_running_loop()
+                # Event loop is running, we can't use run_until_complete
+                if verbose:
+                    console.print(
+                        "[yellow]Warning: Cannot initialize LLM providers in running event loop[/yellow]"
+                    )
+            except RuntimeError:
+                # No event loop is running, we can create one
+                try:
+                    asyncio.run(init_llm())
+                except Exception as e:
+                    # Log specific LLM initialization errors
+                    if verbose:
+                        console.print(
+                            f"[red]Error: LLM provider initialization failed: {e}[/red]"
+                        )
+        except Exception as e:
+            # Catch-all for unexpected errors
+            if verbose:
+                console.print(
+                    f"[red]Unexpected error during LLM initialization: {e}[/red]"
+                )
+    elif verbose:
+        console.print("[yellow]Info: No API keys found, LLM features disabled[/yellow]")
 
 
 @main.command()
@@ -438,6 +482,12 @@ def _summary_to_dict(summary: EvaluationSummary) -> Dict[str, Any]:
 @click.option("--quick", "-q", is_flag=True, help="Quick mode: faster execution")
 @click.option("--generations", "-g", default=3, help="Number of evolution generations")
 @click.option("--population", "-p", default=12, help="Population size for evolution")
+@click.option(
+    "--temperature",
+    "-t",
+    type=click.FloatRange(0.0, 2.0),
+    help="Temperature for hypothesis generation (0.0-2.0, default: 0.8)",
+)
 @click.option("--output", "-o", type=click.Path(), help="Save results to file")
 def evolve(
     problem: str,
@@ -445,6 +495,7 @@ def evolve(
     quick: bool,
     generations: int,
     population: int,
+    temperature: Optional[float],
     output: Optional[str],
 ) -> None:
     """Evolve ideas using QADI methodology + Genetic Algorithm.
@@ -453,6 +504,7 @@ def evolve(
       mad-spark evolve "How can we reduce food waste?"
       mad-spark evolve "Improve remote work" --context "Focus on team collaboration"
       mad-spark evolve "Climate solutions" --quick --generations 2
+      mad-spark evolve "New product ideas" --temperature 1.5
     """
     import os
 
@@ -475,19 +527,20 @@ def evolve(
         generations = min(2, generations)
         population = min(8, population)
 
+    temp_display = f" | Temperature: {temperature}" if temperature else ""
     console.print(
         Panel(
             f"[bold blue]Evolution Pipeline[/bold blue]\n"
             f"Problem: {problem}\n"
             f"Context: {context}\n"
-            f"Generations: {generations} | Population: {population}"
+            f"Generations: {generations} | Population: {population}{temp_display}"
         )
     )
 
     # Run the evolution pipeline
     asyncio.run(
         _run_evolution_pipeline(
-            problem, context, quick, generations, population, output
+            problem, context, quick, generations, population, temperature, output
         )
     )
 
@@ -498,6 +551,7 @@ async def _run_evolution_pipeline(
     quick: bool,
     generations: int,
     population: int,
+    temperature: Optional[float],
     output_file: Optional[str],
 ) -> None:
     """Run the evolution pipeline with progress tracking."""
@@ -512,16 +566,12 @@ async def _run_evolution_pipeline(
         qadi_task = progress.add_task("Generating ideas with QADI...", total=None)
 
         try:
-            orchestrator = SmartQADIOrchestrator()
+            orchestrator = SimpleQADIOrchestrator(temperature_override=temperature)
 
             qadi_result = await asyncio.wait_for(
                 orchestrator.run_qadi_cycle(
-                    problem_statement=problem,
+                    user_input=problem,
                     context=context,
-                    cycle_config={
-                        "max_ideas_per_method": 2 if generations <= 2 else 3,
-                        "require_reasoning": True,
-                    },
                 ),
                 timeout=90.0,
             )
@@ -537,7 +587,7 @@ async def _run_evolution_pipeline(
                 f"[green]✅ Generated {len(initial_ideas)} initial ideas[/green]"
             )
             console.print(
-                f"[dim]💰 LLM Cost: {format_llm_cost(qadi_result.llm_cost)}[/dim]"
+                f"[dim]💰 LLM Cost: {format_llm_cost(qadi_result.total_llm_cost)}[/dim]"
             )
 
             # Phase 2: Evolution
@@ -635,7 +685,7 @@ async def _run_evolution_pipeline(
                         "context": context,
                         "execution_time": evolution_result.execution_time,
                         "generations": evolution_result.total_generations,
-                        "llm_cost": qadi_result.llm_cost,
+                        "llm_cost": qadi_result.total_llm_cost,
                         "metrics": evolution_result.evolution_metrics,
                         "best_ideas": [
                             {

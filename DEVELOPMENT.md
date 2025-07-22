@@ -59,17 +59,18 @@ uv run isort src/ tests/
 
 # CLI commands (must use uv run prefix)
 uv run mad-spark --help
-uv run python qadi_simple_multi.py "Your question"
+uv run python qadi_hypothesis.py "Your question"
+uv run mad-spark evolve "Your problem" --temperature 1.2
 ```
 
 ## Architecture Overview
 
 ### Core Design Principles
 
-1. **SOLID Principles**: Single responsibility, open/closed, interface segregation
-2. **Strategy Pattern**: Pluggable algorithms (mutation strategies, agents)
-3. **Factory Pattern**: Agent and evaluator creation
-4. **Registry Pattern**: Dynamic component registration
+1. **Hypothesis-Driven**: True QADI methodology from consulting approach
+2. **Simplicity First**: Removed unnecessary complexity (classifiers, adaptive prompts)
+3. **Unified Evaluation**: Consistent 5-criteria scoring throughout
+4. **Phase Optimization**: Each QADI phase uses optimal hyperparameters
 5. **Async-First**: All operations designed for concurrency
 
 ### System Components
@@ -77,11 +78,12 @@ uv run python qadi_simple_multi.py "Your question"
 #### 1. QADI Core (`src/mad_spark_alt/core/`)
 
 - **interfaces.py**: Core abstractions and protocols
-- **orchestrator.py**: Basic QADI cycle orchestration
-- **smart_orchestrator.py**: Enhanced orchestration with circuit breakers
-- **registry.py**: Component registration and discovery
-- **smart_registry.py**: Intelligent agent selection
+- **simple_qadi_orchestrator.py**: Clean QADI implementation (NEW)
+- **qadi_prompts.py**: Universal prompts for all phases (NEW)
+- **unified_evaluator.py**: 5-criteria evaluation system (NEW)
 - **llm_provider.py**: Unified LLM API interface
+- **registry.py**: Component registration
+- **smart_orchestrator.py**: Legacy multi-agent system (being phased out)
 
 #### 2. Thinking Agents (`src/mad_spark_alt/agents/`)
 
@@ -101,28 +103,48 @@ uv run python qadi_simple_multi.py "Your question"
 - **genetic_algorithm.py**: Main GA implementation
 - **operators.py**: Crossover, mutation, selection operators
 - **mutation_strategies.py**: Strategy pattern for mutations
-- **fitness.py**: Fitness evaluation using creativity metrics
+- **fitness.py**: Unified fitness evaluation using 5-criteria system
+- **cached_fitness.py**: Result caching (50-70% API reduction)
+- **checkpointing.py**: Save/resume evolution state
+- **llm_operators.py**: AI-powered genetic operators
 
-#### 5. Dynamic Prompt Engineering (`src/mad_spark_alt/core/`)
+### True QADI Methodology
 
-- **prompt_classifier.py**: Intelligent question type detection
-- **adaptive_prompts.py**: Domain-specific prompt templates
+The system implements the hypothesis-driven QADI approach from "Shin Logical Thinking":
 
-The system automatically detects question types and adapts prompts for optimal QADI analysis:
+#### Phase Implementation
 
-**Question Types**:
-- Technical: Software, architecture, implementation
-- Business: Strategy, growth, revenue, operations
-- Creative: Design, innovation, artistic endeavors
-- Research: Analysis, investigation, academic inquiry
-- Planning: Organization, project management, timelines
-- Personal: Individual growth, skills, career development
+1. **Question (Q)** - Core Question Extraction
+   - Extracts THE single most important question from any input
+   - Uses low temperature (0.3) for focused extraction
+   - Handles questions, statements, topics, requests uniformly
 
-**Key Features**:
-- Word boundary matching prevents false positives
-- Confidence scoring with separation factor
-- 100% accuracy on common question types
-- Manual override with `--type=TYPE` flag
+2. **Abduction (A)** - Hypothesis Generation  
+   - Generates 3 specific hypotheses to answer the core question
+   - Default temperature 0.8 (user adjustable with --temperature)
+   - Each hypothesis directly addresses the question
+
+3. **Deduction (D)** - Evaluation & Answer
+   - Evaluates each hypothesis on 5 criteria:
+     - **Novelty** (20%): Innovation/uniqueness
+     - **Impact** (30%): Positive change potential
+     - **Cost** (20%): Resource efficiency (inverted)
+     - **Feasibility** (20%): Implementation practicality
+     - **Risks** (10%): Risk level (inverted)
+   - Provides THE definitive answer with action plan
+   - Uses low temperature (0.2) for analytical precision
+
+4. **Induction (I)** - Verification
+   - Verifies the answer with 3 real-world examples
+   - Confirms broad applicability
+   - Medium temperature (0.5) for balanced examples
+
+#### Key Improvements
+
+- **Universal Prompts**: Single set works for all input types
+- **Phase Optimization**: Each phase uses ideal hyperparameters
+- **Unified Scoring**: Evolution uses same criteria as deduction
+- **User Control**: Temperature adjustment for creativity tuning
 
 ### Key Patterns
 
@@ -149,26 +171,44 @@ if not circuit_breaker.can_call():
     return fallback_result
 ```
 
-#### Dynamic Prompt Engineering
+#### Simple QADI Usage
 ```python
-# Automatic question type detection
-from mad_spark_alt.core.prompt_classifier import classify_question
+# New simplified orchestrator
+from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
 
-result = classify_question("How to build a microservices architecture?")
-# result.question_type: QuestionType.TECHNICAL
-# result.confidence: 0.70
-# result.complexity: ComplexityLevel.MEDIUM
+# Create orchestrator with optional temperature override
+orchestrator = SimpleQADIOrchestrator(temperature_override=1.2)
 
-# Adaptive prompt generation
-from mad_spark_alt.core.adaptive_prompts import get_adaptive_prompt
-
-prompt = get_adaptive_prompt(
-    phase_name="questioning",
-    classification_result=result,
-    prompt="How to build microservices?",
-    concrete_mode=True
+# Run complete QADI cycle
+result = await orchestrator.run_qadi_cycle(
+    user_input="How to reduce employee turnover?",
+    context="Tech startup with 50 employees"
 )
-# Returns domain-specific prompt for technical questions
+
+# Access results
+print(f"Core Question: {result.core_question}")
+print(f"Best Answer: {result.final_answer}")
+print(f"Action Plan: {result.action_plan}")
+print(f"Verification: {result.verification_conclusion}")
+```
+
+#### Unified Evaluation
+```python
+from mad_spark_alt.core.unified_evaluator import UnifiedEvaluator
+
+evaluator = UnifiedEvaluator()
+
+# Evaluate a hypothesis
+evaluation = await evaluator.evaluate_hypothesis(
+    hypothesis="Implement flexible work arrangements",
+    context="Reduce employee turnover",
+    core_question="What causes employees to leave?"
+)
+
+# Access scores
+print(f"Novelty: {evaluation.scores['novelty']}")
+print(f"Impact: {evaluation.scores['impact']}")
+print(f"Overall: {evaluation.overall_score}")
 ```
 
 ## Code Standards
