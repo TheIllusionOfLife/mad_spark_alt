@@ -17,6 +17,7 @@ from .interfaces import (
 )
 from .llm_provider import LLMRequest, llm_manager
 from .qadi_prompts import PHASE_HYPERPARAMETERS, QADIPrompts, calculate_hypothesis_score
+from .smart_registry import smart_registry
 
 logger = logging.getLogger(__name__)
 
