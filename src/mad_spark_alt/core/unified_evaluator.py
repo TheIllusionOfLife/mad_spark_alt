@@ -188,7 +188,7 @@ Risks: [score] - [one line explanation]
             # Check each criterion
             for criterion in criteria:
                 # Match "Criterion: score - explanation" format (case insensitive)
-                # Allow negative numbers but will clamp them to valid range
+                # Allow negative numbers in the score pattern
                 pattern = rf"^{criterion}:\s*(-?[0-9.]+)\s*[-]\s*(.+)$"
                 match = re.match(pattern, line, re.IGNORECASE)
 

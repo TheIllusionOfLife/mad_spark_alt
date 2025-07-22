@@ -3,24 +3,12 @@ Prompt Classification System for Dynamic QADI Analysis
 
 This module automatically detects question types and complexity to enable
 adaptive prompt selection for optimal QADI analysis results.
-
-DEPRECATED: This module is deprecated as of v1.x. Use SimpleQADIOrchestrator instead,
-which provides universal prompts without classification. This module will be removed in v2.0.0.
 """
 
 import re
-import warnings
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set, Tuple, cast
-
-# Issue deprecation warning when module is imported
-warnings.warn(
-    "prompt_classifier module is deprecated and will be removed in v2.0.0. "
-    "Use SimpleQADIOrchestrator which provides universal prompts without classification.",
-    DeprecationWarning,
-    stacklevel=2,
-)
 
 
 class QuestionType(Enum):
