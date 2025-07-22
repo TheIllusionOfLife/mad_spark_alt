@@ -47,6 +47,10 @@ from .smart_registry import (
     smart_registry,
 )
 
+# Import new simplified QADI components
+from .simple_qadi_orchestrator import SimpleQADIOrchestrator, SimpleQADIResult
+from .unified_evaluator import UnifiedEvaluator, HypothesisEvaluation
+
 # Import robust orchestrator if available
 try:
     from .robust_orchestrator import RobustQADIOrchestrator
@@ -109,4 +113,9 @@ __all__ = [
     "get_smart_agent",
     # Fast orchestrator
     "FastQADIOrchestrator",
+    # Simple QADI components
+    "SimpleQADIOrchestrator",
+    "SimpleQADIResult",
+    "UnifiedEvaluator",
+    "HypothesisEvaluation",
 ]

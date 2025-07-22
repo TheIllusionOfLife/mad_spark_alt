@@ -81,8 +81,8 @@ class UnifiedEvaluator:
             )
 
         except Exception as e:
-            logger.exception("Failed to evaluate hypothesis")
-            # Return default scores on failure
+            logger.exception("Failed to evaluate hypothesis: %s", hypothesis[:50])
+            # Return default scores on failure with informative message
             default_scores = {
                 "novelty": 0.5,
                 "impact": 0.5,
@@ -90,12 +90,18 @@ class UnifiedEvaluator:
                 "feasibility": 0.5,
                 "risks": 0.5,
             }
+            error_msg = "Evaluation failed - using default score"
+            if "rate limit" in str(e).lower():
+                error_msg = "Rate limited - using default score"
+            elif "api" in str(e).lower():
+                error_msg = "API error - using default score"
+            
             return HypothesisEvaluation(
                 content=hypothesis,
                 scores=default_scores,
                 overall_score=0.5,
-                explanations=dict.fromkeys(default_scores, "Evaluation failed"),
-                metadata={"error": str(e)},
+                explanations=dict.fromkeys(default_scores, error_msg),
+                metadata={"error": str(e), "error_type": type(e).__name__},
             )
 
     async def evaluate_multiple(
@@ -182,7 +188,8 @@ Risks: [score] - [one line explanation]
             # Check each criterion
             for criterion in criteria:
                 # Match "Criterion: score - explanation" format (case insensitive)
-                pattern = rf"^{criterion}:\s*([0-9.]+)\s*[-]\s*(.+)$"
+                # Allow negative numbers in the score pattern
+                pattern = rf"^{criterion}:\s*(-?[0-9.]+)\s*[-]\s*(.+)$"
                 match = re.match(pattern, line, re.IGNORECASE)
 
                 if match:

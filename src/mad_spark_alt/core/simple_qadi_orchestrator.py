@@ -186,9 +186,30 @@ class SimpleQADIOrchestrator:
             result.total_llm_cost += induction_result["cost"]
             result.phase_results["induction"] = induction_result
 
-        except Exception:
-            logger.exception("QADI cycle failed")
-            raise
+        except Exception as e:
+            logger.exception("QADI cycle failed: %s", e)
+            # Provide user-friendly error message
+            if "API" in str(e) or "api" in str(e):
+                raise RuntimeError(
+                    "QADI cycle failed due to API issues. Please check:\n"
+                    "1. Your API keys are correctly set\n"
+                    "2. You have sufficient API credits\n"
+                    "3. The API service is accessible\n"
+                    f"Original error: {e}"
+                )
+            elif "timeout" in str(e).lower():
+                raise RuntimeError(
+                    "QADI cycle timed out. This might be due to:\n"
+                    "1. Slow API response times\n"
+                    "2. Complex input requiring more processing\n"
+                    "Try again with simpler input or check your connection.\n"
+                    f"Original error: {e}"
+                )
+            else:
+                raise RuntimeError(
+                    f"QADI cycle failed unexpectedly. Error: {e}\n"
+                    "Please check the logs for more details."
+                )
 
         return result
 
@@ -228,7 +249,16 @@ class SimpleQADIOrchestrator:
 
             except Exception as e:
                 if attempt == max_retries:
-                    raise
+                    logger.error(
+                        "Failed to extract core question after %d attempts. "
+                        "Last error: %s. Please check your LLM API configuration.",
+                        max_retries + 1,
+                        e,
+                    )
+                    raise RuntimeError(
+                        f"Failed to extract core question after {max_retries + 1} attempts. "
+                        f"Last error: {e}. Please check your LLM API configuration and try again."
+                    )
                 logger.warning("Question phase attempt %d failed: %s", attempt + 1, e)
                 await asyncio.sleep(1)
 
@@ -298,7 +328,16 @@ class SimpleQADIOrchestrator:
 
             except Exception as e:
                 if attempt == max_retries:
-                    raise
+                    logger.error(
+                        "Failed to generate hypotheses after %d attempts. "
+                        "Last error: %s. The LLM may not be responding correctly.",
+                        max_retries + 1,
+                        e,
+                    )
+                    raise RuntimeError(
+                        f"Failed to generate hypotheses after {max_retries + 1} attempts. "
+                        f"Last error: {e}. Please ensure your LLM API is working and try again."
+                    )
                 logger.warning("Abduction phase attempt %d failed: %s", attempt + 1, e)
                 await asyncio.sleep(1)
 
@@ -369,7 +408,16 @@ class SimpleQADIOrchestrator:
 
             except Exception as e:
                 if attempt == max_retries:
-                    raise
+                    logger.error(
+                        "Failed to evaluate hypotheses after %d attempts. "
+                        "Last error: %s. The evaluation process encountered issues.",
+                        max_retries + 1,
+                        e,
+                    )
+                    raise RuntimeError(
+                        f"Failed to evaluate hypotheses after {max_retries + 1} attempts. "
+                        f"Last error: {e}. The LLM may be having trouble with the evaluation format."
+                    )
                 logger.warning("Deduction phase attempt %d failed: %s", attempt + 1, e)
                 await asyncio.sleep(1)
 
@@ -406,7 +454,11 @@ class SimpleQADIOrchestrator:
         
         if not section_lines:
             # Log warning and return default scores if parsing fails
-            logger.warning("Failed to parse scores for hypothesis %d", hypothesis_num)
+            logger.warning(
+                "Failed to parse scores for hypothesis %d. Using default scores. "
+                "This may indicate the LLM response didn't follow the expected format.",
+                hypothesis_num,
+            )
             return HypothesisScore(0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
 
         section = ' '.join(section_lines)
@@ -508,8 +560,10 @@ class SimpleQADIOrchestrator:
                         current_example += " " + line
                 
                 # Don't forget the last example if no conclusion found
-                if current_index is not None and current_example.strip():
-                    examples.append(current_example.strip())
+                # Only append if we didn't break on Conclusion: line
+                else:
+                    if current_index is not None and current_example.strip():
+                        examples.append(current_example.strip())
 
                 # Extract conclusion
                 conclusion_match = re.search(
@@ -528,7 +582,16 @@ class SimpleQADIOrchestrator:
 
             except Exception as e:
                 if attempt == max_retries:
-                    raise
+                    logger.error(
+                        "Failed to verify answer after %d attempts. "
+                        "Last error: %s. The verification process could not complete.",
+                        max_retries + 1,
+                        e,
+                    )
+                    raise RuntimeError(
+                        f"Failed to verify answer after {max_retries + 1} attempts. "
+                        f"Last error: {e}. The system will proceed with unverified results."
+                    )
                 logger.warning("Induction phase attempt %d failed: %s", attempt + 1, e)
                 await asyncio.sleep(1)
 
