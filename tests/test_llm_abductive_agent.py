@@ -39,12 +39,12 @@ class TestLLMAbductiveAgent:
         agent = LLMAbductiveAgent(
             name="CustomAbductiveAgent",
             llm_manager=mock_llm_manager,
-            preferred_provider=LLMProvider.OPENAI,
+            preferred_provider=LLMProvider.GOOGLE,
         )
 
         assert agent.name == "CustomAbductiveAgent"
         assert agent.llm_manager == mock_llm_manager
-        assert agent.preferred_provider == LLMProvider.OPENAI
+        assert agent.preferred_provider == LLMProvider.GOOGLE
 
     def test_validate_config(self):
         """Test configuration validation."""
@@ -144,8 +144,8 @@ class TestLLMAbductiveAgent:
         mock_llm_manager = AsyncMock()
         mock_response = LLMResponse(
             content="Invalid JSON content",
-            provider=LLMProvider.OPENAI,
-            model="gpt-4o-mini",
+            provider=LLMProvider.GOOGLE,
+            model="gemini-2.5-flash",
             cost=0.001,
             response_time=0.5,
         )
@@ -176,8 +176,8 @@ class TestLLMAbductiveAgent:
 
         mock_response = LLMResponse(
             content=json.dumps(valid_analysis),  # Proper JSON conversion
-            provider=LLMProvider.OPENAI,
-            model="gpt-4o-mini",
+            provider=LLMProvider.GOOGLE,
+            model="gemini-2.5-flash",
             cost=0.002,
             response_time=0.7,
         )
@@ -218,8 +218,8 @@ class TestLLMAbductiveAgent:
 
         mock_response = LLMResponse(
             content=json.dumps(hypotheses_data),  # Proper JSON conversion
-            provider=LLMProvider.OPENAI,
-            model="gpt-4o-mini",
+            provider=LLMProvider.GOOGLE,
+            model="gemini-2.5-flash",
             cost=0.005,
             response_time=1.2,
         )
@@ -266,8 +266,8 @@ class TestLLMAbductiveAgent:
                 }
                 mock_response = LLMResponse(
                     content=json.dumps(analysis),
-                    provider=LLMProvider.OPENAI,
-                    model="gpt-4o-mini",
+                    provider=LLMProvider.GOOGLE,
+                    model="gemini-2.5-flash",
                     cost=0.002,
                     response_time=0.5,
                 )
@@ -285,8 +285,8 @@ class TestLLMAbductiveAgent:
                 ]
                 mock_response = LLMResponse(
                     content=json.dumps(hypotheses),
-                    provider=LLMProvider.OPENAI,
-                    model="gpt-4o-mini",
+                    provider=LLMProvider.GOOGLE,
+                    model="gemini-2.5-flash",
                     cost=0.003,
                     response_time=0.7,
                 )
@@ -295,8 +295,8 @@ class TestLLMAbductiveAgent:
             else:
                 mock_response = LLMResponse(
                     content="[0]",  # First hypothesis ranked best
-                    provider=LLMProvider.OPENAI,
-                    model="gpt-4o-mini",
+                    provider=LLMProvider.GOOGLE,
+                    model="gemini-2.5-flash",
                     cost=0.001,
                     response_time=0.3,
                 )

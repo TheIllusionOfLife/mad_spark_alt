@@ -165,7 +165,7 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
         
         # Simulate multiple LLM calls with cost tracking
         operations = [
-            {"input_tokens": 100, "output_tokens": 200, "expected_cost": 0.00135},  # (100/1000 * 0.00015) + (200/1000 * 0.0006)
+            {"input_tokens": 100, "output_tokens": 200, "expected_cost": 0.000135},  # (100/1000 * 0.00015) + (200/1000 * 0.0006) = 0.000015 + 0.00012 = 0.000135
             {"input_tokens": 500, "output_tokens": 1000, "expected_cost": 0.000675},  # (500/1000 * 0.00015) + (1000/1000 * 0.0006) = 0.000075 + 0.0006 = 0.000675
             {"input_tokens": 50, "output_tokens": 100, "expected_cost": 0.0000675},  # (50/1000 * 0.00015) + (100/1000 * 0.0006) = 0.0000075 + 0.00006 = 0.0000675
         ]
@@ -223,7 +223,7 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
         
         # Very large token counts
         cost = cost_utils.calculate_llm_cost(1000000, 500000, "gemini-2.5-flash")
-        assert cost == 450.0  # (1000000/1000 * 0.00015) + (500000/1000 * 0.0006)
+        assert cost == 0.45  # (1000000/1000 * 0.00015) + (500000/1000 * 0.0006) = 0.15 + 0.3 = 0.45
         
         # Unknown model falls back to Gemini 2.5 Flash
         cost = cost_utils.calculate_llm_cost(100, 100, "unknown-model")
@@ -231,7 +231,7 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
         
         # Fractional tokens (should handle gracefully)
         cost = cost_utils.calculate_llm_cost(150, 75, "gemini-2.5-flash")
-        assert cost == 0.000675  # (150/1000 * 0.00015) + (75/1000 * 0.0006)
+        assert cost == 0.0000675  # (150/1000 * 0.00015) + (75/1000 * 0.0006) = 0.0000225 + 0.000045 = 0.0000675
 
     @pytest.mark.asyncio
     async def test_cost_propagation_in_error_scenarios(self, orchestrator, mock_llm_manager):
@@ -294,7 +294,7 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
         )
         assert input_tokens == 100
         assert output_tokens == 200
-        assert cost == 0.00135  # (100/1000 * 0.00015) + (200/1000 * 0.0006)
+        assert cost == 0.000135  # (100/1000 * 0.00015) + (200/1000 * 0.0006) = 0.000015 + 0.00012 = 0.000135
         
         # Alternative format
         cost, input_tokens, output_tokens = cost_utils.calculate_cost_with_usage(
@@ -303,7 +303,7 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
         )
         assert input_tokens == 150
         assert output_tokens == 250
-        assert cost == 0.000375  # (150/1000 * 0.00015) + (250/1000 * 0.0006)
+        assert cost == 0.0001725  # (150/1000 * 0.00015) + (250/1000 * 0.0006) = 0.0000225 + 0.00015 = 0.0001725
         
         # Empty usage dict
         cost, input_tokens, output_tokens = cost_utils.calculate_cost_with_usage(
