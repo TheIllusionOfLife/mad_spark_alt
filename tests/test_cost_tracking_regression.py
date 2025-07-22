@@ -231,7 +231,7 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
         
         # Fractional tokens (should handle gracefully)
         cost = cost_utils.calculate_llm_cost(150, 75, "gemini-2.5-flash")
-        assert cost == 0.0000675  # (150/1000 * 0.00015) + (75/1000 * 0.0006) = 0.0000225 + 0.000045 = 0.0000675
+        assert cost == pytest.approx(0.0000675)  # (150/1000 * 0.00015) + (75/1000 * 0.0006) = 0.0000225 + 0.000045 = 0.0000675
 
     @pytest.mark.asyncio
     async def test_cost_propagation_in_error_scenarios(self, orchestrator, mock_llm_manager):
