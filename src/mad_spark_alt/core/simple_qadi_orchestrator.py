@@ -13,6 +13,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .interfaces import (
     GeneratedIdea,
+    IdeaGenerationRequest,
+    IdeaGenerationResult,
     ThinkingMethod,
 )
 from .json_utils import safe_json_parse
@@ -174,9 +176,7 @@ class SimpleQADIOrchestrator:
 
         return result
 
-    async def _run_questioning_phase(
-        self, user_input: str, max_retries: int
-    ) -> str:
+    async def _run_questioning_phase(self, user_input: str, max_retries: int) -> str:
         """Extract the core question from user input."""
         prompt = self.prompts.get_questioning_prompt(user_input)
         hyperparams = PHASE_HYPERPARAMETERS["questioning"]
@@ -191,14 +191,18 @@ class SimpleQADIOrchestrator:
                 )
 
                 response = await llm_manager.generate(request)
+                self.total_llm_cost = (
+                    getattr(self, "total_llm_cost", 0.0) + response.cost
+                )
 
                 # Extract the core question
                 content = response.content.strip()
                 match = re.search(r"Q:\s*(.+)", content)
                 if match:
                     return match.group(1).strip()
-                # Fallback: use the whole response if no Q: prefix
-                return content.replace("Q:", "").strip()
+                else:
+                    # Fallback: use the whole response if no Q: prefix
+                    return content.replace("Q:", "").strip()
 
             except Exception as e:
                 if attempt == max_retries:
@@ -206,7 +210,7 @@ class SimpleQADIOrchestrator:
                 logger.warning(f"Question phase attempt {attempt + 1} failed: {e}")
                 await asyncio.sleep(1)
 
-        raise RuntimeError("Failed to extract core question after retries")
+        raise RuntimeError("Failed to extract core question")
 
     async def _run_abduction_phase(
         self, user_input: str, core_question: str, max_retries: int

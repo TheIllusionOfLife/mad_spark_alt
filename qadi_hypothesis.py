@@ -137,9 +137,12 @@ def main() -> None:
         print(f"Error: Temperature must be between 0.0 and 2.0 (got {args.temperature})")
         sys.exit(1)
     
-    # Load environment variables
-    from dotenv import load_dotenv
-    load_dotenv()
+    # Load environment variables (optional)
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        print("Warning: python-dotenv not available, environment variables not loaded from .env file")
     
     # Run analysis
     asyncio.run(run_qadi_analysis(
