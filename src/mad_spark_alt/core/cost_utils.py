@@ -55,19 +55,19 @@ def calculate_llm_cost_from_config(
 ) -> float:
     """
     Calculate cost for LLM usage using provided cost rates.
-    
+
     This function uses cost values directly from ModelConfig objects,
     avoiding model name mismatch issues.
-    
+
     Args:
         input_tokens: Number of input/prompt tokens
         output_tokens: Number of output/completion tokens
         input_cost_per_1k: Cost per 1k input tokens (from ModelConfig)
         output_cost_per_1k: Cost per 1k output tokens (from ModelConfig)
-        
+
     Returns:
         Total cost in USD
-        
+
     Example:
         >>> cost = calculate_llm_cost_from_config(1000, 500, 0.00015, 0.0006)
         >>> print(f"Cost: ${cost:.4f}")

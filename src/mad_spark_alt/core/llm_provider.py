@@ -343,10 +343,10 @@ class GoogleProvider(LLMProviderInterface):
         """Calculate cost based on token usage and model pricing."""
         # Use centralized cost calculation with ModelConfig costs directly
         return calculate_llm_cost_from_config(
-            input_tokens, 
+            input_tokens,
             output_tokens,
             model_config.input_cost_per_1k,
-            model_config.output_cost_per_1k
+            model_config.output_cost_per_1k,
         )
 
     async def close(self) -> None:
