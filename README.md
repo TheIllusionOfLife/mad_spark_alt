@@ -1,16 +1,19 @@
-# Mad Spark Alt - Multi-Agent Idea Generation System
+# Mad Spark Alt - Hypothesis-Driven Analysis & Evolution System
 
-A multi-agent framework for collaborative idea generation based on the QADI (Question → Abduction → Deduction → Induction) methodology, with integrated creativity evaluation and genetic evolution capabilities.
+A hypothesis-driven analysis system based on the QADI methodology from "Shin Logical Thinking", featuring AI-powered hypothesis generation, evaluation, and genetic evolution to find optimal solutions.
 
 ## Features
 
-- 🎯 **QADI Methodology**: Question → Abduction → Deduction → Induction thinking cycle
-- 🤖 **Multi-Agent System**: Specialized AI agents for different thinking methods
-- 🧨 **Dynamic Prompt Engineering**: Auto-detects question types for optimal analysis
-- 📊 **Creativity Evaluation**: Multi-dimensional assessment of ideas
-- 🧬 **Genetic Evolution**: Evolve ideas through generations using genetic algorithms
-- ⚡ **Async Processing**: Efficient parallel processing with timeout management
-- 🔌 **Extensible**: Plugin system for custom agents and evaluators
+- 🎯 **True QADI Methodology**: Hypothesis-driven consulting approach
+  - **Q**: Extract the core question from any input
+  - **A**: Generate hypotheses to answer the question
+  - **D**: Evaluate and determine the best answer
+  - **I**: Verify with real-world examples
+- 🧬 **Genetic Evolution**: Evolve hypotheses using AI-powered genetic algorithms
+- 📊 **Unified Evaluation**: 5-criteria scoring (novelty, impact, cost, feasibility, risks)
+- 🌡️ **Temperature Control**: Adjust creativity level for hypothesis generation
+- ⚡ **Phase-Optimized**: Each QADI phase uses optimal AI parameters
+- 🔌 **Extensible**: Plugin system for custom evaluators
 
 ## Installation
 
@@ -42,17 +45,17 @@ echo "ANTHROPIC_API_KEY=your_key_here" >> .env
 ### Generate Ideas with QADI
 
 ```bash
-# RECOMMENDED: Multi-agent QADI with Google API (auto-detects question type)
+# NEW: Hypothesis-driven QADI analysis
+uv run python qadi_hypothesis.py "How can we reduce plastic waste?"
+
+# Adjust creativity with temperature (0.0-2.0)
+uv run python qadi_hypothesis.py "New product ideas" --temperature 1.5
+
+# Show detailed evaluation scores
+uv run python qadi_hypothesis.py "Climate solutions" --verbose
+
+# Legacy multi-agent version (being phased out)
 uv run python qadi_simple_multi.py "How can we reduce plastic waste?"
-
-# With manual question type override
-uv run python qadi_simple_multi.py --type=business "How to monetize AI technology"
-
-# Concrete mode for implementation-focused results
-uv run python qadi_simple_multi.py --concrete "Build a mobile app for food delivery"
-
-# Quick single-prompt version
-uv run python qadi.py "How can we reduce plastic waste?"
 ```
 
 ### Example Prompts to Try
@@ -98,62 +101,150 @@ uv run mad-spark list-evaluators
 
 # Run genetic evolution demo
 uv run python examples/evolution_demo.py
+
+# IMPORTANT: Evolution features - see below for the powerful evolution system!
 ```
 
 ### Python API
 
 ```python
 import asyncio
-from mad_spark_alt.core import SmartQADIOrchestrator
+from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
 
-async def generate_ideas():
-    orchestrator = SmartQADIOrchestrator()  # Uses LLM agents automatically
+async def run_analysis():
+    orchestrator = SimpleQADIOrchestrator(temperature_override=1.2)
     result = await orchestrator.run_qadi_cycle(
-        problem_statement="How can we reduce plastic waste?",
-        cycle_config={"max_ideas_per_method": 3}
+        user_input="How can we reduce plastic waste?",
+        context="Focus on practical, scalable solutions"
     )
     
-    print(f"Generated {len(result.synthesized_ideas)} ideas")
-    for idea in result.synthesized_ideas[:3]:
-        print(f"💡 {idea.content}")
+    print(f"Core Question: {result.core_question}")
+    print(f"\nBest Answer: {result.final_answer}")
+    print(f"\nAction Plan:")
+    for i, action in enumerate(result.action_plan):
+        print(f"{i+1}. {action}")
 
-asyncio.run(generate_ideas())
+asyncio.run(run_analysis())
 ```
 
 For detailed API examples and advanced usage patterns, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
-## Dynamic Prompt Engineering
+## 🧬 Genetic Evolution System
 
-The system automatically detects question types and adapts prompts for optimal results:
+**Evolve your hypotheses through AI-powered genetic algorithms!**
 
-**Auto-Detected Question Types**:
-- **Technical**: Software architecture, implementation, coding questions
-- **Business**: Strategy, growth, revenue, market-related queries  
-- **Creative**: Design, innovation, artistic, brainstorming topics
-- **Research**: Analysis, investigation, academic inquiries
-- **Planning**: Organization, project management, timeline questions
-- **Personal**: Individual growth, skills, career development
+The evolution system takes the hypotheses generated by QADI and evolves them over multiple generations to find optimal solutions:
 
-**Adaptive Features**:
-- **Domain-specific prompts**: Each question type uses specialized prompts
-- **Complexity detection**: Adjusts response depth based on question complexity
-- **Manual override**: Use `--type=TYPE` to force a specific perspective
-- **High accuracy**: 100% auto-detection success rate on common questions
+```bash
+# Evolve ideas with default settings
+uv run mad-spark evolve "How can we reduce food waste?"
 
-## System Overview
+# Quick evolution (2 generations, smaller population)
+uv run mad-spark evolve "Climate solutions" --quick
 
-**Architecture**: Multi-agent system with QADI orchestration, creativity evaluation, and genetic evolution
+# Custom evolution parameters
+uv run mad-spark evolve "New product ideas" \
+  --generations 5 \
+  --population 20 \
+  --temperature 1.5
+
+# Save results to file
+uv run mad-spark evolve "Business strategies" --output results.json
+```
+
+### How Evolution Works
+
+1. **Initial Population**: QADI generates hypotheses as the starting population
+2. **Fitness Evaluation**: Each hypothesis is scored on 5 criteria:
+   - **Novelty** (20%): How innovative/unique is the approach?
+   - **Impact** (30%): What level of positive change will it create?
+   - **Cost** (20%): Resource efficiency (lower cost = higher score)
+   - **Feasibility** (20%): How practical is implementation?
+   - **Risks** (10%): Risk level (lower risk = higher score)
+3. **Selection**: Best hypotheses are selected for breeding
+4. **Crossover**: Combine elements from two parent ideas (75% rate)
+5. **Mutation**: Introduce variations for diversity (15% rate)
+6. **Next Generation**: Repeat until optimal solutions emerge
+
+### Evolution Features
+
+- **Parallel Evaluation**: Evaluates up to 8 ideas simultaneously
+- **Smart Caching**: 50-70% reduction in API calls through result caching
+- **Checkpointing**: Save/resume evolution state for long runs
+- **Diversity Preservation**: Prevents convergence to local optima
+- **Real-time Progress**: Track fitness improvements and cache performance
+
+### Example Evolution Output
+
+```
+🧬 Evolution Pipeline
+Problem: How can we reduce plastic waste in oceans?
+Generations: 5 | Population: 12 | Temperature: 0.8
+
+✅ Generated 3 initial hypotheses
+💰 LLM Cost: $0.0234
+
+✅ Evolution completed in 45.2s
+
+🏆 Top Evolved Ideas:
+1. Autonomous ocean drones with ML-powered plastic detection... (Fitness: 0.892)
+2. Blockchain-tracked plastic credits incentivizing cleanup... (Fitness: 0.847)
+3. Bioengineered bacteria that safely decompose ocean plastic... (Fitness: 0.823)
+
+📊 Results:
+• Fitness improvement: 47.3%
+• Ideas evaluated: 60
+• Best from generation: 4
+
+💾 Cache Performance:
+• Hit rate: 65%
+• LLM calls saved: 39
+```
+
+## How QADI Works
+
+### The Hypothesis-Driven Process
+
+1. **Q (Question)**: Extract the core question
+   - Input: "I want to reduce employee turnover"
+   - Output: "What factors are causing high-value employees to leave?"
+
+2. **A (Abduction)**: Generate hypotheses
+   - H1: "Lack of career growth opportunities"
+   - H2: "Poor work-life balance"
+   - H3: "Uncompetitive compensation"
+
+3. **D (Deduction)**: Evaluate and answer
+   - Scores each hypothesis on 5 criteria
+   - Determines: "Implement career development programs"
+   - Provides concrete action plan
+
+4. **I (Induction)**: Verify with examples
+   - Google's 20% time → 50% turnover reduction
+   - Hospital residency programs → 40% better retention
+   - Confirms answer is broadly applicable
+
+### Temperature Control
+
+Adjust the creativity level of hypothesis generation:
+- `0.0-0.5`: Conservative, practical hypotheses
+- `0.6-1.0`: Balanced creativity (default: 0.8)
+- `1.1-2.0`: Highly creative, unconventional ideas
+
+## System Architecture
+
+**Architecture**: Hypothesis-driven analysis with unified evaluation and genetic evolution
 
 **Key Components**:
-- **QADI Agents**: Question, Abduction, Deduction, Induction thinking methods
-- **Prompt Classifier**: Intelligent question type detection with 100% accuracy
-- **Adaptive Prompts**: Domain-specific prompts for each question type
-- **Evaluation System**: Multi-dimensional creativity assessment (diversity, quality, coherence)
-- **Evolution Engine**: Genetic algorithms for idea refinement
-  - **Result Caching**: 50-70% reduction in LLM calls through intelligent caching
-  - **Checkpointing**: Save/resume evolution state for long-running processes
-  - **Performance Monitoring**: Real-time cache hit rates and efficiency metrics
-- **Circuit Breakers**: Fault-tolerant LLM API integration
+- **Simple QADI Orchestrator**: Clean implementation of the 4-phase process
+- **Universal Prompts**: Single set of prompts for all input types
+- **Unified Evaluator**: Consistent 5-criteria scoring system
+- **Evolution Engine**: AI-powered genetic algorithms
+  - **Smart Operators**: LLM-based crossover and mutation
+  - **Result Caching**: 50-70% reduction in API calls
+  - **Checkpointing**: Save/resume evolution state
+  - **Real-time Monitoring**: Track progress and performance
+- **Phase Optimization**: Each QADI phase uses optimal hyperparameters
 
 For detailed architecture documentation, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
@@ -207,10 +298,10 @@ For comprehensive development guidelines, testing patterns, and contribution wor
    - Context: Method signatures don't match parent class interface
    - Approach: Update to match ThinkingAgentInterface expected signatures
 
-2. **Evolution CLI Integration**: Add evolution commands to main CLI
-   - Source: Natural progression after evolution system completion
-   - Context: Currently only accessible via example scripts
-   - Approach: Add `mad-spark evolve` command with proper argument parsing
+2. ~~**Evolution CLI Integration**~~ ✅ **COMPLETED**
+   - Evolution is now fully integrated in CLI with `mad-spark evolve`
+   - Added temperature control and comprehensive documentation
+   - See evolution section above for usage examples
 
 3. **Cost Estimation Centralization** (MEDIUM PRIORITY)
    - Source: Code duplication identified in PR #38
@@ -221,10 +312,6 @@ For comprehensive development guidelines, testing patterns, and contribution wor
    - Source: Type safety improvements needed
    - Context: Several methods missing proper return annotations
    - Approach: Systematic review and annotation of all public methods
-
-#### Known Issues / Blockers
-- **Evolution System**: Currently requires direct script execution, not integrated into CLI
-- **Medium Priority**: Additional testing coverage would improve robustness
 
 #### Session Learnings
 - **GitHub API Timestamps**: Git uses timezone offsets (+09:00) while GitHub uses UTC (Z suffix) - convert for comparison
