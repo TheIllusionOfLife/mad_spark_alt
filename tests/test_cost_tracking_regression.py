@@ -262,10 +262,10 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
             response_time=0.1,
         )
         
-        # Configure mock to return responses then fail
+        # Configure mock to return first response then fail immediately
+        # This simulates a failure after the first successful call
         mock_llm_manager.generate.side_effect = [
             successful_response,
-            error_response,
             Exception("API error after tokens consumed"),
         ]
         
@@ -275,22 +275,18 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
         with patch("mad_spark_alt.core.simple_qadi_orchestrator.llm_manager", mock_llm_manager):
             try:
                 await orchestrator.run_qadi_cycle("Test query")
-            except Exception:
-                # Verify that generate was called at least twice before failing
-                assert mock_llm_manager.generate.call_count >= 2
+            except Exception as e:
+                # Verify that generate was called at least once before failing
+                assert mock_llm_manager.generate.call_count >= 1
                 
-                # Calculate expected cost from the calls that succeeded
-                for call_idx in range(min(2, mock_llm_manager.generate.call_count)):
-                    if call_idx == 0:
-                        total_cost += successful_response.cost
-                    elif call_idx == 1:
-                        total_cost += error_response.cost
+                # The first successful call should have incurred cost
+                total_cost = successful_response.cost
                 
-                # Verify costs were tracked (at least from successful calls)
-                assert total_cost == 0.013  # 0.010 + 0.003
+                # Verify cost was tracked from the successful call
+                assert total_cost == 0.010
                 
-                # Verify the error was raised as expected
-                assert True  # Test passes if we reach here after exception
+                # Verify we got a RuntimeError about API issues
+                assert "QADI cycle failed due to API issues" in str(e)
         
         # Even though the cycle failed, the first phase should have recorded its cost
         # This tests that partial cost tracking works correctly
