@@ -247,7 +247,7 @@ class TestFitnessEvaluator:
     @pytest.mark.asyncio
     async def test_calculate_population_diversity(self) -> None:
         """Test population diversity calculation."""
-        # Create fitness individuals with varying content
+        # Create fitness individuals with proper evaluation_metadata structure
         diverse_individuals = [
             IndividualFitness(
                 idea=GeneratedIdea(
@@ -261,6 +261,23 @@ class TestFitnessEvaluator:
                 diversity_score=0.7,
                 quality_score=0.75,
                 overall_fitness=0.75,
+                evaluation_metadata={
+                    "unified_scores": {
+                        "novelty": 0.8,
+                        "impact": 0.7,
+                        "cost": 0.6,
+                        "feasibility": 0.75,
+                        "risks": 0.8
+                    },
+                    "unified_explanations": {
+                        "novelty": "Innovative solar approach",
+                        "impact": "High environmental impact",
+                        "cost": "Moderate implementation cost",
+                        "feasibility": "Technologically feasible",
+                        "risks": "Low technical risks"
+                    },
+                    "llm_cost": 0.01
+                }
             ),
             IndividualFitness(
                 idea=GeneratedIdea(
@@ -274,6 +291,23 @@ class TestFitnessEvaluator:
                 diversity_score=0.7,
                 quality_score=0.75,
                 overall_fitness=0.75,
+                evaluation_metadata={
+                    "unified_scores": {
+                        "novelty": 0.6,
+                        "impact": 0.8,
+                        "cost": 0.7,
+                        "feasibility": 0.8,
+                        "risks": 0.9
+                    },
+                    "unified_explanations": {
+                        "novelty": "Moderate novelty in urban planning",
+                        "impact": "High environmental and social impact",
+                        "cost": "Reasonable implementation cost",
+                        "feasibility": "Highly feasible",
+                        "risks": "Very low risks"
+                    },
+                    "llm_cost": 0.01
+                }
             ),
         ]
 
@@ -282,9 +316,10 @@ class TestFitnessEvaluator:
             diverse_individuals
         )
 
-        # Verify diversity is calculated
+        # Verify diversity is calculated - should be average of novelty scores (0.8 + 0.6) / 2 = 0.7
         assert isinstance(diversity, float)
         assert 0 <= diversity <= 1
+        assert diversity == 0.7  # Average of novelty scores
 
         # Test with single individual (should return 1.0)
         single_individual = [diverse_individuals[0]]
