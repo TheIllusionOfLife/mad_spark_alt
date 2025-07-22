@@ -21,7 +21,9 @@ class ModelCosts:
     output_cost_per_1k_tokens: float
 
 
-# Default model costs (as of 2024)
+# Default model costs (as of January 2025)
+# Note: Gemini 2.5 Flash has thinking/reasoning mode that costs $3.50 per million output tokens
+# when reasoning is enabled. This utility uses standard pricing as base rates.
 _MODEL_COSTS = {
     "gpt-4": ModelCosts(
         input_cost_per_1k_tokens=0.03,
@@ -54,6 +56,14 @@ _MODEL_COSTS = {
     "gemini-pro": ModelCosts(
         input_cost_per_1k_tokens=0.00025,
         output_cost_per_1k_tokens=0.001,
+    ),
+    "gemini-2.5-flash": ModelCosts(
+        input_cost_per_1k_tokens=0.00015,  # $0.15 per million tokens = $0.00015 per 1k tokens
+        output_cost_per_1k_tokens=0.0006,   # $0.60 per million tokens = $0.0006 per 1k tokens
+    ),
+    "gemini-2.0-flash-001": ModelCosts(
+        input_cost_per_1k_tokens=0.00015,
+        output_cost_per_1k_tokens=0.0006,
     ),
 }
 
