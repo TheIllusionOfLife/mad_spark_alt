@@ -25,6 +25,7 @@ from .core import (
     ModelOutput,
     OutputType,
     registry,
+    setup_llm_providers,
 )
 from .core.json_utils import format_llm_cost
 from .core.simple_qadi_orchestrator import SimpleQADIOrchestrator
@@ -95,6 +96,29 @@ def main(verbose: bool) -> None:
     load_env_file()
     setup_logging(verbose)
     register_default_evaluators()
+    
+    # Initialize LLM providers if API keys are available
+    try:
+        openai_key = os.getenv("OPENAI_API_KEY")
+        anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+        google_key = os.getenv("GOOGLE_API_KEY")
+        
+        async def init_llm():
+            await setup_llm_providers(
+                openai_api_key=openai_key,
+                anthropic_api_key=anthropic_key,
+                google_api_key=google_key
+            )
+        
+        try:
+            asyncio.get_event_loop().run_until_complete(init_llm())
+        except RuntimeError:
+            # No event loop, create one
+            asyncio.run(init_llm())
+    except Exception as e:
+        # LLM setup failed, but continue (some commands don't need LLMs)
+        if verbose:
+            console.print(f"[yellow]Warning: LLM providers not initialized: {e}[/yellow]")
 
 
 @main.command()
