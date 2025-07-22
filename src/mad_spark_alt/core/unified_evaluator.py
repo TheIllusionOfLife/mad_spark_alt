@@ -165,25 +165,38 @@ Risks: [score] - [one line explanation]
         explanations = {}
 
         criteria = ["novelty", "impact", "cost", "feasibility", "risks"]
-
+        
+        # Process line by line for more robust parsing
+        lines = response.split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Check each criterion
+            for criterion in criteria:
+                # Match "Criterion: score - explanation" format (case insensitive)
+                pattern = rf'^{criterion}:\s*([0-9.]+)\s*[-–]\s*(.+)$'
+                match = re.match(pattern, line, re.IGNORECASE)
+                
+                if match:
+                    try:
+                        score = float(match.group(1))
+                        # Ensure score is between 0 and 1
+                        score = max(0.0, min(1.0, score))
+                        scores[criterion] = score
+                        explanations[criterion] = match.group(2).strip()
+                    except (ValueError, TypeError):
+                        logger.warning(f"Failed to parse score for {criterion}: {match.group(1)}")
+                        scores[criterion] = 0.5
+                        explanations[criterion] = "Failed to parse score"
+                    break
+        
+        # Fill in any missing criteria with defaults
         for criterion in criteria:
-            # Look for pattern like "Novelty: 0.7 - explanation"
-            pattern = (
-                rf'{criterion}:\s*([0-9.]+)\s*[-–]\s*(.+?)(?={"|".join(criteria)}:|$)'
-            )
-            match = re.search(pattern, response, re.IGNORECASE | re.DOTALL)
-
-            if match:
-                try:
-                    score = float(match.group(1))
-                    # Ensure score is between 0 and 1
-                    score = max(0.0, min(1.0, score))
-                    scores[criterion] = score
-                    explanations[criterion] = match.group(2).strip()
-                except ValueError:
-                    scores[criterion] = 0.5
-                    explanations[criterion] = "Failed to parse score"
-            else:
+            if criterion not in scores:
+                logger.warning(f"No evaluation found for criterion: {criterion}")
                 scores[criterion] = 0.5
                 explanations[criterion] = "Not evaluated"
 
