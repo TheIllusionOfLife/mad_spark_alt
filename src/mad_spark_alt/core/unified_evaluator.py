@@ -95,7 +95,7 @@ class UnifiedEvaluator:
                 error_msg = "Rate limited - using default score"
             elif "api" in str(e).lower():
                 error_msg = "API error - using default score"
-            
+
             return HypothesisEvaluation(
                 content=hypothesis,
                 scores=default_scores,

@@ -295,30 +295,30 @@ class SimpleQADIOrchestrator:
                 # Extract hypotheses using line-by-line parsing for robustness
                 hypotheses = []
                 content = response.content.strip()
-                lines = content.split('\n')
-                
+                lines = content.split("\n")
+
                 current_hypothesis = ""
                 current_index = None
-                
+
                 for line in lines:
                     line = line.strip()
                     if not line:
                         continue
-                    
+
                     # Check if line starts with H1:, H2:, or H3:
-                    hypothesis_match = re.match(r'^H([123]):\s*(.*)$', line)
+                    hypothesis_match = re.match(r"^H([123]):\s*(.*)$", line)
                     if hypothesis_match:
                         # Save previous hypothesis if we have one
                         if current_index is not None and current_hypothesis.strip():
                             hypotheses.append(current_hypothesis.strip())
-                        
+
                         # Start new hypothesis
                         current_index = int(hypothesis_match.group(1))
                         current_hypothesis = hypothesis_match.group(2)
                     elif current_index is not None:
                         # Continue building current hypothesis
                         current_hypothesis += " " + line
-                
+
                 # Don't forget the last hypothesis
                 if current_index is not None and current_hypothesis.strip():
                     hypotheses.append(current_hypothesis.strip())
@@ -428,30 +428,32 @@ class SimpleQADIOrchestrator:
     ) -> HypothesisScore:
         """Parse scores for a specific hypothesis from deduction content."""
         # Use line-by-line parsing to extract hypothesis section
-        lines = content.split('\n')
+        lines = content.split("\n")
         section_lines = []
         in_section = False
-        
+
         for line in lines:
             line = line.strip()
             if not line:
                 continue
-                
+
             # Check if this is the start of our hypothesis section
-            hypothesis_match = re.match(rf'^(?:-\s*)?H{hypothesis_num}:(.*)$', line)
+            hypothesis_match = re.match(rf"^(?:-\s*)?H{hypothesis_num}:(.*)$", line)
             if hypothesis_match:
                 in_section = True
                 section_lines.append(hypothesis_match.group(1).strip())
                 continue
-            
+
             # Check if we've reached the next hypothesis or end section
             if in_section:
-                if (re.match(rf'^(?:-\s*)?H{hypothesis_num + 1}:', line) or
-                    line.startswith('ANSWER:') or
-                    line.startswith('Action Plan:')):
+                if (
+                    re.match(rf"^(?:-\s*)?H{hypothesis_num + 1}:", line)
+                    or line.startswith("ANSWER:")
+                    or line.startswith("Action Plan:")
+                ):
                     break
                 section_lines.append(line)
-        
+
         if not section_lines:
             # Log warning and return default scores if parsing fails
             logger.warning(
@@ -461,7 +463,7 @@ class SimpleQADIOrchestrator:
             )
             return HypothesisScore(0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
 
-        section = ' '.join(section_lines)
+        section = " ".join(section_lines)
 
         # Extract individual scores with improved robustness
         def extract_score(criterion: str, text: str) -> float:
@@ -471,7 +473,7 @@ class SimpleQADIOrchestrator:
                 rf"{criterion}\s*-\s*([0-9.]+)",  # "Novelty - 0.8"
                 rf"{criterion}\s*:\s*([0-9.]+)/?",  # "Novelty: 0.8/" or "Novelty: 0.8"
             ]
-            
+
             for pattern in patterns:
                 match = re.search(pattern, text, re.IGNORECASE)
                 if match:
@@ -481,7 +483,7 @@ class SimpleQADIOrchestrator:
                         return max(0.0, min(1.0, score))
                     except (ValueError, TypeError):
                         continue
-            
+
             # If no pattern matches, return default
             return 0.5
 
@@ -530,27 +532,27 @@ class SimpleQADIOrchestrator:
 
                 # Extract verification examples using line-by-line parsing
                 examples = []
-                lines = content.split('\n')
-                
+                lines = content.split("\n")
+
                 current_example = ""
                 current_index = None
-                
+
                 for line in lines:
                     line = line.strip()
                     if not line:
                         continue
-                    
+
                     # Check if line starts with "1.", "2.", or "3."
-                    example_match = re.match(r'^([123])\.\s*(.*)$', line)
+                    example_match = re.match(r"^([123])\.\s*(.*)$", line)
                     if example_match:
                         # Save previous example if we have one
                         if current_index is not None and current_example.strip():
                             examples.append(current_example.strip())
-                        
+
                         # Start new example
                         current_index = int(example_match.group(1))
                         current_example = example_match.group(2)
-                    elif line.startswith('Conclusion:'):
+                    elif line.startswith("Conclusion:"):
                         # Save last example before conclusion
                         if current_index is not None and current_example.strip():
                             examples.append(current_example.strip())
@@ -558,7 +560,7 @@ class SimpleQADIOrchestrator:
                     elif current_index is not None:
                         # Continue building current example
                         current_example += " " + line
-                
+
                 # Don't forget the last example if no conclusion found
                 # Only append if we didn't break on Conclusion: line
                 else:
