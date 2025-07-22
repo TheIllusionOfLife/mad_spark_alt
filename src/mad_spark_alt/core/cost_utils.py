@@ -12,6 +12,7 @@ from typing import Dict, Optional, Tuple
 @dataclass
 class ModelCosts:
     """Cost structure for a specific model."""
+
     input_cost_per_1k_tokens: float
     output_cost_per_1k_tokens: float
 
@@ -47,7 +48,7 @@ DEFAULT_MODEL_COSTS = {
 # Re-export for convenience
 __all__ = [
     "calculate_llm_cost",
-    "calculate_token_cost", 
+    "calculate_token_cost",
     "get_model_costs",
     "estimate_token_cost",
 ]
@@ -60,15 +61,15 @@ def calculate_llm_cost(
 ) -> float:
     """
     Calculate cost for LLM usage given input and output tokens.
-    
+
     Args:
         input_tokens: Number of input/prompt tokens
         output_tokens: Number of output/completion tokens
         model: Model name (e.g., "gpt-4", "gpt-3.5-turbo", "claude-3-opus")
-        
+
     Returns:
         Total cost in dollars
-        
+
     Example:
         >>> cost = calculate_llm_cost(1000, 500, "gpt-4")
         >>> print(f"Cost: ${cost:.4f}")
@@ -78,11 +79,13 @@ def calculate_llm_cost(
         # Fall back to GPT-4 costs if model not found
         model_costs = get_model_costs("gpt-4")
         if model_costs is None:  # This should never happen, but for type safety
-            model_costs = ModelCosts(input_cost_per_1k_tokens=0.03, output_cost_per_1k_tokens=0.06)
-    
+            model_costs = ModelCosts(
+                input_cost_per_1k_tokens=0.03, output_cost_per_1k_tokens=0.06
+            )
+
     input_cost = (input_tokens / 1000) * model_costs.input_cost_per_1k_tokens
     output_cost = (output_tokens / 1000) * model_costs.output_cost_per_1k_tokens
-    
+
     return input_cost + output_cost
 
 
@@ -93,14 +96,14 @@ def calculate_token_cost(
 ) -> float:
     """
     Calculate cost for a total number of tokens with estimated input/output split.
-    
+
     This is a convenience wrapper for cases where you only know the total tokens.
-    
+
     Args:
         total_tokens: Total number of tokens
         model: Model name
         input_output_ratio: Ratio of input tokens (0.5 = equal split)
-        
+
     Returns:
         Estimated cost in dollars
     """
@@ -116,12 +119,12 @@ def estimate_token_cost(
 ) -> float:
     """
     Estimate cost for a given number of tokens.
-    
+
     Args:
         tokens: Total number of tokens
         model: Model name (defaults to GPT-4)
         assume_equal_input_output: If True, assumes equal input/output split
-        
+
     Returns:
         Estimated cost in dollars
     """
@@ -135,10 +138,10 @@ def estimate_token_cost(
 def get_model_costs(model: str) -> Optional[ModelCosts]:
     """
     Get cost structure for a specific model.
-    
+
     Args:
         model: Model name
-        
+
     Returns:
         ModelCosts object or None if model not found
     """
@@ -148,7 +151,7 @@ def get_model_costs(model: str) -> Optional[ModelCosts]:
 def get_available_models() -> Dict[str, ModelCosts]:
     """
     Get all available models and their cost structures.
-    
+
     Returns:
         Dictionary mapping model names to ModelCosts
     """
@@ -161,23 +164,23 @@ def calculate_cost_with_usage(
 ) -> Tuple[float, int, int]:
     """
     Calculate cost from a usage dictionary (OpenAI/Anthropic format).
-    
+
     Args:
         usage: Dictionary with 'prompt_tokens' and 'completion_tokens'
         model: Model name
-        
+
     Returns:
         Tuple of (total_cost, input_tokens, output_tokens)
     """
     input_tokens = usage.get("prompt_tokens", 0)
     output_tokens = usage.get("completion_tokens", 0)
-    
+
     # Handle different API response formats
     if input_tokens == 0 and output_tokens == 0:
         # Try alternative keys
         input_tokens = usage.get("input_tokens", 0)
         output_tokens = usage.get("output_tokens", 0)
-    
+
     cost = calculate_llm_cost(input_tokens, output_tokens, model)
-    
+
     return cost, input_tokens, output_tokens
