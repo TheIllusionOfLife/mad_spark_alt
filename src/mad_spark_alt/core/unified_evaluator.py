@@ -175,7 +175,7 @@ Risks: [score] - [one line explanation]
         
         for criterion in criteria:
             # Look for pattern like "Novelty: 0.7 - explanation"
-            pattern = f'{criterion}:\\s*([0-9.]+)\\s*[-–]\\s*(.+?)(?={"|".join(criteria)}:|$)'
+            pattern = rf'{criterion}:\s*([0-9.]+)\s*[-–]\s*(.+?)(?={"|".join(criteria)}:|$)'
             match = re.search(pattern, response, re.IGNORECASE | re.DOTALL)
             
             if match:

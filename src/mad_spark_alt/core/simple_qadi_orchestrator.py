@@ -242,7 +242,7 @@ class SimpleQADIOrchestrator:
                 
                 # Look for H1:, H2:, H3: patterns
                 for i in range(1, 4):
-                    pattern = f'H{i}:\\s*(.+?)(?=H{i+1}:|$)'
+                    pattern = rf'H{i}:\s*(.+?)(?=H{i+1}:|$)'
                     match = re.search(pattern, content, re.DOTALL)
                     if match:
                         hypothesis = match.group(1).strip()
@@ -333,7 +333,7 @@ class SimpleQADIOrchestrator:
         
         # Extract individual scores
         def extract_score(criterion: str, text: str) -> float:
-            pattern = f'{criterion}:\\s*([0-9.]+)'
+            pattern = rf'{criterion}:\s*([0-9.]+)'
             match = re.search(pattern, text, re.IGNORECASE)
             if match:
                 try:
@@ -385,7 +385,7 @@ class SimpleQADIOrchestrator:
                 # Extract verification examples
                 examples = []
                 for i in range(1, 4):
-                    pattern = f'{i}\\.\s*(.+?)(?={i+1}\\.|Conclusion:|$)'
+                    pattern = rf'{i}\.\s*(.+?)(?={i+1}\.|Conclusion:|$)'
                     match = re.search(pattern, content, re.DOTALL)
                     if match:
                         examples.append(match.group(1).strip())
