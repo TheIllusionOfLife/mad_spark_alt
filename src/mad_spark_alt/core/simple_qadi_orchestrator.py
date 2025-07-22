@@ -21,6 +21,14 @@ from .qadi_prompts import PHASE_HYPERPARAMETERS, QADIPrompts, calculate_hypothes
 logger = logging.getLogger(__name__)
 
 
+# Constants for parsing LLM responses
+QUESTION_PREFIX = "Q:"
+HYPOTHESIS_PATTERN = r"^H([123]):\s*(.*)$"
+ANSWER_PREFIX = "ANSWER:"
+ACTION_PLAN_PREFIX = "Action Plan:"
+CONCLUSION_PREFIX = "Conclusion:"
+
+
 @dataclass
 class HypothesisScore:
     """Scores for a single hypothesis."""
@@ -143,7 +151,10 @@ class SimpleQADIOrchestrator:
             )
             result.hypotheses = hypotheses
             result.total_llm_cost += abduction_cost
-            result.phase_results["abduction"] = {"hypotheses": hypotheses}
+            result.phase_results["abduction"] = {
+                "hypotheses": hypotheses,
+                "cost": abduction_cost,
+            }
 
             # Convert hypotheses to GeneratedIdea objects for evolution compatibility
             for i, hypothesis in enumerate(hypotheses):
@@ -241,11 +252,14 @@ class SimpleQADIOrchestrator:
 
                 # Extract the core question
                 content = response.content.strip()
-                match = re.search(r"Q:\s*(.+)", content)
+                match = re.search(rf"{QUESTION_PREFIX}\s*(.+)", content)
                 if match:
                     return match.group(1).strip(), total_cost
                 # Fallback: use the whole response if no Q: prefix
-                return content.replace("Q:", "").strip(), total_cost
+                # Safe removal of prefix only from start of string
+                if content.startswith(QUESTION_PREFIX):
+                    return content[len(QUESTION_PREFIX) :].strip(), total_cost
+                return content.strip(), total_cost
 
             except Exception as e:
                 if attempt == max_retries:
@@ -306,7 +320,7 @@ class SimpleQADIOrchestrator:
                         continue
 
                     # Check if line starts with H1:, H2:, or H3:
-                    hypothesis_match = re.match(r"^H([123]):\s*(.*)$", line)
+                    hypothesis_match = re.match(HYPOTHESIS_PATTERN, line)
                     if hypothesis_match:
                         # Save previous hypothesis if we have one
                         if current_index is not None and current_hypothesis.strip():
@@ -381,13 +395,19 @@ class SimpleQADIOrchestrator:
 
                 # Extract the answer
                 answer_match = re.search(
-                    r"ANSWER:\s*(.+?)(?=Action Plan:|$)", content, re.DOTALL
+                    rf"{ANSWER_PREFIX}\s*(.+?)(?={ACTION_PLAN_PREFIX}|$)",
+                    content,
+                    re.DOTALL,
                 )
                 answer = answer_match.group(1).strip() if answer_match else ""
 
                 # Extract action plan
                 action_plan = []
-                plan_match = re.search(r"Action Plan:\s*(.+?)$", content, re.DOTALL)
+                plan_match = re.search(
+                    rf"{ACTION_PLAN_PREFIX}\s*(.+?)$",
+                    content,
+                    re.DOTALL,
+                )
                 if plan_match:
                     plan_text = plan_match.group(1).strip()
                     # Extract numbered items or bullet points
@@ -446,11 +466,9 @@ class SimpleQADIOrchestrator:
 
             # Check if we've reached the next hypothesis or end section
             if in_section:
-                if (
-                    re.match(rf"^(?:-\s*)?H{hypothesis_num + 1}:", line)
-                    or line.startswith("ANSWER:")
-                    or line.startswith("Action Plan:")
-                ):
+                if re.match(
+                    rf"^(?:-\s*)?H{hypothesis_num + 1}:", line
+                ) or line.startswith((ANSWER_PREFIX, ACTION_PLAN_PREFIX)):
                     break
                 section_lines.append(line)
 
@@ -469,9 +487,9 @@ class SimpleQADIOrchestrator:
         def extract_score(criterion: str, text: str) -> float:
             # Try multiple patterns to handle different formatting
             patterns = [
-                rf"{criterion}:\s*([0-9.]+)",  # "Novelty: 0.8"
-                rf"{criterion}\s*-\s*([0-9.]+)",  # "Novelty - 0.8"
-                rf"{criterion}\s*:\s*([0-9.]+)/?",  # "Novelty: 0.8/" or "Novelty: 0.8"
+                rf"{criterion}:\s*(-?[0-9.]+)",  # "Novelty: 0.8" or "Novelty: -0.2"
+                rf"{criterion}\s*-\s*(-?[0-9.]+)",  # "Novelty - 0.8"
+                rf"{criterion}\s*:\s*(-?[0-9.]+)/?",  # "Novelty: 0.8/" or "Novelty: 0.8"
             ]
 
             for pattern in patterns:
@@ -552,7 +570,7 @@ class SimpleQADIOrchestrator:
                         # Start new example
                         current_index = int(example_match.group(1))
                         current_example = example_match.group(2)
-                    elif line.startswith("Conclusion:"):
+                    elif line.startswith(CONCLUSION_PREFIX):
                         # Save last example before conclusion
                         if current_index is not None and current_example.strip():
                             examples.append(current_example.strip())
@@ -569,7 +587,9 @@ class SimpleQADIOrchestrator:
 
                 # Extract conclusion
                 conclusion_match = re.search(
-                    r"Conclusion:\s*(.+?)$", content, re.DOTALL
+                    rf"{CONCLUSION_PREFIX}\s*(.+?)$",
+                    content,
+                    re.DOTALL,
                 )
                 conclusion = (
                     conclusion_match.group(1).strip() if conclusion_match else ""
