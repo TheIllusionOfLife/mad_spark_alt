@@ -26,6 +26,7 @@ from .retry import (
     RetryConfig,
     safe_aiohttp_request,
 )
+from .cost_utils import calculate_llm_cost
 
 logger = logging.getLogger(__name__)
 
@@ -283,6 +284,7 @@ class OpenAIProvider(LLMProviderInterface):
         self, input_tokens: int, output_tokens: int, model_config: ModelConfig
     ) -> float:
         """Calculate cost for OpenAI request."""
+        # Use the costs from model_config directly
         input_cost = (input_tokens / 1000) * model_config.input_cost_per_1k
         output_cost = (output_tokens / 1000) * model_config.output_cost_per_1k
         return input_cost + output_cost
@@ -420,6 +422,7 @@ class AnthropicProvider(LLMProviderInterface):
         self, input_tokens: int, output_tokens: int, model_config: ModelConfig
     ) -> float:
         """Calculate cost for Anthropic request."""
+        # Use the costs from model_config directly
         input_cost = (input_tokens / 1000) * model_config.input_cost_per_1k
         output_cost = (output_tokens / 1000) * model_config.output_cost_per_1k
         return input_cost + output_cost
@@ -580,9 +583,7 @@ class GoogleProvider(LLMProviderInterface):
         )
 
         # Calculate cost based on model pricing
-        input_cost = (prompt_tokens / 1000) * model_config.input_cost_per_1k
-        output_cost = (completion_tokens / 1000) * model_config.output_cost_per_1k
-        total_cost = input_cost + output_cost
+        total_cost = self.calculate_cost(prompt_tokens, completion_tokens, model_config)
 
         return LLMResponse(
             content=content,
@@ -645,6 +646,7 @@ class GoogleProvider(LLMProviderInterface):
         self, prompt_tokens: int, completion_tokens: int, model_config: ModelConfig
     ) -> float:
         """Calculate cost based on token usage and model pricing."""
+        # Use the costs from model_config directly
         input_cost = (prompt_tokens / 1000) * model_config.input_cost_per_1k
         output_cost = (completion_tokens / 1000) * model_config.output_cost_per_1k
         return input_cost + output_cost

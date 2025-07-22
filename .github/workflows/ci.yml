@@ -25,10 +25,43 @@ jobs:
       run: uv python install ${{ matrix.python-version }}
     
     - name: Install dependencies
-      run: uv sync --all-extras
+      run: |
+        uv sync --all-extras
+        uv pip install pytest-cov
     
-    - name: Run tests
-      run: uv run pytest tests/ -v
+    - name: Run tests with coverage
+      run: |
+        uv run pytest tests/ -v \
+          --cov=src/mad_spark_alt \
+          --cov-report=html \
+          --cov-report=term \
+          --cov-report=xml \
+          --tb=short \
+          --junit-xml=test-results.xml
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ matrix.python-version }}
+        path: test-results.xml
+    
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      if: matrix.python-version == '3.11'
+      with:
+        name: coverage-report
+        path: |
+          coverage.xml
+          htmlcov/
+    
+    - name: Display coverage summary
+      if: matrix.python-version == '3.11'
+      run: |
+        echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        uv run coverage report >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
     
     - name: Run type checking
       run: uv run mypy src/mad_spark_alt/
