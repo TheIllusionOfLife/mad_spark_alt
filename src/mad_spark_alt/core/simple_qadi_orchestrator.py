@@ -122,10 +122,15 @@ class SimpleQADIOrchestrator:
         try:
             # Phase 1: Question - Extract core question
             logger.info("Running Question phase")
-            core_question, questioning_cost = await self._run_questioning_phase(full_input, max_retries)
+            core_question, questioning_cost = await self._run_questioning_phase(
+                full_input, max_retries
+            )
             result.core_question = core_question
             result.total_llm_cost += questioning_cost
-            result.phase_results["questioning"] = {"question": core_question, "cost": questioning_cost}
+            result.phase_results["questioning"] = {
+                "question": core_question,
+                "cost": questioning_cost,
+            }
 
             # Phase 2: Abduction - Generate hypotheses
             logger.info("Running Abduction phase")
@@ -177,9 +182,11 @@ class SimpleQADIOrchestrator:
 
         return result
 
-    async def _run_questioning_phase(self, user_input: str, max_retries: int) -> Tuple[str, float]:
+    async def _run_questioning_phase(
+        self, user_input: str, max_retries: int
+    ) -> Tuple[str, float]:
         """Extract the core question from user input.
-        
+
         Returns:
             Tuple of (core_question, total_cost)
         """

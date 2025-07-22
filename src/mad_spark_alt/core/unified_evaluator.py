@@ -165,21 +165,21 @@ Risks: [score] - [one line explanation]
         explanations = {}
 
         criteria = ["novelty", "impact", "cost", "feasibility", "risks"]
-        
+
         # Process line by line for more robust parsing
-        lines = response.split('\n')
-        
+        lines = response.split("\n")
+
         for line in lines:
             line = line.strip()
             if not line:
                 continue
-                
+
             # Check each criterion
             for criterion in criteria:
                 # Match "Criterion: score - explanation" format (case insensitive)
-                pattern = rf'^{criterion}:\s*([0-9.]+)\s*[-–]\s*(.+)$'
+                pattern = rf"^{criterion}:\s*([0-9.]+)\s*[-–]\s*(.+)$"
                 match = re.match(pattern, line, re.IGNORECASE)
-                
+
                 if match:
                     try:
                         score = float(match.group(1))
@@ -188,11 +188,13 @@ Risks: [score] - [one line explanation]
                         scores[criterion] = score
                         explanations[criterion] = match.group(2).strip()
                     except (ValueError, TypeError):
-                        logger.warning(f"Failed to parse score for {criterion}: {match.group(1)}")
+                        logger.warning(
+                            f"Failed to parse score for {criterion}: {match.group(1)}"
+                        )
                         scores[criterion] = 0.5
                         explanations[criterion] = "Failed to parse score"
                     break
-        
+
         # Fill in any missing criteria with defaults
         for criterion in criteria:
             if criterion not in scores:
