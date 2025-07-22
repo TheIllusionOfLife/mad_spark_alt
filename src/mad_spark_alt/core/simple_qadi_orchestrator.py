@@ -212,7 +212,7 @@ class SimpleQADIOrchestrator:
                 logger.warning(f"Question phase attempt {attempt + 1} failed: {e}")
                 await asyncio.sleep(1)
 
-        raise RuntimeError("Failed to extract core question")
+        raise RuntimeError("Failed to extract core question after retries")
 
     async def _run_abduction_phase(
         self, user_input: str, core_question: str, max_retries: int
