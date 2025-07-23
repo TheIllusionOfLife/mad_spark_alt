@@ -18,24 +18,22 @@ try:
     from mad_spark_alt.core import setup_llm_providers
     from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
     from mad_spark_alt.core.terminal_renderer import render_markdown
+    from mad_spark_alt.core.qadi_prompts import QADIPrompts
 except ImportError:
     # Fallback if package is not installed
     sys.path.insert(0, str(Path(__file__).parent / "src"))
     from mad_spark_alt.core import setup_llm_providers
     from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
     from mad_spark_alt.core.terminal_renderer import render_markdown
+    from mad_spark_alt.core.qadi_prompts import QADIPrompts
 
 
-# Override the questioning prompt with a simpler version
-class SimplerQADIOrchestrator(SimpleQADIOrchestrator):
-    """QADI orchestrator with simplified Phase 1."""
+# Create custom prompts with simpler Phase 1
+class SimplerQADIPrompts(QADIPrompts):
+    """QADI prompts with simplified Phase 1."""
     
-    def __init__(self, temperature_override: Optional[float] = None) -> None:
-        super().__init__(temperature_override)
-        # Override the questioning prompt
-        self.prompts.get_questioning_prompt = self._get_simpler_questioning_prompt
-    
-    def _get_simpler_questioning_prompt(self, user_input: str) -> str:
+    @staticmethod
+    def get_questioning_prompt(user_input: str) -> str:
         """Get a much simpler prompt for Phase 1."""
         return f"""What is the user asking?
 
@@ -45,6 +43,16 @@ User's input:
 State their question clearly and directly. If they made a statement, rephrase it as the implied question.
 Format: "Q: [The user's question]"
 """
+
+
+# Override the questioning prompt with a simpler version
+class SimplerQADIOrchestrator(SimpleQADIOrchestrator):
+    """QADI orchestrator with simplified Phase 1."""
+    
+    def __init__(self, temperature_override: Optional[float] = None) -> None:
+        super().__init__(temperature_override)
+        # Use custom prompts
+        self.prompts = SimplerQADIPrompts()
 
 
 async def run_qadi_analysis(
@@ -305,11 +313,15 @@ def main() -> None:
         )
 
     # Initialize LLM providers
-    async def main_async():
+    async def main_async() -> None:
         try:
-            await setup_llm_providers(
-                google_api_key=os.getenv("GOOGLE_API_KEY"),
-            )
+            google_key = os.getenv("GOOGLE_API_KEY")
+            if google_key:
+                await setup_llm_providers(
+                    google_api_key=google_key,
+                )
+            else:
+                print("Warning: GOOGLE_API_KEY not set")
         except Exception as e:
             print(f"Warning: Failed to initialize LLM providers: {e}")
 

@@ -396,7 +396,7 @@ class SimpleQADIOrchestrator:
 
                 # Extract the answer - try multiple patterns
                 answer = ""
-                
+
                 # Try exact ANSWER: format first
                 answer_match = re.search(
                     rf"{ANSWER_PREFIX}\s*(.+?)(?={ACTION_PLAN_PREFIX}|$)",
@@ -418,15 +418,21 @@ class SimpleQADIOrchestrator:
                         if match:
                             answer = match.group(1).strip()
                             break
-                    
+
                     # Last resort: if still no answer, extract text between scores and action plan
                     if not answer:
                         # Find the end of H3 scores and start of action plan
                         h3_end = re.search(r"H3:.*?Overall:.*?\n\n", content, re.DOTALL)
-                        action_start = re.search(r"Action Plan:", content, re.IGNORECASE)
+                        action_start = re.search(
+                            r"Action Plan:", content, re.IGNORECASE
+                        )
                         if h3_end and action_start:
-                            potential_answer = content[h3_end.end():action_start.start()].strip()
-                            if potential_answer and len(potential_answer) > 50:  # Reasonable answer length
+                            potential_answer = content[
+                                h3_end.end() : action_start.start()
+                            ].strip()
+                            if (
+                                potential_answer and len(potential_answer) > 50
+                            ):  # Reasonable answer length
                                 answer = potential_answer
 
                 # Extract action plan - be more flexible
@@ -446,12 +452,15 @@ class SimpleQADIOrchestrator:
                         re.DOTALL | re.MULTILINE,
                     )
                     action_plan = [item.strip() for item in plan_items if item.strip()]
-                    
+
                     # If no items found with bullets/numbers, try splitting by newlines
                     if not action_plan:
-                        lines = plan_text.split('\n')
-                        action_plan = [line.strip() for line in lines 
-                                     if line.strip() and not line.strip().startswith('#')]
+                        lines = plan_text.split("\n")
+                        action_plan = [
+                            line.strip()
+                            for line in lines
+                            if line.strip() and not line.strip().startswith("#")
+                        ]
 
                 return {
                     "scores": scores,
@@ -500,7 +509,9 @@ class SimpleQADIOrchestrator:
             # Also check for "Hypothesis 1:" format
             if not hypothesis_match:
                 hypothesis_match = re.match(
-                    rf"^(?:-\s*)?(?:\*\*)?Hypothesis\s+{hypothesis_num}[:.](.*?)(?:\*\*)?$", line, re.IGNORECASE
+                    rf"^(?:-\s*)?(?:\*\*)?Hypothesis\s+{hypothesis_num}[:.](.*?)(?:\*\*)?$",
+                    line,
+                    re.IGNORECASE,
                 )
             if hypothesis_match:
                 in_section = True
@@ -531,7 +542,7 @@ class SimpleQADIOrchestrator:
                 accessibility=0.5,
                 sustainability=0.5,
                 scalability=0.5,
-                overall=0.5
+                overall=0.5,
             )
 
         section = " ".join(section_lines)
@@ -620,18 +631,24 @@ class SimpleQADIOrchestrator:
 
                 # Extract verification examples using pattern matching
                 examples = []
-                
+
                 # Look for "Example N:" pattern
-                example_pattern = r"Example\s*(\d+):\s*(.+?)(?=Example\s*\d+:|Conclusion:|$)"
-                example_matches = re.findall(example_pattern, content, re.DOTALL | re.IGNORECASE)
-                
+                example_pattern = (
+                    r"Example\s*(\d+):\s*(.+?)(?=Example\s*\d+:|Conclusion:|$)"
+                )
+                example_matches = re.findall(
+                    example_pattern, content, re.DOTALL | re.IGNORECASE
+                )
+
                 for _, example_content in example_matches:
                     # Clean up the example content
                     example_text = example_content.strip()
                     # Replace bullet points with proper formatting
-                    example_text = re.sub(r'^[-•]\s*', '', example_text, flags=re.MULTILINE)
+                    example_text = re.sub(
+                        r"^[-•]\s*", "", example_text, flags=re.MULTILINE
+                    )
                     examples.append(example_text)
-                
+
                 # If no examples found with "Example N:" pattern, try numbered list
                 if not examples:
                     lines = content.split("\n")
@@ -675,7 +692,7 @@ class SimpleQADIOrchestrator:
                 conclusion = (
                     conclusion_match.group(1).strip() if conclusion_match else ""
                 )
-                
+
                 # Fix self-reference issues in conclusion
                 if conclusion and answer:
                     # Replace references like "(H1)", "(H2)", "(H3)" with the actual hypothesis content
@@ -683,38 +700,46 @@ class SimpleQADIOrchestrator:
                         # Handle various reference patterns
                         patterns = [
                             rf"\(H{i+1}\)",  # (H1), (H2), (H3)
-                            rf"H{i+1}",      # H1, H2, H3
+                            rf"H{i+1}",  # H1, H2, H3
                             rf"hypothesis {i+1}",  # hypothesis 1, hypothesis 2, hypothesis 3
-                            rf"approach {i+1}",    # approach 1, approach 2, approach 3
+                            rf"approach {i+1}",  # approach 1, approach 2, approach 3
                         ]
-                        
+
                         # Create a brief description of the hypothesis (first 50 chars)
-                        brief_hypothesis = hypothesis[:50] + "..." if len(hypothesis) > 50 else hypothesis
+                        brief_hypothesis = (
+                            hypothesis[:50] + "..."
+                            if len(hypothesis) > 50
+                            else hypothesis
+                        )
                         replacement = f'"{brief_hypothesis}"'
-                        
+
                         for pattern in patterns:
                             # Only replace if it's referring to the chosen answer
-                            if re.search(rf"your answer.*{pattern}", conclusion, re.IGNORECASE):
+                            if re.search(
+                                rf"your answer.*{pattern}", conclusion, re.IGNORECASE
+                            ):
                                 conclusion = re.sub(
                                     rf"your answer\s*\({pattern}\)",
                                     f"the recommended approach {replacement}",
                                     conclusion,
-                                    flags=re.IGNORECASE
+                                    flags=re.IGNORECASE,
                                 )
-                            elif re.search(rf"the answer.*{pattern}", conclusion, re.IGNORECASE):
+                            elif re.search(
+                                rf"the answer.*{pattern}", conclusion, re.IGNORECASE
+                            ):
                                 conclusion = re.sub(
                                     rf"the answer\s*\({pattern}\)",
                                     f"the recommended approach {replacement}",
                                     conclusion,
-                                    flags=re.IGNORECASE
+                                    flags=re.IGNORECASE,
                                 )
-                    
+
                     # Fix any remaining "your answer" references
                     conclusion = re.sub(
                         r"your answer",
                         "the recommended approach",
                         conclusion,
-                        flags=re.IGNORECASE
+                        flags=re.IGNORECASE,
                     )
 
                 return {
