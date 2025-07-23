@@ -1,15 +1,15 @@
-# Mad Spark Alt - Hypothesis-Driven Analysis & Evolution System
+# Mad Spark Alt - AI-Powered QADI Analysis System
 
-AI-powered QADI methodology implementation with hypothesis generation, evaluation, and genetic evolution.
+Intelligent analysis system using QADI methodology (Question → Abduction → Deduction → Induction) to provide structured, multi-perspective insights on any topic.
 
 ## Features
 
-- **QADI Methodology**: Q(Question) → A(Abduction) → D(Deduction) → I(Induction)
-- **Genetic Evolution**: AI-powered hypothesis evolution
-- **5-Criteria Evaluation**: Novelty, impact, cost, feasibility, risks
-- **Temperature Control**: Adjust creativity (0.0-2.0)
-- **Phase Optimization**: Each phase uses optimal parameters
-- **Plugin System**: Extensible architecture
+- **QADI Methodology**: Structured 4-phase analysis for any question or problem
+- **Universal Evaluation**: Impact, Feasibility, Accessibility, Sustainability, Scalability
+- **Multiple Analysis Modes**: Simple, hypothesis-driven, multi-perspective
+- **Temperature Control**: Adjust creativity level (0.0-2.0)
+- **Audience-Neutral**: Practical insights for everyone, not just businesses
+- **Real-World Examples**: Concrete applications at individual, community, and systemic levels
 
 ## Installation
 
@@ -26,13 +26,26 @@ uv sync  # Or: pip install -e .
 echo "GOOGLE_API_KEY=your_key_here" > .env
 ```
 
-### Generate Ideas
+### Default Command (Recommended)
 
 ```bash
-# Hypothesis-driven analysis
-uv run python qadi_hypothesis.py "How can we reduce plastic waste?"
-uv run python qadi_hypothesis.py "New product ideas" --temperature 1.5
-uv run python qadi_hypothesis.py "Climate solutions" --verbose
+# Simple, clear analysis with improved Phase 1
+uv run ./qadi "How can we reduce plastic waste?"
+# Or use the full command:
+uv run python qadi_simple.py "Your question here"
+```
+
+### Other Analysis Modes
+
+```bash
+# Original hypothesis-driven analysis
+uv run python qadi_hypothesis.py "Your question here"
+
+# Multi-agent analysis with type detection
+uv run python qadi_simple_multi.py "Your question here"
+
+# Multi-perspective analysis (personal/community/systemic)
+uv run python qadi_multi_perspective.py "Your question here"
 ```
 
 ### Example Prompts

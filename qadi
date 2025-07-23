@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+"""
+Default QADI command - uses the simplified version with clear Phase 1.
+
+This is a convenience wrapper for qadi_simple.py
+"""
+
+import sys
+import subprocess
+from pathlib import Path
+
+# Get the directory of this script
+script_dir = Path(__file__).parent
+
+# Run qadi_simple.py with all arguments passed through
+subprocess.run([sys.executable, str(script_dir / "qadi_simple.py")] + sys.argv[1:])
