@@ -191,7 +191,7 @@ uv run black src/ tests/ && uv run isort src/ tests/
 #### Next Priority Tasks
 1. **Performance Optimization**: Profile multi-perspective analysis for cost efficiency
    - Source: Large LLM costs when running multiple perspectives
-   - Context: Each perspective runs full QADI cycle (4 phases × 3 perspectives = 12 LLM calls)
+   - Context: Each perspective runs a full QADI cycle (4 phases), plus a final synthesis step, resulting in (4 * 3) + 1 = 13 LLM calls for 3 perspectives
    - Approach: Implement caching, shared reasoning phases, or perspective relevance filtering
 
 2. **User Experience Enhancement**: Add interactive perspective selection

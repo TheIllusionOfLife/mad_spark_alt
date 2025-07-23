@@ -336,7 +336,7 @@ print(f'Available methods: {list(registry._agents.keys())}')
 
 #### Multi-Perspective Orchestration
 - **Parallel Analysis**: Run multiple perspectives concurrently with `asyncio.gather()`
-- **Relevance Scoring**: Primary perspective gets 1.0, others get 0.8 - (index * 0.1)
+- **Relevance Scoring**: Primary perspective gets a relevance score of 1.0. Subsequent perspectives receive scores calculated by the formula `0.8 - (index * 0.1)`
 - **Synthesis Integration**: Combines insights from all perspectives into unified answer
 - **Cost Distribution**: Tracks LLM costs across all perspective analyses
 
