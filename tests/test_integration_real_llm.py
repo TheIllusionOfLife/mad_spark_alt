@@ -65,7 +65,7 @@ class TestRealLLMIntegration:
                     "Divergence issue."
                 )
                 
-        except RuntimeError as e:
+        except Exception as e:
             pytest.fail(f"Real LLM integration test failed: {e}")
 
     @pytest.mark.asyncio

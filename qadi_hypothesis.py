@@ -157,7 +157,7 @@ def main() -> None:
             await setup_llm_providers(
                 google_api_key=os.getenv("GOOGLE_API_KEY"),
             )
-        except RuntimeError as e:
+        except Exception as e:
             print(f"Warning: Failed to initialize LLM providers: {e}")
 
         await run_qadi_analysis(

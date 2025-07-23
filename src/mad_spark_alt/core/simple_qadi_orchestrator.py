@@ -492,13 +492,26 @@ class SimpleQADIOrchestrator:
         # Extract individual scores with improved robustness
         def extract_score(criterion: str, text: str) -> float:
             # Try multiple patterns to handle different formatting
+            # First check for fractional scores (e.g., "8/10")
+            fraction_pattern = rf"{criterion}:\s*(-?[0-9.]+)/(\d+)"
+            fraction_match = re.search(fraction_pattern, text, re.IGNORECASE)
+            if fraction_match:
+                try:
+                    numerator = float(fraction_match.group(1))
+                    denominator = float(fraction_match.group(2))
+                    if denominator > 0:
+                        score = numerator / denominator
+                        return max(0.0, min(1.0, score))
+                except (ValueError, ZeroDivisionError):
+                    pass
+
+            # Other patterns for direct scores
             patterns = [
                 rf"\*?\s*{criterion}:\s*(-?[0-9.]+)\s*-",  # "* Novelty: 0.8 - explanation"
                 rf"\*?\s*{criterion}:\s*(-?[0-9.]+)",  # "* Novelty: 0.8" or "Novelty: 0.8"
                 rf"{criterion}\s*-\s*(-?[0-9.]+)",  # "Novelty - 0.8"
                 rf"{criterion}\s*:\s*(-?[0-9.]+)/?",  # "Novelty: 0.8/" or "Novelty: 0.8"
                 rf"{criterion}\s*\((-?[0-9.]+)\)",  # "Novelty (0.8)"
-                rf"{criterion}:\s*(-?[0-9.]+)/\d+",  # "Novelty: 8/10" style (take first number)
             ]
 
             for pattern in patterns:
