@@ -83,13 +83,8 @@ async def evolve_ideas(
     """
     print("\n=== Phase 2: Evolving Ideas with Genetic Algorithm ===")
 
-    # Create genetic algorithm with caching and checkpointing
-    ga = GeneticAlgorithm(
-        use_cache=True,  # Enable fitness caching
-        cache_ttl=3600,  # 1 hour cache
-        checkpoint_dir=".evolution_checkpoints",  # Enable checkpointing
-        checkpoint_interval=2,  # Save every 2 generations
-    )
+    # Create genetic algorithm (configured through EvolutionRequest)
+    ga = GeneticAlgorithm()
 
     # Configure evolution
     config = EvolutionConfig(

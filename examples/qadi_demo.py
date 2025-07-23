@@ -75,7 +75,7 @@ async def check_api_keys():
     return has_api_keys
 
 
-async def demo_qadi_setup():
+async def demo_qadi_setup() -> SimpleQADIOrchestrator:
     """Demonstrate the QADI system setup."""
     console.print("\n" + "=" * 60)
     console.print("🔧 QADI System Setup Demo", style="bold blue")
@@ -98,12 +98,12 @@ async def demo_qadi_setup():
     setup_table.add_row("I - Induction", "Verification", "Verifies with real-world examples")
 
     console.print(setup_table)
-    console.print(f"\n✅ QADI system ready for analysis")
+    console.print("\n✅ QADI system ready for analysis")
 
     return orchestrator
 
 
-async def demo_qadi_cycle(problem: str):
+async def demo_qadi_cycle(problem: str) -> None:
     """Demonstrate the QADI cycle analysis."""
     console.print("\n" + "=" * 60)
     console.print("🔄 QADI Analysis Demo", style="bold blue")
@@ -119,7 +119,7 @@ async def demo_qadi_cycle(problem: str):
         context="Focus on innovative, practical solutions with consideration for stakeholders and implementation challenges",
     )
 
-    console.print(f"\n✅ QADI analysis completed")
+    console.print("\n✅ QADI analysis completed")
 
     if result.total_llm_cost > 0:
         console.print(f"💰 Total LLM Cost: ${result.total_llm_cost:.4f}")
@@ -144,8 +144,13 @@ async def demo_qadi_cycle(problem: str):
 
     # Hypotheses (Abduction)
     hypotheses_summary = f"{len(result.hypotheses)} hypotheses generated"
-    if result.hypotheses:
-        best_hypothesis = max(result.hypotheses, key=lambda h: result.hypothesis_scores[result.hypotheses.index(h)].overall if result.hypothesis_scores else 0.5)
+    if result.hypotheses and result.hypothesis_scores:
+        # Zip hypotheses and scores to find the best one efficiently (O(N))
+        best_hypothesis_item = max(
+            zip(result.hypotheses, result.hypothesis_scores),
+            key=lambda item: item[1].overall
+        )
+        best_hypothesis = best_hypothesis_item[0]
         hypotheses_summary += f"\nBest: {best_hypothesis[:60]}..."
     phase_table.add_row(f"{phase_emojis['hypotheses']} Hypotheses", hypotheses_summary)
 
@@ -163,7 +168,7 @@ async def demo_qadi_cycle(problem: str):
 
     # Display detailed hypotheses with scores
     if result.hypotheses and result.hypothesis_scores:
-        console.print(f"\n💡 Detailed Hypotheses:")
+        console.print("\n💡 Detailed Hypotheses:")
         for i, (hypothesis, score) in enumerate(zip(result.hypotheses, result.hypothesis_scores)):
             console.print(f"\n   H{i+1}. {hypothesis}")
             console.print(f"      📊 Overall Score: {score.overall:.3f}")
@@ -171,7 +176,7 @@ async def demo_qadi_cycle(problem: str):
 
     # Display action plan if available
     if result.action_plan:
-        console.print(f"\n📋 Action Plan:")
+        console.print("\n📋 Action Plan:")
         for i, action in enumerate(result.action_plan, 1):
             console.print(f"   {i}. {action}")
 
@@ -185,7 +190,7 @@ async def demo_qadi_cycle(problem: str):
         console.print(f"  ... and {len(result.synthesized_ideas) - 5} more ideas")
 
 
-async def demo_qadi_capabilities(problem: str):
+async def demo_qadi_capabilities(problem: str) -> None:
     """Demonstrate QADI system capabilities and requirements."""
     console.print("\n" + "=" * 60)
     console.print("💪 QADI System Capabilities", style="bold blue")
@@ -228,7 +233,7 @@ async def demo_qadi_capabilities(problem: str):
         console.print("\n💡 Get API keys from the respective provider websites")
 
 
-async def main():
+async def main() -> None:
     """Main demo function."""
     console.print(
         Panel.fit(
@@ -263,7 +268,7 @@ async def main():
             console.print("=" * 80)
 
             # Setup demo
-            orchestrator = await demo_qadi_setup()
+            await demo_qadi_setup()
 
             # Main QADI cycle demo
             if has_api_keys:

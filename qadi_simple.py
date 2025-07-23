@@ -305,9 +305,9 @@ def main() -> None:
     # Validate evolution arguments are only used with --evolve
     if not args.evolve:
         evolution_args_used = []
-        if args.generations != 3:  # 3 is the default
+        if args.generations != parser.get_default("generations"):
             evolution_args_used.append(f"--generations {args.generations}")
-        if args.population != 12:  # 12 is the default
+        if args.population != parser.get_default("population"):
             evolution_args_used.append(f"--population {args.population}")
         
         if evolution_args_used:
