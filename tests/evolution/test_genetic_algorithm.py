@@ -325,8 +325,12 @@ class TestGeneticOperators:
             self.parent1, mutation_rate=0.0  # Never mutate
         )
 
-        # Should return original idea
-        assert result == self.parent1
+        # Should return a new object with same content but updated metadata
+        assert result is not self.parent1  # Different object
+        assert result.content == self.parent1.content  # Same content
+        assert result.metadata["generation"] == 1  # Generation incremented
+        assert result.metadata["mutation_type"] == "none"  # No mutation applied
+        assert result.metadata["mutation_rate"] == 0.0
 
 
 class TestEvolutionConfig:

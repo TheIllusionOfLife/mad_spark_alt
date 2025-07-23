@@ -184,11 +184,11 @@ async def run_qadi_analysis(
                 # Create genetic algorithm instance
                 ga = GeneticAlgorithm()
                 
-                # Configure evolution
+                # Configure evolution with higher mutation rate for diversity
                 config = EvolutionConfig(
                     population_size=min(population, len(result.synthesized_ideas)),
                     generations=generations,
-                    mutation_rate=0.15,
+                    mutation_rate=0.3,  # Increased from default 0.1 to ensure diversity
                     crossover_rate=0.75,
                     elite_size=2,
                     selection_strategy=SelectionStrategy.TOURNAMENT,
@@ -211,16 +211,25 @@ async def run_qadi_analysis(
                 if evolution_result.success:
                     print(f"\n✅ Evolution completed in {evolution_time:.1f}s")
                     
-                    # Show top evolved ideas
+                    # Show top evolved ideas (deduplicated)
                     print("\n🏆 Top Evolved Ideas:\n")
                     
-                    top_individuals = sorted(
+                    # Deduplicate while maintaining order
+                    seen_contents = set()
+                    unique_individuals = []
+                    for ind in sorted(
                         evolution_result.final_population,
                         key=lambda x: x.overall_fitness,
                         reverse=True,
-                    )[:3]
+                    ):
+                        normalized_content = ind.idea.content.strip()
+                        if normalized_content not in seen_contents:
+                            seen_contents.add(normalized_content)
+                            unique_individuals.append(ind)
+                            if len(unique_individuals) >= 5:  # Show more unique ideas
+                                break
                     
-                    for i, individual in enumerate(top_individuals):
+                    for i, individual in enumerate(unique_individuals):
                         idea = individual.idea
                         print(f"### {i+1}. Evolved Idea (Fitness: {individual.overall_fitness:.3f})")
                         render_markdown(idea.content)
