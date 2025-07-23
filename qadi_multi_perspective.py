@@ -39,7 +39,7 @@ except ImportError:
     from mad_spark_alt.core.terminal_renderer import render_markdown
 
 
-def display_intent_detection(intent_result, perspectives: List[QuestionIntent]) -> None:
+def display_intent_detection(intent_result: 'IntentResult', perspectives: List[QuestionIntent]) -> None:
     """Display intent detection results."""
     print("\n🔍 Intent Detection:")
     print(f"Primary Intent: {intent_result.primary_intent.value.title()} "
@@ -52,7 +52,7 @@ def display_intent_detection(intent_result, perspectives: List[QuestionIntent]) 
     print("─" * 70)
 
 
-def display_perspective_result(pr: PerspectiveResult, is_primary: bool = False) -> None:
+def display_perspective_result(pr: PerspectiveResult, *, is_primary: bool = False) -> None:
     """Display results from a single perspective."""
     emoji_map = {
         QuestionIntent.ENVIRONMENTAL: "🌍",
@@ -74,23 +74,23 @@ def display_perspective_result(pr: PerspectiveResult, is_primary: bool = False) 
     print(f"{'=' * 70}")
     
     # Core Question
-    print(f"\n**Core Question:**")
+    print("\n**Core Question:**")
     render_markdown(pr.result.core_question)
     
     # Hypotheses with scores
-    print(f"\n**Hypotheses:**")
+    print("\n**Hypotheses:**")
     for i, (hyp, score) in enumerate(zip(pr.result.hypotheses, pr.result.hypothesis_scores)):
         score_bar = "█" * int(score.overall * 10) + "░" * (10 - int(score.overall * 10))
         print(f"\nH{i+1} [{score_bar}] {score.overall:.2f}")
         render_markdown(hyp)
     
     # Answer
-    print(f"\n**Answer:**")
+    print("\n**Answer:**")
     render_markdown(pr.result.final_answer)
     
     # Action Plan - Fixed formatting
     if pr.result.action_plan:
-        print(f"\n**Action Plan:**")
+        print("\n**Action Plan:**")
         for i, action in enumerate(pr.result.action_plan, 1):
             # Clean action text and ensure proper formatting
             action_text = action.strip()
@@ -98,12 +98,12 @@ def display_perspective_result(pr: PerspectiveResult, is_primary: bool = False) 
     
     # Verification Examples (shortened for multi-perspective view)
     if pr.result.verification_examples:
-        print(f"\n**Key Verification:**")
+        print("\n**Key Verification:**")
         # Show only first example in multi-perspective mode
         render_markdown(f"• {pr.result.verification_examples[0][:200]}...")
 
 
-def display_synthesis(result) -> None:
+def display_synthesis(result: MultiPerspectiveQADIResult) -> None:
     """Display synthesized results."""
     print(f"\n{'=' * 70}")
     print("🎯 Synthesized Analysis")
@@ -139,7 +139,7 @@ async def run_multi_perspective_analysis(
         print("\n❌ Error: GOOGLE_API_KEY not found in environment")
         print("Please set your Google API key:")
         print("  export GOOGLE_API_KEY='your-key-here'")
-        return
+        sys.exit(1)
     
     # Parse forced perspectives if provided
     forced_intents = None
@@ -151,7 +151,7 @@ async def run_multi_perspective_analysis(
         except KeyError as e:
             print(f"\n❌ Error: Invalid perspective '{e.args[0]}'")
             print(f"Valid perspectives: {', '.join(i.value for i in QuestionIntent)}")
-            return
+            sys.exit(1)
     
     # Create orchestrator
     orchestrator = MultiPerspectiveQADIOrchestrator(temperature_override=temperature)
@@ -169,9 +169,19 @@ async def run_multi_perspective_analysis(
             force_perspectives=forced_intents,
         )
         
-        # Display intent detection
-        intent_detector = IntentDetector()
-        intent_result = intent_detector.detect_intent(user_input)
+        # Display intent detection (using result from orchestrator)
+        from dataclasses import dataclass
+        @dataclass
+        class IntentResult:
+            primary_intent: QuestionIntent
+            confidence: float
+            keywords_matched: List[str]
+        
+        intent_result = IntentResult(
+            primary_intent=result.primary_intent,
+            confidence=result.intent_confidence,
+            keywords_matched=result.keywords_matched
+        )
         display_intent_detection(intent_result, result.perspectives_used)
         
         # Display results based on mode
@@ -211,10 +221,15 @@ async def run_multi_perspective_analysis(
         print(f"💰 Total LLM cost: ${result.total_llm_cost:.4f}")
         print(f"🔍 Perspectives used: {len(result.perspective_results)}")
         
-    except Exception as e:
+    except (ValueError, KeyError, RuntimeError) as e:
         print(f"\n❌ Error: {e}")
         import traceback
         traceback.print_exc()
+    except Exception as e:
+        print(f"\n❌ Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 def main() -> None:
@@ -264,7 +279,7 @@ def main() -> None:
         pass
     
     # Initialize and run
-    async def main_async():
+    async def main_async() -> None:
         # Initialize LLM providers before running analysis
         await setup_llm_providers(
             google_api_key=os.getenv("GOOGLE_API_KEY"),

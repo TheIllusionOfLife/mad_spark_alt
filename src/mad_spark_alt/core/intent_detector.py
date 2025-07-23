@@ -347,11 +347,7 @@ class IntentDetector:
         if intent_result.confidence < 0.8 and intent_result.secondary_intents:
             perspectives.extend(intent_result.secondary_intents[: max_perspectives - 1])
 
-        # Always include business perspective for general questions
-        if (
-            intent_result.primary_intent == QuestionIntent.GENERAL
-            and QuestionIntent.BUSINESS not in perspectives
-        ):
-            perspectives.append(QuestionIntent.BUSINESS)
+        # Note: Removed forced business perspective for general questions
+        # to avoid forcing business/ROI framing as per PR requirements
 
         return perspectives[:max_perspectives]

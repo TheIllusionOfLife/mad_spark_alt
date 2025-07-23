@@ -7,6 +7,8 @@ relevant perspectives based on question intent detection.
 
 import asyncio
 import logging
+import re
+import traceback
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -217,7 +219,6 @@ class MultiPerspectiveQADIOrchestrator:
 
         except Exception as e:
             logger.error(f"Failed {perspective.value} perspective analysis: {e}")
-            import traceback
 
             logger.error(f"Traceback: {traceback.format_exc()}")
             return None
@@ -255,7 +256,6 @@ class MultiPerspectiveQADIOrchestrator:
 
     def _extract_question(self, text: str) -> str:
         """Extract core question from LLM response."""
-        import re
 
         match = re.search(r"Q:\s*(.+)", text, re.DOTALL)
         if match:
@@ -271,7 +271,6 @@ class MultiPerspectiveQADIOrchestrator:
 
     def _extract_hypotheses(self, text: str) -> List[str]:
         """Extract hypotheses from LLM response."""
-        import re
 
         hypotheses = []
         lines = text.split("\n")
@@ -315,7 +314,6 @@ class MultiPerspectiveQADIOrchestrator:
         self, text: str, num_hypotheses: int
     ) -> Dict[str, Any]:
         """Parse deduction phase results."""
-        import re
 
         # Extract scores for each hypothesis
         scores = []
@@ -346,7 +344,6 @@ class MultiPerspectiveQADIOrchestrator:
         self, text: str, hypothesis_num: int
     ) -> HypothesisScore:
         """Extract scores for a specific hypothesis."""
-        import re
 
         # Find the hypothesis section
         pattern = rf"H{hypothesis_num}:.*?(?=H{hypothesis_num + 1}:|ANSWER:|$)"
@@ -364,7 +361,8 @@ class MultiPerspectiveQADIOrchestrator:
                 if match:
                     try:
                         return float(match.group(1))
-                    except:
+                    except (ValueError, TypeError):
+                        logger.warning("Could not parse score from LLM output: '%s'", match.group(1))
                         pass
             return 0.5
 
@@ -450,7 +448,6 @@ class MultiPerspectiveQADIOrchestrator:
 
     def _parse_induction_results(self, text: str) -> Dict[str, Any]:
         """Parse induction phase results."""
-        import re
 
         # Extract examples
         examples = []
@@ -533,7 +530,6 @@ INTEGRATED ACTION PLAN:
         response_text, cost = await self._run_llm_phase(synthesis_prompt, "questioning")
 
         # Parse synthesis
-        import re
 
         synthesis_match = re.search(
             r"SYNTHESIS:\s*(.+?)(?=INTEGRATED ACTION PLAN:|$)", response_text, re.DOTALL
