@@ -362,7 +362,10 @@ class MultiPerspectiveQADIOrchestrator:
                     try:
                         return float(match.group(1))
                     except (ValueError, TypeError):
-                        logger.warning("Could not parse score from LLM output: '%s'", match.group(1))
+                        logger.warning(
+                            "Could not parse score from LLM output: '%s'",
+                            match.group(1),
+                        )
                         pass
             return 0.5
 
