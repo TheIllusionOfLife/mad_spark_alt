@@ -39,6 +39,9 @@ async def test_mutation_always_creates_new_object(sample_idea):
     """Test that mutation operator always returns a new object."""
     operator = MutationOperator()
     
+    # Add parent ideas to the sample
+    sample_idea.parent_ideas = ["parent1", "parent2"]
+    
     # Test with 0% mutation rate (no mutation should occur)
     mutated = await operator.mutate(sample_idea, mutation_rate=0.0)
     
@@ -48,6 +51,15 @@ async def test_mutation_always_creates_new_object(sample_idea):
     
     # Content should be the same
     assert mutated.content == sample_idea.content
+    
+    # Parent ideas should be a copy, not the same reference
+    assert mutated.parent_ideas == sample_idea.parent_ideas
+    assert mutated.parent_ideas is not sample_idea.parent_ideas
+    
+    # Modifying one shouldn't affect the other
+    mutated.parent_ideas.append("new_parent")
+    assert len(mutated.parent_ideas) == 3
+    assert len(sample_idea.parent_ideas) == 2
     
     # Generation should be incremented
     assert mutated.metadata.get("generation") == 1

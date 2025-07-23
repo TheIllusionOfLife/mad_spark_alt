@@ -217,7 +217,7 @@ class MutationOperator(MutationInterface):
                 generation_prompt=idea.generation_prompt,
                 confidence_score=idea.confidence_score,
                 reasoning=idea.reasoning,
-                parent_ideas=idea.parent_ideas,
+                parent_ideas=idea.parent_ideas.copy() if idea.parent_ideas else [],
                 metadata={
                     **idea.metadata,
                     "operator": "mutation",
