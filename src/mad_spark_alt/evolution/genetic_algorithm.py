@@ -559,9 +559,25 @@ class GeneticAlgorithm:
     def _extract_best_ideas(
         self, population: List[IndividualFitness], n: int
     ) -> List[GeneratedIdea]:
-        """Extract top N ideas from population."""
+        """Extract top N unique ideas from population."""
         sorted_pop = sorted(population, key=lambda x: x.overall_fitness, reverse=True)
-        return [ind.idea for ind in sorted_pop[:n]]
+        
+        # Deduplicate based on content
+        seen_contents = set()
+        unique_ideas = []
+        
+        for ind in sorted_pop:
+            # Normalize content for comparison (strip whitespace)
+            normalized_content = ind.idea.content.strip()
+            
+            if normalized_content not in seen_contents:
+                seen_contents.add(normalized_content)
+                unique_ideas.append(ind.idea)
+                
+                if len(unique_ideas) >= n:
+                    break
+        
+        return unique_ideas
 
     def _calculate_evolution_metrics(
         self,

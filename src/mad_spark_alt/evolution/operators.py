@@ -177,7 +177,7 @@ class MutationOperator(MutationInterface):
             context: Optional context for mutation
 
         Returns:
-            Mutated idea (or original if no mutation occurs)
+            Mutated idea (always returns a new object for proper tracking)
         """
         # Check if mutation should occur
         if random.random() < mutation_rate:
@@ -208,7 +208,26 @@ class MutationOperator(MutationInterface):
 
             return mutated_idea
         else:
-            return idea  # No mutation
+            # No mutation occurred, but still create a new object to ensure
+            # proper generation tracking and avoid duplicate references
+            unchanged_idea = GeneratedIdea(
+                content=idea.content,
+                thinking_method=idea.thinking_method,
+                agent_name=idea.agent_name,
+                generation_prompt=idea.generation_prompt,
+                confidence_score=idea.confidence_score,
+                reasoning=idea.reasoning,
+                parent_ideas=idea.parent_ideas,
+                metadata={
+                    **idea.metadata,
+                    "operator": "mutation",
+                    "mutation_type": "none",
+                    "mutation_rate": mutation_rate,
+                    "generation": idea.metadata.get("generation", 0) + 1,
+                },
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+            return unchanged_idea
 
     def _apply_mutation(self, content: str, mutation_type: str) -> str:
         """Apply specific mutation type to content using strategy pattern."""
