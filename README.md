@@ -1,108 +1,58 @@
 # Mad Spark Alt - Hypothesis-Driven Analysis & Evolution System
 
-A hypothesis-driven analysis system based on the QADI methodology from "Shin Logical Thinking", featuring AI-powered hypothesis generation, evaluation, and genetic evolution to find optimal solutions.
+AI-powered QADI methodology implementation with hypothesis generation, evaluation, and genetic evolution.
 
 ## Features
 
-- 🎯 **True QADI Methodology**: Hypothesis-driven consulting approach
-  - **Q**: Extract the core question from any input
-  - **A**: Generate hypotheses to answer the question
-  - **D**: Evaluate and determine the best answer
-  - **I**: Verify with real-world examples
-- 🧬 **Genetic Evolution**: Evolve hypotheses using AI-powered genetic algorithms
-- 📊 **Unified Evaluation**: 5-criteria scoring (novelty, impact, cost, feasibility, risks)
-- 🌡️ **Temperature Control**: Adjust creativity level for hypothesis generation
-- ⚡ **Phase-Optimized**: Each QADI phase uses optimal AI parameters
-- 🔌 **Extensible**: Plugin system for custom evaluators
+- **QADI Methodology**: Q(Question) → A(Abduction) → D(Deduction) → I(Induction)
+- **Genetic Evolution**: AI-powered hypothesis evolution
+- **5-Criteria Evaluation**: Novelty, impact, cost, feasibility, risks
+- **Temperature Control**: Adjust creativity (0.0-2.0)
+- **Phase Optimization**: Each phase uses optimal parameters
+- **Plugin System**: Extensible architecture
 
 ## Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/TheIllusionOfLife/mad_spark_alt.git
 cd mad_spark_alt
-
-# Install with uv (recommended)
-uv sync
-
-# Or install with pip
-pip install -e .
+uv sync  # Or: pip install -e .
 ```
 
 ## Quick Start
 
-### Setup
-
 ```bash
-# Create .env file with your API key (REQUIRED for meaningful results)
+# Setup API key (REQUIRED)
 echo "GOOGLE_API_KEY=your_key_here" > .env
-
-# Or use other providers
-echo "OPENAI_API_KEY=your_key_here" >> .env
-echo "ANTHROPIC_API_KEY=your_key_here" >> .env
 ```
 
-### Generate Ideas with QADI
+### Generate Ideas
 
 ```bash
-# NEW: Hypothesis-driven QADI analysis
+# Hypothesis-driven analysis
 uv run python qadi_hypothesis.py "How can we reduce plastic waste?"
-
-# Adjust creativity with temperature (0.0-2.0)
 uv run python qadi_hypothesis.py "New product ideas" --temperature 1.5
-
-# Show detailed evaluation scores
 uv run python qadi_hypothesis.py "Climate solutions" --verbose
-
-# Legacy multi-agent version (being phased out)
-uv run python qadi_simple_multi.py "How can we reduce plastic waste?"
 ```
 
-### Example Prompts to Try
+### Example Prompts
 
-**Business & Innovation**
-- "How can small businesses compete with large corporations in the digital age?"
-- "What innovative business models could address climate change?"
-- "How might we revolutionize remote work collaboration?"
-
-**Technology & Society**
-- "How can AI improve healthcare accessibility in rural areas?"
-- "What are creative solutions to digital privacy concerns?"
-- "How might we bridge the digital divide in education?"
-
-**Environmental & Sustainability**
-- "How can cities become carbon-neutral by 2030?"
-- "What innovative approaches could solve ocean plastic pollution?"
-- "How might vertical farming transform urban food systems?"
-
-**Creative & Abstract**
-- "What if gravity worked differently on weekends?"
-- "How would society change if we could share dreams?"
-- "Design a new sport for zero-gravity environments"
+**Business**: "How can small businesses compete with large corporations?"
+**Technology**: "How can AI improve rural healthcare accessibility?"
+**Environment**: "How can cities become carbon-neutral by 2030?"
+**Creative**: "What if gravity worked differently on weekends?"
 
 ### CLI Tools
 
 ```bash
-# Evaluate idea creativity
-uv run mad-spark evaluate "The AI dreamed of electric sheep in quantum meadows"
+# Evaluate creativity
+uv run mad-spark evaluate "The AI dreamed of electric sheep"
 
-# Evaluate with verbose output
-uv run mad-spark evaluate "Blockchain social media platform" --verbose
+# Compare ideas
+uv run mad-spark compare "Business communication" -r "Email" -r "AI video"
 
-# Compare multiple ideas
-uv run mad-spark compare "Business communication" -r "Traditional email" -r "AI video messages" -r "Holographic cards"
-
-# Batch evaluate multiple files
-echo "Smart mirrors with personalized compliments" > idea1.txt
-uv run mad-spark batch-evaluate idea1.txt idea2.txt
-
-# List available evaluators
+# List evaluators
 uv run mad-spark list-evaluators
-
-# Run genetic evolution demo
-uv run python examples/evolution_demo.py
-
-# IMPORTANT: Evolution features - see below for the powerful evolution system!
 ```
 
 ### Python API
@@ -129,291 +79,104 @@ asyncio.run(run_analysis())
 
 For detailed API examples and advanced usage patterns, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
-## 🧬 Genetic Evolution System
-
-**Evolve your hypotheses through AI-powered genetic algorithms!**
-
-The evolution system takes the hypotheses generated by QADI and evolves them over multiple generations to find optimal solutions:
+## 🧬 Genetic Evolution
 
 ```bash
-# Evolve ideas with default settings
+# Evolve ideas
 uv run mad-spark evolve "How can we reduce food waste?"
-
-# Quick evolution (2 generations, smaller population)
 uv run mad-spark evolve "Climate solutions" --quick
-
-# Custom evolution parameters
-uv run mad-spark evolve "New product ideas" \
-  --generations 5 \
-  --population 20 \
-  --temperature 1.5
-
-# Save results to file
-uv run mad-spark evolve "Business strategies" --output results.json
+uv run mad-spark evolve "New product ideas" --generations 5 --population 20
 ```
 
-### How Evolution Works
+### How It Works
 
-1. **Initial Population**: QADI generates hypotheses as the starting population
-2. **Fitness Evaluation**: Each hypothesis is scored on 5 criteria:
-   - **Novelty** (20%): How innovative/unique is the approach?
-   - **Impact** (30%): What level of positive change will it create?
-   - **Cost** (20%): Resource efficiency (lower cost = higher score)
-   - **Feasibility** (20%): How practical is implementation?
-   - **Risks** (10%): Risk level (lower risk = higher score)
-3. **Selection**: Best hypotheses are selected for breeding
-4. **Crossover**: Combine elements from two parent ideas (75% rate)
-5. **Mutation**: Introduce variations for diversity (15% rate)
-6. **Next Generation**: Repeat until optimal solutions emerge
+1. **Initial**: QADI generates starting hypotheses
+2. **Fitness**: 5-criteria scoring (Novelty 20%, Impact 30%, Cost 20%, Feasibility 20%, Risks 10%)
+3. **Selection**: Best hypotheses breed
+4. **Crossover**: Combine parent ideas (75% rate)
+5. **Mutation**: Add variations (15% rate)
+6. **Repeat**: Until optimal solutions emerge
 
-### Evolution Features
-
-- **Parallel Evaluation**: Evaluates up to 8 ideas simultaneously
-- **Smart Caching**: 50-70% reduction in API calls through result caching
-- **Checkpointing**: Save/resume evolution state for long runs
-- **Diversity Preservation**: Prevents convergence to local optima
-- **Real-time Progress**: Track fitness improvements and cache performance
-
-### Example Evolution Output
-
-```
-🧬 Evolution Pipeline
-Problem: How can we reduce plastic waste in oceans?
-Generations: 5 | Population: 12 | Temperature: 0.8
-
-✅ Generated 3 initial hypotheses
-💰 LLM Cost: $0.0234
-
-✅ Evolution completed in 45.2s
-
-🏆 Top Evolved Ideas:
-1. Autonomous ocean drones with ML-powered plastic detection... (Fitness: 0.892)
-2. Blockchain-tracked plastic credits incentivizing cleanup... (Fitness: 0.847)
-3. Bioengineered bacteria that safely decompose ocean plastic... (Fitness: 0.823)
-
-📊 Results:
-• Fitness improvement: 47.3%
-• Ideas evaluated: 60
-• Best from generation: 4
-
-💾 Cache Performance:
-• Hit rate: 65%
-• LLM calls saved: 39
-```
+**Features**: Parallel evaluation | Smart caching (50-70% reduction) | Checkpointing | Diversity preservation
 
 ## How QADI Works
 
-### The Hypothesis-Driven Process
+1. **Q**: Extract core question ("I want X" → "What causes Y?")
+2. **A**: Generate hypotheses (H1, H2, H3...)
+3. **D**: Evaluate & determine best answer
+4. **I**: Verify with real examples
 
-1. **Q (Question)**: Extract the core question
-   - Input: "I want to reduce employee turnover"
-   - Output: "What factors are causing high-value employees to leave?"
+**Temperature**: 0.0-0.5 (conservative) | 0.6-1.0 (balanced) | 1.1-2.0 (creative)
 
-2. **A (Abduction)**: Generate hypotheses
-   - H1: "Lack of career growth opportunities"
-   - H2: "Poor work-life balance"
-   - H3: "Uncompetitive compensation"
+## Architecture
 
-3. **D (Deduction)**: Evaluate and answer
-   - Scores each hypothesis on 5 criteria
-   - Determines: "Implement career development programs"
-   - Provides concrete action plan
+- **QADI Orchestrator**: 4-phase implementation
+- **Unified Evaluator**: 5-criteria scoring
+- **Evolution Engine**: AI-powered genetic algorithms with caching
+- **Phase Optimization**: Optimal hyperparameters per phase
 
-4. **I (Induction)**: Verify with examples
-   - Google's 20% time → 50% turnover reduction
-   - Hospital residency programs → 40% better retention
-   - Confirms answer is broadly applicable
+See [DEVELOPMENT.md](DEVELOPMENT.md) for details.
 
-### Temperature Control
+## Extension
 
-Adjust the creativity level of hypothesis generation:
-- `0.0-0.5`: Conservative, practical hypotheses
-- `0.6-1.0`: Balanced creativity (default: 0.8)
-- `1.1-2.0`: Highly creative, unconventional ideas
+- Implement `ThinkingAgentInterface` for custom agents
+- Implement `EvaluatorInterface` for custom metrics
+- Components auto-register on import
 
-## System Architecture
-
-**Architecture**: Hypothesis-driven analysis with unified evaluation and genetic evolution
-
-**Key Components**:
-- **Simple QADI Orchestrator**: Clean implementation of the 4-phase process
-- **Universal Prompts**: Single set of prompts for all input types
-- **Unified Evaluator**: Consistent 5-criteria scoring system
-- **Evolution Engine**: AI-powered genetic algorithms
-  - **Smart Operators**: LLM-based crossover and mutation
-  - **Result Caching**: 50-70% reduction in API calls
-  - **Checkpointing**: Save/resume evolution state
-  - **Real-time Monitoring**: Track progress and performance
-- **Phase Optimization**: Each QADI phase uses optimal hyperparameters
-
-For detailed architecture documentation, see [DEVELOPMENT.md](DEVELOPMENT.md).
-
-## Extending the System
-
-The system supports custom agents and evaluators through a plugin architecture:
-
-- **Custom Thinking Agents**: Implement `ThinkingAgentInterface` for new reasoning methods
-- **Custom Evaluators**: Implement `EvaluatorInterface` for new creativity metrics
-- **Dynamic Registration**: Components auto-register when imported
-
-For detailed extension guides and examples, see [DEVELOPMENT.md](DEVELOPMENT.md).
-
-## System Reliability & Testing
-
-### Robust LLM Integration
-
-The system includes comprehensive validation to prevent LLM response parsing failures:
-
-- **Format Validation**: Automated tests verify that prompts and parsers are compatible
-- **Integration Testing**: Real LLM tests catch Mock-Reality Divergence issues
-- **Graceful Degradation**: Parser handles format variations and fails safely with default scores
-- **Enhanced Error Reporting**: Detailed logging for debugging parsing issues
-
-### Testing Strategy
-
-**CI Testing (Automated):**
+## Testing
 
 ```bash
-# CI runs unit tests only (fast, no API keys required)
-uv run pytest tests/ -m "not integration"
-```
-
-**Local Development Testing:**
-
-```bash
-# Run unit tests (fast, no API required)
+# Unit tests (no API needed)
 uv run pytest tests/ -m "not integration"
 
-# Run integration tests with real LLM calls (requires GOOGLE_API_KEY)
+# Integration tests (requires API key)
 uv run pytest tests/ -m integration
 
-# Run specific validation tests
-uv run pytest tests/test_prompt_parser_validation.py
-
-# Full test suite (requires API key for integration tests)
+# All tests
 uv run pytest
 ```
 
-**Note:** Integration tests require real API keys and make actual LLM calls. They are excluded from CI to avoid security risks and API costs, but are essential for local validation of LLM integration changes.
+**Reliability**: Format validation | Mock-reality alignment | Graceful degradation
 
-The system prevents common LLM integration issues through:
+### CI Test Policy
 
-- **Mock-Reality Alignment**: Test mocks reflect actual LLM response formats
-- **Format Robustness**: Parser handles bullet points, markdown, and explanatory text
-- **Validation Framework**: Automated checks ensure prompts match parser expectations
+**Update Tests For**: New features | Bug fixes | Parser changes | Integration changes
 
-### CI Test Update Policy
-
-**When You MUST Update CI Tests:**
-- **Adding new features or functionality** - Include smoke tests for end-to-end validation
-- **Fixing bugs** - Add regression tests to prevent recurrence
-- **Changing parsing logic or data formats** - Add format validation tests
-- **Modifying external integrations** - Update mocks to reflect real responses
-- **Refactoring public interfaces** - Ensure backward compatibility tests
-
-**CI Test Requirements:**
-- **Smoke tests** for core functionality verification
-- **Format validation** for all parsers and data processors
-- **Silent failure detection** tests (e.g., catching when all values default)
-- **CLI command validation** for all user-facing commands
-- **Regression tests** for every bug fix
-
-**Before Pushing:**
+**Required Tests**: Smoke tests | Format validation | Regression tests | CLI validation
 
 ```bash
-# Always run CI tests locally first
+# Run before push
 uv run pytest tests/ -m "not integration"
 ```
-
-See [DEVELOPMENT.md](DEVELOPMENT.md#ci-test-policy) for detailed requirements and examples.
 
 ## Development
 
 ```bash
-# Install development dependencies
 uv sync --dev
-
-# Run tests
 uv run pytest
-
-# Type checking
 uv run mypy src/
-
-# Code formatting
 uv run black src/ tests/ && uv run isort src/ tests/
 ```
 
-For comprehensive development guidelines, testing patterns, and contribution workflow, see [DEVELOPMENT.md](DEVELOPMENT.md).
+## Recent Updates
 
-## Session Handover
+### PR #46 (Merged)
+Fixed LLM score parsing Mock-Reality Divergence:
+- **Issue**: All scores defaulting to 0.5 (test mocks vs real LLM format mismatch)
+- **Fixed**: Parser handles `"* Novelty: 0.8 - explanation"`, fractions (8/10), markdown
+- **Added**: Integration tests, CI test policy, prompt-parser validation
 
-### Last Updated: 2025-07-23 23:45 JST
-
-#### Recently Completed
-- ✅ **PR #46 [MERGED]**: Fixed LLM Score Parsing Mock-Reality Divergence & Established CI Test Policy
-  - **Critical Issue Fixed**: All hypothesis scores defaulting to 0.5 due to parser-LLM format mismatch
-  - **Root Cause**: Test mocks used `"Novelty: 0.8"` but real LLMs return `"* Novelty: 0.8 - explanation"`
-  - **Parser Enhancements**: 
-    - Added fractional score parsing (8/10 → 0.8)
-    - Handle markdown formats: bullets, bold (`**H1:**`), explanations
-    - Non-greedy regex patterns for precision
-  - **Testing Improvements**:
-    - Integration tests with real LLM API calls
-    - Prompt-parser validation framework
-    - Format variation test coverage
-  - **CI Test Policy Established**:
-    - Mandatory tests for parser changes, bug fixes, new features
-    - Documented in README, CLAUDE.md, DEVELOPMENT.md
-    - Custom commands updated to enforce policy
-  - **Workflow Overhaul Insights**: Discovered systemic issue where tests pass but system fails silently
-  - **Result**: Robust LLM parsing, comprehensive test policy, prevention of silent failures
-- ✅ **PR #44**: Centralized cost tracking system (duplication eliminated across 8+ modules)
-- ✅ **PR #42**: Fixed critical issues from PR #40 deep review
-
-#### Next Priority Tasks
-1. **Fix Method Signatures in benchmarks.py** (HIGH PRIORITY)
-   - Source: Pending from PR #38 review
-   - Context: Method signatures don't match parent class interface
-   - Approach: Update to match ThinkingAgentInterface expected signatures
-
-2. ~~**Cost Estimation Centralization** (COMPLETED in PR #44)~~
-
-3. ~~**Add Regression Tests for Cost Tracking** (COMPLETED in PR #44)~~
-
-4. **Performance Optimization** (MEDIUM PRIORITY)
-   - Source: Production readiness evaluation
-   - Context: With cost tracking centralized, focus on performance improvements
-   - Approach: Profile critical paths, optimize hot loops, add caching where beneficial
-
-#### Known Issues / Blockers
-- None currently - all CI passing, all reviewer feedback addressed
-
-#### Session Learnings
-- **Mock-Reality Divergence**: Test mocks MUST reflect actual LLM response complexity - simplified mocks cause total system failure in production
-- **Silent Functional Failures**: Passing tests ≠ working system - need user-facing behavior validation, not just code coverage
-- **CI Test Policy Critical**: Established mandatory CI test updates for parser changes, bug fixes, and new features
-- **Fractional Score Parsing**: LLMs may return scores as fractions (8/10) - parser must calculate division, not just extract numerator
-- **Exception Handling Scope**: Narrowing from `Exception` to specific types (e.g., `RuntimeError`) causes fragility - LLM setup can fail in many ways
-- **Workflow Overhaul Needed**: Development workflow must prioritize functional correctness alongside code quality
-- **Integration Test Value**: Only real LLM API tests catch prompt-parser compatibility issues - mocks hide critical failures
-- **PR Consolidation**: Keep related fixes in same PR (e.g., fix + prevention policy) for better review context
+### Key Learnings
+- Test mocks must match real LLM complexity
+- CI test policy mandatory for parser/bug fixes
+- Integration tests essential for LLM compatibility
 
 ## Documentation
 
-- **[DEVELOPMENT.md](DEVELOPMENT.md)**: Development setup, architecture, coding standards, and API reference
-- **[RESEARCH.md](RESEARCH.md)**: Academic background, QADI methodology, and research foundations
-- **[SESSIONS.md](SESSIONS.md)**: Development session history and progress tracking
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
-
-See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed contribution guidelines.
+- [DEVELOPMENT.md](DEVELOPMENT.md): Architecture, API reference, contribution guide
+- [RESEARCH.md](RESEARCH.md): QADI methodology background
+- [SESSIONS.md](SESSIONS.md): Development history
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT
