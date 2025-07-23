@@ -149,12 +149,12 @@ PHASE_HYPERPARAMETERS = {
     },
     "deduction": {
         "temperature": 0.2,  # Very low - need analytical precision
-        "max_tokens": 1500,  # Much longer - detailed analysis with scores and explanations
+        "max_tokens": 3000,  # Increased for complete analysis with scores, answer, and action plan
         "top_p": 0.9,
     },
     "induction": {
         "temperature": 0.5,  # Medium - balanced examples
-        "max_tokens": 600,  # Medium - 3 examples
+        "max_tokens": 1200,  # Increased for complete examples without truncation
         "top_p": 0.9,
     },
 }

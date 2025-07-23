@@ -393,30 +393,64 @@ class SimpleQADIOrchestrator:
                     score = self._parse_hypothesis_scores(content, i + 1)
                     scores.append(score)
 
-                # Extract the answer
+                # Extract the answer - try multiple patterns
+                answer = ""
+                
+                # Try exact ANSWER: format first
                 answer_match = re.search(
                     rf"{ANSWER_PREFIX}\s*(.+?)(?={ACTION_PLAN_PREFIX}|$)",
                     content,
-                    re.DOTALL,
+                    re.DOTALL | re.IGNORECASE,
                 )
-                answer = answer_match.group(1).strip() if answer_match else ""
+                if answer_match:
+                    answer = answer_match.group(1).strip()
+                else:
+                    # Try alternative patterns
+                    # Look for "Answer" section with different formatting
+                    alt_patterns = [
+                        r"(?:^|\n)\s*(?:\*\*)?Answer(?:\*\*)?:?\s*(.+?)(?=Action Plan|$)",
+                        r"(?:^|\n)\s*#+\s*Answer:?\s*(.+?)(?=Action Plan|$)",
+                        r"Based on.+?evaluation.+?(\*\*.+?\*\*.*?)(?=Action Plan|$)",
+                    ]
+                    for pattern in alt_patterns:
+                        match = re.search(pattern, content, re.DOTALL | re.IGNORECASE)
+                        if match:
+                            answer = match.group(1).strip()
+                            break
+                    
+                    # Last resort: if still no answer, extract text between scores and action plan
+                    if not answer:
+                        # Find the end of H3 scores and start of action plan
+                        h3_end = re.search(r"H3:.*?Overall:.*?\n\n", content, re.DOTALL)
+                        action_start = re.search(r"Action Plan:", content, re.IGNORECASE)
+                        if h3_end and action_start:
+                            potential_answer = content[h3_end.end():action_start.start()].strip()
+                            if potential_answer and len(potential_answer) > 50:  # Reasonable answer length
+                                answer = potential_answer
 
-                # Extract action plan
+                # Extract action plan - be more flexible
                 action_plan = []
                 plan_match = re.search(
-                    rf"{ACTION_PLAN_PREFIX}\s*(.+?)$",
+                    r"Action Plan:?\s*(.+?)$",
                     content,
-                    re.DOTALL,
+                    re.DOTALL | re.IGNORECASE,
                 )
                 if plan_match:
                     plan_text = plan_match.group(1).strip()
                     # Extract numbered items or bullet points
+                    # Updated regex to handle multi-line items better
                     plan_items = re.findall(
-                        r"(?:\d+\.|[-*•])\s*(.+?)(?=(?:\d+\.|[-*•])|$)",
+                        r"(?:^|\n)\s*(?:\d+\.|[-*•])\s*(.+?)(?=(?:\n\s*(?:\d+\.|[-*•]))|$)",
                         plan_text,
-                        re.DOTALL,
+                        re.DOTALL | re.MULTILINE,
                     )
-                    action_plan = [item.strip() for item in plan_items]
+                    action_plan = [item.strip() for item in plan_items if item.strip()]
+                    
+                    # If no items found with bullets/numbers, try splitting by newlines
+                    if not action_plan:
+                        lines = plan_text.split('\n')
+                        action_plan = [line.strip() for line in lines 
+                                     if line.strip() and not line.strip().startswith('#')]
 
                 return {
                     "scores": scores,
