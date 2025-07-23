@@ -269,19 +269,29 @@ The system includes comprehensive validation to prevent LLM response parsing fai
 - **Enhanced Error Reporting**: Detailed logging for debugging parsing issues
 
 ### Testing Strategy
+
+**CI Testing (Automated):**
 ```bash
-# Run unit tests (fast)
+# CI runs unit tests only (fast, no API keys required)
+uv run pytest tests/ -m "not integration"
+```
+
+**Local Development Testing:**
+```bash
+# Run unit tests (fast, no API required)
 uv run pytest tests/ -m "not integration"
 
-# Run integration tests with real LLM calls (requires API key)
+# Run integration tests with real LLM calls (requires GOOGLE_API_KEY)
 uv run pytest tests/ -m integration
 
-# Run prompt-parser validation tests
+# Run specific validation tests
 uv run pytest tests/test_prompt_parser_validation.py
 
-# Full test suite
+# Full test suite (requires API key for integration tests)
 uv run pytest
 ```
+
+**Note:** Integration tests require real API keys and make actual LLM calls. They are excluded from CI to avoid security risks and API costs, but are essential for local validation of LLM integration changes.
 
 The system prevents common LLM integration issues through:
 - **Mock-Reality Alignment**: Test mocks reflect actual LLM response formats
