@@ -57,9 +57,9 @@ class IntentDetector:
             },
             QuestionIntent.PERSONAL: {
                 "keywords": [
-                    "I", "me", "my", "myself", "personal", "individual", "lifestyle",
+                    "myself", "personal", "personally", "individual", "lifestyle",
                     "habit", "daily", "routine", "health", "wellness", "self",
-                    "improve", "change", "grow", "learn", "develop", "mindset"
+                    "mindset", "behavior", "practice", "motivation"
                 ],
                 "phrases": [
                     "how can I", "what should I", "personal development",
