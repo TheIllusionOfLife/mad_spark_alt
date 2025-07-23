@@ -208,13 +208,12 @@ src/mad_spark_alt/
 
 **CI Test Validation**: Run `uv run pytest tests/ -m "not integration"` locally before pushing.
 
-### CI/CD Pipeline
-- GitHub Actions workflow in `.github/workflows/ci.yml`
-- Tests across Python 3.8-3.11
-- Uses `uv` for fast dependency management
-- Includes CLI functionality tests
-- Type checking and formatting validation
-- Excludes integration tests (require API keys)
+### CI/CD Pipeline  
+- **Optimized for Solo Development**: Single Python version (3.11), no black formatting checks
+- **Fast Feedback**: ~2m23s runtime vs previous 8+ minutes across 4 Python versions
+- **Essential Checks Only**: Tests, mypy type checking, CLI functionality, builds
+- **Integration Tests**: Excluded (require API keys), marked with `@pytest.mark.integration`
+- **Local Testing**: Run `uv run pytest tests/ -m "not integration"` before push
 
 ## Important Notes
 
@@ -320,3 +319,34 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Constructor**: Takes no arguments - `GeneticAlgorithm()`
 - **Evolution**: Use `EvolutionRequest` object with `evolve()` method
 - **Result Access**: Use `result.final_population` not direct population return
+
+### Multi-Perspective QADI System Patterns (NEW - PR #49)
+
+#### Intent Detection & Perspective Selection
+- **Auto-Detection**: System automatically detects Environmental, Personal, Technical, Business, Scientific, Philosophical intents
+- **Confidence-Based**: Uses word boundary matching for keyword detection
+- **Manual Override**: `--perspectives environmental,technical` forces specific perspectives
+- **No Business Forcing**: Removed code that forced BUSINESS perspective for GENERAL questions
+
+#### Score Parsing & Validation
+- **Criteria Mapping Critical**: `criteria_mappings` dictionary MUST match `HypothesisScore` constructor fields
+- **Named Arguments Required**: Always use `HypothesisScore(impact=0.5, feasibility=0.5, ...)` not positional
+- **Flexible Parsing**: Parser handles multiple LLM response formats (markdown, bullets, explanations)
+- **Mock-Reality Testing**: Integration tests validate real LLM format compatibility
+
+#### Multi-Perspective Orchestration
+- **Parallel Analysis**: Run multiple perspectives concurrently with `asyncio.gather()`
+- **Relevance Scoring**: Primary perspective gets a relevance score of 1.0. Subsequent perspectives receive scores calculated by the formula `0.8 - (index * 0.1)`
+- **Synthesis Integration**: Combines insights from all perspectives into unified answer
+- **Cost Distribution**: Tracks LLM costs across all perspective analyses
+
+#### Error Handling Improvements  
+- **Specific Exceptions**: Replace bare `except:` with `except (ValueError, TypeError):`
+- **Structured Logging**: Use logger.warning with formatted messages for parsing failures
+- **Graceful Degradation**: Return sensible defaults when parsing fails
+- **User-Friendly Errors**: Convert technical errors to actionable user messages
+
+#### Repository Hygiene
+- **Evolution Checkpoints**: Added `.evolution_checkpoints/` to .gitignore for runtime temp files
+- **Large File Prevention**: Automated detection prevents accidental commits of large generated files
+- **CI Friction Reduction**: Removed formatting checks that caused frequent failures

@@ -175,18 +175,43 @@ uv run mypy src/
 uv run black src/ tests/ && uv run isort src/ tests/
 ```
 
-## Recent Updates
+## Session Handover
 
-### PR #46 (Merged)
-Fixed LLM score parsing Mock-Reality Divergence:
-- **Issue**: All scores defaulting to 0.5 (test mocks vs real LLM format mismatch)
-- **Fixed**: Parser handles `"* Novelty: 0.8 - explanation"`, fractions (8/10), markdown
-- **Added**: Integration tests, CI test policy, prompt-parser validation
+### Last Updated: 2025-07-23 19:13
 
-### Key Learnings
-- Test mocks must match real LLM complexity
-- CI test policy mandatory for parser/bug fixes
-- Integration tests essential for LLM compatibility
+#### Recently Completed
+- ✅ **PR #49**: Multi-Perspective QADI Analysis System
+  - Intent detection with 6 perspective types (Environmental, Personal, Technical, Business, Scientific, Philosophical)
+  - Automatic perspective selection based on question content
+  - Parallel analysis across multiple perspectives with synthesis
+  - New CLI scripts: `qadi_multi_perspective.py`, `qadi_simple.py`
+- ✅ **Critical Bug Fixes**: Score parsing criteria mapping, constructor arguments, exception handling
+- ✅ **CI Optimization**: Reduced from 8+ min to 2m23s by removing formatting friction
+
+#### Next Priority Tasks
+1. **Performance Optimization**: Profile multi-perspective analysis for cost efficiency
+   - Source: Large LLM costs when running multiple perspectives
+   - Context: Each perspective runs a full QADI cycle (4 phases), plus a final synthesis step, resulting in (4 * 3) + 1 = 13 LLM calls for 3 perspectives
+   - Approach: Implement caching, shared reasoning phases, or perspective relevance filtering
+
+2. **User Experience Enhancement**: Add interactive perspective selection
+   - Source: CLI feedback needs for better control
+   - Context: Users may want to see available perspectives before analysis
+   - Approach: Add `--list-perspectives` flag and interactive selection mode
+
+3. **Integration Testing Expansion**: Add real LLM validation for all new prompt formats
+   - Source: Mock-reality divergence lessons from PR #46
+   - Context: Multi-perspective prompts need validation against real LLM responses
+   - Approach: Extend `tests/test_integration_real_llm.py` with perspective-specific tests
+
+#### Known Issues / Blockers
+- **Cost Scaling**: Multi-perspective analysis expensive (~3x cost of single perspective)
+- **Response Time**: Parallel execution helps but still slower than single-perspective
+
+#### Session Learnings
+- **CI Optimization Value**: Removing non-essential checks (formatting, multiple Python versions) dramatically improves developer experience
+- **Constructor Safety**: Named arguments prevent silent bugs when dataclass fields are reordered
+- **Exception Specificity**: Bare except clauses hide real issues; specific exceptions with logging provide better debugging
 
 ## Documentation
 
