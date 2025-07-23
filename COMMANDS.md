@@ -4,25 +4,25 @@ This document lists all available commands in the Mad Spark Alt system.
 
 ## Main Command - QADI Analysis with Optional Evolution
 
-### `./qadi` (or `qadi_simple.py`) - **RECOMMENDED DEFAULT**
-The simplified QADI with clear Phase 1 that just identifies the user's question. Now includes optional genetic evolution!
+### `mad_spark_alt` - **RECOMMENDED DEFAULT**
+The main Mad Spark Alt command with simplified QADI that just identifies the user's question. Now includes optional genetic evolution!
 
 ```bash
 # Basic QADI analysis
-uv run ./qadi "Your question here"
+uv run mad_spark_alt "Your question here"
 
 # QADI + Genetic Evolution 
-uv run ./qadi "Your question" --evolve
-uv run ./qadi "Your question" -e              # Short form
+uv run mad_spark_alt "Your question" --evolve
+uv run mad_spark_alt "Your question" -e              # Short form
 
 # With custom parameters
-uv run ./qadi "Your question" --evolve --generations 5 --population 20
-uv run ./qadi "Your question" -e -g 5 -p 20   # Short form
+uv run mad_spark_alt "Your question" --evolve --generations 5 --population 20
+uv run mad_spark_alt "Your question" -e -g 5 -p 20   # Short form
 
 # Other options
-uv run ./qadi "Your question" --temperature 0.5  # More focused
-uv run ./qadi "Your question" --verbose          # Show scores
-uv run ./qadi "Your question" -e -v -t 1.5       # All options
+uv run mad_spark_alt "Your question" --temperature 0.5  # More focused
+uv run mad_spark_alt "Your question" --verbose          # Show scores
+uv run mad_spark_alt "Your question" -e -v -t 1.5       # All options
 ```
 
 Options:
@@ -103,7 +103,7 @@ uv run mad-spark evolve "Climate solutions" --quick --generations 2
 uv run mad-spark evolve "Business innovation" --output results.json
 ```
 
-Note: For most users, `./qadi --evolve` is simpler and recommended.
+Note: For most users, `mad_spark_alt --evolve` is simpler and recommended.
 
 ### 2. `evolution_demo.py` - Standalone Evolution Demo
 Direct demonstration of the genetic evolution system.

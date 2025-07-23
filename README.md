@@ -30,13 +30,13 @@ echo "GOOGLE_API_KEY=your_key_here" > .env
 
 ```bash
 # Simple, clear analysis with improved Phase 1
-uv run ./qadi "How can we reduce plastic waste?"
+uv run mad_spark_alt "How can we reduce plastic waste?"
 
 # Add genetic evolution to optimize ideas
-uv run ./qadi "How can we reduce plastic waste?" --evolve
+uv run mad_spark_alt "How can we reduce plastic waste?" --evolve
 
 # Customize evolution parameters
-uv run ./qadi "Your question" --evolve --generations 5 --population 20
+uv run mad_spark_alt "Your question" --evolve --generations 5 --population 20
 ```
 
 ### Other Analysis Modes
