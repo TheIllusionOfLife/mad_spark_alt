@@ -12,8 +12,8 @@ from typing import List, Optional
 
 from mad_spark_alt.core import (
     GeneratedIdea,
-    SmartQADIOrchestrator,
 )
+from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
 from mad_spark_alt.evolution import (
     EvolutionConfig,
     EvolutionRequest,
@@ -37,7 +37,7 @@ if env_path.exists():
 async def generate_initial_ideas(
     problem_statement: str, context: str
 ) -> List[GeneratedIdea]:
-    """Generate initial ideas using LLM-powered QADI agents.
+    """Generate initial ideas using simplified QADI analysis.
 
     Args:
         problem_statement: The problem or challenge to generate ideas for.
@@ -48,14 +48,13 @@ async def generate_initial_ideas(
     """
     print("=== Phase 1: Generating Initial Ideas with QADI ===")
 
-    # Use SmartQADIOrchestrator which automatically uses LLM agents when available
-    orchestrator = SmartQADIOrchestrator()
+    # Use SimpleQADIOrchestrator which implements the true QADI methodology
+    orchestrator = SimpleQADIOrchestrator()
 
-    # Generate ideas using LLM-powered agents
+    # Generate ideas using the QADI cycle
     result = await orchestrator.run_qadi_cycle(
-        problem_statement=problem_statement,
+        user_input=problem_statement,
         context=context,
-        cycle_config={"max_ideas_per_method": 5, "require_reasoning": True},
     )
 
     print(f"Generated {len(result.synthesized_ideas)} initial ideas")
@@ -63,7 +62,8 @@ async def generate_initial_ideas(
     # Display sample ideas
     print("\n📝 Sample Initial Ideas:")
     for i, idea in enumerate(result.synthesized_ideas[:3]):
-        print(f"\n{i+1}. [{idea.thinking_method.value}] {idea.content[:100]}...")
+        method_name = getattr(idea.thinking_method, 'value', str(idea.thinking_method))
+        print(f"\n{i+1}. [{method_name}] {idea.content[:100]}...")
         print(f"   Confidence: {idea.confidence_score or 0.0:.2f}")
 
     return result.synthesized_ideas
@@ -83,13 +83,8 @@ async def evolve_ideas(
     """
     print("\n=== Phase 2: Evolving Ideas with Genetic Algorithm ===")
 
-    # Create genetic algorithm with caching and checkpointing
-    ga = GeneticAlgorithm(
-        use_cache=True,  # Enable fitness caching
-        cache_ttl=3600,  # 1 hour cache
-        checkpoint_dir=".evolution_checkpoints",  # Enable checkpointing
-        checkpoint_interval=2,  # Save every 2 generations
-    )
+    # Create genetic algorithm (configured through EvolutionRequest)
+    ga = GeneticAlgorithm()
 
     # Configure evolution
     config = EvolutionConfig(

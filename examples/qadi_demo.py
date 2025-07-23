@@ -16,12 +16,7 @@ from rich.json import JSON
 from rich.panel import Panel
 from rich.table import Table
 
-from mad_spark_alt.core import (
-    IdeaGenerationRequest,
-    RobustQADIOrchestrator,
-    SmartQADIOrchestrator,
-    ThinkingMethod,
-)
+from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
 
 # Load .env file if it exists
 env_path = Path(__file__).parent.parent / ".env"
@@ -37,7 +32,7 @@ if env_path.exists():
 console = Console()
 
 
-async def check_api_keys():
+async def check_api_keys() -> bool:
     """Check and display available API keys."""
     console.print("🔐 Checking API Key Availability", style="bold blue")
 
@@ -80,147 +75,130 @@ async def check_api_keys():
     return has_api_keys
 
 
-async def demo_agent_setup(orchestrator: SmartQADIOrchestrator):
-    """Demonstrate the smart agent setup process."""
+async def demo_qadi_setup() -> SimpleQADIOrchestrator:
+    """Demonstrate the QADI system setup."""
     console.print("\n" + "=" * 60)
-    console.print("🔧 Smart Agent Setup Demo", style="bold blue")
+    console.print("🔧 QADI System Setup Demo", style="bold blue")
     console.print("=" * 60)
 
-    console.print("Setting up intelligent agents with automatic LLM preference...")
+    console.print("Setting up simplified QADI analysis system...")
 
-    setup_status = await orchestrator.ensure_agents_ready()
+    # Create orchestrator
+    orchestrator = SimpleQADIOrchestrator()
 
-    # Display setup results
-    setup_table = Table(title="Agent Setup Results")
-    setup_table.add_column("Thinking Method", style="cyan")
-    setup_table.add_column("Status", style="green")
+    # Display setup information
+    setup_table = Table(title="QADI System Components")
+    setup_table.add_column("Phase", style="cyan")
+    setup_table.add_column("Method", style="green")
+    setup_table.add_column("Purpose", style="yellow")
 
-    for method, status in setup_status.items():
-        if "LLM" in status:
-            setup_table.add_row(method.title(), f"🤖 {status}")
-        else:
-            setup_table.add_row(method.title(), f"📝 {status}")
+    setup_table.add_row("Q - Question", "Core Question Extraction", "Identifies the key question to answer")
+    setup_table.add_row("A - Abduction", "Hypothesis Generation", "Generates 3 potential solutions")
+    setup_table.add_row("D - Deduction", "Evaluation & Selection", "Evaluates hypotheses and selects the best")
+    setup_table.add_row("I - Induction", "Verification", "Verifies with real-world examples")
 
     console.print(setup_table)
+    console.print("\n✅ QADI system ready for analysis")
 
-    # Show agent status
-    agent_status = orchestrator.get_agent_status()
-    console.print(f"\n✅ Setup completed: {agent_status['setup_completed']}")
-
-    return setup_status
+    return orchestrator
 
 
-async def demo_smart_qadi_cycle(problem: str):
-    """Demonstrate the smart QADI cycle with LLM agents."""
+async def demo_qadi_cycle(problem: str) -> None:
+    """Demonstrate the QADI cycle analysis."""
     console.print("\n" + "=" * 60)
-    console.print("🔄 Smart QADI Cycle Demo", style="bold blue")
+    console.print("🔄 QADI Analysis Demo", style="bold blue")
     console.print("=" * 60)
 
-    orchestrator = RobustQADIOrchestrator()
+    orchestrator = SimpleQADIOrchestrator()
 
     console.print(f"\n🎯 Problem: [italic]{problem}[/italic]")
-    console.print("\n🚀 Starting intelligent QADI cycle...")
+    console.print("\n🚀 Starting QADI analysis...")
 
     result = await orchestrator.run_qadi_cycle(
-        problem_statement=problem,
+        user_input=problem,
         context="Focus on innovative, practical solutions with consideration for stakeholders and implementation challenges",
-        cycle_config={
-            "max_ideas_per_method": 3,
-            "require_reasoning": True,
-            "creativity_level": "high",
-        },
     )
 
-    console.print(f"\n✅ Smart QADI cycle completed in {result.execution_time:.2f}s")
-    console.print(f"🔍 Cycle ID: {result.cycle_id}")
+    console.print("\n✅ QADI analysis completed")
 
-    if result.llm_cost > 0:
-        console.print(f"💰 Total LLM Cost: ${result.llm_cost:.4f}")
+    if result.total_llm_cost > 0:
+        console.print(f"💰 Total LLM Cost: ${result.total_llm_cost:.4f}")
 
-    # Display agent types used
-    agent_table = Table(title="Agents Used in QADI Cycle")
-    agent_table.add_column("Phase", style="cyan")
-    agent_table.add_column("Agent Type", style="green")
-    agent_table.add_column("Ideas Generated", style="yellow")
+    # Display QADI phases
+    phase_table = Table(title="QADI Analysis Results")
+    phase_table.add_column("Phase", style="cyan")
+    phase_table.add_column("Result", style="green")
 
     phase_emojis = {
-        "questioning": "❓",
-        "abduction": "💡",
-        "deduction": "🔍",
-        "induction": "🔗",
+        "question": "❓",
+        "hypotheses": "💡", 
+        "answer": "🔍",
+        "verification": "🔗",
     }
 
-    for phase_name, agent_type in result.agent_types.items():
-        phase_result = result.phases.get(phase_name)
-        idea_count = len(phase_result.generated_ideas) if phase_result else 0
-        emoji = phase_emojis.get(phase_name, "🧠")
+    # Question Phase
+    phase_table.add_row(
+        f"{phase_emojis['question']} Question", 
+        result.core_question[:80] + "..." if len(result.core_question) > 80 else result.core_question
+    )
 
-        agent_display = (
-            f"🤖 {agent_type}" if "LLM" in agent_type else f"📝 {agent_type}"
+    # Hypotheses (Abduction)
+    hypotheses_summary = f"{len(result.hypotheses)} hypotheses generated"
+    if result.hypotheses and result.hypothesis_scores:
+        # Zip hypotheses and scores to find the best one efficiently (O(N))
+        best_hypothesis_item = max(
+            zip(result.hypotheses, result.hypothesis_scores),
+            key=lambda item: item[1].overall
         )
-        agent_table.add_row(
-            f"{emoji} {phase_name.title()}", agent_display, str(idea_count)
-        )
+        best_hypothesis = best_hypothesis_item[0]
+        hypotheses_summary += f"\nBest: {best_hypothesis[:60]}..."
+    phase_table.add_row(f"{phase_emojis['hypotheses']} Hypotheses", hypotheses_summary)
 
-    console.print(agent_table)
+    # Answer (Deduction)
+    answer_text = result.final_answer[:80] + "..." if len(result.final_answer) > 80 else result.final_answer
+    phase_table.add_row(f"{phase_emojis['answer']} Answer", answer_text)
 
-    # Display detailed results for each phase
-    for phase_name, phase_result in result.phases.items():
-        emoji = phase_emojis.get(phase_name, "🧠")
-        agent_type = result.agent_types.get(phase_name, "unknown")
+    # Verification (Induction)
+    verification_summary = f"{len(result.verification_examples)} examples"
+    if result.verification_examples:
+        verification_summary += f"\nFirst: {result.verification_examples[0][:60]}..."
+    phase_table.add_row(f"{phase_emojis['verification']} Verification", verification_summary)
 
-        console.print(f"\n{emoji} {phase_name.title()} Phase ({agent_type}):")
+    console.print(phase_table)
 
-        if phase_result.error_message:
-            console.print(f"   ❌ Error: {phase_result.error_message}", style="red")
-        else:
-            console.print(f"   Agent: {phase_result.agent_name}")
+    # Display detailed hypotheses with scores
+    if result.hypotheses and result.hypothesis_scores:
+        console.print("\n💡 Detailed Hypotheses:")
+        for i, (hypothesis, score) in enumerate(zip(result.hypotheses, result.hypothesis_scores)):
+            console.print(f"\n   H{i+1}. {hypothesis}")
+            console.print(f"      📊 Overall Score: {score.overall:.3f}")
+            console.print(f"      📈 Novelty: {score.novelty:.2f} | Impact: {score.impact:.2f} | Feasibility: {score.feasibility:.2f}")
 
-            for i, idea in enumerate(phase_result.generated_ideas, 1):
-                console.print(f"\n   {i}. {idea.content}")
-
-                # Show reasoning for LLM agents (usually more detailed)
-                if idea.reasoning and "LLM" in agent_type:
-                    reasoning = (
-                        idea.reasoning[:200] + "..."
-                        if len(idea.reasoning) > 200
-                        else idea.reasoning
-                    )
-                    console.print(f"      💭 Reasoning: {reasoning}", style="dim")
-
-                # Show confidence for LLM agents
-                if hasattr(idea, "confidence_score") and idea.confidence_score:
-                    console.print(
-                        f"      📊 Confidence: {idea.confidence_score:.2f}", style="dim"
-                    )
-
-                # Show cost for LLM ideas
-                if "llm_cost" in idea.metadata and idea.metadata["llm_cost"] > 0:
-                    console.print(
-                        f"      💰 Cost: ${idea.metadata['llm_cost']:.4f}", style="dim"
-                    )
+    # Display action plan if available
+    if result.action_plan:
+        console.print("\n📋 Action Plan:")
+        for i, action in enumerate(result.action_plan, 1):
+            console.print(f"   {i}. {action}")
 
     # Display synthesis
     console.print(f"\n🎨 Synthesized Ideas ({len(result.synthesized_ideas)} total):")
+    for i, idea in enumerate(result.synthesized_ideas[:5], 1):  # Show first 5
+        method_name = getattr(idea.thinking_method, 'value', str(idea.thinking_method))
+        console.print(f"  {i}. [{method_name}] {idea.content[:80]}...")
 
-    for i, idea in enumerate(result.synthesized_ideas[:6], 1):  # Show first 6
-        phase = idea.metadata.get("phase", "unknown")
-        emoji = phase_emojis.get(phase, "🧠")
-        console.print(f"  {i}. [{emoji} {phase}] {idea.content[:80]}...")
-
-    if len(result.synthesized_ideas) > 6:
-        console.print(f"  ... and {len(result.synthesized_ideas) - 6} more ideas")
+    if len(result.synthesized_ideas) > 5:
+        console.print(f"  ... and {len(result.synthesized_ideas) - 5} more ideas")
 
 
-async def demo_agent_comparison(problem: str):
-    """Demonstrate template vs LLM agent comparison."""
+async def demo_qadi_capabilities(problem: str) -> None:
+    """Demonstrate QADI system capabilities and requirements."""
     console.print("\n" + "=" * 60)
-    console.print("⚔️ Template vs LLM Agent Comparison", style="bold blue")
+    console.print("💪 QADI System Capabilities", style="bold blue")
     console.print("=" * 60)
 
     console.print(f"\n🎯 Problem: [italic]{problem}[/italic]")
 
-    # Check if we can demo LLM agents
+    # Check if we have API keys
     has_api_keys = any(
         [
             os.getenv("OPENAI_API_KEY"),
@@ -230,48 +208,38 @@ async def demo_agent_comparison(problem: str):
     )
 
     if has_api_keys:
-        console.print("🤖 Running comparison between template and LLM agents...")
+        console.print("🤖 API key detected - full QADI analysis available!")
+        
+        # Display capabilities
+        capabilities_table = Table(title="QADI System Capabilities")
+        capabilities_table.add_column("Feature", style="cyan")
+        capabilities_table.add_column("Description", style="green")
 
-        # Create two orchestrators - one smart, one basic
-        smart_orchestrator = RobustQADIOrchestrator()
+        capabilities_table.add_row("Question Extraction", "Identifies the core question from any input")
+        capabilities_table.add_row("Hypothesis Generation", "Creates 3 potential solutions/approaches")
+        capabilities_table.add_row("Multi-criteria Evaluation", "Scores on Novelty, Impact, Cost, Feasibility, Risks")
+        capabilities_table.add_row("Verification Examples", "Provides real-world validation")
+        capabilities_table.add_row("Action Planning", "Generates concrete implementation steps")
+        capabilities_table.add_row("Cost Tracking", "Monitors LLM usage and costs")
 
-        # Run smart cycle (LLM preferred)
-        smart_result = await smart_orchestrator.run_qadi_cycle(
-            problem_statement=problem, cycle_config={"max_ideas_per_method": 2}
-        )
-
-        # Display comparison
-        comparison_table = Table(title="Agent Performance Comparison")
-        comparison_table.add_column("Metric", style="cyan")
-        comparison_table.add_column("Smart QADI", style="green")
-
-        comparison_table.add_row(
-            "Execution Time", f"{smart_result.execution_time:.2f}s"
-        )
-        comparison_table.add_row(
-            "Total Ideas", str(len(smart_result.synthesized_ideas))
-        )
-        comparison_table.add_row("LLM Cost", f"${smart_result.llm_cost:.4f}")
-        comparison_table.add_row(
-            "Agent Types", ", ".join(set(smart_result.agent_types.values()))
-        )
-
-        console.print(comparison_table)
+        console.print(capabilities_table)
 
     else:
-        console.print(
-            "📝 No API keys available - showing template agent capabilities..."
-        )
-        console.print("💡 Set API keys to see LLM agent comparison!", style="yellow")
+        console.print("❌ No API keys detected - QADI analysis requires LLM access")
+        console.print("\n📝 To enable full QADI analysis, set one of these environment variables:")
+        console.print("  • GOOGLE_API_KEY=your_google_api_key")
+        console.print("  • OPENAI_API_KEY=your_openai_api_key") 
+        console.print("  • ANTHROPIC_API_KEY=your_anthropic_api_key")
+        console.print("\n💡 Get API keys from the respective provider websites")
 
 
-async def main():
+async def main() -> None:
     """Main demo function."""
     console.print(
         Panel.fit(
-            "🚀 Mad Spark Alt - Smart QADI Demo\n"
-            "Intelligent Multi-Agent Idea Generation\n"
-            "Automatic LLM Agent Preference & Fallback",
+            "🚀 Mad Spark Alt - QADI Analysis Demo\n"
+            "Simplified QADI Methodology\n"
+            "Question → Abduction → Deduction → Induction",
             style="bold green",
         )
     )
@@ -300,34 +268,37 @@ async def main():
             console.print("=" * 80)
 
             # Setup demo
-            orchestrator = RobustQADIOrchestrator()
-            await demo_agent_setup(orchestrator)
+            await demo_qadi_setup()
 
             # Main QADI cycle demo
-            await demo_smart_qadi_cycle(problem)
+            if has_api_keys:
+                await demo_qadi_cycle(problem)
+            else:
+                console.print("⚠️ Skipping QADI analysis - no API key available")
 
-            # Agent comparison (only for first problem)
+            # Capabilities demo (only for first problem)
             if i == 1:
-                await demo_agent_comparison(problem)
+                await demo_qadi_capabilities(problem)
 
         console.print("\n" + "=" * 80)
-        console.print("🎉 Smart QADI Demo completed successfully!", style="bold green")
+        console.print("🎉 QADI Demo completed successfully!", style="bold green")
 
         if has_api_keys:
             console.print(
-                "🤖 You experienced AI-powered intelligent idea generation!",
+                "🤖 You experienced AI-powered QADI analysis!",
                 style="green",
             )
         else:
             console.print(
-                "📝 You saw template-based generation. Try with API keys for AI power!",
+                "📝 You saw the QADI system structure. Set API keys for full analysis!",
                 style="yellow",
             )
 
         console.print("\n💡 Next steps:", style="bold cyan")
-        console.print("  • Set API keys for LLM-powered agents")
-        console.print("  • Try the CLI: uv run mad-spark evaluate 'your idea'")
-        console.print("  • Explore the Python API for custom applications")
+        console.print("  • Set API keys for full QADI analysis")
+        console.print("  • Try the CLI: uv run mad_spark_alt 'your question'")
+        console.print("  • Try evolution: uv run mad_spark_alt 'your question' --evolve")
+        console.print("  • Try multi-perspective: uv run python qadi_multi_perspective.py 'your question'")
 
     except Exception as e:
         console.print(f"\n❌ Demo failed: {e}", style="bold red")

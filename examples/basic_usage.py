@@ -4,8 +4,8 @@ Basic usage examples for Mad Spark Alt.
 
 import asyncio
 
-from src.mad_spark_alt import (
-    CreativityEvaluator,
+from mad_spark_alt import CreativityEvaluator
+from mad_spark_alt.core import (
     EvaluationRequest,
     ModelOutput,
     OutputType,

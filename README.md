@@ -42,14 +42,30 @@ uv run mad_spark_alt "Your question" --evolve --generations 5 --population 20
 ### Other Analysis Modes
 
 ```bash
-# Original hypothesis-driven analysis
-uv run python qadi_hypothesis.py "Your question here"
+# Simple QADI analysis with direct prompts
+uv run python qadi_simple.py "Your question here"
 
 # Multi-agent analysis with type detection
 uv run python qadi_simple_multi.py "Your question here"
 
-# Multi-perspective analysis (personal/community/systemic)
+# Multi-perspective analysis (environmental/personal/technical/business/etc.)
 uv run python qadi_multi_perspective.py "Your question here"
+```
+
+### Advanced Options
+
+```bash
+# Temperature control (creativity level)
+uv run python qadi_simple.py "Your question" --temperature 1.2
+
+# Evolution with custom parameters
+uv run python qadi_simple.py "Your question" --evolve --generations 10 --population 15
+
+# Multi-perspective with forced perspectives
+uv run python qadi_multi_perspective.py "Your question" --perspectives environmental,technical
+
+# Note: Evolution arguments require --evolve flag
+# This will show helpful error: uv run python qadi_simple.py "question" --generations 5
 ```
 
 ### Example Prompts
@@ -177,36 +193,37 @@ uv run black src/ tests/ && uv run isort src/ tests/
 
 ## Session Handover
 
-### Last Updated: 2025-07-23 19:13
+### Last Updated: 2025-07-23 22:30
 
 #### Recently Completed
+
+- ✅ **PR #51**: Comprehensive System Testing and Validation Suite
+  - CLI argument validation with helpful error messages for evolution parameters
+  - 31 new tests: CLI validation (10), multi-perspective integration (12), system validation (9)
+  - Updated all examples to use current `SimpleQADIOrchestrator` architecture  
+  - Fixed import errors and verified all README commands work correctly
+  - End-to-end system validation framework for future quality assurance
 - ✅ **PR #49**: Multi-Perspective QADI Analysis System
   - Intent detection with 6 perspective types (Environmental, Personal, Technical, Business, Scientific, Philosophical)
   - Automatic perspective selection based on question content
   - Parallel analysis across multiple perspectives with synthesis
-  - New CLI scripts: `qadi_multi_perspective.py`, `qadi_simple.py`
-- ✅ **Critical Bug Fixes**: Score parsing criteria mapping, constructor arguments, exception handling
-- ✅ **CI Optimization**: Reduced from 8+ min to 2m23s by removing formatting friction
+- ✅ **Quality & Reliability**: Mock-reality alignment, comprehensive error handling, graceful degradation
 
 #### Next Priority Tasks
+
 1. **Performance Optimization**: Profile multi-perspective analysis for cost efficiency
-   - Source: Large LLM costs when running multiple perspectives
-   - Context: Each perspective runs a full QADI cycle (4 phases), plus a final synthesis step, resulting in (4 * 3) + 1 = 13 LLM calls for 3 perspectives
+   - Context: Each perspective runs a full QADI cycle (4 phases), plus synthesis = 13 LLM calls for 3 perspectives
    - Approach: Implement caching, shared reasoning phases, or perspective relevance filtering
 
 2. **User Experience Enhancement**: Add interactive perspective selection
-   - Source: CLI feedback needs for better control
    - Context: Users may want to see available perspectives before analysis
    - Approach: Add `--list-perspectives` flag and interactive selection mode
 
-3. **Integration Testing Expansion**: Add real LLM validation for all new prompt formats
-   - Source: Mock-reality divergence lessons from PR #46
-   - Context: Multi-perspective prompts need validation against real LLM responses
-   - Approach: Extend `tests/test_integration_real_llm.py` with perspective-specific tests
+#### System Health
 
-#### Known Issues / Blockers
-- **Cost Scaling**: Multi-perspective analysis expensive (~3x cost of single perspective)
-- **Response Time**: Parallel execution helps but still slower than single-perspective
+- **Test Coverage**: 31 new validation tests ensure system reliability
+- **CLI Robustness**: Clear error messages prevent user confusion
+- **Documentation**: All commands verified working with current system
 
 #### Session Learnings
 - **CI Optimization Value**: Removing non-essential checks (formatting, multiple Python versions) dramatically improves developer experience
