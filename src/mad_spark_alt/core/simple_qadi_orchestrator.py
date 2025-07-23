@@ -459,7 +459,9 @@ class SimpleQADIOrchestrator:
 
             # Check if this is the start of our hypothesis section
             # Handle various formats: "H1:", "- H1:", "- **H1:**", etc.
-            hypothesis_match = re.match(rf"^(?:-\s*)?(?:\*\*)?H{hypothesis_num}[:.](.*)(?:\*\*)?$", line)
+            hypothesis_match = re.match(
+                rf"^(?:-\s*)?(?:\*\*)?H{hypothesis_num}[:.](.*)(?:\*\*)?$", line
+            )
             if hypothesis_match:
                 in_section = True
                 section_lines.append(hypothesis_match.group(1).strip())
