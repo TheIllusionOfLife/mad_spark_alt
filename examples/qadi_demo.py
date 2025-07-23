@@ -32,7 +32,7 @@ if env_path.exists():
 console = Console()
 
 
-async def check_api_keys():
+async def check_api_keys() -> bool:
     """Check and display available API keys."""
     console.print("🔐 Checking API Key Availability", style="bold blue")
 
