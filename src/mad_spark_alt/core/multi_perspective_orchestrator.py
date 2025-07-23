@@ -395,7 +395,7 @@ class MultiPerspectiveQADIOrchestrator:
             "feasibility": [
                 "feasibility",
                 "implementation feasibility",
-                "implementation complexity", 
+                "implementation complexity",
                 "ease of adoption",
                 "practical application",
                 "implementation speed",
