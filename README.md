@@ -221,10 +221,10 @@ uv run black src/ tests/ && uv run isort src/ tests/
 - **Documentation**: All commands verified working with current system
 
 #### Session Learnings
-- **Bot Review Verification**: Always verify bot claims with file system checks (claude[bot] false alarm on test files)
-- **Performance Patterns**: Use Python built-ins like zip() for O(N) algorithms instead of nested operations
-- **CLI Best Practices**: Use parser.get_default() for DRY principle, provide actionable error messages
-- **Comprehensive Testing**: Real-world testing of all documented commands ensures reliability
+- **Best Practices Documented**: Key learnings from PR #51 on system testing and CLI development have been added to the [project style guide](CLAUDE.md#system-testing-best-practices-pr-51). Highlights include:
+  - Verifying bot claims with file system checks.
+  - Using built-in functions for performance and `parser.get_default()` for DRYer CLI code.
+  - The importance of real-world, comprehensive testing.
 
 ## Documentation
 
