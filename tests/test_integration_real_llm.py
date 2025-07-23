@@ -2,8 +2,6 @@
 
 import os
 import pytest
-import asyncio
-from unittest.mock import patch
 
 from mad_spark_alt.core import SimpleQADIOrchestrator, setup_llm_providers
 
@@ -25,10 +23,9 @@ class TestRealLLMIntegration:
         not os.getenv("GOOGLE_API_KEY"),
         reason="GOOGLE_API_KEY not set - requires real API access"
     )
-    @pytest.mark.integration
-    async def test_real_qadi_cycle_score_parsing(self):
+    async def test_real_qadi_cycle_score_parsing(self, llm_setup) -> None:
         """Test that real LLM responses can be parsed correctly."""
-        await setup_llm_providers(google_api_key=os.getenv("GOOGLE_API_KEY"))
+        # llm_setup fixture already handles provider setup
         
         orchestrator = SimpleQADIOrchestrator()
         
@@ -55,7 +52,7 @@ class TestRealLLMIntegration:
             )
             
             # Log the actual scores for debugging
-            print(f"\\nActual scores from LLM:")
+            print(f"\nActual scores from LLM:")
             for i, score in enumerate(result.hypothesis_scores):
                 print(f"H{i+1}: novelty={score.novelty}, impact={score.impact}, overall={score.overall}")
             
@@ -68,7 +65,7 @@ class TestRealLLMIntegration:
                     "Divergence issue."
                 )
                 
-        except Exception as e:
+        except RuntimeError as e:
             pytest.fail(f"Real LLM integration test failed: {e}")
 
     @pytest.mark.asyncio
@@ -76,10 +73,9 @@ class TestRealLLMIntegration:
         not os.getenv("GOOGLE_API_KEY"),
         reason="GOOGLE_API_KEY not set - requires real API access"
     )
-    @pytest.mark.integration 
-    async def test_deduction_phase_format_validation(self):
+    async def test_deduction_phase_format_validation(self, llm_setup) -> None:
         """Test that deduction phase returns parseable format."""
-        await setup_llm_providers(google_api_key=os.getenv("GOOGLE_API_KEY"))
+        # llm_setup fixture already handles provider setup
         
         orchestrator = SimpleQADIOrchestrator()
         
@@ -109,7 +105,7 @@ class TestRealLLMIntegration:
                        score.risks == 0.5)
             ]
             
-            print(f"\\nDeduction phase results:")
+            print(f"\nDeduction phase results:")
             print(f"Raw content length: {len(result['raw_content'])}")
             print(f"Non-default scores found: {len(non_default_scores)}")
             

@@ -460,7 +460,7 @@ class SimpleQADIOrchestrator:
             # Check if this is the start of our hypothesis section
             # Handle various formats: "H1:", "- H1:", "- **H1:**", etc.
             hypothesis_match = re.match(
-                rf"^(?:-\s*)?(?:\*\*)?H{hypothesis_num}[:.](.*)(?:\*\*)?$", line
+                rf"^(?:-\s*)?(?:\*\*)?H{hypothesis_num}[:.](.*?)(?:\*\*)?$", line
             )
             if hypothesis_match:
                 in_section = True
@@ -470,7 +470,7 @@ class SimpleQADIOrchestrator:
             # Check if we've reached the next hypothesis or end section
             if in_section:
                 if re.match(
-                    rf"^(?:-\s*)?(?:\*\*)?H{hypothesis_num + 1}[:.]", line
+                    rf"^(?:-\s*)?(?:\*\*)?H{hypothesis_num + 1}[:.]", line,
                 ) or line.startswith((ANSWER_PREFIX, ACTION_PLAN_PREFIX)):
                     break
                 section_lines.append(line)

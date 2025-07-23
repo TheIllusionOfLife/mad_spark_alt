@@ -17,7 +17,7 @@ class TestPromptParserValidation:
         sample_prompt = prompts.get_deduction_prompt(
             "Test input",
             "Test question", 
-            "H1: First hypothesis\\nH2: Second hypothesis\\nH3: Third hypothesis"
+            "H1: First hypothesis\nH2: Second hypothesis\nH3: Third hypothesis"
         )
         
         # Extract the expected format from the prompt

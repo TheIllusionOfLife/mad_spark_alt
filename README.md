@@ -261,6 +261,7 @@ For detailed extension guides and examples, see [DEVELOPMENT.md](DEVELOPMENT.md)
 ## System Reliability & Testing
 
 ### Robust LLM Integration
+
 The system includes comprehensive validation to prevent LLM response parsing failures:
 
 - **Format Validation**: Automated tests verify that prompts and parsers are compatible
@@ -271,12 +272,14 @@ The system includes comprehensive validation to prevent LLM response parsing fai
 ### Testing Strategy
 
 **CI Testing (Automated):**
+
 ```bash
 # CI runs unit tests only (fast, no API keys required)
 uv run pytest tests/ -m "not integration"
 ```
 
 **Local Development Testing:**
+
 ```bash
 # Run unit tests (fast, no API required)
 uv run pytest tests/ -m "not integration"
@@ -294,6 +297,7 @@ uv run pytest
 **Note:** Integration tests require real API keys and make actual LLM calls. They are excluded from CI to avoid security risks and API costs, but are essential for local validation of LLM integration changes.
 
 The system prevents common LLM integration issues through:
+
 - **Mock-Reality Alignment**: Test mocks reflect actual LLM response formats
 - **Format Robustness**: Parser handles bullet points, markdown, and explanatory text
 - **Validation Framework**: Automated checks ensure prompts match parser expectations
@@ -315,6 +319,7 @@ The system prevents common LLM integration issues through:
 - **Regression tests** for every bug fix
 
 **Before Pushing:**
+
 ```bash
 # Always run CI tests locally first
 uv run pytest tests/ -m "not integration"
