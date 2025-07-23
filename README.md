@@ -31,8 +31,12 @@ echo "GOOGLE_API_KEY=your_key_here" > .env
 ```bash
 # Simple, clear analysis with improved Phase 1
 uv run ./qadi "How can we reduce plastic waste?"
-# Or use the full command:
-uv run python qadi_simple.py "Your question here"
+
+# Add genetic evolution to optimize ideas
+uv run ./qadi "How can we reduce plastic waste?" --evolve
+
+# Customize evolution parameters
+uv run ./qadi "Your question" --evolve --generations 5 --population 20
 ```
 
 ### Other Analysis Modes

@@ -2,7 +2,12 @@
 """
 Default QADI command - uses the simplified version with clear Phase 1.
 
-This is a convenience wrapper for qadi_simple.py
+This is a convenience wrapper for qadi_simple.py that supports all options including evolution.
+
+Usage:
+    ./qadi "Your question"                    # Basic QADI analysis
+    ./qadi "Your question" --evolve          # QADI + genetic evolution
+    ./qadi "Your question" -e -g 5 -p 20     # Custom evolution parameters
 """
 
 import sys

@@ -2,17 +2,37 @@
 
 This document lists all available commands in the Mad Spark Alt system.
 
-## QADI Analysis Commands
+## Main Command - QADI Analysis with Optional Evolution
 
-These are the main commands for running QADI (Question-Abduction-Deduction-Induction) analysis.
+### `./qadi` (or `qadi_simple.py`) - **RECOMMENDED DEFAULT**
+The simplified QADI with clear Phase 1 that just identifies the user's question. Now includes optional genetic evolution!
 
-### 1. `qadi_simple.py` - **RECOMMENDED DEFAULT**
-The simplified QADI with clearer Phase 1 that just identifies the user's question.
 ```bash
-uv run python qadi_simple.py "Your question here"
-uv run python qadi_simple.py "Your question" --temperature 0.5  # More focused
-uv run python qadi_simple.py "Your question" --verbose  # Show scores
+# Basic QADI analysis
+uv run ./qadi "Your question here"
+
+# QADI + Genetic Evolution 
+uv run ./qadi "Your question" --evolve
+uv run ./qadi "Your question" -e              # Short form
+
+# With custom parameters
+uv run ./qadi "Your question" --evolve --generations 5 --population 20
+uv run ./qadi "Your question" -e -g 5 -p 20   # Short form
+
+# Other options
+uv run ./qadi "Your question" --temperature 0.5  # More focused
+uv run ./qadi "Your question" --verbose          # Show scores
+uv run ./qadi "Your question" -e -v -t 1.5       # All options
 ```
+
+Options:
+- `--evolve, -e`: Add genetic evolution after QADI analysis
+- `--generations, -g`: Number of evolution generations (default: 3)
+- `--population, -p`: Population size for evolution (default: 12)
+- `--temperature, -t`: Creativity temperature 0.0-2.0 (default: 0.8)
+- `--verbose, -v`: Show detailed evaluation scores
+
+## Other QADI Analysis Commands
 
 ### 2. `qadi_hypothesis.py` - Original Hypothesis-Driven
 The original QADI implementation that tries to extract a "core question".
@@ -65,10 +85,10 @@ uv run mad-spark batch-evaluate file1.txt file2.txt
 uv run mad-spark --help
 ```
 
-## Genetic Evolution Commands
+## Alternative Evolution Commands
 
-### 1. `mad-spark evolve` - Evolve Ideas with QADI + Genetic Algorithm
-Combines QADI analysis with genetic evolution to optimize and refine ideas.
+### 1. `mad-spark evolve` - Standalone Evolution Pipeline
+Alternative way to run QADI + evolution with additional features like context and output saving.
 ```bash
 # Basic evolution
 uv run mad-spark evolve "How can we reduce food waste?"
@@ -79,20 +99,11 @@ uv run mad-spark evolve "Improve remote work" --context "Focus on team collabora
 # Quick mode (faster, fewer generations)
 uv run mad-spark evolve "Climate solutions" --quick --generations 2
 
-# Custom parameters
-uv run mad-spark evolve "New product ideas" --temperature 1.5 --generations 5 --population 20
-
 # Save results
 uv run mad-spark evolve "Business innovation" --output results.json
 ```
 
-Options:
-- `-c, --context`: Additional context for the problem
-- `-q, --quick`: Quick mode for faster execution
-- `-g, --generations`: Number of evolution generations (default: 3)
-- `-p, --population`: Population size (default: 12)
-- `-t, --temperature`: Creativity temperature 0.0-2.0 (default: 0.8)
-- `-o, --output`: Save results to file
+Note: For most users, `./qadi --evolve` is simpler and recommended.
 
 ### 2. `evolution_demo.py` - Standalone Evolution Demo
 Direct demonstration of the genetic evolution system.

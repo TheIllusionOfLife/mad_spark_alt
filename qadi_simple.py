@@ -48,9 +48,14 @@ Format: "Q: [The user's question]"
 
 
 async def run_qadi_analysis(
-    user_input: str, temperature: Optional[float] = None, verbose: bool = False
+    user_input: str, 
+    temperature: Optional[float] = None, 
+    verbose: bool = False,
+    evolve: bool = False,
+    generations: int = 3,
+    population: int = 12
 ) -> None:
-    """Run QADI analysis with simplified Phase 1."""
+    """Run QADI analysis with simplified Phase 1 and optional evolution."""
 
     print("🧠 Simplified QADI Analysis")
     print("=" * 50)
@@ -151,6 +156,99 @@ async def run_qadi_analysis(
         print("\n" + "─" * 50)
         print(f"\n✅ Analysis completed in {elapsed_time:.1f}s")
         print(f"💰 Total LLM cost: ${result.total_llm_cost:.4f}")
+        
+        # Evolution phase if requested
+        if evolve and result.synthesized_ideas:
+            print("\n" + "═" * 50)
+            print("🧬 Starting Genetic Evolution...")
+            print(f"   Generations: {generations}")
+            print(f"   Population: {min(population, len(result.synthesized_ideas))}")
+            print("─" * 50)
+            
+            try:
+                from mad_spark_alt.evolution import (
+                    EvolutionConfig,
+                    EvolutionRequest,
+                    GeneticAlgorithm,
+                    SelectionStrategy,
+                )
+                
+                # Create genetic algorithm instance
+                ga = GeneticAlgorithm()
+                
+                # Configure evolution
+                config = EvolutionConfig(
+                    population_size=min(population, len(result.synthesized_ideas)),
+                    generations=generations,
+                    mutation_rate=0.15,
+                    crossover_rate=0.75,
+                    elite_size=2,
+                    selection_strategy=SelectionStrategy.TOURNAMENT,
+                    parallel_evaluation=True,
+                    max_parallel_evaluations=min(8, population, len(result.synthesized_ideas)),
+                )
+                
+                # Create evolution request
+                request = EvolutionRequest(
+                    initial_population=result.synthesized_ideas[:config.population_size],
+                    config=config,
+                    context=user_input,
+                )
+                
+                # Run evolution
+                evolution_start = time.time()
+                evolution_result = await ga.evolve(request)
+                evolution_time = time.time() - evolution_start
+                
+                if evolution_result.success:
+                    print(f"\n✅ Evolution completed in {evolution_time:.1f}s")
+                    
+                    # Show top evolved ideas
+                    print("\n🏆 Top Evolved Ideas:\n")
+                    
+                    top_individuals = sorted(
+                        evolution_result.final_population,
+                        key=lambda x: x.overall_fitness,
+                        reverse=True,
+                    )[:3]
+                    
+                    for i, individual in enumerate(top_individuals):
+                        idea = individual.idea
+                        print(f"### {i+1}. Evolved Idea (Fitness: {individual.overall_fitness:.3f})")
+                        render_markdown(idea.content)
+                        if idea.metadata.get("generation"):
+                            print(f"   _Generation: {idea.metadata['generation']}_")
+                        print()
+                    
+                    # Show metrics
+                    metrics = evolution_result.evolution_metrics
+                    print("📊 Evolution Metrics:")
+                    print(f"   • Fitness improvement: {metrics.get('fitness_improvement_percent', 0):.1f}%")
+                    print(f"   • Ideas evaluated: {metrics.get('total_ideas_evaluated', 0)}")
+                    print(f"   • Best from generation: {metrics.get('best_fitness_generation', 0)}")
+                    
+                    # Cache performance
+                    cache_stats = metrics.get("cache_stats")
+                    if cache_stats and cache_stats.get("hits", 0) > 0:
+                        print(f"\n💾 Cache Performance:")
+                        print(f"   • Hit rate: {cache_stats.get('hit_rate', 0):.1%}")
+                        print(f"   • LLM calls saved: {cache_stats.get('hits', 0)}")
+                    
+                    # Update total time and cost
+                    total_time = elapsed_time + evolution_time
+                    print("\n" + "═" * 50)
+                    print(f"✅ Total time (QADI + Evolution): {total_time:.1f}s")
+                    print(f"💰 Total cost: ${result.total_llm_cost:.4f}")
+                else:
+                    print(f"\n❌ Evolution failed: {evolution_result.error_message}")
+                    
+            except ImportError:
+                print("\n❌ Evolution modules not available. Please check installation.")
+            except Exception as e:
+                print(f"\n❌ Evolution error: {e}")
+                if verbose:
+                    import traceback
+                    traceback.print_exc()
 
     except Exception as e:
         print(f"\n❌ Error: {e}")
@@ -176,6 +274,15 @@ def main() -> None:
     )
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Show detailed evaluation scores"
+    )
+    parser.add_argument(
+        "--evolve", "-e", action="store_true", help="Evolve ideas using genetic algorithm after QADI analysis"
+    )
+    parser.add_argument(
+        "--generations", "-g", type=int, default=3, help="Number of evolution generations (with --evolve)"
+    )
+    parser.add_argument(
+        "--population", "-p", type=int, default=12, help="Population size for evolution (with --evolve)"
     )
 
     args = parser.parse_args()
@@ -207,7 +314,12 @@ def main() -> None:
             print(f"Warning: Failed to initialize LLM providers: {e}")
 
         await run_qadi_analysis(
-            args.input, temperature=args.temperature, verbose=args.verbose
+            args.input, 
+            temperature=args.temperature, 
+            verbose=args.verbose,
+            evolve=args.evolve,
+            generations=args.generations,
+            population=args.population
         )
 
     # Run analysis
