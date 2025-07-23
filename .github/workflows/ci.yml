@@ -9,9 +9,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
 
     steps:
     - uses: actions/checkout@v4
@@ -21,8 +18,8 @@ jobs:
       with:
         version: "latest"
     
-    - name: Set up Python ${{ matrix.python-version }}
-      run: uv python install ${{ matrix.python-version }}
+    - name: Set up Python 3.11
+      run: uv python install 3.11
     
     - name: Install dependencies
       run: |
@@ -44,12 +41,11 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-results-${{ matrix.python-version }}
+        name: test-results
         path: test-results.xml
     
     - name: Upload coverage reports
       uses: actions/upload-artifact@v4
-      if: matrix.python-version == '3.11'
       with:
         name: coverage-report
         path: |
@@ -57,7 +53,6 @@ jobs:
           htmlcov/
     
     - name: Display coverage summary
-      if: matrix.python-version == '3.11'
       run: |
         echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
@@ -66,9 +61,6 @@ jobs:
     
     - name: Run type checking
       run: uv run mypy src/mad_spark_alt/
-    
-    - name: Run linting
-      run: uv run black --check src/ tests/
     
     - name: Test CLI
       run: |

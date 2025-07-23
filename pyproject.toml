@@ -27,6 +27,7 @@ dependencies = [
 
 [project.scripts]
 mad-spark = "mad_spark_alt.cli:main"
+mad_spark_alt = "mad_spark_alt.main_qadi:main"
 
 [build-system]
 requires = ["hatchling"]

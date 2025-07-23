@@ -90,3 +90,6 @@ profile_*.py
 
 # uv
 .python-version
+
+# Evolution checkpoints (runtime-generated temporary files)
+.evolution_checkpoints/
