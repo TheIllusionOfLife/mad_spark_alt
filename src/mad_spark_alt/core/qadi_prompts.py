@@ -20,39 +20,44 @@ class QADIPrompts:
     @staticmethod
     def get_questioning_prompt(user_input: str) -> str:
         """Get the prompt for extracting the core question."""
-        return f"""As a strategic consultant, identify THE single most important question to answer for the user's input.
+        return f"""As an analytical expert, identify THE single most important question to answer based on the user's input.
 
 User's input:
 {user_input}
 
 Think about:
-- What is the real problem or goal behind this input?
-- What question, if answered well, would provide maximum value?
-- What decision or action depends on this answer?
+- What is the core challenge or desire expressed?
+- What fundamental question needs answering to make progress?
+- What would provide the most helpful insight?
 
-Output exactly ONE core question.
+Output exactly ONE core question that gets to the heart of the matter.
 Format: "Q: [Your core question]"
 """
 
     @staticmethod
     def get_abduction_prompt(user_input: str, core_question: str) -> str:
         """Get the prompt for generating hypotheses."""
-        return f"""As a hypothesis-driven consultant, generate 3 specific hypotheses that could answer this core question.
+        return f"""As a creative problem-solver, generate 3 distinct approaches that could answer this core question.
 
 Core Question: {core_question}
 
 User's original input:
 {user_input}
 
+Generate hypotheses that cover different scales or perspectives:
+- Consider individual/personal approaches
+- Think about community/collective solutions
+- Explore systemic/structural changes
+
 Each hypothesis should:
-- Directly answer the core question
-- Be specific and actionable
-- Represent a distinct approach
+- Directly address the core question
+- Be concrete and actionable
+- Offer a meaningfully different path forward
 
 Format:
-H1: [First hypothesis]
-H2: [Second hypothesis]
-H3: [Third hypothesis]
+H1: [First approach - often individual/immediate]
+H2: [Second approach - often community/collaborative]
+H3: [Third approach - often systemic/long-term]
 """
 
     @staticmethod
@@ -60,77 +65,88 @@ H3: [Third hypothesis]
         user_input: str, core_question: str, hypotheses: str
     ) -> str:
         """Get the prompt for evaluating hypotheses and determining the answer."""
-        return f"""As an analytical consultant, evaluate each hypothesis and determine the best answer to our core question.
+        return f"""As an analytical expert, evaluate each approach and determine the best answer to our core question.
 
 Core Question: {core_question}
 
-Hypotheses to evaluate:
+Approaches to evaluate:
 {hypotheses}
 
 User's original context:
 {user_input}
 
-Score each hypothesis from 0.0 to 1.0 on:
-- Novelty: How innovative/unique is this approach?
-- Impact: What level of positive change will this create?
-- Cost: What resources required? (0=expensive, 1=cheap)
-- Feasibility: How practical is implementation?
-- Risks: What could go wrong? (0=high risk, 1=low risk)
+Score each approach from 0.0 to 1.0 on these universal criteria:
+- Impact: How much positive change will this create? (0=minimal, 1=transformative)
+- Feasibility: How easy is it to implement? (0=very difficult, 1=very easy)
+- Accessibility: Can most people do this? (0=requires special resources, 1=anyone can do it)
+- Sustainability: Will this solution last? (0=temporary fix, 1=permanent solution)
+- Scalability: Can this grow from small to large? (0=limited scope, 1=unlimited potential)
 
-Format:
-Analysis:
-- H1: 
-  * Novelty: [score] - [brief explanation]
-  * Impact: [score] - [brief explanation]
-  * Cost: [score] - [brief explanation]
-  * Feasibility: [score] - [brief explanation]
-  * Risks: [score] - [brief explanation]
-  * Overall: [calculated weighted score]
+IMPORTANT: You MUST use the exact format below with "H1:", "H2:", "H3:" headers and numerical scores.
 
-- H2: 
-  * Novelty: [score] - [brief explanation]
-  * Impact: [score] - [brief explanation]
-  * Cost: [score] - [brief explanation]
-  * Feasibility: [score] - [brief explanation]
-  * Risks: [score] - [brief explanation]
-  * Overall: [calculated weighted score]
+H1:
+* Impact: [decimal score like 0.8] - [brief explanation]
+* Feasibility: [decimal score] - [brief explanation]
+* Accessibility: [decimal score] - [brief explanation]
+* Sustainability: [decimal score] - [brief explanation]
+* Scalability: [decimal score] - [brief explanation]
+* Overall: [calculated weighted score]
 
-- H3: 
-  * Novelty: [score] - [brief explanation]
-  * Impact: [score] - [brief explanation]
-  * Cost: [score] - [brief explanation]
-  * Feasibility: [score] - [brief explanation]
-  * Risks: [score] - [brief explanation]
-  * Overall: [calculated weighted score]
+H2:
+* Impact: [decimal score] - [brief explanation]
+* Feasibility: [decimal score] - [brief explanation]
+* Accessibility: [decimal score] - [brief explanation]
+* Sustainability: [decimal score] - [brief explanation]
+* Scalability: [decimal score] - [brief explanation]
+* Overall: [calculated weighted score]
 
-ANSWER: [Your definitive answer to the core question based on the highest scoring hypothesis]
+H3:
+* Impact: [decimal score] - [brief explanation]
+* Feasibility: [decimal score] - [brief explanation]
+* Accessibility: [decimal score] - [brief explanation]
+* Sustainability: [decimal score] - [brief explanation]
+* Scalability: [decimal score] - [brief explanation]
+* Overall: [calculated weighted score]
+
+ANSWER: [Clear, comprehensive answer explaining which approach works best and why, written for a general audience]
 
 Action Plan:
-1. [Specific first step to implement the answer]
-2. [Second concrete action]
-3. [Third actionable step]
+1. [Immediate action anyone can take today]
+2. [Short-term goal to work toward this week/month]
+3. [Long-term strategy for lasting change]
 """
 
     @staticmethod
     def get_induction_prompt(user_input: str, core_question: str, answer: str) -> str:
         """Get the prompt for verifying the answer with examples."""
-        return f"""As a consultant validating the solution, verify that our answer is robust by testing it across different scenarios.
+        return f"""As a thoughtful analyst, verify the recommended approach by examining real-world applications.
 
 Core Question: {core_question}
-Our Answer: {answer}
+Recommended Approach: {answer}
 
 Original context:
 {user_input}
 
-Provide 3 examples where this answer/principle successfully applies:
+Provide 3 diverse examples that demonstrate this approach in action:
 
-Format:
-Verification:
-1. [Real-world example where this approach worked]
-2. [Different industry/context where this principle applies]
-3. [Future scenario where this would be effective]
+Format each example clearly:
 
-Conclusion: [Is our answer universally applicable, context-specific, or needs refinement?]
+Example 1: [Individual/Personal Level]
+- Context: [Brief situation description]
+- Application: [How the approach was used]
+- Result: [What positive outcome occurred]
+
+Example 2: [Community/Group Level]
+- Context: [Brief situation description]
+- Application: [How the approach was used]
+- Result: [What positive outcome occurred]
+
+Example 3: [Larger Scale/Future Application]
+- Context: [Brief situation description]
+- Application: [How the approach could be used]
+- Result: [Expected positive outcome]
+
+Conclusion: In 2-3 sentences, explain whether the recommended approach is broadly applicable or needs adaptation for specific contexts. Focus on one key practical insight.
 """
 
 
@@ -162,11 +178,11 @@ PHASE_HYPERPARAMETERS = {
 
 # Unified evaluation criteria weights
 EVALUATION_CRITERIA = {
-    "novelty": 0.2,  # How innovative/unique
-    "impact": 0.3,  # Level of positive change
-    "cost": 0.2,  # Resource efficiency (inverse - lower cost = higher score)
-    "feasibility": 0.2,  # Implementation practicality
-    "risks": 0.1,  # Risk mitigation (inverse - lower risk = higher score)
+    "impact": 0.3,  # How much positive change
+    "feasibility": 0.2,  # How easy to implement
+    "accessibility": 0.2,  # Can most people do this
+    "sustainability": 0.2,  # Will solution last
+    "scalability": 0.1,  # Can grow from small to large
 }
 
 
@@ -175,17 +191,15 @@ def calculate_hypothesis_score(scores: Dict[str, float]) -> float:
     Calculate the overall score for a hypothesis using unified criteria.
 
     Args:
-        scores: Dictionary with keys: novelty, impact, cost, feasibility, risks
+        scores: Dictionary with keys: impact, feasibility, accessibility, sustainability, scalability
 
     Returns:
         Weighted overall score between 0.0 and 1.0
     """
     return (
-        scores.get("novelty", 0.0) * EVALUATION_CRITERIA["novelty"]
-        + scores.get("impact", 0.0) * EVALUATION_CRITERIA["impact"]
-        + scores.get("cost", 0.0)
-        * EVALUATION_CRITERIA["cost"]  # Already inverted in prompt
+        scores.get("impact", 0.0) * EVALUATION_CRITERIA["impact"]
         + scores.get("feasibility", 0.0) * EVALUATION_CRITERIA["feasibility"]
-        + scores.get("risks", 0.0)
-        * EVALUATION_CRITERIA["risks"]  # Already inverted in prompt
+        + scores.get("accessibility", 0.0) * EVALUATION_CRITERIA["accessibility"]
+        + scores.get("sustainability", 0.0) * EVALUATION_CRITERIA["sustainability"]
+        + scores.get("scalability", 0.0) * EVALUATION_CRITERIA["scalability"]
     )

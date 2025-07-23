@@ -76,11 +76,11 @@ async def run_qadi_analysis(
                 zip(result.hypotheses, result.hypothesis_scores)
             ):
                 print(f"**H{i+1} Scores:**")
-                print(f"  - Novelty: {scores.novelty:.2f}")
                 print(f"  - Impact: {scores.impact:.2f}")
-                print(f"  - Cost: {scores.cost:.2f}")
                 print(f"  - Feasibility: {scores.feasibility:.2f}")
-                print(f"  - Risks: {scores.risks:.2f}")
+                print(f"  - Accessibility: {scores.accessibility:.2f}")
+                print(f"  - Sustainability: {scores.sustainability:.2f}")
+                print(f"  - Scalability: {scores.scalability:.2f}")
                 print(f"  - **Overall: {scores.overall:.2f}**")
                 print()
 
@@ -94,7 +94,35 @@ async def run_qadi_analysis(
         print("\n## ✅ Phase 4: Verification\n")
         if result.verification_examples:
             for i, example in enumerate(result.verification_examples):
-                render_markdown(f"**Example {i+1}:** {example}")
+                # Parse example structure for better formatting
+                lines = example.split('\n')
+                
+                # Look for structured format markers
+                context_line = None
+                application_line = None
+                result_line = None
+                
+                for line in lines:
+                    line = line.strip()
+                    if line.startswith('- Context:') or line.startswith('Context:'):
+                        context_line = line.replace('- Context:', '').replace('Context:', '').strip()
+                    elif line.startswith('- Application:') or line.startswith('Application:'):
+                        application_line = line.replace('- Application:', '').replace('Application:', '').strip()
+                    elif line.startswith('- Result:') or line.startswith('Result:'):
+                        result_line = line.replace('- Result:', '').replace('Result:', '').strip()
+                
+                # Display with better formatting
+                print(f"### Example {i+1}")
+                if context_line:
+                    render_markdown(f"**Context:** {context_line}")
+                    if application_line:
+                        render_markdown(f"**Application:** {application_line}")
+                    if result_line:
+                        render_markdown(f"**Result:** {result_line}")
+                else:
+                    # Fallback to original format if structure not found
+                    render_markdown(example)
+                print()  # Add spacing between examples
 
         if result.verification_conclusion:
             print("\n### Conclusion\n")
