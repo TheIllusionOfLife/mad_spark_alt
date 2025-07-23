@@ -379,50 +379,50 @@ class MultiPerspectiveQADIOrchestrator:
             r"\(([0-9.]+)\)",  # "(0.8)"
         ]
 
-        # Map various criteria names to standard ones
+        # Map various criteria names to standard ones (matching HypothesisScore fields)
         criteria_mappings = {
-            "novelty": [
-                "novelty",
-                "innovation",
-                "environmental impact",
-                "personal impact",
-                "technical innovation",
-                "business value",
-                "scientific validity",
-                "ethical soundness",
-            ],
             "impact": [
                 "impact",
-                "sustainability",
-                "ease of adoption",
-                "implementation complexity",
+                "environmental impact",
+                "personal impact",
                 "market impact",
                 "research impact",
                 "societal benefit",
-            ],
-            "cost": [
-                "cost",
-                "resource efficiency",
-                "time investment",
-                "cost efficiency",
-                "resource requirements",
+                "business value",
+                "novelty",
+                "innovation",
             ],
             "feasibility": [
                 "feasibility",
                 "implementation feasibility",
-                "scalability",
-                "implementation speed",
+                "implementation complexity", 
+                "ease of adoption",
                 "practical application",
-                "universal applicability",
+                "implementation speed",
             ],
-            "risks": [
-                "risks",
-                "ecosystem benefits",
+            "accessibility": [
+                "accessibility",
+                "universal applicability",
+                "resource requirements",
+                "cost",
+                "resource efficiency",
+                "time investment",
+                "cost efficiency",
+            ],
+            "sustainability": [
+                "sustainability",
                 "long-term benefits",
                 "maintainability",
+                "ecosystem benefits",
+                "human flourishing",
+            ],
+            "scalability": [
+                "scalability",
+                "growth potential",
+                "scaling potential",
+                "risks",
                 "risk level",
                 "peer acceptance",
-                "human flourishing",
             ],
         }
 
