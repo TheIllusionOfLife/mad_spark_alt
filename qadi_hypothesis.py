@@ -155,9 +155,7 @@ def main() -> None:
     async def main_async():
         try:
             await setup_llm_providers(
-                openai_api_key=os.getenv("OPENAI_API_KEY"),
-                anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
-                google_api_key=os.getenv("GOOGLE_API_KEY"),
+                google_api_key=os.getenv("GOOGLE_API_KEY")
             )
         except Exception as e:
             print(f"Warning: Failed to initialize LLM providers: {e}")

@@ -258,6 +258,36 @@ The system supports custom agents and evaluators through a plugin architecture:
 
 For detailed extension guides and examples, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
+## System Reliability & Testing
+
+### Robust LLM Integration
+The system includes comprehensive validation to prevent LLM response parsing failures:
+
+- **Format Validation**: Automated tests verify that prompts and parsers are compatible
+- **Integration Testing**: Real LLM tests catch Mock-Reality Divergence issues
+- **Graceful Degradation**: Parser handles format variations and fails safely with default scores
+- **Enhanced Error Reporting**: Detailed logging for debugging parsing issues
+
+### Testing Strategy
+```bash
+# Run unit tests (fast)
+uv run pytest tests/ -m "not integration"
+
+# Run integration tests with real LLM calls (requires API key)
+uv run pytest tests/ -m integration
+
+# Run prompt-parser validation tests
+uv run pytest tests/test_prompt_parser_validation.py
+
+# Full test suite
+uv run pytest
+```
+
+The system prevents common LLM integration issues through:
+- **Mock-Reality Alignment**: Test mocks reflect actual LLM response formats
+- **Format Robustness**: Parser handles bullet points, markdown, and explanatory text
+- **Validation Framework**: Automated checks ensure prompts match parser expectations
+
 ## Development
 
 ```bash
@@ -278,9 +308,16 @@ For comprehensive development guidelines, testing patterns, and contribution wor
 
 ## Session Handover
 
-### Last Updated: 2025-07-23 08:45 UTC
+### Last Updated: 2025-07-23 16:30 UTC
 
 #### Recently Completed
+- ✅ **[CURRENT]**: Fixed LLM Score Parsing Mock-Reality Divergence Issue
+  - **Critical Issue**: LLM responses weren't being parsed correctly, all scores defaulted to 0.5
+  - **Root Cause**: Test mocks used simplified format but real LLMs returned complex markdown format
+  - **Fix Applied**: Updated parser regex to handle `* Novelty: 0.8 - explanation` and `- **H1:**` formats
+  - **Prevention Added**: Integration tests with real LLM calls + prompt-parser validation framework
+  - **Token Limit Fix**: Increased deduction phase from 800 to 1500 tokens to prevent truncation
+  - **Result**: Robust parsing of real LLM responses, comprehensive test coverage, systematic validation
 - ✅ **PR #44 [MERGED]**: Centralize cost tracking and enhance CI testing
   - **Major Achievement**: Fixed all critical cost calculation issues identified in deep review
   - Centralized cost calculation in `cost_utils.py` eliminating duplication across 8+ modules

@@ -217,6 +217,15 @@ print(f'Available methods: {list(registry._agents.keys())}')
 
 ## Project-Specific Patterns
 
+### LLM Score Parsing Reliability (CRITICAL)
+- **Issue**: Mock-Reality Divergence in LLM response parsing
+- **Symptom**: All hypothesis scores default to 0.5 instead of actual LLM-generated scores
+- **Root Cause**: Test mocks use simplified format (`Novelty: 0.8`) but real LLMs return complex format (`* Novelty: 0.8 - explanation`)
+- **Prevention**: Always use integration tests with real LLM calls to validate prompt-parser compatibility
+- **Parser Requirements**: Must handle markdown bold (`- **H1:**`), bullet points (`*`), and explanatory text
+- **Token Limits**: Deduction phase needs 1500+ tokens for complete analysis with scores and explanations
+- **Testing Pattern**: Use `tests/test_integration_real_llm.py` and `tests/test_prompt_parser_validation.py`
+
 ### Evolution System Testing
 - **Pattern**: Test genetic algorithms with variance tolerance, not exact values
 - **Convention**: Use `assert final_fitness >= initial_fitness * 0.9` for randomness
