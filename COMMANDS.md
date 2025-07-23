@@ -55,8 +55,49 @@ uv run mad-spark list-evaluators
 # Evaluate single text
 uv run mad-spark evaluate "The AI dreamed of electric sheep"
 
+# Compare multiple responses
+uv run mad-spark compare "What is consciousness?"
+
+# Batch evaluate from files
+uv run mad-spark batch-evaluate file1.txt file2.txt
+
 # Help
 uv run mad-spark --help
+```
+
+## Genetic Evolution Commands
+
+### 1. `mad-spark evolve` - Evolve Ideas with QADI + Genetic Algorithm
+Combines QADI analysis with genetic evolution to optimize and refine ideas.
+```bash
+# Basic evolution
+uv run mad-spark evolve "How can we reduce food waste?"
+
+# With additional context
+uv run mad-spark evolve "Improve remote work" --context "Focus on team collaboration"
+
+# Quick mode (faster, fewer generations)
+uv run mad-spark evolve "Climate solutions" --quick --generations 2
+
+# Custom parameters
+uv run mad-spark evolve "New product ideas" --temperature 1.5 --generations 5 --population 20
+
+# Save results
+uv run mad-spark evolve "Business innovation" --output results.json
+```
+
+Options:
+- `-c, --context`: Additional context for the problem
+- `-q, --quick`: Quick mode for faster execution
+- `-g, --generations`: Number of evolution generations (default: 3)
+- `-p, --population`: Population size (default: 12)
+- `-t, --temperature`: Creativity temperature 0.0-2.0 (default: 0.8)
+- `-o, --output`: Save results to file
+
+### 2. `evolution_demo.py` - Standalone Evolution Demo
+Direct demonstration of the genetic evolution system.
+```bash
+uv run python examples/evolution_demo.py
 ```
 
 ## Example Scripts
@@ -123,6 +164,7 @@ export ANTHROPIC_API_KEY="your-key"
 3. **For focused analysis**: Use lower temperature (0.3-0.7)
 4. **For business context**: Use `qadi_simple_multi.py --type=business`
 5. **For implementation planning**: Use `qadi_simple_multi.py --concrete`
+6. **For idea optimization**: Use `mad-spark evolve` to refine ideas through genetic evolution
 
 ## Key Differences
 
@@ -131,3 +173,4 @@ export ANTHROPIC_API_KEY="your-key"
 - **qadi_simple_multi.py**: Multiple agents, type detection
 - **qadi_multi_perspective.py**: Analyzes from 3 perspectives
 - **qadi.py**: Single LLM call, fastest but less structured
+- **mad-spark evolve**: Combines QADI with genetic algorithm for idea refinement
