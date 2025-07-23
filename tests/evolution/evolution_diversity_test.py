@@ -124,16 +124,25 @@ def test_extract_best_ideas_deduplicates():
     population = [
         IndividualFitness(
             idea=idea1,
+            creativity_score=0.9,
+            diversity_score=0.9,
+            quality_score=0.9,
             overall_fitness=0.9,
             evaluation_metadata={},
         ),
         IndividualFitness(
             idea=idea2,
+            creativity_score=0.85,
+            diversity_score=0.85,
+            quality_score=0.85,
             overall_fitness=0.85,  # Different fitness but same content
             evaluation_metadata={},
         ),
         IndividualFitness(
             idea=idea3,
+            creativity_score=0.7,
+            diversity_score=0.7,
+            quality_score=0.7,
             overall_fitness=0.7,
             evaluation_metadata={},
         ),
