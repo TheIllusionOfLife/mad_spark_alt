@@ -350,7 +350,14 @@ class MultiPerspectiveQADIOrchestrator:
         match = re.search(pattern, text, re.DOTALL)
 
         if not match:
-            return HypothesisScore(0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
+            return HypothesisScore(
+                impact=0.5,
+                feasibility=0.5,
+                accessibility=0.5,
+                sustainability=0.5,
+                scalability=0.5,
+                overall=0.5,
+            )
 
         section = match.group(0)
 
