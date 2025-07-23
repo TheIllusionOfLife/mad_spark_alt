@@ -347,27 +347,28 @@ For comprehensive development guidelines, testing patterns, and contribution wor
 
 ## Session Handover
 
-### Last Updated: 2025-07-23 16:30 UTC
+### Last Updated: 2025-07-23 23:45 JST
 
 #### Recently Completed
-- ✅ **[CURRENT]**: Fixed LLM Score Parsing Mock-Reality Divergence Issue
-  - **Critical Issue**: LLM responses weren't being parsed correctly, all scores defaulted to 0.5
-  - **Root Cause**: Test mocks used simplified format but real LLMs returned complex markdown format
-  - **Fix Applied**: Updated parser regex to handle `* Novelty: 0.8 - explanation` and `- **H1:**` formats
-  - **Prevention Added**: Integration tests with real LLM calls + prompt-parser validation framework
-  - **Token Limit Fix**: Increased deduction phase from 800 to 1500 tokens to prevent truncation
-  - **Result**: Robust parsing of real LLM responses, comprehensive test coverage, systematic validation
-- ✅ **PR #44 [MERGED]**: Centralize cost tracking and enhance CI testing
-  - **Major Achievement**: Fixed all critical cost calculation issues identified in deep review
-  - Centralized cost calculation in `cost_utils.py` eliminating duplication across 8+ modules
-  - Added `calculate_llm_cost_from_config()` to use ModelConfig costs directly (fixes model name mismatch)
-  - Enhanced test coverage with comprehensive regression test suite (346 lines)
-  - Fixed brittle token parsing with prioritized lookup pattern
-  - Improved CI/CD with coverage reporting and test artifacts
-  - Applied systematic PR review feedback resolution using 4-phase protocol
-  - **Result**: All 158 tests pass, complete CI success, production-ready cost tracking
-- ✅ **PR #42 [MERGED]**: Fixed critical issues from PR #40 deep review
-- ✅ **PR #40 [MERGED]**: Implemented true QADI hypothesis-driven methodology
+- ✅ **PR #46 [MERGED]**: Fixed LLM Score Parsing Mock-Reality Divergence & Established CI Test Policy
+  - **Critical Issue Fixed**: All hypothesis scores defaulting to 0.5 due to parser-LLM format mismatch
+  - **Root Cause**: Test mocks used `"Novelty: 0.8"` but real LLMs return `"* Novelty: 0.8 - explanation"`
+  - **Parser Enhancements**: 
+    - Added fractional score parsing (8/10 → 0.8)
+    - Handle markdown formats: bullets, bold (`**H1:**`), explanations
+    - Non-greedy regex patterns for precision
+  - **Testing Improvements**:
+    - Integration tests with real LLM API calls
+    - Prompt-parser validation framework
+    - Format variation test coverage
+  - **CI Test Policy Established**:
+    - Mandatory tests for parser changes, bug fixes, new features
+    - Documented in README, CLAUDE.md, DEVELOPMENT.md
+    - Custom commands updated to enforce policy
+  - **Workflow Overhaul Insights**: Discovered systemic issue where tests pass but system fails silently
+  - **Result**: Robust LLM parsing, comprehensive test policy, prevention of silent failures
+- ✅ **PR #44**: Centralized cost tracking system (duplication eliminated across 8+ modules)
+- ✅ **PR #42**: Fixed critical issues from PR #40 deep review
 
 #### Next Priority Tasks
 1. **Fix Method Signatures in benchmarks.py** (HIGH PRIORITY)
@@ -388,14 +389,14 @@ For comprehensive development guidelines, testing patterns, and contribution wor
 - None currently - all CI passing, all reviewer feedback addressed
 
 #### Session Learnings
-- **Cost Calculation Architecture**: Centralized cost tracking in dedicated module eliminates duplication and ensures consistency
-- **PR Review Systematic Approach**: 4-phase protocol (discover → extract → verify → process) successfully found all reviewer feedback across 3 GitHub API endpoints
-- **CI Failure Diagnosis**: Fast failures (<2 minutes) across all Python versions indicate formatting/import issues, not test problems
-- **Black Formatting**: Always run `black --check` locally before push - CI catches formatting violations that cause failures
-- **Model Name Mismatch Bug**: Using hardcoded model name mappings causes incorrect cost calculations - use ModelConfig values directly
-- **Float Precision Testing**: Use `pytest.approx()` for cost calculations to handle floating-point precision issues
-- **DRY Implementation**: Complete centralization requires updating ALL providers to use central functions, not just adding the central module
-- **Test Coverage Value**: Comprehensive regression tests (346 lines) catch architectural flaws and prevent future regressions
+- **Mock-Reality Divergence**: Test mocks MUST reflect actual LLM response complexity - simplified mocks cause total system failure in production
+- **Silent Functional Failures**: Passing tests ≠ working system - need user-facing behavior validation, not just code coverage
+- **CI Test Policy Critical**: Established mandatory CI test updates for parser changes, bug fixes, and new features
+- **Fractional Score Parsing**: LLMs may return scores as fractions (8/10) - parser must calculate division, not just extract numerator
+- **Exception Handling Scope**: Narrowing from `Exception` to specific types (e.g., `RuntimeError`) causes fragility - LLM setup can fail in many ways
+- **Workflow Overhaul Needed**: Development workflow must prioritize functional correctness alongside code quality
+- **Integration Test Value**: Only real LLM API tests catch prompt-parser compatibility issues - mocks hide critical failures
+- **PR Consolidation**: Keep related fixes in same PR (e.g., fix + prevention policy) for better review context
 
 ## Documentation
 
