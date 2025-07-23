@@ -269,6 +269,103 @@ src/mad_spark_alt/
 - **System tests**: Test complete workflows
 - **Performance tests**: Measure execution time and memory
 
+### CI Test Policy
+
+**CRITICAL**: Certain code changes REQUIRE corresponding CI test updates. This policy prevents silent functional failures like the QADI score parsing issue.
+
+#### When CI Tests Are MANDATORY
+
+1. **Parser/Format Changes**
+   - Any modification to parsing logic
+   - Changes to data format expectations
+   - Updates to regular expressions
+   - **Required Tests:**
+     - Format validation with all supported variations
+     - Malformed input handling
+     - Silent failure detection (e.g., defaulting to fallback values)
+
+2. **Bug Fixes**
+   - Any fix for reported issues
+   - Corrections to business logic
+   - **Required Tests:**
+     - Regression test for the specific bug
+     - Edge case tests around the bug scenario
+     - Verification the bug cannot recur
+
+3. **New Features**
+   - New functionality additions
+   - New CLI commands or API endpoints
+   - **Required Tests:**
+     - End-to-end smoke tests
+     - CLI command validation
+     - User-facing behavior verification
+
+4. **Integration Updates**
+   - Changes to external service interactions
+   - Mock format updates
+   - API response handling changes
+   - **Required Tests:**
+     - Updated mocks reflecting real responses
+     - Format compatibility validation
+     - Error handling scenarios
+
+5. **Silent Failure Risks**
+   - Code that could fail gracefully but incorrectly
+   - Default value assignments
+   - Fallback behavior
+   - **Required Tests:**
+     - Detection of uniform results (all values identical)
+     - Validation of expected variance
+     - Graceful degradation scenarios
+
+#### CI Test Examples
+
+**Format Validation Test Example:**
+```python
+def test_llm_response_parser_handles_all_formats():
+    """Ensure parser handles real LLM response formats."""
+    # Real formats from actual LLM responses
+    test_cases = [
+        # Standard markdown format
+        ("- **Novelty:** 0.8 - High innovation", {"novelty": 0.8}),
+        # Bullet point format
+        ("* Impact: 0.9 - Significant change", {"impact": 0.9}),
+        # Plain format
+        ("Cost: 0.3", {"cost": 0.3}),
+        # Should NOT parse these as 0.5 fallback!
+    ]
+    
+    for input_text, expected in test_cases:
+        result = parse_llm_scores(input_text)
+        assert result == expected, f"Parser failed for: {input_text}"
+```
+
+**Silent Failure Detection Example:**
+```python
+def test_hypothesis_scores_show_variance():
+    """Detect when all scores default to same value."""
+    result = orchestrator.evaluate_hypotheses(test_input)
+    scores = [h.score for h in result.hypotheses]
+    
+    # All scores being identical indicates parsing failure
+    assert len(set(scores)) > 1, "All scores identical - likely parsing failure"
+    assert 0.5 not in scores or scores.count(0.5) < len(scores) / 2, \
+        "Too many default scores - check parser"
+```
+
+#### Running CI Tests Locally
+
+**Before ANY push:**
+```bash
+# Run CI test suite (excludes integration tests)
+uv run pytest tests/ -m "not integration"
+
+# Verify specific test categories
+uv run pytest tests/ -k "parser" -v
+uv run pytest tests/ -k "format_validation" -v
+uv run pytest tests/ -k "regression" -v
+```
+
 ### Test Patterns
 
 #### Testing Async Code

@@ -458,7 +458,10 @@ class SimpleQADIOrchestrator:
                 continue
 
             # Check if this is the start of our hypothesis section
-            hypothesis_match = re.match(rf"^(?:-\s*)?H{hypothesis_num}:(.*)$", line)
+            # Handle various formats: "H1:", "- H1:", "- **H1:**", etc.
+            hypothesis_match = re.match(
+                rf"^(?:-\s*)?(?:\*\*)?H{hypothesis_num}[:.](.*?)(?:\*\*)?$", line
+            )
             if hypothesis_match:
                 in_section = True
                 section_lines.append(hypothesis_match.group(1).strip())
@@ -467,7 +470,8 @@ class SimpleQADIOrchestrator:
             # Check if we've reached the next hypothesis or end section
             if in_section:
                 if re.match(
-                    rf"^(?:-\s*)?H{hypothesis_num + 1}:", line
+                    rf"^(?:-\s*)?(?:\*\*)?H{hypothesis_num + 1}[:.]",
+                    line,
                 ) or line.startswith((ANSWER_PREFIX, ACTION_PLAN_PREFIX)):
                     break
                 section_lines.append(line)
@@ -476,8 +480,10 @@ class SimpleQADIOrchestrator:
             # Log warning and return default scores if parsing fails
             logger.warning(
                 "Failed to parse scores for hypothesis %d. Using default scores. "
-                "This may indicate the LLM response didn't follow the expected format.",
+                "This may indicate the LLM response didn't follow the expected format. "
+                "Content preview: %s...",
                 hypothesis_num,
+                content[:300] if len(content) > 300 else content,
             )
             return HypothesisScore(0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
 
@@ -486,10 +492,26 @@ class SimpleQADIOrchestrator:
         # Extract individual scores with improved robustness
         def extract_score(criterion: str, text: str) -> float:
             # Try multiple patterns to handle different formatting
+            # First check for fractional scores (e.g., "8/10")
+            fraction_pattern = rf"{criterion}:\s*(-?[0-9.]+)/(\d+)"
+            fraction_match = re.search(fraction_pattern, text, re.IGNORECASE)
+            if fraction_match:
+                try:
+                    numerator = float(fraction_match.group(1))
+                    denominator = float(fraction_match.group(2))
+                    if denominator > 0:
+                        score = numerator / denominator
+                        return max(0.0, min(1.0, score))
+                except (ValueError, ZeroDivisionError):
+                    pass
+
+            # Other patterns for direct scores
             patterns = [
-                rf"{criterion}:\s*(-?[0-9.]+)",  # "Novelty: 0.8" or "Novelty: -0.2"
+                rf"\*?\s*{criterion}:\s*(-?[0-9.]+)\s*-",  # "* Novelty: 0.8 - explanation"
+                rf"\*?\s*{criterion}:\s*(-?[0-9.]+)",  # "* Novelty: 0.8" or "Novelty: 0.8"
                 rf"{criterion}\s*-\s*(-?[0-9.]+)",  # "Novelty - 0.8"
                 rf"{criterion}\s*:\s*(-?[0-9.]+)/?",  # "Novelty: 0.8/" or "Novelty: 0.8"
+                rf"{criterion}\s*\((-?[0-9.]+)\)",  # "Novelty (0.8)"
             ]
 
             for pattern in patterns:

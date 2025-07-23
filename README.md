@@ -258,6 +258,75 @@ The system supports custom agents and evaluators through a plugin architecture:
 
 For detailed extension guides and examples, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
+## System Reliability & Testing
+
+### Robust LLM Integration
+
+The system includes comprehensive validation to prevent LLM response parsing failures:
+
+- **Format Validation**: Automated tests verify that prompts and parsers are compatible
+- **Integration Testing**: Real LLM tests catch Mock-Reality Divergence issues
+- **Graceful Degradation**: Parser handles format variations and fails safely with default scores
+- **Enhanced Error Reporting**: Detailed logging for debugging parsing issues
+
+### Testing Strategy
+
+**CI Testing (Automated):**
+
+```bash
+# CI runs unit tests only (fast, no API keys required)
+uv run pytest tests/ -m "not integration"
+```
+
+**Local Development Testing:**
+
+```bash
+# Run unit tests (fast, no API required)
+uv run pytest tests/ -m "not integration"
+
+# Run integration tests with real LLM calls (requires GOOGLE_API_KEY)
+uv run pytest tests/ -m integration
+
+# Run specific validation tests
+uv run pytest tests/test_prompt_parser_validation.py
+
+# Full test suite (requires API key for integration tests)
+uv run pytest
+```
+
+**Note:** Integration tests require real API keys and make actual LLM calls. They are excluded from CI to avoid security risks and API costs, but are essential for local validation of LLM integration changes.
+
+The system prevents common LLM integration issues through:
+
+- **Mock-Reality Alignment**: Test mocks reflect actual LLM response formats
+- **Format Robustness**: Parser handles bullet points, markdown, and explanatory text
+- **Validation Framework**: Automated checks ensure prompts match parser expectations
+
+### CI Test Update Policy
+
+**When You MUST Update CI Tests:**
+- **Adding new features or functionality** - Include smoke tests for end-to-end validation
+- **Fixing bugs** - Add regression tests to prevent recurrence
+- **Changing parsing logic or data formats** - Add format validation tests
+- **Modifying external integrations** - Update mocks to reflect real responses
+- **Refactoring public interfaces** - Ensure backward compatibility tests
+
+**CI Test Requirements:**
+- **Smoke tests** for core functionality verification
+- **Format validation** for all parsers and data processors
+- **Silent failure detection** tests (e.g., catching when all values default)
+- **CLI command validation** for all user-facing commands
+- **Regression tests** for every bug fix
+
+**Before Pushing:**
+
+```bash
+# Always run CI tests locally first
+uv run pytest tests/ -m "not integration"
+```
+
+See [DEVELOPMENT.md](DEVELOPMENT.md#ci-test-policy) for detailed requirements and examples.
+
 ## Development
 
 ```bash
@@ -278,9 +347,16 @@ For comprehensive development guidelines, testing patterns, and contribution wor
 
 ## Session Handover
 
-### Last Updated: 2025-07-23 08:45 UTC
+### Last Updated: 2025-07-23 16:30 UTC
 
 #### Recently Completed
+- ✅ **[CURRENT]**: Fixed LLM Score Parsing Mock-Reality Divergence Issue
+  - **Critical Issue**: LLM responses weren't being parsed correctly, all scores defaulted to 0.5
+  - **Root Cause**: Test mocks used simplified format but real LLMs returned complex markdown format
+  - **Fix Applied**: Updated parser regex to handle `* Novelty: 0.8 - explanation` and `- **H1:**` formats
+  - **Prevention Added**: Integration tests with real LLM calls + prompt-parser validation framework
+  - **Token Limit Fix**: Increased deduction phase from 800 to 1500 tokens to prevent truncation
+  - **Result**: Robust parsing of real LLM responses, comprehensive test coverage, systematic validation
 - ✅ **PR #44 [MERGED]**: Centralize cost tracking and enhance CI testing
   - **Major Achievement**: Fixed all critical cost calculation issues identified in deep review
   - Centralized cost calculation in `cost_utils.py` eliminating duplication across 8+ modules

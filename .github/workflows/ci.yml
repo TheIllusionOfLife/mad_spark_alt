@@ -31,7 +31,8 @@ jobs:
     
     - name: Run tests with coverage
       run: |
-        uv run pytest tests/ -v \
+        # Run unit tests only - integration tests require real API keys and are for local testing
+        uv run pytest tests/ -v -m "not integration" \
           --cov=src/mad_spark_alt \
           --cov-report=html \
           --cov-report=term \

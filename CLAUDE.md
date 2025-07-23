@@ -184,12 +184,37 @@ src/mad_spark_alt/
 - Verify API integration
 - Check cost tracking accuracy
 
+### CI Test Update Policy
+
+**CRITICAL**: The following changes REQUIRE CI test updates:
+
+1. **Parser/Format Changes**: Any modification to parsing logic MUST include:
+   - Format validation tests with realistic data
+   - Tests for all supported format variations
+   - Silent failure detection (e.g., all values defaulting)
+
+2. **New Features**: Must include:
+   - Smoke tests verifying feature works end-to-end
+   - CLI tests if adding new commands
+   - Integration tests (marked for local only if using APIs)
+
+3. **Bug Fixes**: Must include:
+   - Regression test preventing bug recurrence
+   - Tests for edge cases that caused the bug
+
+4. **Integration Changes**: Must include:
+   - Mock updates reflecting real response formats
+   - Format compatibility validation
+
+**CI Test Validation**: Run `uv run pytest tests/ -m "not integration"` locally before pushing.
+
 ### CI/CD Pipeline
 - GitHub Actions workflow in `.github/workflows/ci.yml`
 - Tests across Python 3.8-3.11
 - Uses `uv` for fast dependency management
 - Includes CLI functionality tests
 - Type checking and formatting validation
+- Excludes integration tests (require API keys)
 
 ## Important Notes
 
@@ -216,6 +241,15 @@ print(f'Available methods: {list(registry._agents.keys())}')
 ```
 
 ## Project-Specific Patterns
+
+### LLM Score Parsing Reliability (CRITICAL)
+- **Issue**: Mock-Reality Divergence in LLM response parsing
+- **Symptom**: All hypothesis scores default to 0.5 instead of actual LLM-generated scores
+- **Root Cause**: Test mocks use simplified format (`Novelty: 0.8`) but real LLMs return complex format (`* Novelty: 0.8 - explanation`)
+- **Prevention**: Always use integration tests with real LLM calls to validate prompt-parser compatibility
+- **Parser Requirements**: Must handle markdown bold (`- **H1:**`), bullet points (`*`), and explanatory text
+- **Token Limits**: Deduction phase needs 1500+ tokens for complete analysis with scores and explanations
+- **Testing Pattern**: Use `tests/test_integration_real_llm.py` and `tests/test_prompt_parser_validation.py`
 
 ### Evolution System Testing
 - **Pattern**: Test genetic algorithms with variance tolerance, not exact values
