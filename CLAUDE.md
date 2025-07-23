@@ -184,12 +184,37 @@ src/mad_spark_alt/
 - Verify API integration
 - Check cost tracking accuracy
 
+### CI Test Update Policy
+
+**CRITICAL**: The following changes REQUIRE CI test updates:
+
+1. **Parser/Format Changes**: Any modification to parsing logic MUST include:
+   - Format validation tests with realistic data
+   - Tests for all supported format variations
+   - Silent failure detection (e.g., all values defaulting)
+
+2. **New Features**: Must include:
+   - Smoke tests verifying feature works end-to-end
+   - CLI tests if adding new commands
+   - Integration tests (marked for local only if using APIs)
+
+3. **Bug Fixes**: Must include:
+   - Regression test preventing bug recurrence
+   - Tests for edge cases that caused the bug
+
+4. **Integration Changes**: Must include:
+   - Mock updates reflecting real response formats
+   - Format compatibility validation
+
+**CI Test Validation**: Run `uv run pytest tests/ -m "not integration"` locally before pushing.
+
 ### CI/CD Pipeline
 - GitHub Actions workflow in `.github/workflows/ci.yml`
 - Tests across Python 3.8-3.11
 - Uses `uv` for fast dependency management
 - Includes CLI functionality tests
 - Type checking and formatting validation
+- Excludes integration tests (require API keys)
 
 ## Important Notes
 

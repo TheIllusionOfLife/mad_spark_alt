@@ -298,6 +298,30 @@ The system prevents common LLM integration issues through:
 - **Format Robustness**: Parser handles bullet points, markdown, and explanatory text
 - **Validation Framework**: Automated checks ensure prompts match parser expectations
 
+### CI Test Update Policy
+
+**When You MUST Update CI Tests:**
+- **Adding new features or functionality** - Include smoke tests for end-to-end validation
+- **Fixing bugs** - Add regression tests to prevent recurrence
+- **Changing parsing logic or data formats** - Add format validation tests
+- **Modifying external integrations** - Update mocks to reflect real responses
+- **Refactoring public interfaces** - Ensure backward compatibility tests
+
+**CI Test Requirements:**
+- **Smoke tests** for core functionality verification
+- **Format validation** for all parsers and data processors
+- **Silent failure detection** tests (e.g., catching when all values default)
+- **CLI command validation** for all user-facing commands
+- **Regression tests** for every bug fix
+
+**Before Pushing:**
+```bash
+# Always run CI tests locally first
+uv run pytest tests/ -m "not integration"
+```
+
+See [DEVELOPMENT.md](DEVELOPMENT.md#ci-test-policy) for detailed requirements and examples.
+
 ## Development
 
 ```bash
