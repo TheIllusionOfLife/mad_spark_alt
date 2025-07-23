@@ -320,6 +320,13 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Evolution**: Use `EvolutionRequest` object with `evolve()` method
 - **Result Access**: Use `result.final_population` not direct population return
 
+### Genetic Evolution Patterns (PR #53)
+- **Mutation Always Creates New Objects**: Even with 0% mutation rate, creates new GeneratedIdea to ensure proper generation tracking
+- **Deduplication Required**: Evolution results must deduplicate based on content to avoid showing identical ideas
+- **Higher Mutation Rate**: Use 0.3+ mutation rate for --evolve to ensure diversity (default 0.1 too low)
+- **Deep Copy Mutable Attributes**: Always use `.copy()` for lists like parent_ideas to prevent shared references
+- **Test Pattern**: Mock LLM calls in unit tests; evolution tests requiring fitness evaluation should be integration tests
+
 ### Multi-Perspective QADI System Patterns (NEW - PR #49)
 
 #### Intent Detection & Perspective Selection
