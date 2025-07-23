@@ -24,6 +24,7 @@ try:
     from mad_spark_alt.core.intent_detector import IntentDetector, QuestionIntent
     from mad_spark_alt.core.multi_perspective_orchestrator import (
         MultiPerspectiveQADIOrchestrator,
+        MultiPerspectiveQADIResult,
         PerspectiveResult,
     )
     from mad_spark_alt.core.terminal_renderer import render_markdown
@@ -34,6 +35,7 @@ except ImportError:
     from mad_spark_alt.core.intent_detector import IntentDetector, QuestionIntent
     from mad_spark_alt.core.multi_perspective_orchestrator import (
         MultiPerspectiveQADIOrchestrator,
+        MultiPerspectiveQADIResult,
         PerspectiveResult,
     )
     from mad_spark_alt.core.terminal_renderer import render_markdown

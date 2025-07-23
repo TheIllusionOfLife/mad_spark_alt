@@ -301,6 +301,19 @@ def main() -> None:
             f"Error: Temperature must be between 0.0 and 2.0 (got {args.temperature})"
         )
         sys.exit(1)
+    
+    # Validate evolution arguments are only used with --evolve
+    if not args.evolve:
+        evolution_args_used = []
+        if args.generations != 3:  # 3 is the default
+            evolution_args_used.append(f"--generations {args.generations}")
+        if args.population != 12:  # 12 is the default
+            evolution_args_used.append(f"--population {args.population}")
+        
+        if evolution_args_used:
+            print(f"Error: {', '.join(evolution_args_used)} can only be used with --evolve")
+            print("Did you mean to add --evolve to enable genetic evolution?")
+            sys.exit(1)
 
     # Load environment variables (optional)
     try:
