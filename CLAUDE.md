@@ -350,3 +350,14 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Evolution Checkpoints**: Added `.evolution_checkpoints/` to .gitignore for runtime temp files
 - **Large File Prevention**: Automated detection prevents accidental commits of large generated files
 - **CI Friction Reduction**: Removed formatting checks that caused frequent failures
+
+### System Testing Best Practices (PR #51)
+- **Comprehensive Test Coverage**: Create tests for CLI validation, integration, and end-to-end scenarios
+- **Real-World Testing**: Test actual system behavior, not just mocked components
+- **Bot Review Verification**: Always verify bot claims with actual file system checks
+- **Performance Testing**: Include algorithm complexity tests (e.g., O(N²) → O(N) optimizations)
+
+### CLI Development Patterns
+- **Argument Validation**: Validate mutually exclusive arguments with helpful error messages
+- **DRY Defaults**: Use `parser.get_default()` instead of hardcoding default values
+- **User Guidance**: Provide actionable error messages that suggest corrections
