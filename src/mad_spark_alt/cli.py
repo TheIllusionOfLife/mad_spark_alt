@@ -690,7 +690,8 @@ async def _run_evolution_pipeline(
 
                 for i, individual in enumerate(top_individuals):
                     idea = individual.idea
-                    formatted_content = _format_idea_for_display(idea.content)
+                    # Use larger max_length for better readability
+                    formatted_content = _format_idea_for_display(idea.content, max_length=300)
                     table.add_row(
                         str(i + 1),
                         formatted_content,
