@@ -551,70 +551,62 @@ class GeneticAlgorithm:
                 # If no crossover, just copy parents
                 offspring1, offspring2 = parents[0].idea, parents[1].idea
 
-            # Mutation (with smart semantic selection)
-            if random.random() < config.mutation_rate:
-                # Create a temporary IndividualFitness for smart selection
-                temp_individual = IndividualFitness(
-                    idea=offspring1,
-                    overall_fitness=0.8  # High fitness to pass smart selector threshold
+            # Mutation for offspring1 (with smart semantic selection)
+            # Always pass to mutation operator - it handles probability internally
+            # Create a temporary IndividualFitness for smart selection
+            temp_individual = IndividualFitness(
+                idea=offspring1,
+                overall_fitness=0.8  # High fitness to pass smart selector threshold
+            )
+            use_semantic = (
+                self.semantic_mutation_operator is not None and
+                self.smart_selector.should_use_semantic_mutation(
+                    temp_individual, population_diversity, generation
                 )
-                use_semantic = (
-                    self.semantic_mutation_operator is not None and
-                    self.smart_selector.should_use_semantic_mutation(
-                        temp_individual, population_diversity, generation
-                    )
+            )
+            
+            if use_semantic:
+                offspring1 = await self.semantic_mutation_operator.mutate(
+                    offspring1, config.mutation_rate, context
                 )
-                
-                if use_semantic:
-                    offspring1 = await self.semantic_mutation_operator.mutate(
-                        offspring1, config.mutation_rate, context
-                    )
-                    semantic_mutations += 1
-                    semantic_llm_calls += 1  # Each mutation makes 1 LLM call
-                    self.semantic_operator_metrics['semantic_mutations'] += 1
-                    self.semantic_operator_metrics['semantic_llm_calls'] += 1
-                else:
-                    offspring1 = await self.mutation_operator.mutate(
-                        offspring1, config.mutation_rate, context
-                    )
-                    traditional_mutations += 1
-                    self.semantic_operator_metrics['traditional_mutations'] += 1
+                semantic_mutations += 1
+                semantic_llm_calls += 1  # Each mutation makes 1 LLM call
+                self.semantic_operator_metrics['semantic_mutations'] += 1
+                self.semantic_operator_metrics['semantic_llm_calls'] += 1
             else:
                 offspring1 = await self.mutation_operator.mutate(
                     offspring1, config.mutation_rate, context
                 )
+                traditional_mutations += 1
+                self.semantic_operator_metrics['traditional_mutations'] += 1
 
-            if random.random() < config.mutation_rate:
-                # Create a temporary IndividualFitness for smart selection
-                temp_individual = IndividualFitness(
-                    idea=offspring2,
-                    overall_fitness=0.8  # High fitness to pass smart selector threshold
+            # Mutation for offspring2 (with smart semantic selection)
+            # Create a temporary IndividualFitness for smart selection
+            temp_individual2 = IndividualFitness(
+                idea=offspring2,
+                overall_fitness=0.8  # High fitness to pass smart selector threshold
+            )
+            use_semantic2 = (
+                self.semantic_mutation_operator is not None and
+                self.smart_selector.should_use_semantic_mutation(
+                    temp_individual2, population_diversity, generation
                 )
-                use_semantic = (
-                    self.semantic_mutation_operator is not None and
-                    self.smart_selector.should_use_semantic_mutation(
-                        temp_individual, population_diversity, generation
-                    )
+            )
+            
+            if use_semantic2:
+                offspring2 = await self.semantic_mutation_operator.mutate(
+                    offspring2, config.mutation_rate, context
                 )
-                
-                if use_semantic:
-                    offspring2 = await self.semantic_mutation_operator.mutate(
-                        offspring2, config.mutation_rate, context
-                    )
-                    semantic_mutations += 1
-                    semantic_llm_calls += 1  # Each mutation makes 1 LLM call
-                    self.semantic_operator_metrics['semantic_mutations'] += 1
-                    self.semantic_operator_metrics['semantic_llm_calls'] += 1
-                else:
-                    offspring2 = await self.mutation_operator.mutate(
-                        offspring2, config.mutation_rate, context
-                    )
-                    traditional_mutations += 1
-                    self.semantic_operator_metrics['traditional_mutations'] += 1
+                semantic_mutations += 1
+                semantic_llm_calls += 1  # Each mutation makes 1 LLM call
+                self.semantic_operator_metrics['semantic_mutations'] += 1
+                self.semantic_operator_metrics['semantic_llm_calls'] += 1
             else:
                 offspring2 = await self.mutation_operator.mutate(
                     offspring2, config.mutation_rate, context
                 )
+                traditional_mutations += 1
+                self.semantic_operator_metrics['traditional_mutations'] += 1
 
             # Add generation info to metadata
             offspring1.metadata["generation"] = generation + 1
