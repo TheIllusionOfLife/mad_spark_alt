@@ -12,7 +12,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 try:
     from mad_spark_alt.core import setup_llm_providers
@@ -373,7 +373,7 @@ async def run_qadi_analysis(
                     total_population = len(evolution_result.final_population)
                     
                     # Collect unique ideas with fuzzy matching
-                    unique_individuals = []
+                    unique_individuals: List[Any] = []
                     for ind in sorted(
                         evolution_result.final_population,
                         key=lambda x: x.overall_fitness,
