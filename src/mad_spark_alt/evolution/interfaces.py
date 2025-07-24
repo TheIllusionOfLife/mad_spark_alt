@@ -40,12 +40,12 @@ class SelectionStrategy(Enum):
 class EvolutionConfig:
     """Configuration for genetic evolution process."""
 
-    population_size: int = 50
-    generations: int = 10
+    population_size: int = 5  # Changed default from 50 to 5
+    generations: int = 3  # Changed default from 10 to 3
     mutation_rate: float = DEFAULT_MUTATION_RATE
     crossover_rate: float = DEFAULT_CROSSOVER_RATE
-    elite_size: int = 2
-    tournament_size: int = 3
+    elite_size: int = 1  # Changed default from 2 to 1
+    tournament_size: int = 2  # Changed default from 3 to 2 to work with smaller populations
     selection_strategy: SelectionStrategy = SelectionStrategy.TOURNAMENT
 
     # Fitness evaluation config
@@ -61,7 +61,7 @@ class EvolutionConfig:
     adaptive_mutation: bool = False
     diversity_pressure: float = DEFAULT_DIVERSITY_PRESSURE
     parallel_evaluation: bool = True
-    max_parallel_evaluations: int = 5
+    max_parallel_evaluations: int = 3  # Reduced from 5 to work with smaller populations
     random_seed: Optional[int] = None
 
     # Timeout configuration
@@ -77,11 +77,23 @@ class EvolutionConfig:
 
     # LLM operators
     enable_llm_operators: bool = False
+    
+    # Semantic operator configuration
+    use_semantic_operators: bool = True
+    semantic_operator_threshold: float = 0.5
+    semantic_batch_size: int = 5
+    semantic_cache_ttl: int = 3600
 
     def validate(self) -> bool:
         """Validate configuration parameters."""
-        if self.population_size < 2:
+        # Population size must be between 2 and 10
+        if self.population_size < 2 or self.population_size > 10:
             return False
+        
+        # Generations must be between 2 and 5
+        if self.generations < 2 or self.generations > 5:
+            return False
+            
         if not 0 <= self.mutation_rate <= 1:
             return False
         if not 0 <= self.crossover_rate <= 1:
@@ -90,8 +102,20 @@ class EvolutionConfig:
             return False
         if self.tournament_size > self.population_size:
             return False
+        # Max parallel evaluations should not exceed population size
+        # But if population is very small, we adjust it automatically
         if self.max_parallel_evaluations > self.population_size:
-            return False
+            self.max_parallel_evaluations = min(self.max_parallel_evaluations, self.population_size)
+        
+        # Validate semantic operator config
+        if self.use_semantic_operators:
+            if not 0 <= self.semantic_operator_threshold <= 1:
+                return False
+            if self.semantic_batch_size < 1:
+                return False
+            if self.semantic_cache_ttl < 0:
+                return False
+                
         return True
 
     def get_random_state(self) -> Any:
