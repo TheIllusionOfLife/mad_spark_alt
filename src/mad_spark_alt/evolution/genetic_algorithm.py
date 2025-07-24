@@ -110,6 +110,7 @@ class GeneticAlgorithm:
             self.semantic_crossover_operator = SemanticCrossoverOperator(
                 llm_provider, cache_ttl=cache_ttl
             )
+            logger.info("Semantic operators initialized with LLM provider")
 
         # Initialize selection operators
         self.selection_operators = {
@@ -126,6 +127,15 @@ class GeneticAlgorithm:
         self.checkpointer = (
             EvolutionCheckpointer(checkpoint_dir) if checkpoint_dir else None
         )
+        
+        # Track semantic operator usage
+        self.semantic_operator_metrics = {
+            'semantic_mutations': 0,
+            'semantic_crossovers': 0,
+            'traditional_mutations': 0,
+            'traditional_crossovers': 0,
+            'semantic_llm_calls': 0
+        }
 
     async def _run_evolution_loop(
         self,
@@ -270,6 +280,15 @@ class GeneticAlgorithm:
             EvolutionResult with final population and metrics
         """
         start_time = time.time()
+        
+        # Reset semantic operator metrics for this evolution
+        self.semantic_operator_metrics = {
+            'semantic_mutations': 0,
+            'semantic_crossovers': 0,
+            'traditional_mutations': 0,
+            'traditional_crossovers': 0,
+            'semantic_llm_calls': 0
+        }
 
         # Set random seed for reproducibility if provided
         if request.config.random_seed is not None:
@@ -475,6 +494,13 @@ class GeneticAlgorithm:
     ) -> List[IndividualFitness]:
         """Evolve one generation to the next."""
         new_population = []
+        
+        # Track operator usage
+        semantic_mutations = 0
+        semantic_crossovers = 0
+        traditional_mutations = 0
+        traditional_crossovers = 0
+        semantic_llm_calls = 0
 
         # Initialize smart selector with config if not already done
         if self.smart_selector is None:
@@ -511,10 +537,16 @@ class GeneticAlgorithm:
                     offspring1, offspring2 = await self.semantic_crossover_operator.crossover(
                         parents[0].idea, parents[1].idea, context
                     )
+                    semantic_crossovers += 1
+                    semantic_llm_calls += 1  # Each crossover makes 1 LLM call
+                    self.semantic_operator_metrics['semantic_crossovers'] += 1
+                    self.semantic_operator_metrics['semantic_llm_calls'] += 1
                 else:
                     offspring1, offspring2 = await self.crossover_operator.crossover(
                         parents[0].idea, parents[1].idea, context
                     )
+                    traditional_crossovers += 1
+                    self.semantic_operator_metrics['traditional_crossovers'] += 1
             else:
                 # If no crossover, just copy parents
                 offspring1, offspring2 = parents[0].idea, parents[1].idea
@@ -537,10 +569,16 @@ class GeneticAlgorithm:
                     offspring1 = await self.semantic_mutation_operator.mutate(
                         offspring1, config.mutation_rate, context
                     )
+                    semantic_mutations += 1
+                    semantic_llm_calls += 1  # Each mutation makes 1 LLM call
+                    self.semantic_operator_metrics['semantic_mutations'] += 1
+                    self.semantic_operator_metrics['semantic_llm_calls'] += 1
                 else:
                     offspring1 = await self.mutation_operator.mutate(
                         offspring1, config.mutation_rate, context
                     )
+                    traditional_mutations += 1
+                    self.semantic_operator_metrics['traditional_mutations'] += 1
             else:
                 offspring1 = await self.mutation_operator.mutate(
                     offspring1, config.mutation_rate, context
@@ -563,10 +601,16 @@ class GeneticAlgorithm:
                     offspring2 = await self.semantic_mutation_operator.mutate(
                         offspring2, config.mutation_rate, context
                     )
+                    semantic_mutations += 1
+                    semantic_llm_calls += 1  # Each mutation makes 1 LLM call
+                    self.semantic_operator_metrics['semantic_mutations'] += 1
+                    self.semantic_operator_metrics['semantic_llm_calls'] += 1
                 else:
                     offspring2 = await self.mutation_operator.mutate(
                         offspring2, config.mutation_rate, context
                     )
+                    traditional_mutations += 1
+                    self.semantic_operator_metrics['traditional_mutations'] += 1
             else:
                 offspring2 = await self.mutation_operator.mutate(
                     offspring2, config.mutation_rate, context
@@ -704,4 +748,6 @@ class GeneticAlgorithm:
             "fitness_trend": [s.best_fitness for s in snapshots],
             "total_ideas_evaluated": config.population_size
             + (len(snapshots) - 1) * (config.population_size - config.elite_size),
+            "semantic_operators_enabled": self.llm_provider is not None,
+            **self.semantic_operator_metrics,  # Add all semantic operator metrics
         }

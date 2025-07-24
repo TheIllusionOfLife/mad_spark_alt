@@ -41,6 +41,14 @@ from .layers.quantitative import DiversityEvaluator, QualityEvaluator
 console = Console()
 
 
+def _get_semantic_operator_status() -> str:
+    """Get status of semantic operators (ENABLED/DISABLED)."""
+    if LLMProvider.GOOGLE in llm_manager.providers:
+        return "Semantic operators: ENABLED"
+    else:
+        return "Semantic operators: DISABLED (traditional operators only)"
+
+
 def _format_idea_for_display(
     content: str, max_length: int = 200, wrap_lines: bool = False
 ) -> str:
