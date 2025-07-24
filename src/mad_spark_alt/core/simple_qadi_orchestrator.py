@@ -355,23 +355,66 @@ class SimpleQADIOrchestrator:
                     len(hypotheses)
                 )
                 
-                # Try to extract numbered list items (1., 2., 3.) or bullet points
+                # Enhanced fallback parsing with multiple format support
                 hypotheses = []
+                current_hypothesis = ""
+                hypothesis_buffer = []
+                
                 for line in lines:
                     line = line.strip()
                     if not line:
                         continue
                     
-                    # Match numbered lists like "1.", "2.", "3." or "1)", "2)", "3)"
-                    numbered_match = re.match(r"^(\d+)[.)]\s*(.+)$", line)
-                    if numbered_match and int(numbered_match.group(1)) <= 3:
-                        hypothesis_text = numbered_match.group(2).strip()
-                        # Skip if it's too short to be a real hypothesis
-                        if len(hypothesis_text) > 20:
-                            hypotheses.append(hypothesis_text)
-                    # Match bullet points
-                    elif line.startswith(("- ", "• ", "* ")) and len(line) > 20:
-                        hypotheses.append(line[2:].strip())
+                    # Match various hypothesis start patterns
+                    hypothesis_patterns = [
+                        r"^(\d+)[.)]\s*(.+)$",  # "1. Text" or "1) Text"
+                        r"^[•\-\*]\s*(.+)$",    # "• Text" or "- Text" or "* Text"
+                        r"^(?:\*\*)?H(\d+)(?:\*\*)?[:.]\s*(.+)$",  # "H1: Text" or "**H1:** Text"
+                        r"^(?:\*\*)?Hypothesis\s+(\d+)(?:\*\*)?[:.]\s*(.+)$",  # "Hypothesis 1: Text"
+                        r"^(?:\*\*)?Approach\s+(\d+)(?:\*\*)?[:.]\s*(.+)$",    # "Approach 1: Text"
+                    ]
+                    
+                    matched = False
+                    for pattern in hypothesis_patterns:
+                        match = re.match(pattern, line, re.IGNORECASE)
+                        if match:
+                            # Save previous hypothesis if we have one
+                            if current_hypothesis.strip() and len(current_hypothesis.strip()) > 20:
+                                hypotheses.append(current_hypothesis.strip())
+                            
+                            # Start new hypothesis
+                            if len(match.groups()) == 2:
+                                # Pattern with number (like "1. Text")
+                                hypothesis_num = int(match.group(1)) if match.group(1).isdigit() else len(hypotheses) + 1
+                                if hypothesis_num <= 3:
+                                    current_hypothesis = match.group(2).strip()
+                                    matched = True
+                            else:
+                                # Pattern without number (like "- Text")
+                                if len(hypotheses) < 3:
+                                    current_hypothesis = match.group(1).strip()
+                                    matched = True
+                            break
+                    
+                    if not matched and current_hypothesis:
+                        # Continue building current hypothesis (multi-line content)
+                        current_hypothesis += " " + line
+                
+                # Don't forget the last hypothesis
+                if current_hypothesis.strip() and len(current_hypothesis.strip()) > 20:
+                    hypotheses.append(current_hypothesis.strip())
+                
+                # Additional fallback: try to extract content between common delimiters
+                if len(hypotheses) < 2:
+                    # Look for sections separated by blank lines or common patterns
+                    sections = re.split(r'\n\s*\n|\n(?=\d+\.|\n(?=[•\-\*]))', content)
+                    for section in sections:
+                        section = section.strip()
+                        if len(section) > 30 and len(hypotheses) < 3:
+                            # Clean up section markers
+                            cleaned = re.sub(r'^(?:\d+[.)]\s*|[•\-\*]\s*|H\d+[:.]\s*)', '', section, flags=re.IGNORECASE)
+                            if len(cleaned.strip()) > 20:
+                                hypotheses.append(cleaned.strip())
                 
                 if len(hypotheses) >= 2:
                     logger.info("Fallback parsing extracted %d hypotheses", len(hypotheses))
@@ -608,13 +651,15 @@ class SimpleQADIOrchestrator:
                 except (ValueError, ZeroDivisionError):
                     pass
 
-            # Other patterns for direct scores
+            # Other patterns for direct scores - enhanced for markdown and various formats
             patterns = [
-                rf"\*?\s*{criterion}:\s*(-?[0-9.]+)\s*-",  # "* Novelty: 0.8 - explanation"
-                rf"\*?\s*{criterion}:\s*(-?[0-9.]+)",  # "* Novelty: 0.8" or "Novelty: 0.8"
-                rf"{criterion}\s*-\s*(-?[0-9.]+)",  # "Novelty - 0.8"
-                rf"{criterion}\s*:\s*(-?[0-9.]+)/?",  # "Novelty: 0.8/" or "Novelty: 0.8"
-                rf"{criterion}\s*\((-?[0-9.]+)\)",  # "Novelty (0.8)"
+                rf"\*\*{criterion}:\*\*\s*(-?[0-9.]+)\s*-",          # "**Impact:** 0.8 - explanation"
+                rf"\*\*{criterion}:\*\*\s*(-?[0-9.]+)",              # "**Impact:** 0.8"
+                rf"\*?\s*{criterion}:\s*(-?[0-9.]+)\s*-",            # "* Impact: 0.8 - explanation" or "Impact: 0.8 - explanation"
+                rf"\*?\s*{criterion}:\s*(-?[0-9.]+)",                # "* Impact: 0.8" or "Impact: 0.8"
+                rf"{criterion}\s*-\s*(-?[0-9.]+)",                   # "Impact - 0.8"
+                rf"{criterion}\s*:\s*(-?[0-9.]+)/?",                 # "Impact: 0.8/" or "Impact: 0.8"
+                rf"{criterion}\s*\((-?[0-9.]+)\)",                   # "Impact (0.8)"
             ]
 
             for pattern in patterns:

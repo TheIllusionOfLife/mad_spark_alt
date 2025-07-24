@@ -675,9 +675,9 @@ async def _run_evolution_pipeline(
             config = EvolutionConfig(
                 population_size=min(population, len(initial_ideas)),
                 generations=generations,
-                mutation_rate=0.15,
-                crossover_rate=0.75,
-                elite_size=2,
+                mutation_rate=0.25,  # Increased from 0.15 for more diversity
+                crossover_rate=0.85,  # Increased from 0.75 for more recombination
+                elite_size=1,  # Reduced from 2 to allow more diversity - only preserve the best
                 selection_strategy=SelectionStrategy.TOURNAMENT,
                 parallel_evaluation=True,
                 max_parallel_evaluations=min(8, population, len(initial_ideas)),
@@ -689,7 +689,11 @@ async def _run_evolution_pipeline(
                 context=context,
             )
 
-            evolution_result = await asyncio.wait_for(ga.evolve(request), timeout=120.0)
+            # Calculate adaptive timeout based on evolution complexity
+            evolution_timeout = calculate_evolution_timeout(generations, population)
+            console.print(f"[dim]⏱️  Evolution timeout: {evolution_timeout:.0f}s[/dim]")
+            
+            evolution_result = await asyncio.wait_for(ga.evolve(request), timeout=evolution_timeout)
 
             progress.update(evolution_task, completed=True)
 
@@ -699,17 +703,47 @@ async def _run_evolution_pipeline(
                     f"\n[green]✅ Evolution completed in {evolution_result.execution_time:.1f}s[/green]"
                 )
 
-                # Show best ideas
+                # Show best ideas with deduplication
                 table = _create_evolution_results_table()
 
-                # Get top individuals with fitness scores from final population
-                top_individuals = sorted(
+                # Get unique top individuals by content similarity
+                sorted_population = sorted(
                     evolution_result.final_population,
                     key=lambda x: x.overall_fitness,
                     reverse=True,
-                )[:5]
+                )
+                
+                # Deduplicate similar ideas
+                unique_individuals = []
+                seen_contents = []
+                
+                for individual in sorted_population:
+                    content = individual.idea.content.lower().strip()
+                    
+                    # Check if this content is too similar to any already seen
+                    is_duplicate = False
+                    for seen_content in seen_contents:
+                        # Simple similarity check using word overlap
+                        words1 = set(content.split())
+                        words2 = set(seen_content.split())
+                        
+                        if len(words1) > 0 and len(words2) > 0:
+                            intersection = len(words1.intersection(words2))
+                            union = len(words1.union(words2))
+                            similarity = intersection / union
+                            
+                            if similarity > 0.6:  # 60% similarity threshold
+                                is_duplicate = True
+                                break
+                    
+                    if not is_duplicate:
+                        unique_individuals.append(individual)
+                        seen_contents.append(content)
+                        
+                        if len(unique_individuals) >= 5:
+                            break
 
-                for i, individual in enumerate(top_individuals):
+                for i, individual in enumerate(unique_individuals):
                     idea = individual.idea
                     # Use larger max_length for better readability
                     formatted_content = _format_idea_for_display(idea.content, max_length=300)

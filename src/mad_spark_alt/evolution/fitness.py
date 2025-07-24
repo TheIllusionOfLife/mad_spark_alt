@@ -196,7 +196,7 @@ class FitnessEvaluator:
         self, population: List[IndividualFitness]
     ) -> float:
         """
-        Calculate diversity score for entire population.
+        Calculate diversity score for entire population using content similarity.
 
         This helps maintain genetic diversity and avoid premature convergence.
 
@@ -204,30 +204,44 @@ class FitnessEvaluator:
             population: List of evaluated individuals
 
         Returns:
-            Population diversity score (0-1)
+            Population diversity score (0-1), where 0 = identical, 1 = completely diverse
         """
         if len(population) < 2:
             return 1.0
 
         try:
-            # Calculate average novelty score as a proxy for population diversity
-            # In a diverse population, ideas should have high novelty relative to each other
-            total_novelty = 0.0
-            count = 0
-
-            for individual in population:
-                # Get novelty score from unified evaluation metadata
-                if "unified_scores" in individual.evaluation_metadata:
-                    novelty = individual.evaluation_metadata["unified_scores"].get(
-                        "novelty", 0.0
-                    )
-                    total_novelty += novelty
-                    count += 1
-
-            if count > 0:
-                avg_novelty = total_novelty / count
-                # High average novelty indicates diverse population
-                return avg_novelty
+            # Calculate diversity using content similarity instead of novelty scores
+            # This is more reliable than depending on LLM evaluation metadata
+            total_similarity = 0.0
+            comparisons = 0
+            
+            for i in range(len(population)):
+                for j in range(i + 1, len(population)):
+                    idea1 = population[i].idea.content.lower().strip()
+                    idea2 = population[j].idea.content.lower().strip()
+                    
+                    # Simple similarity based on shared words
+                    words1 = set(idea1.split())
+                    words2 = set(idea2.split())
+                    
+                    if len(words1) == 0 and len(words2) == 0:
+                        similarity = 1.0  # Both empty
+                    elif len(words1) == 0 or len(words2) == 0:
+                        similarity = 0.0  # One empty
+                    else:
+                        # Jaccard similarity
+                        intersection = len(words1.intersection(words2))
+                        union = len(words1.union(words2))
+                        similarity = intersection / union if union > 0 else 0.0
+                    
+                    total_similarity += similarity
+                    comparisons += 1
+            
+            if comparisons > 0:
+                avg_similarity = total_similarity / comparisons
+                # Diversity is inverse of similarity
+                diversity = 1.0 - avg_similarity
+                return max(0.0, min(1.0, diversity))
 
             return DEFAULT_FAILURE_SCORE
 

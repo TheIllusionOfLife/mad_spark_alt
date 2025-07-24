@@ -29,10 +29,11 @@ class SmartOperatorSelector:
             config: Evolution configuration with semantic operator settings
         """
         self.config = config or EvolutionConfig()
-        self.base_mutation_probability = 0.3
-        self.base_crossover_probability = 0.5
-        self.generation_boost_factor = 0.1
-        self.min_fitness_threshold = 0.4
+        # Make semantic operators much more aggressive for better diversity
+        self.base_mutation_probability = 0.7  # Increased from 0.3
+        self.base_crossover_probability = 0.8  # Increased from 0.5
+        self.generation_boost_factor = 0.2     # Increased from 0.1
+        self.min_fitness_threshold = 0.3       # Lowered from 0.4
         
     def should_use_semantic_mutation(
         self, 

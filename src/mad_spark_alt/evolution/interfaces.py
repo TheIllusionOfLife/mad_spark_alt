@@ -80,7 +80,7 @@ class EvolutionConfig:
     
     # Semantic operator configuration
     use_semantic_operators: bool = True
-    semantic_operator_threshold: float = 0.5
+    semantic_operator_threshold: float = 0.8  # Increased from 0.5 to make semantic operators trigger more often
     semantic_batch_size: int = 5
     semantic_cache_ttl: int = 3600
 

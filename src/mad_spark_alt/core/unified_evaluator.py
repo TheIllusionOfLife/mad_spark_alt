@@ -210,9 +210,11 @@ Risks: [score] - [one line explanation]
                     break
 
         # Fill in any missing criteria with defaults
-        for criterion in criteria:
+        expected_criteria = ["novelty", "impact", "cost", "feasibility", "risks"]
+        for criterion in expected_criteria:
             if criterion not in scores:
-                logger.warning("No evaluation found for criterion: %s", criterion)
+                # Log debug message instead of warning for missing criteria
+                logger.debug("No evaluation found for criterion: %s, using default", criterion)
                 scores[criterion] = 0.5
                 explanations[criterion] = "Not evaluated"
 
