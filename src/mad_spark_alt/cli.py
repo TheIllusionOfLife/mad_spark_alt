@@ -27,6 +27,7 @@ from .core import (
     registry,
     setup_llm_providers,
 )
+from .core.llm_provider import LLMProvider, llm_manager
 from .core.json_utils import format_llm_cost
 from .core.simple_qadi_orchestrator import SimpleQADIOrchestrator
 from .evolution import (
@@ -40,6 +41,58 @@ from .layers.quantitative import DiversityEvaluator, QualityEvaluator
 console = Console()
 
 
+def _get_semantic_operator_status() -> str:
+    """Get status of semantic operators (ENABLED/DISABLED)."""
+    if LLMProvider.GOOGLE in llm_manager.providers:
+        return "Semantic operators: ENABLED"
+    else:
+        return "Semantic operators: DISABLED (traditional operators only)"
+
+
+def _format_idea_for_display(
+    content: str, max_length: int = 200, wrap_lines: bool = False
+) -> str:
+    """Format idea content for display with smart truncation.
+    
+    Args:
+        content: The idea content to format
+        max_length: Maximum length before truncation
+        wrap_lines: Whether to support multi-line display
+        
+    Returns:
+        Formatted content string
+    """
+    if len(content) <= max_length:
+        return content
+    
+    # Find a good truncation point at word boundary
+    truncated = content[:max_length]
+    
+    # Look for last complete word
+    last_space = truncated.rfind(' ')
+    if last_space > max_length * 0.8:  # If we found a space reasonably close to the end
+        truncated = truncated[:last_space]
+    
+    # Also check for punctuation as good breaking points
+    for punct in ['.', ',', ';', ')', ']']:
+        punct_pos = truncated.rfind(punct)
+        if punct_pos > max_length * 0.8:
+            truncated = truncated[:punct_pos + 1]
+            break
+    
+    return truncated.strip() + "..."
+
+
+def _create_evolution_results_table() -> Table:
+    """Create a table for evolution results with proper column configuration."""
+    table = Table(title="🏆 Top Evolved Ideas")
+    table.add_column("Rank", style="cyan", width=4)
+    table.add_column("Idea", style="white", width=None)  # No width limit
+    table.add_column("Fitness", style="green", width=8)
+    table.add_column("Gen", style="yellow", width=5)
+    return table
+
+
 def calculate_evolution_timeout(generations: int, population: int) -> float:
     """
     Calculate adaptive timeout based on evolution complexity.
@@ -49,10 +102,10 @@ def calculate_evolution_timeout(generations: int, population: int) -> float:
         population: Population size
 
     Returns:
-        Timeout in seconds (min 60s, max 600s)
+        Timeout in seconds (min 120s, max 600s)
     """
-    base_timeout = 60.0  # Minimum 1 minute
-    estimated_time = generations * population * 10  # 10s per evaluation estimate
+    base_timeout = 120.0  # Minimum 2 minutes (increased from 1)
+    estimated_time = generations * population * 15  # 15s per evaluation estimate (increased from 10)
     return min(max(base_timeout, estimated_time), 600.0)  # Max 10 minutes
 
 
@@ -479,7 +532,7 @@ def _summary_to_dict(summary: EvaluationSummary) -> Dict[str, Any]:
 @click.option("--context", "-c", help="Additional context for the problem")
 @click.option("--quick", "-q", is_flag=True, help="Quick mode: faster execution")
 @click.option("--generations", "-g", default=3, help="Number of evolution generations")
-@click.option("--population", "-p", default=12, help="Population size for evolution")
+@click.option("--population", "-p", default=8, help="Population size for evolution")
 @click.option(
     "--temperature",
     "-t",
@@ -505,6 +558,19 @@ def evolve(
       mad-spark evolve "New product ideas" --temperature 1.5
     """
     import os
+
+    # Validate evolution parameters
+    if population < 2 or population > 10:
+        console.print(f"[red]Error: Population size must be between 2 and 10 (got {population})[/red]")
+        console.print("\n[yellow]Valid range:[/yellow] 2 to 10")
+        console.print("Example: mad-spark evolve \"Your question\" --population 5")
+        sys.exit(1)
+    
+    if generations < 2 or generations > 5:
+        console.print(f"[red]Error: Generations must be between 2 and 5 (got {generations})[/red]")
+        console.print("\n[yellow]Valid range:[/yellow] 2 to 5")
+        console.print("Example: mad-spark evolve \"Your question\" --generations 3")
+        sys.exit(1)
 
     # Check API key
     if not os.getenv("GOOGLE_API_KEY"):
@@ -564,7 +630,10 @@ async def _run_evolution_pipeline(
         qadi_task = progress.add_task("Generating ideas with QADI...", total=None)
 
         try:
-            orchestrator = SimpleQADIOrchestrator(temperature_override=temperature)
+            orchestrator = SimpleQADIOrchestrator(
+                temperature_override=temperature,
+                num_hypotheses=max(5, population)  # Generate at least as many as requested population
+            )
 
             qadi_result = await asyncio.wait_for(
                 orchestrator.run_qadi_cycle(
@@ -593,19 +662,25 @@ async def _run_evolution_pipeline(
                 f"Evolving ideas ({generations} generations)...", total=None
             )
 
+            # Get LLM provider for semantic operators if available
+            llm_provider = None
+            if LLMProvider.GOOGLE in llm_manager.providers:
+                llm_provider = llm_manager.providers[LLMProvider.GOOGLE]
+            
             ga = GeneticAlgorithm(
                 use_cache=True,
                 cache_ttl=3600,
                 checkpoint_dir=".evolution_checkpoints" if not quick else None,
                 checkpoint_interval=3 if not quick else 0,
+                llm_provider=llm_provider,
             )
 
             config = EvolutionConfig(
                 population_size=min(population, len(initial_ideas)),
                 generations=generations,
-                mutation_rate=0.15,
-                crossover_rate=0.75,
-                elite_size=2,
+                mutation_rate=0.25,  # Increased from 0.15 for more diversity
+                crossover_rate=0.85,  # Increased from 0.75 for more recombination
+                elite_size=1,  # Reduced from 2 to allow more diversity - only preserve the best
                 selection_strategy=SelectionStrategy.TOURNAMENT,
                 parallel_evaluation=True,
                 max_parallel_evaluations=min(8, population, len(initial_ideas)),
@@ -617,7 +692,11 @@ async def _run_evolution_pipeline(
                 context=context,
             )
 
-            evolution_result = await asyncio.wait_for(ga.evolve(request), timeout=120.0)
+            # Calculate adaptive timeout based on evolution complexity
+            evolution_timeout = calculate_evolution_timeout(generations, population)
+            console.print(f"[dim]⏱️  Evolution timeout: {evolution_timeout:.0f}s[/dim]")
+            
+            evolution_result = await asyncio.wait_for(ga.evolve(request), timeout=evolution_timeout)
 
             progress.update(evolution_task, completed=True)
 
@@ -627,29 +706,54 @@ async def _run_evolution_pipeline(
                     f"\n[green]✅ Evolution completed in {evolution_result.execution_time:.1f}s[/green]"
                 )
 
-                # Show best ideas
-                table = Table(title="🏆 Top Evolved Ideas")
-                table.add_column("Rank", style="cyan", width=4)
-                table.add_column("Idea", style="white")
-                table.add_column("Fitness", style="green", width=8)
-                table.add_column("Gen", style="yellow", width=5)
+                # Show best ideas with deduplication
+                table = _create_evolution_results_table()
 
-                # Get top individuals with fitness scores from final population
-                top_individuals = sorted(
+                # Get unique top individuals by content similarity
+                sorted_population = sorted(
                     evolution_result.final_population,
                     key=lambda x: x.overall_fitness,
                     reverse=True,
-                )[:5]
+                )
+                
+                
+                # Deduplicate similar ideas
+                unique_individuals = []
+                seen_contents: List[str] = []
+                
+                for individual in sorted_population:
+                    content = individual.idea.content.lower().strip()
+                    
+                    # Check if this content is too similar to any already seen
+                    is_duplicate = False
+                    for seen_content in seen_contents:
+                        # Simple similarity check using word overlap
+                        words1 = set(content.split())
+                        words2 = set(seen_content.split())
+                        
+                        if len(words1) > 0 and len(words2) > 0:
+                            intersection = len(words1.intersection(words2))
+                            union = len(words1.union(words2))
+                            similarity = intersection / union
+                            
+                            if similarity > 0.6:  # 60% similarity threshold
+                                is_duplicate = True
+                                break
+                    
+                    if not is_duplicate:
+                        unique_individuals.append(individual)
+                        seen_contents.append(content)
+                        
+                        if len(unique_individuals) >= 5:
+                            break
 
-                for i, individual in enumerate(top_individuals):
+                for i, individual in enumerate(unique_individuals):
                     idea = individual.idea
+                    # Don't truncate ideas - show full content
+                    formatted_content = idea.content  # No truncation
                     table.add_row(
                         str(i + 1),
-                        (
-                            idea.content[:80] + "..."
-                            if len(idea.content) > 80
-                            else idea.content
-                        ),
+                        formatted_content,
                         f"{individual.overall_fitness:.3f}",
                         str(idea.metadata.get("generation", 0)),
                     )
@@ -668,6 +772,15 @@ async def _run_evolution_pipeline(
                 console.print(
                     f"• Best from generation: {metrics.get('best_fitness_generation', 0)}"
                 )
+                
+                # Show semantic operator usage if enabled
+                if metrics.get('semantic_operators_enabled', False):
+                    console.print(f"\n[green]🧬 Semantic Operators:[/green]")
+                    console.print(f"• Semantic mutations: {metrics.get('semantic_mutations', 0)}")
+                    console.print(f"• Semantic crossovers: {metrics.get('semantic_crossovers', 0)}")
+                    console.print(f"• Traditional mutations: {metrics.get('traditional_mutations', 0)}")
+                    console.print(f"• Traditional crossovers: {metrics.get('traditional_crossovers', 0)}")
+                    console.print(f"• LLM calls for operators: {metrics.get('semantic_llm_calls', 0)}")
 
                 # Show cache performance if available
                 cache_stats = metrics.get("cache_stats")

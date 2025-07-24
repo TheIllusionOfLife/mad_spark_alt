@@ -316,10 +316,10 @@ class TestFitnessEvaluator:
             diverse_individuals
         )
 
-        # Verify diversity is calculated - should be average of novelty scores (0.8 + 0.6) / 2 = 0.7
+        # Verify diversity is calculated - should be 1.0 since content has no overlapping words
         assert isinstance(diversity, float)
         assert 0 <= diversity <= 1
-        assert diversity == 0.7  # Average of novelty scores
+        assert diversity == 1.0  # No common words, so maximum diversity
 
         # Test with single individual (should return 1.0)
         single_individual = [diverse_individuals[0]]

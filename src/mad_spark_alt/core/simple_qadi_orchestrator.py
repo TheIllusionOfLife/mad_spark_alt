@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Constants for parsing LLM responses
 QUESTION_PREFIX = "Q:"
-HYPOTHESIS_PATTERN = r"^H([123]):\s*(.*)$"
+HYPOTHESIS_PATTERN = r"^(?:H|Hypothesis\s*|Approach\s*)([123])(?:\s*:|\.)\s*(.*)$"
 ANSWER_PREFIX = "ANSWER:"
 ACTION_PLAN_PREFIX = "Action Plan:"
 CONCLUSION_PREFIX = "Conclusion:"
@@ -84,17 +84,19 @@ class SimpleQADIOrchestrator:
     - Unified evaluation scoring
     """
 
-    def __init__(self, temperature_override: Optional[float] = None) -> None:
+    def __init__(self, temperature_override: Optional[float] = None, num_hypotheses: int = 3) -> None:
         """
         Initialize the orchestrator.
 
         Args:
             temperature_override: Optional temperature override for abduction phase (0.0-2.0)
+            num_hypotheses: Number of hypotheses to generate in abduction phase (default: 3)
         """
         self.prompts = QADIPrompts()
         if temperature_override is not None and not 0.0 <= temperature_override <= 2.0:
             raise ValueError("Temperature must be between 0.0 and 2.0")
         self.temperature_override = temperature_override
+        self.num_hypotheses = max(3, num_hypotheses)  # Ensure at least 3
 
     async def run_qadi_cycle(
         self,
@@ -286,7 +288,7 @@ class SimpleQADIOrchestrator:
         max_retries: int,
     ) -> Tuple[List[str], float]:
         """Generate hypotheses to answer the core question."""
-        prompt = self.prompts.get_abduction_prompt(user_input, core_question)
+        prompt = self.prompts.get_abduction_prompt(user_input, core_question, self.num_hypotheses)
         hyperparams = PHASE_HYPERPARAMETERS["abduction"].copy()
 
         # Apply temperature override if provided
@@ -310,6 +312,10 @@ class SimpleQADIOrchestrator:
                 # Extract hypotheses using line-by-line parsing for robustness
                 hypotheses = []
                 content = response.content.strip()
+                
+                # Log the actual response for debugging
+                logger.debug("LLM response for abduction phase:\n%s", content)
+                
                 lines = content.split("\n")
 
                 current_hypothesis = ""
@@ -338,8 +344,92 @@ class SimpleQADIOrchestrator:
                 if current_index is not None and current_hypothesis.strip():
                     hypotheses.append(current_hypothesis.strip())
 
-                if len(hypotheses) >= 2:  # At least 2 hypotheses
+                # Log what was extracted
+                logger.debug("Extracted %d hypotheses: %s", len(hypotheses), hypotheses)
+
+                if len(hypotheses) >= min(self.num_hypotheses, 3):  # At least the requested number (or 3 minimum)
                     return hypotheses, total_cost
+                
+                # Fallback: Try alternative parsing methods
+                logger.warning(
+                    "Failed to extract enough hypotheses with standard pattern. "
+                    "Got %d hypotheses. Trying fallback parsing...", 
+                    len(hypotheses)
+                )
+                
+                # Enhanced fallback parsing with multiple format support
+                hypotheses = []
+                current_hypothesis = ""
+                hypothesis_buffer: List[str] = []
+                
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+                    # Match various hypothesis start patterns
+                    hypothesis_patterns = [
+                        r"^(\d+)[.)]\s*(.+)$",  # "1. Text" or "1) Text"
+                        r"^(?:\*\*)?H(\d+)(?:\*\*)?[:.]\s*(.+)$",  # "H1: Text" or "**H1:** Text"
+                        r"^(?:\*\*)?Hypothesis\s+(\d+)(?:\*\*)?[:.]\s*(.+)$",  # "Hypothesis 1: Text"
+                        r"^(?:\*\*)?Approach\s+(\d+)(?:\*\*)?[:.]\s*(.+)$",    # "Approach 1: Text"
+                        r"^[•\-]\s+(.+)$",    # "• Text" or "- Text" (not * to avoid matching bold)
+                        r"^\*\s+(.+)$",        # "* Text" (single asterisk with space)
+                    ]
+                    
+                    matched = False
+                    for pattern in hypothesis_patterns:
+                        match = re.match(pattern, line, re.IGNORECASE)
+                        if match:
+                            # Save previous hypothesis if we have one
+                            if current_hypothesis.strip() and len(current_hypothesis.strip()) > 20:
+                                hypotheses.append(current_hypothesis.strip())
+                            
+                            # Start new hypothesis
+                            if len(match.groups()) == 2:
+                                # Pattern with number (like "1. Text")
+                                hypothesis_num = int(match.group(1)) if match.group(1).isdigit() else len(hypotheses) + 1
+                                if hypothesis_num <= 3:
+                                    current_hypothesis = match.group(2).strip()
+                                    matched = True
+                            else:
+                                # Pattern without number (like "- Text")
+                                if len(hypotheses) < 3:
+                                    current_hypothesis = match.group(1).strip()
+                                    matched = True
+                            break
+                    
+                    if not matched and current_hypothesis:
+                        # Continue building current hypothesis (multi-line content)
+                        current_hypothesis += " " + line
+                
+                # Don't forget the last hypothesis
+                if current_hypothesis.strip() and len(current_hypothesis.strip()) > 20:
+                    hypotheses.append(current_hypothesis.strip())
+                
+                # Additional fallback: try to extract content between common delimiters
+                if len(hypotheses) < min(self.num_hypotheses, 3):
+                    # Look for sections separated by double newlines
+                    sections = re.split(r'\n\s*\n', content)
+                    for section in sections:
+                        section = section.strip()
+                        if len(section) > 30 and len(hypotheses) < self.num_hypotheses:
+                            # Skip sections that look like headers or metadata
+                            if section.startswith("**Scale:**") or section.startswith("Scale:"):
+                                continue
+                            # Clean up section markers but preserve content
+                            cleaned = re.sub(r'^(?:\d+[.)]\s*|[•\-]\s+|\*\s+|H\d+[:.]\s*)', '', section, flags=re.IGNORECASE)
+                            if len(cleaned.strip()) > 20 and not any(h == cleaned.strip() for h in hypotheses):
+                                hypotheses.append(cleaned.strip())
+                
+                if len(hypotheses) >= min(self.num_hypotheses, 3):
+                    logger.info("Fallback parsing extracted %d hypotheses", len(hypotheses))
+                    return hypotheses[:self.num_hypotheses], total_cost  # Return requested number
+                    
+                logger.warning(
+                    "Failed to extract enough hypotheses even with fallback. "
+                    "Response preview:\n%s", content[:500]
+                )
 
             except Exception as e:
                 if attempt == max_retries:
@@ -451,7 +541,11 @@ class SimpleQADIOrchestrator:
                         plan_text,
                         re.DOTALL | re.MULTILINE,
                     )
-                    action_plan = [item.strip() for item in plan_items if item.strip()]
+                    action_plan = [
+                        item.strip() 
+                        for item in plan_items 
+                        if item.strip() and len(item.strip()) > 1  # Filter out single character items like '*'
+                    ]
 
                     # If no items found with bullets/numbers, try splitting by newlines
                     if not action_plan:
@@ -563,13 +657,15 @@ class SimpleQADIOrchestrator:
                 except (ValueError, ZeroDivisionError):
                     pass
 
-            # Other patterns for direct scores
+            # Other patterns for direct scores - enhanced for markdown and various formats
             patterns = [
-                rf"\*?\s*{criterion}:\s*(-?[0-9.]+)\s*-",  # "* Novelty: 0.8 - explanation"
-                rf"\*?\s*{criterion}:\s*(-?[0-9.]+)",  # "* Novelty: 0.8" or "Novelty: 0.8"
-                rf"{criterion}\s*-\s*(-?[0-9.]+)",  # "Novelty - 0.8"
-                rf"{criterion}\s*:\s*(-?[0-9.]+)/?",  # "Novelty: 0.8/" or "Novelty: 0.8"
-                rf"{criterion}\s*\((-?[0-9.]+)\)",  # "Novelty (0.8)"
+                rf"\*\*{criterion}:\*\*\s*(-?[0-9.]+)\s*-",          # "**Impact:** 0.8 - explanation"
+                rf"\*\*{criterion}:\*\*\s*(-?[0-9.]+)",              # "**Impact:** 0.8"
+                rf"\*?\s*{criterion}:\s*(-?[0-9.]+)\s*-",            # "* Impact: 0.8 - explanation" or "Impact: 0.8 - explanation"
+                rf"\*?\s*{criterion}:\s*(-?[0-9.]+)",                # "* Impact: 0.8" or "Impact: 0.8"
+                rf"{criterion}\s*-\s*(-?[0-9.]+)",                   # "Impact - 0.8"
+                rf"{criterion}\s*:\s*(-?[0-9.]+)/?",                 # "Impact: 0.8/" or "Impact: 0.8"
+                rf"{criterion}\s*\((-?[0-9.]+)\)",                   # "Impact (0.8)"
             ]
 
             for pattern in patterns:

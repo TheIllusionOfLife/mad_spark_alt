@@ -35,9 +35,9 @@ Format: "Q: [Your core question]"
 """
 
     @staticmethod
-    def get_abduction_prompt(user_input: str, core_question: str) -> str:
+    def get_abduction_prompt(user_input: str, core_question: str, num_hypotheses: int = 3) -> str:
         """Get the prompt for generating hypotheses."""
-        return f"""As a creative problem-solver, generate 3 distinct approaches that could answer this core question.
+        return f"""As a creative problem-solver, generate {num_hypotheses} distinct approaches that could answer this core question.
 
 Core Question: {core_question}
 
@@ -57,7 +57,11 @@ Each hypothesis should:
 Format:
 H1: [First approach - often individual/immediate]
 H2: [Second approach - often community/collaborative]
-H3: [Third approach - often systemic/long-term]
+H3: [Third approach - often systemic/long-term]""" + (f"""
+H4: [Fourth approach - alternative perspective]
+H5: [Fifth approach - innovative solution]""" if num_hypotheses > 3 else "") + (f"""
+H6: [Sixth approach - transformative idea]
+H7: [Seventh approach - radical rethinking]""" if num_hypotheses > 5 else "") + """
 """
 
     @staticmethod
