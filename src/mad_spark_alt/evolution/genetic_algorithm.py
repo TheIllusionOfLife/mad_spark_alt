@@ -45,6 +45,11 @@ from mad_spark_alt.evolution.operators import (
     RouletteWheelSelection,
     TournamentSelection,
 )
+from mad_spark_alt.evolution.semantic_operators import (
+    BatchSemanticMutationOperator,
+    SemanticCrossoverOperator,
+)
+from mad_spark_alt.evolution.smart_selection import SmartOperatorSelector
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +72,7 @@ class GeneticAlgorithm:
         cache_ttl: int = 3600,
         checkpoint_dir: Optional[str] = None,
         checkpoint_interval: int = 0,
+        llm_provider = None,
     ):
         """
         Initialize genetic algorithm.
@@ -79,6 +85,7 @@ class GeneticAlgorithm:
             cache_ttl: Cache time-to-live in seconds (default: 3600)
             checkpoint_dir: Directory for saving checkpoints (None to disable)
             checkpoint_interval: Save checkpoint every N generations (0 to disable)
+            llm_provider: Optional LLM provider for semantic operators
         """
         # Use cached evaluator by default for performance
         if use_cache and fitness_evaluator is None:
@@ -89,6 +96,20 @@ class GeneticAlgorithm:
             self.fitness_evaluator = fitness_evaluator or FitnessEvaluator()
         self.crossover_operator = crossover_operator or CrossoverOperator()
         self.mutation_operator = mutation_operator or MutationOperator()
+
+        # Initialize semantic operators if LLM provider is available
+        self.llm_provider = llm_provider
+        self.semantic_mutation_operator = None
+        self.semantic_crossover_operator = None
+        self.smart_selector = None  # Will be initialized when needed with config
+        
+        if llm_provider is not None:
+            self.semantic_mutation_operator = BatchSemanticMutationOperator(
+                llm_provider, cache_ttl=cache_ttl
+            )
+            self.semantic_crossover_operator = SemanticCrossoverOperator(
+                llm_provider, cache_ttl=cache_ttl
+            )
 
         # Initialize selection operators
         self.selection_operators = {
@@ -455,6 +476,10 @@ class GeneticAlgorithm:
         """Evolve one generation to the next."""
         new_population = []
 
+        # Initialize smart selector with config if not already done
+        if self.smart_selector is None:
+            self.smart_selector = SmartOperatorSelector(config)
+
         # Elite preservation
         if config.elite_size > 0:
             elite_selector = self.selection_operators[SelectionStrategy.ELITE]
@@ -465,26 +490,87 @@ class GeneticAlgorithm:
         # Generate offspring to fill population
         selector = self.selection_operators[config.selection_strategy]
 
+        # Calculate population diversity for smart operator selection
+        population_diversity = await self.fitness_evaluator.calculate_population_diversity(population)
+
         while len(new_population) < config.population_size:
             # Selection
             parents = await selector.select(population, 2, config)
 
-            # Crossover
+            # Crossover (with smart semantic selection)
             if random.random() < config.crossover_rate:
-                offspring1, offspring2 = await self.crossover_operator.crossover(
-                    parents[0].idea, parents[1].idea, context
+                # Use smart selector to decide between semantic and traditional crossover
+                use_semantic = (
+                    self.semantic_crossover_operator is not None and
+                    self.smart_selector.should_use_semantic_crossover(
+                        parents[0], parents[1], population_diversity
+                    )
                 )
+                
+                if use_semantic:
+                    offspring1, offspring2 = await self.semantic_crossover_operator.crossover(
+                        parents[0].idea, parents[1].idea, context
+                    )
+                else:
+                    offspring1, offspring2 = await self.crossover_operator.crossover(
+                        parents[0].idea, parents[1].idea, context
+                    )
             else:
                 # If no crossover, just copy parents
                 offspring1, offspring2 = parents[0].idea, parents[1].idea
 
-            # Mutation
-            offspring1 = await self.mutation_operator.mutate(
-                offspring1, config.mutation_rate, context
-            )
-            offspring2 = await self.mutation_operator.mutate(
-                offspring2, config.mutation_rate, context
-            )
+            # Mutation (with smart semantic selection)
+            if random.random() < config.mutation_rate:
+                # Create a temporary IndividualFitness for smart selection
+                temp_individual = IndividualFitness(
+                    idea=offspring1,
+                    overall_fitness=0.8  # High fitness to pass smart selector threshold
+                )
+                use_semantic = (
+                    self.semantic_mutation_operator is not None and
+                    self.smart_selector.should_use_semantic_mutation(
+                        temp_individual, population_diversity, generation
+                    )
+                )
+                
+                if use_semantic:
+                    offspring1 = await self.semantic_mutation_operator.mutate(
+                        offspring1, config.mutation_rate, context
+                    )
+                else:
+                    offspring1 = await self.mutation_operator.mutate(
+                        offspring1, config.mutation_rate, context
+                    )
+            else:
+                offspring1 = await self.mutation_operator.mutate(
+                    offspring1, config.mutation_rate, context
+                )
+
+            if random.random() < config.mutation_rate:
+                # Create a temporary IndividualFitness for smart selection
+                temp_individual = IndividualFitness(
+                    idea=offspring2,
+                    overall_fitness=0.8  # High fitness to pass smart selector threshold
+                )
+                use_semantic = (
+                    self.semantic_mutation_operator is not None and
+                    self.smart_selector.should_use_semantic_mutation(
+                        temp_individual, population_diversity, generation
+                    )
+                )
+                
+                if use_semantic:
+                    offspring2 = await self.semantic_mutation_operator.mutate(
+                        offspring2, config.mutation_rate, context
+                    )
+                else:
+                    offspring2 = await self.mutation_operator.mutate(
+                        offspring2, config.mutation_rate, context
+                    )
+            else:
+                offspring2 = await self.mutation_operator.mutate(
+                    offspring2, config.mutation_rate, context
+                )
 
             # Add generation info to metadata
             offspring1.metadata["generation"] = generation + 1
