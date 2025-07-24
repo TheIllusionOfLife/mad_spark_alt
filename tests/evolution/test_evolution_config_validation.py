@@ -20,8 +20,8 @@ class TestEvolutionConfigValidation:
 
     def test_population_size_minimum(self):
         """Test population size must be at least 2."""
-        # Valid minimum
-        config = EvolutionConfig(population_size=2)
+        # Valid minimum (must also set max_parallel_evaluations to be <= population_size)
+        config = EvolutionConfig(population_size=2, max_parallel_evaluations=2)
         assert config.validate() is True
         
         # Invalid: too small
@@ -90,6 +90,19 @@ class TestEvolutionConfigValidation:
         config = EvolutionConfig(population_size=2, tournament_size=3)
         assert config.validate() is False
 
+    def test_max_parallel_evaluations_validation(self):
+        """Test max_parallel_evaluations must not exceed population_size."""
+        # Valid: max_parallel_evaluations <= population_size
+        config = EvolutionConfig(population_size=5, max_parallel_evaluations=5)
+        assert config.validate() is True
+        
+        config = EvolutionConfig(population_size=10, max_parallel_evaluations=5)
+        assert config.validate() is True
+        
+        # Invalid: max_parallel_evaluations > population_size
+        config = EvolutionConfig(population_size=2, max_parallel_evaluations=3)
+        assert config.validate() is False
+
     def test_semantic_operator_config(self):
         """Test new semantic operator configuration fields."""
         config = EvolutionConfig(
@@ -137,7 +150,8 @@ class TestEvolutionConfigValidation:
             population_size=2,
             generations=2,
             elite_size=0,
-            tournament_size=2
+            tournament_size=2,
+            max_parallel_evaluations=2  # Must be <= population_size
         )
         assert min_config.validate() is True
         
