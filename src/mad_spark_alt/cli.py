@@ -532,7 +532,7 @@ def _summary_to_dict(summary: EvaluationSummary) -> Dict[str, Any]:
 @click.option("--context", "-c", help="Additional context for the problem")
 @click.option("--quick", "-q", is_flag=True, help="Quick mode: faster execution")
 @click.option("--generations", "-g", default=3, help="Number of evolution generations")
-@click.option("--population", "-p", default=12, help="Population size for evolution")
+@click.option("--population", "-p", default=8, help="Population size for evolution")
 @click.option(
     "--temperature",
     "-t",
@@ -558,6 +558,19 @@ def evolve(
       mad-spark evolve "New product ideas" --temperature 1.5
     """
     import os
+
+    # Validate evolution parameters
+    if population < 2 or population > 10:
+        console.print(f"[red]Error: Population size must be between 2 and 10 (got {population})[/red]")
+        console.print("\n[yellow]Valid range:[/yellow] 2 to 10")
+        console.print("Example: mad-spark evolve \"Your question\" --population 5")
+        sys.exit(1)
+    
+    if generations < 2 or generations > 5:
+        console.print(f"[red]Error: Generations must be between 2 and 5 (got {generations})[/red]")
+        console.print("\n[yellow]Valid range:[/yellow] 2 to 5")
+        console.print("Example: mad-spark evolve \"Your question\" --generations 3")
+        sys.exit(1)
 
     # Check API key
     if not os.getenv("GOOGLE_API_KEY"):

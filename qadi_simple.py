@@ -563,7 +563,7 @@ def main() -> None:
         "--generations", "-g", type=int, default=3, help="Number of evolution generations (with --evolve)"
     )
     parser.add_argument(
-        "--population", "-p", type=int, default=12, help="Population size for evolution (with --evolve)"
+        "--population", "-p", type=int, default=10, help="Population size for evolution (with --evolve)"
     )
 
     args = parser.parse_args()
@@ -586,6 +586,20 @@ def main() -> None:
         if evolution_args_used:
             print(f"Error: {', '.join(evolution_args_used)} can only be used with --evolve")
             print("Did you mean to add --evolve to enable genetic evolution?")
+            sys.exit(1)
+    
+    # Validate evolution parameters if using --evolve
+    if args.evolve:
+        if args.population < 2 or args.population > 10:
+            print(f"Error: Population size must be between 2 and 10 (got {args.population})")
+            print("Valid range: 2 to 10")
+            print('Example: uv run python qadi_simple.py "Your question" --evolve --population 5')
+            sys.exit(1)
+        
+        if args.generations < 2 or args.generations > 5:
+            print(f"Error: Generations must be between 2 and 5 (got {args.generations})")
+            print("Valid range: 2 to 5")
+            print('Example: uv run python qadi_simple.py "Your question" --evolve --generations 3')
             sys.exit(1)
 
     # Load environment variables (optional)

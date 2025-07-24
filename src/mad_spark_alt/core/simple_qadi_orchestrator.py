@@ -492,7 +492,11 @@ class SimpleQADIOrchestrator:
                         plan_text,
                         re.DOTALL | re.MULTILINE,
                     )
-                    action_plan = [item.strip() for item in plan_items if item.strip()]
+                    action_plan = [
+                        item.strip() 
+                        for item in plan_items 
+                        if item.strip() and len(item.strip()) > 1  # Filter out single character items like '*'
+                    ]
 
                     # If no items found with bullets/numbers, try splitting by newlines
                     if not action_plan:

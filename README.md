@@ -36,7 +36,7 @@ uv run mad_spark_alt "How can we reduce plastic waste?"
 uv run mad_spark_alt "How can we reduce plastic waste?" --evolve
 
 # Customize evolution parameters
-uv run mad_spark_alt "Your question" --evolve --generations 5 --population 20
+uv run mad_spark_alt "Your question" --evolve --generations 5 --population 10
 ```
 
 ### Other Analysis Modes
@@ -118,7 +118,7 @@ For detailed API examples and advanced usage patterns, see [DEVELOPMENT.md](DEVE
 # Evolve ideas
 uv run mad-spark evolve "How can we reduce food waste?"
 uv run mad-spark evolve "Climate solutions" --quick
-uv run mad-spark evolve "New product ideas" --generations 5 --population 20
+uv run mad-spark evolve "New product ideas" --generations 5 --population 10
 ```
 
 ### How It Works
