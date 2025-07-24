@@ -412,7 +412,7 @@ async def run_qadi_analysis(
                             is_duplicate = False
                             for existing in unique_individuals:
                                 existing_content = existing.idea.content.strip() if existing.idea.content else ""
-                            if is_similar(normalized_content, existing_content, 0.95):  # Very strict
+                                if is_similar(normalized_content, existing_content, 0.95):  # Very strict
                                     is_duplicate = True
                                     break
                             
