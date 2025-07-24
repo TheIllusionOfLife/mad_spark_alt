@@ -182,13 +182,20 @@ class TestSemanticOperatorVerification:
     @pytest.mark.asyncio
     async def test_semantic_llm_calls_tracked(self, mock_llm_provider, sample_population):
         """Test that LLM calls made by semantic operators are tracked."""
+        from mad_spark_alt.core.llm_provider import LLMResponse, LLMProvider
+        
         # Track LLM calls
         llm_call_count = 0
         
         async def mock_generate(*args, **kwargs):
             nonlocal llm_call_count
             llm_call_count += 1
-            return MagicMock(content="Modified idea content", cost=0.001)
+            return LLMResponse(
+                content="Modified idea content", 
+                provider=LLMProvider.GOOGLE,
+                model="gemini-pro",
+                cost=0.001
+            )
         
         mock_llm_provider.generate = mock_generate
         
