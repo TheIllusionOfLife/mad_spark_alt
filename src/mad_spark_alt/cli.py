@@ -721,6 +721,15 @@ async def _run_evolution_pipeline(
                 console.print(
                     f"• Best from generation: {metrics.get('best_fitness_generation', 0)}"
                 )
+                
+                # Show semantic operator usage if enabled
+                if metrics.get('semantic_operators_enabled', False):
+                    console.print(f"\n[green]🧬 Semantic Operators:[/green]")
+                    console.print(f"• Semantic mutations: {metrics.get('semantic_mutations', 0)}")
+                    console.print(f"• Semantic crossovers: {metrics.get('semantic_crossovers', 0)}")
+                    console.print(f"• Traditional mutations: {metrics.get('traditional_mutations', 0)}")
+                    console.print(f"• Traditional crossovers: {metrics.get('traditional_crossovers', 0)}")
+                    console.print(f"• LLM calls for operators: {metrics.get('semantic_llm_calls', 0)}")
 
                 # Show cache performance if available
                 cache_stats = metrics.get("cache_stats")
