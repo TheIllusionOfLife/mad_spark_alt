@@ -27,6 +27,7 @@ from .core import (
     registry,
     setup_llm_providers,
 )
+from .core.llm_provider import LLMProvider, llm_manager
 from .core.json_utils import format_llm_cost
 from .core.simple_qadi_orchestrator import SimpleQADIOrchestrator
 from .evolution import (
