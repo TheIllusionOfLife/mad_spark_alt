@@ -41,6 +41,50 @@ from .layers.quantitative import DiversityEvaluator, QualityEvaluator
 console = Console()
 
 
+def _format_idea_for_display(
+    content: str, max_length: int = 200, wrap_lines: bool = False
+) -> str:
+    """Format idea content for display with smart truncation.
+    
+    Args:
+        content: The idea content to format
+        max_length: Maximum length before truncation
+        wrap_lines: Whether to support multi-line display
+        
+    Returns:
+        Formatted content string
+    """
+    if len(content) <= max_length:
+        return content
+    
+    # Find a good truncation point at word boundary
+    truncated = content[:max_length]
+    
+    # Look for last complete word
+    last_space = truncated.rfind(' ')
+    if last_space > max_length * 0.8:  # If we found a space reasonably close to the end
+        truncated = truncated[:last_space]
+    
+    # Also check for punctuation as good breaking points
+    for punct in ['.', ',', ';', ')', ']']:
+        punct_pos = truncated.rfind(punct)
+        if punct_pos > max_length * 0.8:
+            truncated = truncated[:punct_pos + 1]
+            break
+    
+    return truncated.strip() + "..."
+
+
+def _create_evolution_results_table() -> Table:
+    """Create a table for evolution results with proper column configuration."""
+    table = Table(title="🏆 Top Evolved Ideas")
+    table.add_column("Rank", style="cyan", width=4)
+    table.add_column("Idea", style="white", width=None)  # No width limit
+    table.add_column("Fitness", style="green", width=8)
+    table.add_column("Gen", style="yellow", width=5)
+    return table
+
+
 def calculate_evolution_timeout(generations: int, population: int) -> float:
     """
     Calculate adaptive timeout based on evolution complexity.
@@ -635,11 +679,7 @@ async def _run_evolution_pipeline(
                 )
 
                 # Show best ideas
-                table = Table(title="🏆 Top Evolved Ideas")
-                table.add_column("Rank", style="cyan", width=4)
-                table.add_column("Idea", style="white")
-                table.add_column("Fitness", style="green", width=8)
-                table.add_column("Gen", style="yellow", width=5)
+                table = _create_evolution_results_table()
 
                 # Get top individuals with fitness scores from final population
                 top_individuals = sorted(
@@ -650,13 +690,10 @@ async def _run_evolution_pipeline(
 
                 for i, individual in enumerate(top_individuals):
                     idea = individual.idea
+                    formatted_content = _format_idea_for_display(idea.content)
                     table.add_row(
                         str(i + 1),
-                        (
-                            idea.content[:80] + "..."
-                            if len(idea.content) > 80
-                            else idea.content
-                        ),
+                        formatted_content,
                         f"{individual.overall_fitness:.3f}",
                         str(idea.metadata.get("generation", 0)),
                     )
