@@ -12,14 +12,15 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Optional
+import re
+from difflib import SequenceMatcher
+from typing import Any, List, Optional, Set
 
 try:
     from mad_spark_alt.core import setup_llm_providers
     from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
     from mad_spark_alt.core.terminal_renderer import render_markdown
     from mad_spark_alt.core.qadi_prompts import QADIPrompts
-    from typing import List
 except ImportError:
     # Fallback if package is not installed
     sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -27,7 +28,6 @@ except ImportError:
     from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
     from mad_spark_alt.core.terminal_renderer import render_markdown
     from mad_spark_alt.core.qadi_prompts import QADIPrompts
-    from typing import List
 
 
 # Create custom prompts with simpler Phase 1
@@ -57,9 +57,20 @@ class SimplerQADIOrchestrator(SimpleQADIOrchestrator):
         self.prompts = SimplerQADIPrompts()
 
 
-def extract_key_solutions(hypotheses: List[str], final_answer: str, action_plan: List[str]) -> List[str]:
+def get_approach_label(text: str, index: int) -> str:
+    """Determine the approach type label based on content."""
+    if "Individual" in text or "Personal" in text:
+        return "**Personal Approach:** "
+    elif "Community" in text or "Collective" in text or "Team" in text:
+        return "**Collaborative Approach:** "
+    elif "System" in text or "Organization" in text or "Structural" in text:
+        return "**Systemic Approach:** "
+    else:
+        return f"**Approach {index}:** "
+
+
+def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List[str]:
     """Extract the top 3 solutions from QADI results."""
-    import re
     
     def clean_markdown_text(text: str) -> str:
         """Remove all markdown formatting and clean up text."""
@@ -174,8 +185,7 @@ async def run_qadi_analysis(
         # Extract key solutions for summary
         key_solutions = extract_key_solutions(
             result.hypotheses or [],
-            result.final_answer or "",
-            result.action_plan or []
+            result.action_plan or [],
         )
         
         # Show summary first (we'll update this later if evolution provides better solutions)
@@ -195,15 +205,7 @@ async def run_qadi_analysis(
                         solution_clean = solution_clean[:397] + "..."
                 
                 # Extract approach type (Personal, Collective, Systemic) if present
-                approach_label = ""
-                if "Individual" in solution_clean or "Personal" in solution_clean:
-                    approach_label = "**Personal Approach:** "
-                elif "Community" in solution_clean or "Collective" in solution_clean or "Team" in solution_clean:
-                    approach_label = "**Collaborative Approach:** "
-                elif "System" in solution_clean or "Organization" in solution_clean or "Structural" in solution_clean:
-                    approach_label = "**Systemic Approach:** "
-                else:
-                    approach_label = f"**Approach {i}:** "
+                approach_label = get_approach_label(solution_clean, i)
                 
                 render_markdown(f"{approach_label}{solution_clean}")
             
@@ -219,11 +221,13 @@ async def run_qadi_analysis(
             print("\n## 💡 Phase 2: Hypothesis Generation (Abduction)\n")
             for i, hypothesis in enumerate(result.hypotheses):
                 # Try to identify approach type
-                if "individual" in hypothesis.lower() or "personal" in hypothesis.lower():
+                label_text = get_approach_label(hypothesis, i+1)
+                # Extract just the label part without markdown
+                if "Personal" in label_text:
                     label = "Personal"
-                elif "community" in hypothesis.lower() or "collective" in hypothesis.lower() or "team" in hypothesis.lower():
+                elif "Collaborative" in label_text:
                     label = "Collaborative"
-                elif "system" in hypothesis.lower() or "organization" in hypothesis.lower() or "structural" in hypothesis.lower():
+                elif "Systemic" in label_text:
                     label = "Systemic"
                 else:
                     label = f"H{i+1}"
@@ -336,7 +340,7 @@ async def run_qadi_analysis(
                     generations=generations,
                     mutation_rate=mutation_rate,  # Higher mutation for small populations
                     crossover_rate=0.75,
-                    elite_size=min(1, actual_population - 1),  # Smaller elite for tiny populations
+                    elite_size=min(2, max(1, actual_population // 3)),  # Adaptive elite size: 1 for small, up to 2 for larger
                     selection_strategy=SelectionStrategy.TOURNAMENT,
                     parallel_evaluation=True,
                     max_parallel_evaluations=min(8, actual_population),
@@ -363,7 +367,6 @@ async def run_qadi_analysis(
                     print("*The initial hypotheses have been evolved and refined:*\n")
                     
                     # Use fuzzy deduplication to show more diverse ideas
-                    from difflib import SequenceMatcher
                     
                     def is_similar(a: str, b: str, threshold: float = 0.85) -> bool:
                         """Check if two strings are similar above threshold."""
@@ -379,12 +382,13 @@ async def run_qadi_analysis(
                         key=lambda x: x.overall_fitness,
                         reverse=True,
                     ):
-                        normalized_content = ind.idea.content.strip()
+                        normalized_content = ind.idea.content.strip() if ind.idea.content else ""
                         
                         # Check if this idea is too similar to any already selected
                         is_duplicate = False
                         for existing in unique_individuals:
-                            similarity = SequenceMatcher(None, normalized_content.lower(), existing.idea.content.strip().lower()).ratio()
+                            existing_content = existing.idea.content.strip() if existing.idea.content else ""
+                            similarity = SequenceMatcher(None, normalized_content.lower(), existing_content.lower()).ratio()
                             if similarity > 0.85:
                                 is_duplicate = True
                                 break
@@ -402,12 +406,13 @@ async def run_qadi_analysis(
                             key=lambda x: x.overall_fitness,
                             reverse=True,
                         ):
-                            normalized_content = ind.idea.content.strip()
+                            normalized_content = ind.idea.content.strip() if ind.idea.content else ""
                             
                             # Use much lower threshold for more diversity (allow similar ideas)
                             is_duplicate = False
                             for existing in unique_individuals:
-                                if is_similar(normalized_content, existing.idea.content.strip(), 0.95):  # Very strict
+                                existing_content = existing.idea.content.strip() if existing.idea.content else ""
+                            if is_similar(normalized_content, existing_content, 0.95):  # Very strict
                                     is_duplicate = True
                                     break
                             
@@ -430,7 +435,7 @@ async def run_qadi_analysis(
                         unique_individuals = []
                         
                         for ind in all_sorted:
-                            method = ind.idea.thinking_method.value if hasattr(ind.idea.thinking_method, 'value') else str(ind.idea.thinking_method)
+                            method = ind.idea.thinking_method.value if hasattr(ind.idea.thinking_method, 'value') else str(ind.idea.thinking_method) if ind.idea.thinking_method else 'unknown'
                             
                             # If we haven't seen this method yet, or we have very few ideas, include it
                             if method not in seen_methods or len(unique_individuals) < 3:
@@ -444,18 +449,26 @@ async def run_qadi_analysis(
                             unique_individuals = all_sorted[:min(3, len(all_sorted))]
                     
                     # Display evolved ideas clearly as the new best solutions
-                    displayed_contents = set()
+                    displayed_contents: Set[str] = set()
                     display_count = 0
                     
                     for i, individual in enumerate(unique_individuals):
                         idea = individual.idea
-                        content_hash = idea.content.strip().lower()[:100]  # Simple hash for comparison
+                        # Use full content for better deduplication
+                        content_normalized = idea.content.strip().lower() if idea.content else ""
                         
-                        # Skip if we've already displayed very similar content
-                        if content_hash in displayed_contents and display_count >= 3:
+                        # Check for duplicates with fuzzy matching
+                        is_duplicate = False
+                        for displayed in displayed_contents:
+                            if SequenceMatcher(None, content_normalized, displayed).ratio() > 0.9:
+                                is_duplicate = True
+                                break
+                        
+                        # Skip if duplicate
+                        if is_duplicate:
                             continue
                             
-                        displayed_contents.add(content_hash)
+                        displayed_contents.add(content_normalized)
                         display_count += 1
                         
                         print(f"**{display_count}. Enhanced Approach**")
