@@ -85,6 +85,9 @@ class TestSemanticOperatorVerification:
                     context="Test context"
                 )
                 
+                # Reset the smart_selector to ensure clean state
+                ga.smart_selector = None
+                
                 # Mock SmartOperatorSelector to always use semantic operators
                 with patch('mad_spark_alt.evolution.genetic_algorithm.SmartOperatorSelector') as mock_selector_class:
                     mock_selector = MagicMock()
