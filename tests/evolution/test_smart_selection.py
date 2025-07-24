@@ -36,13 +36,19 @@ class TestSmartOperatorSelector:
         """Test that low population diversity triggers semantic operators."""
         selector = SmartOperatorSelector()
         
-        # Low diversity should trigger semantic operators
-        should_use = selector.should_use_semantic_mutation(
-            individual=sample_individual,
-            population_diversity=0.3,  # Below threshold
-            generation=1
-        )
-        assert should_use is True
+        # Low diversity should trigger semantic operators (probabilistic)
+        # Run multiple times to verify it's triggered sometimes
+        results = []
+        for _ in range(50):
+            should_use = selector.should_use_semantic_mutation(
+                individual=sample_individual,
+                population_diversity=0.3,  # Below threshold
+                generation=1
+            )
+            results.append(should_use)
+        
+        # Should be True at least 20% of the time (base probability is 30%)
+        assert sum(results) >= 10
 
     def test_high_diversity_avoids_semantic_operators(self, sample_individual):
         """Test that high population diversity avoids semantic operators."""
@@ -131,13 +137,18 @@ class TestSmartOperatorSelector:
         
         selector = SmartOperatorSelector(config=config)
         
-        # Diversity below new threshold
-        should_use = selector.should_use_semantic_mutation(
-            individual=sample_individual,
-            population_diversity=0.6,  # Below 0.7 threshold
-            generation=1
-        )
-        assert should_use is True
+        # Diversity below new threshold (probabilistic)
+        results = []
+        for _ in range(50):
+            should_use = selector.should_use_semantic_mutation(
+                individual=sample_individual,
+                population_diversity=0.6,  # Below 0.7 threshold
+                generation=1
+            )
+            results.append(should_use)
+        
+        # Should trigger sometimes
+        assert sum(results) >= 10
         
         # Diversity above new threshold
         should_use = selector.should_use_semantic_mutation(
@@ -181,13 +192,18 @@ class TestSmartOperatorSelector:
         parent1 = IndividualFitness(idea=idea1, overall_fitness=0.8)
         parent2 = IndividualFitness(idea=idea2, overall_fitness=0.7)
         
-        # Low diversity should trigger semantic crossover
-        should_use = selector.should_use_semantic_crossover(
-            parent1=parent1,
-            parent2=parent2,
-            population_diversity=0.3
-        )
-        assert should_use is True
+        # Low diversity should trigger semantic crossover (probabilistic)
+        results = []
+        for _ in range(50):
+            should_use = selector.should_use_semantic_crossover(
+                parent1=parent1,
+                parent2=parent2,
+                population_diversity=0.3
+            )
+            results.append(should_use)
+        
+        # Should trigger sometimes (base probability is 50%)
+        assert sum(results) >= 15
         
         # High diversity should not trigger
         should_use = selector.should_use_semantic_crossover(
