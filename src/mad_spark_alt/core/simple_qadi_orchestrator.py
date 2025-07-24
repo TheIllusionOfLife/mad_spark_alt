@@ -360,7 +360,7 @@ class SimpleQADIOrchestrator:
                 # Enhanced fallback parsing with multiple format support
                 hypotheses = []
                 current_hypothesis = ""
-                hypothesis_buffer = []
+                hypothesis_buffer: List[str] = []
                 
                 for line in lines:
                     line = line.strip()

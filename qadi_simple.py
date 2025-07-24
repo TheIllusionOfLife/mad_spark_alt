@@ -382,10 +382,10 @@ async def run_qadi_analysis(
                 print(f"⏱️  Evolution timeout: {evolution_timeout:.0f}s (adjust --generations or --population if needed)")
                 
                 # Progress indicator task
-                async def show_progress(start_time: float, timeout: float):
+                async def show_progress(start_time: float, timeout: float) -> None:
                     """Show progress dots while evolution runs."""
                     try:
-                        elapsed = 0
+                        elapsed = 0.0
                         while elapsed < timeout:
                             await asyncio.sleep(10)  # Update every 10 seconds
                             elapsed = time.time() - start_time

@@ -719,7 +719,7 @@ async def _run_evolution_pipeline(
                 
                 # Deduplicate similar ideas
                 unique_individuals = []
-                seen_contents = []
+                seen_contents: List[str] = []
                 
                 for individual in sorted_population:
                     content = individual.idea.content.lower().strip()

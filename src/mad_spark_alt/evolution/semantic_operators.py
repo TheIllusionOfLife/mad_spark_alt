@@ -268,55 +268,54 @@ No other text or formatting."""
             ]
             
         # Batch process uncached ideas
-        if uncached_ideas:
-            # Create batch prompt
-            ideas_list = "\n".join([
-                f"IDEA_{i+1}: {idea.content}"
-                for i, idea in enumerate(uncached_ideas)
-            ])
+        # Create batch prompt
+        ideas_list = "\n".join([
+            f"IDEA_{i+1}: {idea.content}"
+            for i, idea in enumerate(uncached_ideas)
+        ])
+        
+        request = LLMRequest(
+            system_prompt=self.MUTATION_SYSTEM_PROMPT,
+            user_prompt=self.BATCH_MUTATION_PROMPT.format(
+                context=context or "general improvement",
+                ideas_list=ideas_list
+            ),
+            max_tokens=min(200 * len(uncached_ideas), 1000),
+            temperature=0.8
+        )
+        
+        response = await self.llm_provider.generate(request)
+        
+        # Parse batch response
+        mutations = self._parse_batch_response(response.content, len(uncached_ideas))
+        
+        # Cache results
+        for idea, mutation in zip(uncached_ideas, mutations):
+            self.cache.put(idea.content, mutation)
             
-            request = LLMRequest(
-                system_prompt=self.MUTATION_SYSTEM_PROMPT,
-                user_prompt=self.BATCH_MUTATION_PROMPT.format(
-                    context=context or "general improvement",
-                    ideas_list=ideas_list
-                ),
-                max_tokens=min(200 * len(uncached_ideas), 1000),
-                temperature=0.8
-            )
-            
-            response = await self.llm_provider.generate(request)
-            
-            # Parse batch response
-            mutations = self._parse_batch_response(response.content, len(uncached_ideas))
-            
-            # Cache results
-            for idea, mutation in zip(uncached_ideas, mutations):
-                self.cache.put(idea.content, mutation)
+        # Distribute cost across mutations
+        cost_per_mutation = response.cost / len(mutations) if mutations else 0
+        
+        # Create result list maintaining original order
+        results = []
+        uncached_index = 0
+        
+        for idea in ideas:
+            if idea.content in cached_results:
+                results.append(
+                    self._create_mutated_idea(idea, cached_results[idea.content], 0.0)
+                )
+            else:
+                results.append(
+                    self._create_mutated_idea(
+                        idea,
+                        mutations[uncached_index],
+                        cost_per_mutation
+                    )
+                )
+                uncached_index += 1
                 
-            # Distribute cost across mutations
-            cost_per_mutation = response.cost / len(mutations) if mutations else 0
-            
-            # Create result list maintaining original order
-            results = []
-            uncached_index = 0
-            
-            for idea in ideas:
-                if idea.content in cached_results:
-                    results.append(
-                        self._create_mutated_idea(idea, cached_results[idea.content], 0.0)
-                    )
-                else:
-                    results.append(
-                        self._create_mutated_idea(
-                            idea,
-                            mutations[uncached_index],
-                            cost_per_mutation
-                        )
-                    )
-                    uncached_index += 1
-                    
-            return results
+        return results
             
     def _parse_batch_response(self, response: str, expected_count: int) -> List[str]:
         """

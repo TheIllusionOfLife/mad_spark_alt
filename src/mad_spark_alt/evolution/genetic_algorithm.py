@@ -72,7 +72,7 @@ class GeneticAlgorithm:
         cache_ttl: int = 3600,
         checkpoint_dir: Optional[str] = None,
         checkpoint_interval: int = 0,
-        llm_provider = None,
+        llm_provider: Optional[Any] = None,
     ):
         """
         Initialize genetic algorithm.
@@ -99,9 +99,9 @@ class GeneticAlgorithm:
 
         # Initialize semantic operators if LLM provider is available
         self.llm_provider = llm_provider
-        self.semantic_mutation_operator = None
-        self.semantic_crossover_operator = None
-        self.smart_selector = None  # Will be initialized when needed with config
+        self.semantic_mutation_operator: Optional[BatchSemanticMutationOperator] = None
+        self.semantic_crossover_operator: Optional[SemanticCrossoverOperator] = None
+        self.smart_selector: Optional[SmartOperatorSelector] = None  # Will be initialized when needed with config
         
         if llm_provider is not None:
             self.semantic_mutation_operator = BatchSemanticMutationOperator(
@@ -537,12 +537,14 @@ class GeneticAlgorithm:
                 # Use smart selector to decide between semantic and traditional crossover
                 use_semantic = (
                     self.semantic_crossover_operator is not None and
+                    self.smart_selector is not None and
                     self.smart_selector.should_use_semantic_crossover(
                         parents[0], parents[1], population_diversity
                     )
                 )
                 
                 if use_semantic:
+                    assert self.semantic_crossover_operator is not None
                     offspring1, offspring2 = await self.semantic_crossover_operator.crossover(
                         parents[0].idea, parents[1].idea, context
                     )
@@ -570,12 +572,14 @@ class GeneticAlgorithm:
             )
             use_semantic = (
                 self.semantic_mutation_operator is not None and
+                self.smart_selector is not None and
                 self.smart_selector.should_use_semantic_mutation(
                     temp_individual, population_diversity, generation
                 )
             )
             
             if use_semantic:
+                assert self.semantic_mutation_operator is not None
                 mutated_offspring1 = await self.semantic_mutation_operator.mutate(
                     offspring1, config.mutation_rate, context
                 )
@@ -604,12 +608,14 @@ class GeneticAlgorithm:
             )
             use_semantic2 = (
                 self.semantic_mutation_operator is not None and
+                self.smart_selector is not None and
                 self.smart_selector.should_use_semantic_mutation(
                     temp_individual2, population_diversity, generation
                 )
             )
             
             if use_semantic2:
+                assert self.semantic_mutation_operator is not None
                 mutated_offspring2 = await self.semantic_mutation_operator.mutate(
                     offspring2, config.mutation_rate, context
                 )
