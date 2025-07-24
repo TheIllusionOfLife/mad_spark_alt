@@ -329,19 +329,17 @@ async def run_qadi_analysis(
                     SelectionStrategy,
                 )
                 
-                # Get LLM provider for semantic operators if available
+                # Disable semantic operators by default in qadi_simple for performance
+                # Semantic operators can make evolution 10x slower due to API calls
                 llm_provider = None
-                if LLMProvider.GOOGLE in llm_manager.providers:
-                    llm_provider = llm_manager.providers[LLMProvider.GOOGLE]
-                    print("🧬 Semantic evolution operators: ENABLED")
-                else:
-                    print("🧬 Semantic evolution operators: DISABLED (using traditional operators)")
+                print("🧬 Semantic evolution operators: DISABLED (using traditional operators)")
+                print("   (Semantic operators disabled by default for better performance)")
                 
-                # Create genetic algorithm instance with optional LLM provider
+                # Create genetic algorithm instance without LLM provider
                 ga = GeneticAlgorithm(
                     use_cache=True,
                     cache_ttl=3600,
-                    llm_provider=llm_provider
+                    llm_provider=llm_provider  # None = traditional operators only
                 )
                 
                 # Configure evolution with higher mutation rate for diversity
@@ -367,10 +365,55 @@ async def run_qadi_analysis(
                     context=user_input,
                 )
                 
-                # Run evolution
+                # Calculate adaptive timeout based on evolution complexity
+                def calculate_evolution_timeout(gens: int, pop: int) -> float:
+                    """Calculate timeout in seconds based on generations and population."""
+                    base_timeout = 60.0  # Base 1 minute
+                    time_per_eval = 2.0  # 2 seconds per idea evaluation
+                    
+                    # Estimate total evaluations
+                    total_evaluations = gens * pop
+                    estimated_time = base_timeout + (total_evaluations * time_per_eval)
+                    
+                    # Cap at 10 minutes
+                    return min(estimated_time, 600.0)
+                
+                evolution_timeout = calculate_evolution_timeout(generations, actual_population)
+                print(f"⏱️  Evolution timeout: {evolution_timeout:.0f}s (adjust --generations or --population if needed)")
+                
+                # Progress indicator task
+                async def show_progress(start_time: float, timeout: float):
+                    """Show progress dots while evolution runs."""
+                    try:
+                        elapsed = 0
+                        while elapsed < timeout:
+                            await asyncio.sleep(10)  # Update every 10 seconds
+                            elapsed = time.time() - start_time
+                            remaining = max(0, timeout - elapsed)
+                            print(f"   ...evolving ({elapsed:.0f}s elapsed, ~{remaining:.0f}s remaining)", end='\r')
+                    except asyncio.CancelledError:
+                        pass
+                
+                # Run evolution with timeout protection
                 evolution_start = time.time()
-                evolution_result = await ga.evolve(request)
-                evolution_time = time.time() - evolution_start
+                progress_task = asyncio.create_task(show_progress(evolution_start, evolution_timeout))
+                
+                try:
+                    evolution_result = await asyncio.wait_for(
+                        ga.evolve(request),
+                        timeout=evolution_timeout
+                    )
+                    evolution_time = time.time() - evolution_start
+                    progress_task.cancel()  # Cancel progress indicator
+                    print()  # Clear progress line
+                except asyncio.TimeoutError:
+                    progress_task.cancel()
+                    evolution_time = time.time() - evolution_start
+                    print()  # Clear progress line
+                    print(f"\n❌ Evolution timed out after {evolution_time:.1f}s")
+                    print("💡 Try reducing --generations or --population for faster results")
+                    print("   Example: --evolve --generations 2 --population 5")
+                    return
                 
                 if evolution_result.success:
                     print(f"\n✅ Evolution completed in {evolution_time:.1f}s")
