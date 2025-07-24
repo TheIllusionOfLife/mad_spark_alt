@@ -20,8 +20,16 @@ class TestSemanticOperatorVerification:
     @pytest.fixture
     def mock_llm_provider(self):
         """Create a mock LLM provider."""
+        from mad_spark_alt.core.llm_provider import LLMResponse, LLMProvider
+        
         provider = AsyncMock()
-        provider.generate = AsyncMock()
+        mock_response = LLMResponse(
+            content="Modified content", 
+            provider=LLMProvider.GOOGLE,
+            model="gemini-pro",
+            cost=0.001
+        )
+        provider.generate = AsyncMock(return_value=mock_response)
         return provider
 
     @pytest.fixture
@@ -56,42 +64,45 @@ class TestSemanticOperatorVerification:
         
         # Mock the fitness evaluator
         with patch.object(ga.fitness_evaluator, 'evaluate_population', new_callable=AsyncMock) as mock_eval:
-            # Return list of IndividualFitness objects
-            mock_eval.return_value = [
-                IndividualFitness(idea=idea, overall_fitness=0.7) 
-                for idea in sample_population
-            ]
-            
-            # Configure evolution
-            config = EvolutionConfig(
-                population_size=3,
-                generations=2,
-                use_semantic_operators=True
-            )
-            
-            request = EvolutionRequest(
-                initial_population=sample_population,
-                config=config,
-                context="Test context"
-            )
-            
-            # Mock smart selector to always use semantic operators
-            if ga.smart_selector:
-                with patch.object(ga.smart_selector, 'should_use_semantic_mutation', return_value=True):
-                    with patch.object(ga.smart_selector, 'should_use_semantic_crossover', return_value=True):
-                        result = await ga.evolve(request)
-            else:
-                result = await ga.evolve(request)
-            
-            # Check metrics include semantic operator usage
-            metrics = result.evolution_metrics
-            assert 'semantic_mutations' in metrics
-            assert 'semantic_crossovers' in metrics
-            assert 'traditional_mutations' in metrics
-            assert 'traditional_crossovers' in metrics
-            
-            # Should have used semantic operators
-            assert metrics['semantic_mutations'] > 0 or metrics['semantic_crossovers'] > 0
+            with patch.object(ga.fitness_evaluator, 'calculate_population_diversity', new_callable=AsyncMock) as mock_diversity:
+                # Return list of IndividualFitness objects (awaitable)
+                mock_eval.return_value = [
+                    IndividualFitness(idea=idea, overall_fitness=0.7) 
+                    for idea in sample_population
+                ]
+                mock_diversity.return_value = 0.5  # Low diversity to trigger semantic operators
+                
+                # Configure evolution
+                config = EvolutionConfig(
+                    population_size=3,
+                    generations=2,
+                    use_semantic_operators=True
+                )
+                
+                request = EvolutionRequest(
+                    initial_population=sample_population,
+                    config=config,
+                    context="Test context"
+                )
+                
+                # Mock SmartOperatorSelector to always use semantic operators
+                with patch('mad_spark_alt.evolution.genetic_algorithm.SmartOperatorSelector') as mock_selector_class:
+                    mock_selector = MagicMock()
+                    mock_selector.should_use_semantic_mutation.return_value = True
+                    mock_selector.should_use_semantic_crossover.return_value = True
+                    mock_selector_class.return_value = mock_selector
+                    
+                    result = await ga.evolve(request)
+                
+                # Check metrics include semantic operator usage
+                metrics = result.evolution_metrics
+                assert 'semantic_mutations' in metrics
+                assert 'semantic_crossovers' in metrics
+                assert 'traditional_mutations' in metrics
+                assert 'traditional_crossovers' in metrics
+                
+                # Should have used semantic operators
+                assert metrics['semantic_mutations'] > 0 or metrics['semantic_crossovers'] > 0
 
     @pytest.mark.asyncio
     async def test_semantic_operator_status_in_logs(self, mock_llm_provider, caplog):
@@ -112,29 +123,31 @@ class TestSemanticOperatorVerification:
         ga = GeneticAlgorithm(llm_provider=mock_llm_provider)
         
         with patch.object(ga.fitness_evaluator, 'evaluate_population', new_callable=AsyncMock) as mock_eval:
-            # Return list of IndividualFitness objects
-            mock_eval.return_value = [
-                IndividualFitness(idea=idea, overall_fitness=0.7) 
-                for idea in sample_population
-            ]
-            
-            config = EvolutionConfig(
-                population_size=3,
-                generations=1,
-                use_semantic_operators=True
-            )
-            
-            request = EvolutionRequest(
-                initial_population=sample_population,
-                config=config,
-                context="Test"
-            )
-            
-            result = await ga.evolve(request)
-            
-            # Check summary includes semantic operator info
-            assert 'semantic_operators_enabled' in result.evolution_metrics
-            assert result.evolution_metrics['semantic_operators_enabled'] is True
+            with patch.object(ga.fitness_evaluator, 'calculate_population_diversity', new_callable=AsyncMock) as mock_diversity:
+                # Return list of IndividualFitness objects (awaitable)
+                mock_eval.return_value = [
+                    IndividualFitness(idea=idea, overall_fitness=0.7) 
+                    for idea in sample_population
+                ]
+                mock_diversity.return_value = 0.5  # Low diversity to trigger semantic operators
+                
+                config = EvolutionConfig(
+                    population_size=3,
+                    generations=2,
+                    use_semantic_operators=True
+                )
+                
+                request = EvolutionRequest(
+                    initial_population=sample_population,
+                    config=config,
+                    context="Test"
+                )
+                
+                result = await ga.evolve(request)
+                
+                # Check summary includes semantic operator info
+                assert 'semantic_operators_enabled' in result.evolution_metrics
+                assert result.evolution_metrics['semantic_operators_enabled'] is True
 
     def test_semantic_operator_disabled_when_no_llm(self, sample_population):
         """Test that semantic operators are disabled without LLM provider."""
@@ -179,33 +192,39 @@ class TestSemanticOperatorVerification:
         ga = GeneticAlgorithm(llm_provider=mock_llm_provider)
         
         with patch.object(ga.fitness_evaluator, 'evaluate_population', new_callable=AsyncMock) as mock_eval:
-            # Return list of IndividualFitness objects
-            mock_eval.return_value = [
-                IndividualFitness(idea=idea, overall_fitness=0.7) 
-                for idea in sample_population
-            ]
-            
-            config = EvolutionConfig(
-                population_size=3,
-                generations=1,
-                use_semantic_operators=True
-            )
-            
-            request = EvolutionRequest(
-                initial_population=sample_population,
-                config=config,
-                context="Test"
-            )
-            
-            # Force semantic operators to be used
-            if ga.smart_selector:
-                with patch.object(ga.smart_selector, 'should_use_semantic_mutation', return_value=True):
+            with patch.object(ga.fitness_evaluator, 'calculate_population_diversity', new_callable=AsyncMock) as mock_diversity:
+                # Return list of IndividualFitness objects (awaitable)
+                mock_eval.return_value = [
+                    IndividualFitness(idea=idea, overall_fitness=0.7) 
+                    for idea in sample_population
+                ]
+                mock_diversity.return_value = 0.5  # Low diversity to trigger semantic operators
+                
+                config = EvolutionConfig(
+                    population_size=3,
+                    generations=2,
+                    use_semantic_operators=True
+                )
+                
+                request = EvolutionRequest(
+                    initial_population=sample_population,
+                    config=config,
+                    context="Test"
+                )
+                
+                # Mock SmartOperatorSelector to use semantic operators
+                with patch('mad_spark_alt.evolution.genetic_algorithm.SmartOperatorSelector') as mock_selector_class:
+                    mock_selector = MagicMock()
+                    mock_selector.should_use_semantic_mutation.return_value = True
+                    mock_selector.should_use_semantic_crossover.return_value = True  
+                    mock_selector_class.return_value = mock_selector
+                    
                     result = await ga.evolve(request)
-            
-            # Check that LLM was called
-            assert llm_call_count > 0
-            
-            # Check metrics track LLM calls
-            metrics = result.evolution_metrics
-            assert 'semantic_llm_calls' in metrics
-            assert metrics['semantic_llm_calls'] == llm_call_count
+                
+                # Check that LLM was called
+                assert llm_call_count > 0
+                
+                # Check metrics track LLM calls
+                metrics = result.evolution_metrics
+                assert 'semantic_llm_calls' in metrics
+                assert metrics['semantic_llm_calls'] == llm_call_count

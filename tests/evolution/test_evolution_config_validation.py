@@ -91,17 +91,20 @@ class TestEvolutionConfigValidation:
         assert config.validate() is False
 
     def test_max_parallel_evaluations_validation(self):
-        """Test max_parallel_evaluations must not exceed population_size."""
+        """Test max_parallel_evaluations is auto-adjusted if it exceeds population_size."""
         # Valid: max_parallel_evaluations <= population_size
         config = EvolutionConfig(population_size=5, max_parallel_evaluations=5)
         assert config.validate() is True
+        assert config.max_parallel_evaluations == 5
         
         config = EvolutionConfig(population_size=10, max_parallel_evaluations=5)
         assert config.validate() is True
+        assert config.max_parallel_evaluations == 5
         
-        # Invalid: max_parallel_evaluations > population_size
+        # Auto-adjustment: max_parallel_evaluations > population_size gets adjusted
         config = EvolutionConfig(population_size=2, max_parallel_evaluations=3)
-        assert config.validate() is False
+        assert config.validate() is True  # Should pass after auto-adjustment
+        assert config.max_parallel_evaluations == 2  # Should be adjusted to population_size
 
     def test_semantic_operator_config(self):
         """Test new semantic operator configuration fields."""
