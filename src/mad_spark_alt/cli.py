@@ -630,7 +630,10 @@ async def _run_evolution_pipeline(
         qadi_task = progress.add_task("Generating ideas with QADI...", total=None)
 
         try:
-            orchestrator = SimpleQADIOrchestrator(temperature_override=temperature)
+            orchestrator = SimpleQADIOrchestrator(
+                temperature_override=temperature,
+                num_hypotheses=max(5, population)  # Generate at least as many as requested population
+            )
 
             qadi_result = await asyncio.wait_for(
                 orchestrator.run_qadi_cycle(
@@ -713,6 +716,7 @@ async def _run_evolution_pipeline(
                     reverse=True,
                 )
                 
+                
                 # Deduplicate similar ideas
                 unique_individuals = []
                 seen_contents = []
@@ -746,7 +750,7 @@ async def _run_evolution_pipeline(
                 for i, individual in enumerate(unique_individuals):
                     idea = individual.idea
                     # Use larger max_length for better readability
-                    formatted_content = _format_idea_for_display(idea.content, max_length=300)
+                    formatted_content = _format_idea_for_display(idea.content, max_length=500)
                     table.add_row(
                         str(i + 1),
                         formatted_content,

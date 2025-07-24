@@ -84,17 +84,19 @@ class SimpleQADIOrchestrator:
     - Unified evaluation scoring
     """
 
-    def __init__(self, temperature_override: Optional[float] = None) -> None:
+    def __init__(self, temperature_override: Optional[float] = None, num_hypotheses: int = 3) -> None:
         """
         Initialize the orchestrator.
 
         Args:
             temperature_override: Optional temperature override for abduction phase (0.0-2.0)
+            num_hypotheses: Number of hypotheses to generate in abduction phase (default: 3)
         """
         self.prompts = QADIPrompts()
         if temperature_override is not None and not 0.0 <= temperature_override <= 2.0:
             raise ValueError("Temperature must be between 0.0 and 2.0")
         self.temperature_override = temperature_override
+        self.num_hypotheses = max(3, num_hypotheses)  # Ensure at least 3
 
     async def run_qadi_cycle(
         self,
@@ -286,7 +288,7 @@ class SimpleQADIOrchestrator:
         max_retries: int,
     ) -> Tuple[List[str], float]:
         """Generate hypotheses to answer the core question."""
-        prompt = self.prompts.get_abduction_prompt(user_input, core_question)
+        prompt = self.prompts.get_abduction_prompt(user_input, core_question, self.num_hypotheses)
         hyperparams = PHASE_HYPERPARAMETERS["abduction"].copy()
 
         # Apply temperature override if provided
@@ -345,7 +347,7 @@ class SimpleQADIOrchestrator:
                 # Log what was extracted
                 logger.debug("Extracted %d hypotheses: %s", len(hypotheses), hypotheses)
 
-                if len(hypotheses) >= 2:  # At least 2 hypotheses
+                if len(hypotheses) >= min(self.num_hypotheses, 3):  # At least the requested number (or 3 minimum)
                     return hypotheses, total_cost
                 
                 # Fallback: Try alternative parsing methods
@@ -405,20 +407,20 @@ class SimpleQADIOrchestrator:
                     hypotheses.append(current_hypothesis.strip())
                 
                 # Additional fallback: try to extract content between common delimiters
-                if len(hypotheses) < 2:
+                if len(hypotheses) < min(self.num_hypotheses, 3):
                     # Look for sections separated by blank lines or common patterns
                     sections = re.split(r'\n\s*\n|\n(?=\d+\.|\n(?=[•\-\*]))', content)
                     for section in sections:
                         section = section.strip()
-                        if len(section) > 30 and len(hypotheses) < 3:
+                        if len(section) > 30 and len(hypotheses) < self.num_hypotheses:
                             # Clean up section markers
                             cleaned = re.sub(r'^(?:\d+[.)]\s*|[•\-\*]\s*|H\d+[:.]\s*)', '', section, flags=re.IGNORECASE)
                             if len(cleaned.strip()) > 20:
                                 hypotheses.append(cleaned.strip())
                 
-                if len(hypotheses) >= 2:
+                if len(hypotheses) >= min(self.num_hypotheses, 3):
                     logger.info("Fallback parsing extracted %d hypotheses", len(hypotheses))
-                    return hypotheses[:3], total_cost  # Return max 3
+                    return hypotheses[:self.num_hypotheses], total_cost  # Return requested number
                     
                 logger.warning(
                     "Failed to extract enough hypotheses even with fallback. "
