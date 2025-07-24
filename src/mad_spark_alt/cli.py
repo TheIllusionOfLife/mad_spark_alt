@@ -102,10 +102,10 @@ def calculate_evolution_timeout(generations: int, population: int) -> float:
         population: Population size
 
     Returns:
-        Timeout in seconds (min 60s, max 600s)
+        Timeout in seconds (min 120s, max 600s)
     """
-    base_timeout = 60.0  # Minimum 1 minute
-    estimated_time = generations * population * 10  # 10s per evaluation estimate
+    base_timeout = 120.0  # Minimum 2 minutes (increased from 1)
+    estimated_time = generations * population * 15  # 15s per evaluation estimate (increased from 10)
     return min(max(base_timeout, estimated_time), 600.0)  # Max 10 minutes
 
 
@@ -749,8 +749,8 @@ async def _run_evolution_pipeline(
 
                 for i, individual in enumerate(unique_individuals):
                     idea = individual.idea
-                    # Use larger max_length for better readability
-                    formatted_content = _format_idea_for_display(idea.content, max_length=500)
+                    # Don't truncate ideas - show full content
+                    formatted_content = idea.content  # No truncation
                     table.add_row(
                         str(i + 1),
                         formatted_content,

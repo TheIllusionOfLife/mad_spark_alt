@@ -370,10 +370,11 @@ class SimpleQADIOrchestrator:
                     # Match various hypothesis start patterns
                     hypothesis_patterns = [
                         r"^(\d+)[.)]\s*(.+)$",  # "1. Text" or "1) Text"
-                        r"^[•\-\*]\s*(.+)$",    # "• Text" or "- Text" or "* Text"
                         r"^(?:\*\*)?H(\d+)(?:\*\*)?[:.]\s*(.+)$",  # "H1: Text" or "**H1:** Text"
                         r"^(?:\*\*)?Hypothesis\s+(\d+)(?:\*\*)?[:.]\s*(.+)$",  # "Hypothesis 1: Text"
                         r"^(?:\*\*)?Approach\s+(\d+)(?:\*\*)?[:.]\s*(.+)$",    # "Approach 1: Text"
+                        r"^[•\-]\s+(.+)$",    # "• Text" or "- Text" (not * to avoid matching bold)
+                        r"^\*\s+(.+)$",        # "* Text" (single asterisk with space)
                     ]
                     
                     matched = False
@@ -408,14 +409,17 @@ class SimpleQADIOrchestrator:
                 
                 # Additional fallback: try to extract content between common delimiters
                 if len(hypotheses) < min(self.num_hypotheses, 3):
-                    # Look for sections separated by blank lines or common patterns
-                    sections = re.split(r'\n\s*\n|\n(?=\d+\.|\n(?=[•\-\*]))', content)
+                    # Look for sections separated by double newlines
+                    sections = re.split(r'\n\s*\n', content)
                     for section in sections:
                         section = section.strip()
                         if len(section) > 30 and len(hypotheses) < self.num_hypotheses:
-                            # Clean up section markers
-                            cleaned = re.sub(r'^(?:\d+[.)]\s*|[•\-\*]\s*|H\d+[:.]\s*)', '', section, flags=re.IGNORECASE)
-                            if len(cleaned.strip()) > 20:
+                            # Skip sections that look like headers or metadata
+                            if section.startswith("**Scale:**") or section.startswith("Scale:"):
+                                continue
+                            # Clean up section markers but preserve content
+                            cleaned = re.sub(r'^(?:\d+[.)]\s*|[•\-]\s+|\*\s+|H\d+[:.]\s*)', '', section, flags=re.IGNORECASE)
+                            if len(cleaned.strip()) > 20 and not any(h == cleaned.strip() for h in hypotheses):
                                 hypotheses.append(cleaned.strip())
                 
                 if len(hypotheses) >= min(self.num_hypotheses, 3):
