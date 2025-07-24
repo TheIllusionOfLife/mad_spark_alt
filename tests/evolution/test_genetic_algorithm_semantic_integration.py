@@ -99,7 +99,8 @@ class TestGeneticAlgorithmSemanticIntegration:
         ga = GeneticAlgorithm(llm_provider=mock_llm_provider)
 
         # Mock fitness evaluator 
-        with patch.object(ga.fitness_evaluator, 'calculate_population_diversity', new_callable=AsyncMock, return_value=0.8):
+        with patch.object(ga.fitness_evaluator, 'calculate_population_diversity', new_callable=AsyncMock) as mock_diversity:
+            mock_diversity.return_value = 0.8
             with patch.object(ga.fitness_evaluator, 'evaluate_population', new_callable=AsyncMock) as mock_eval:
                 # Mock fitness evaluation to return proper IndividualFitness objects
                 mock_eval.return_value = [
