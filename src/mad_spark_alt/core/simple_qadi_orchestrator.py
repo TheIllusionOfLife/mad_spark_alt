@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Constants for parsing LLM responses
 QUESTION_PREFIX = "Q:"
-HYPOTHESIS_PATTERN = r"^H([123]):\s*(.*)$"
+HYPOTHESIS_PATTERN = r"^(?:H|Hypothesis\s*|Approach\s*)([123])(?:\s*:|\.)\s*(.*)$"
 ANSWER_PREFIX = "ANSWER:"
 ACTION_PLAN_PREFIX = "Action Plan:"
 CONCLUSION_PREFIX = "Conclusion:"
@@ -310,6 +310,10 @@ class SimpleQADIOrchestrator:
                 # Extract hypotheses using line-by-line parsing for robustness
                 hypotheses = []
                 content = response.content.strip()
+                
+                # Log the actual response for debugging
+                logger.debug("LLM response for abduction phase:\n%s", content)
+                
                 lines = content.split("\n")
 
                 current_hypothesis = ""
@@ -338,8 +342,45 @@ class SimpleQADIOrchestrator:
                 if current_index is not None and current_hypothesis.strip():
                     hypotheses.append(current_hypothesis.strip())
 
+                # Log what was extracted
+                logger.debug("Extracted %d hypotheses: %s", len(hypotheses), hypotheses)
+
                 if len(hypotheses) >= 2:  # At least 2 hypotheses
                     return hypotheses, total_cost
+                
+                # Fallback: Try alternative parsing methods
+                logger.warning(
+                    "Failed to extract enough hypotheses with standard pattern. "
+                    "Got %d hypotheses. Trying fallback parsing...", 
+                    len(hypotheses)
+                )
+                
+                # Try to extract numbered list items (1., 2., 3.) or bullet points
+                hypotheses = []
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+                    # Match numbered lists like "1.", "2.", "3." or "1)", "2)", "3)"
+                    numbered_match = re.match(r"^(\d+)[.)]\s*(.+)$", line)
+                    if numbered_match and int(numbered_match.group(1)) <= 3:
+                        hypothesis_text = numbered_match.group(2).strip()
+                        # Skip if it's too short to be a real hypothesis
+                        if len(hypothesis_text) > 20:
+                            hypotheses.append(hypothesis_text)
+                    # Match bullet points
+                    elif line.startswith(("- ", "• ", "* ")) and len(line) > 20:
+                        hypotheses.append(line[2:].strip())
+                
+                if len(hypotheses) >= 2:
+                    logger.info("Fallback parsing extracted %d hypotheses", len(hypotheses))
+                    return hypotheses[:3], total_cost  # Return max 3
+                    
+                logger.warning(
+                    "Failed to extract enough hypotheses even with fallback. "
+                    "Response preview:\n%s", content[:500]
+                )
 
             except Exception as e:
                 if attempt == max_retries:
