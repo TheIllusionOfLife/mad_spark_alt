@@ -593,11 +593,17 @@ async def _run_evolution_pipeline(
                 f"Evolving ideas ({generations} generations)...", total=None
             )
 
+            # Get LLM provider for semantic operators if available
+            llm_provider = None
+            if LLMProvider.GOOGLE in llm_manager.providers:
+                llm_provider = llm_manager.providers[LLMProvider.GOOGLE]
+            
             ga = GeneticAlgorithm(
                 use_cache=True,
                 cache_ttl=3600,
                 checkpoint_dir=".evolution_checkpoints" if not quick else None,
                 checkpoint_interval=3 if not quick else 0,
+                llm_provider=llm_provider,
             )
 
             config = EvolutionConfig(
