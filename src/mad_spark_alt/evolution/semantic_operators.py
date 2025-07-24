@@ -166,13 +166,27 @@ No other text or formatting."""
         
         Args:
             idea: Idea to mutate
-            mutation_rate: Probability of mutation (not used for semantic)
+            mutation_rate: Probability of mutation (0-1)
             context: Optional context for mutation
             
         Returns:
-            Mutated idea
+            Mutated idea (or original if no mutation occurs)
         """
-        return await self.mutate_single(idea, context)
+        # Check if mutation should occur
+        if random.random() < mutation_rate:
+            return await self.mutate_single(idea, context)
+        else:
+            # Return a copy to maintain consistency with MutationOperator behavior
+            return GeneratedIdea(
+                content=idea.content,
+                thinking_method=idea.thinking_method,
+                agent_name=idea.agent_name,
+                generation_prompt=idea.generation_prompt,
+                confidence_score=idea.confidence_score,
+                reasoning=idea.reasoning,
+                parent_ideas=idea.parent_ideas.copy() if idea.parent_ideas else [],
+                metadata=idea.metadata.copy()
+            )
         
     async def mutate_single(
         self,

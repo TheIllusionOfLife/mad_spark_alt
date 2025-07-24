@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from mad_spark_alt.evolution.genetic_algorithm import GeneticAlgorithm
-from mad_spark_alt.evolution.interfaces import EvolutionRequest, EvolutionConfig
+from mad_spark_alt.evolution.interfaces import EvolutionRequest, EvolutionConfig, IndividualFitness
 from mad_spark_alt.core.interfaces import GeneratedIdea
 
 
@@ -55,8 +55,12 @@ class TestSemanticOperatorVerification:
         ga = GeneticAlgorithm(llm_provider=mock_llm_provider)
         
         # Mock the fitness evaluator
-        with patch.object(ga, '_evaluate_fitness', new_callable=AsyncMock) as mock_eval:
-            mock_eval.return_value = 0.5
+        with patch.object(ga.fitness_evaluator, 'evaluate_population', new_callable=AsyncMock) as mock_eval:
+            # Return list of IndividualFitness objects
+            mock_eval.return_value = [
+                IndividualFitness(idea=idea, overall_fitness=0.7) 
+                for idea in sample_population
+            ]
             
             # Configure evolution
             config = EvolutionConfig(
@@ -76,6 +80,8 @@ class TestSemanticOperatorVerification:
                 with patch.object(ga.smart_selector, 'should_use_semantic_mutation', return_value=True):
                     with patch.object(ga.smart_selector, 'should_use_semantic_crossover', return_value=True):
                         result = await ga.evolve(request)
+            else:
+                result = await ga.evolve(request)
             
             # Check metrics include semantic operator usage
             metrics = result.evolution_metrics
@@ -105,8 +111,12 @@ class TestSemanticOperatorVerification:
         """Test that evolution summary indicates semantic operator usage."""
         ga = GeneticAlgorithm(llm_provider=mock_llm_provider)
         
-        with patch.object(ga, '_evaluate_fitness', new_callable=AsyncMock) as mock_eval:
-            mock_eval.return_value = 0.5
+        with patch.object(ga.fitness_evaluator, 'evaluate_population', new_callable=AsyncMock) as mock_eval:
+            # Return list of IndividualFitness objects
+            mock_eval.return_value = [
+                IndividualFitness(idea=idea, overall_fitness=0.7) 
+                for idea in sample_population
+            ]
             
             config = EvolutionConfig(
                 population_size=3,
@@ -142,7 +152,8 @@ class TestSemanticOperatorVerification:
         
         # With LLM provider
         with patch('mad_spark_alt.cli.llm_manager') as mock_manager:
-            mock_manager.providers = {'GOOGLE': MagicMock()}
+            from mad_spark_alt.core.llm_provider import LLMProvider
+            mock_manager.providers = {LLMProvider.GOOGLE: MagicMock()}
             status = _get_semantic_operator_status()
             assert "ENABLED" in status
             
@@ -167,8 +178,12 @@ class TestSemanticOperatorVerification:
         
         ga = GeneticAlgorithm(llm_provider=mock_llm_provider)
         
-        with patch.object(ga, '_evaluate_fitness', new_callable=AsyncMock) as mock_eval:
-            mock_eval.return_value = 0.5
+        with patch.object(ga.fitness_evaluator, 'evaluate_population', new_callable=AsyncMock) as mock_eval:
+            # Return list of IndividualFitness objects
+            mock_eval.return_value = [
+                IndividualFitness(idea=idea, overall_fitness=0.7) 
+                for idea in sample_population
+            ]
             
             config = EvolutionConfig(
                 population_size=3,

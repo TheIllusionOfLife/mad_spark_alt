@@ -66,10 +66,10 @@ class TestSmartOperatorSelector:
         """Test behavior at diversity threshold boundary."""
         selector = SmartOperatorSelector()
         
-        # At threshold (0.5)
+        # At threshold (0.8)
         should_use = selector.should_use_semantic_mutation(
             individual=sample_individual,
-            population_diversity=0.5,  # At threshold
+            population_diversity=0.8,  # At threshold
             generation=1
         )
         assert should_use is False  # Should not use at exact threshold
@@ -86,7 +86,7 @@ class TestSmartOperatorSelector:
         )
         low_fitness_ind = IndividualFitness(
             idea=idea,
-            overall_fitness=0.3  # Below performance threshold
+            overall_fitness=0.2  # Below performance threshold (min_fitness_threshold=0.3)
         )
         
         selector = SmartOperatorSelector()
@@ -238,16 +238,16 @@ class TestSmartOperatorSelector:
         """Test that selection is probability-based, not deterministic."""
         selector = SmartOperatorSelector()
         
-        # Run multiple times with conditions that give ~50% probability
+        # Run multiple times with conditions that give ~70% probability
         results = []
         for _ in range(100):
             result = selector.should_use_semantic_mutation(
                 individual=sample_individual,
                 population_diversity=0.4,  # Below threshold
-                generation=2  # Middle generation
+                generation=1  # First generation, lower boost
             )
             results.append(result)
         
-        # Should have mix of True and False
+        # Should have mix of True and False, but more True due to high base probability (0.7 + 0.2 = 0.9)
         true_count = sum(results)
-        assert 20 < true_count < 80  # Roughly 20-80% range
+        assert 80 < true_count < 100  # Roughly 80-99% range (expecting ~90%)

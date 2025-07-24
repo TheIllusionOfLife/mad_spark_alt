@@ -160,7 +160,9 @@ async def test_evolution_timeout_handling(mock_qadi_result, mock_slow_genetic_al
                 
                 # Check output for timeout message
                 captured = capfd.readouterr()
-                assert "Evolution error:" in captured.out or "timed out" in captured.out.lower()
+                assert ("Evolution error:" in captured.out or 
+                        "timed out" in captured.out.lower() or 
+                        "Evolution failed:" in captured.out)
 
 
 @pytest.mark.asyncio

@@ -307,6 +307,15 @@ class GeneticAlgorithm:
                 error_message="Invalid evolution request",
             )
 
+        # Auto-correct max_parallel_evaluations if it exceeds population_size
+        # This was previously done in validate() but that violates the principle of pure functions
+        if request.config.max_parallel_evaluations > request.config.population_size:
+            request.config.max_parallel_evaluations = request.config.population_size
+            logger.info(
+                f"Adjusted max_parallel_evaluations to {request.config.max_parallel_evaluations} "
+                f"to match population_size"
+            )
+
         try:
             # Initialize population
             current_population = await self._initialize_population(
@@ -552,11 +561,12 @@ class GeneticAlgorithm:
                 offspring1, offspring2 = parents[0].idea, parents[1].idea
 
             # Mutation for offspring1 (with smart semantic selection)
-            # Always pass to mutation operator - it handles probability internally
             # Create a temporary IndividualFitness for smart selection
+            # Use average fitness from parents as initial estimate
+            avg_parent_fitness = (parents[0].overall_fitness + parents[1].overall_fitness) / 2
             temp_individual = IndividualFitness(
                 idea=offspring1,
-                overall_fitness=0.8  # High fitness to pass smart selector threshold
+                overall_fitness=avg_parent_fitness
             )
             use_semantic = (
                 self.semantic_mutation_operator is not None and
@@ -566,25 +576,31 @@ class GeneticAlgorithm:
             )
             
             if use_semantic:
-                offspring1 = await self.semantic_mutation_operator.mutate(
+                mutated_offspring1 = await self.semantic_mutation_operator.mutate(
                     offspring1, config.mutation_rate, context
                 )
-                semantic_mutations += 1
-                semantic_llm_calls += 1  # Each mutation makes 1 LLM call
-                self.semantic_operator_metrics['semantic_mutations'] += 1
-                self.semantic_operator_metrics['semantic_llm_calls'] += 1
+                # Only count if mutation actually occurred (content changed)
+                if mutated_offspring1.content != offspring1.content:
+                    semantic_mutations += 1
+                    semantic_llm_calls += 1  # Each mutation makes 1 LLM call
+                    self.semantic_operator_metrics['semantic_mutations'] += 1
+                    self.semantic_operator_metrics['semantic_llm_calls'] += 1
+                offspring1 = mutated_offspring1
             else:
-                offspring1 = await self.mutation_operator.mutate(
+                mutated_offspring1 = await self.mutation_operator.mutate(
                     offspring1, config.mutation_rate, context
                 )
-                traditional_mutations += 1
-                self.semantic_operator_metrics['traditional_mutations'] += 1
+                # Only count if mutation actually occurred (content changed)
+                if mutated_offspring1.content != offspring1.content:
+                    traditional_mutations += 1
+                    self.semantic_operator_metrics['traditional_mutations'] += 1
+                offspring1 = mutated_offspring1
 
             # Mutation for offspring2 (with smart semantic selection)
             # Create a temporary IndividualFitness for smart selection
             temp_individual2 = IndividualFitness(
                 idea=offspring2,
-                overall_fitness=0.8  # High fitness to pass smart selector threshold
+                overall_fitness=avg_parent_fitness  # Use same average as offspring1
             )
             use_semantic2 = (
                 self.semantic_mutation_operator is not None and
@@ -594,19 +610,25 @@ class GeneticAlgorithm:
             )
             
             if use_semantic2:
-                offspring2 = await self.semantic_mutation_operator.mutate(
+                mutated_offspring2 = await self.semantic_mutation_operator.mutate(
                     offspring2, config.mutation_rate, context
                 )
-                semantic_mutations += 1
-                semantic_llm_calls += 1  # Each mutation makes 1 LLM call
-                self.semantic_operator_metrics['semantic_mutations'] += 1
-                self.semantic_operator_metrics['semantic_llm_calls'] += 1
+                # Only count if mutation actually occurred (content changed)
+                if mutated_offspring2.content != offspring2.content:
+                    semantic_mutations += 1
+                    semantic_llm_calls += 1  # Each mutation makes 1 LLM call
+                    self.semantic_operator_metrics['semantic_mutations'] += 1
+                    self.semantic_operator_metrics['semantic_llm_calls'] += 1
+                offspring2 = mutated_offspring2
             else:
-                offspring2 = await self.mutation_operator.mutate(
+                mutated_offspring2 = await self.mutation_operator.mutate(
                     offspring2, config.mutation_rate, context
                 )
-                traditional_mutations += 1
-                self.semantic_operator_metrics['traditional_mutations'] += 1
+                # Only count if mutation actually occurred (content changed)
+                if mutated_offspring2.content != offspring2.content:
+                    traditional_mutations += 1
+                    self.semantic_operator_metrics['traditional_mutations'] += 1
+                offspring2 = mutated_offspring2
 
             # Add generation info to metadata
             offspring1.metadata["generation"] = generation + 1

@@ -115,7 +115,7 @@ class TestGeneticAlgorithm:
         # Configure with elite preservation
         config = EvolutionConfig(
             population_size=5,
-            generations=1,
+            generations=2,
             elite_size=2,
             selection_strategy=SelectionStrategy.ELITE,
         )
@@ -150,7 +150,7 @@ class TestGeneticAlgorithm:
         # Configure with target metrics
         config = EvolutionConfig(
             population_size=5,
-            generations=10,  # Many generations
+            generations=5,  # Maximum allowed generations
         )
 
         request = EvolutionRequest(
@@ -339,11 +339,11 @@ class TestEvolutionConfig:
     def test_config_validation_valid(self):
         """Test valid configuration."""
         config = EvolutionConfig(
-            population_size=50,
-            generations=10,
+            population_size=5,
+            generations=3,
             mutation_rate=0.1,
             crossover_rate=0.7,
-            elite_size=5,
+            elite_size=2,
         )
         assert config.validate()
 
