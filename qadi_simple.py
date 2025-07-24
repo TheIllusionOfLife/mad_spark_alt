@@ -21,6 +21,7 @@ try:
     from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
     from mad_spark_alt.core.terminal_renderer import render_markdown
     from mad_spark_alt.core.qadi_prompts import QADIPrompts
+    from mad_spark_alt.core.llm_provider import LLMProvider, llm_manager
 except ImportError:
     # Fallback if package is not installed
     sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -28,6 +29,7 @@ except ImportError:
     from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
     from mad_spark_alt.core.terminal_renderer import render_markdown
     from mad_spark_alt.core.qadi_prompts import QADIPrompts
+    from mad_spark_alt.core.llm_provider import LLMProvider, llm_manager
 
 
 # Create custom prompts with simpler Phase 1
@@ -327,8 +329,20 @@ async def run_qadi_analysis(
                     SelectionStrategy,
                 )
                 
-                # Create genetic algorithm instance
-                ga = GeneticAlgorithm()
+                # Get LLM provider for semantic operators if available
+                llm_provider = None
+                if LLMProvider.GOOGLE in llm_manager.providers:
+                    llm_provider = llm_manager.providers[LLMProvider.GOOGLE]
+                    print("🧬 Semantic evolution operators: ENABLED")
+                else:
+                    print("🧬 Semantic evolution operators: DISABLED (using traditional operators)")
+                
+                # Create genetic algorithm instance with optional LLM provider
+                ga = GeneticAlgorithm(
+                    use_cache=True,
+                    cache_ttl=3600,
+                    llm_provider=llm_provider
+                )
                 
                 # Configure evolution with higher mutation rate for diversity
                 # For small populations, increase mutation rate even more
