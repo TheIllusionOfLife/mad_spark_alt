@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
-from mad_spark_alt.core.llm_provider import GoogleProvider, LLMRequest, LLMResponse
+from mad_spark_alt.core.llm_provider import GoogleProvider, LLMRequest, LLMResponse, LLMProvider
 from mad_spark_alt.evolution.semantic_operators import (
     BatchSemanticMutationOperator,
     SemanticCrossoverOperator,
@@ -118,9 +118,9 @@ class TestBatchSemanticMutationOperator:
         # Set up mock response
         mock_llm_provider.generate.return_value = LLMResponse(
             content="Reduce plastic waste through community-led zero-waste initiatives",
+            provider=LLMProvider.GOOGLE,
             model="gemini-2.5-flash",
-            prompt_tokens=100,
-            completion_tokens=50,
+            usage={"prompt_tokens": 100, "completion_tokens": 50},
             cost=0.001
         )
         
@@ -132,7 +132,9 @@ class TestBatchSemanticMutationOperator:
         assert result.content == "Reduce plastic waste through community-led zero-waste initiatives"
         assert result.agent_name == "BatchSemanticMutationOperator"
         assert "llm_cost" in result.metadata
-        assert result.metadata["mutation_type"] == "semantic_variation"
+        assert result.metadata["mutation_type"] in [
+            "perspective_shift", "mechanism_change", "constraint_variation", "abstraction_shift"
+        ]
 
     @pytest.mark.asyncio
     async def test_batch_mutation(self, mock_llm_provider, sample_ideas):
@@ -144,9 +146,9 @@ IDEA_3_MUTATION: Deploy smart grid technology for real-time energy optimization"
         
         mock_llm_provider.generate.return_value = LLMResponse(
             content=batch_response,
+            provider=LLMProvider.GOOGLE,
             model="gemini-2.5-flash",
-            prompt_tokens=200,
-            completion_tokens=100,
+            usage={"prompt_tokens": 200, "completion_tokens": 100},
             cost=0.002
         )
         
@@ -165,9 +167,9 @@ IDEA_3_MUTATION: Deploy smart grid technology for real-time energy optimization"
         """Test that caching reduces API calls."""
         mock_llm_provider.generate.return_value = LLMResponse(
             content="Cached mutation result",
+            provider=LLMProvider.GOOGLE,
             model="gemini-2.5-flash",
-            prompt_tokens=100,
-            completion_tokens=50,
+            usage={"prompt_tokens": 100, "completion_tokens": 50},
             cost=0.001
         )
         
@@ -195,9 +197,9 @@ IDEA_2_MUTATION: Deploy smart grid technology"""
         
         mock_llm_provider.generate.return_value = LLMResponse(
             content=batch_response,
+            provider=LLMProvider.GOOGLE,
             model="gemini-2.5-flash",
-            prompt_tokens=150,
-            completion_tokens=75,
+            usage={"prompt_tokens": 150, "completion_tokens": 75},
             cost=0.0015
         )
         
@@ -256,12 +258,12 @@ class TestSemanticCrossoverOperator:
     @pytest.mark.asyncio
     async def test_semantic_crossover(self, mock_llm_provider, parent_ideas):
         """Test semantic crossover of two parent ideas."""
-        # Mock LLM response
+        # Mock LLM response with proper format
         mock_llm_provider.generate.return_value = LLMResponse(
-            content="Develop smart rooftop gardens with IoT-controlled irrigation systems for efficient urban food production",
+            content="OFFSPRING_1: Develop smart rooftop gardens with IoT-controlled irrigation systems for efficient urban food production\nOFFSPRING_2: Create sensor-monitored community gardens that optimize water usage for local food",
+            provider=LLMProvider.GOOGLE,
             model="gemini-2.5-flash",
-            prompt_tokens=150,
-            completion_tokens=75,
+            usage={"prompt_tokens": 150, "completion_tokens": 75},
             cost=0.0015
         )
         
@@ -280,8 +282,8 @@ class TestSemanticCrossoverOperator:
         assert offspring1.metadata["operator"] == "semantic_crossover"
         assert len(offspring1.parent_ideas) == 2
         
-        # Check offspring 2 (should be variation)
-        assert offspring2.content != offspring1.content
+        # Check offspring 2 (should be different)
+        assert offspring2.content == "Create sensor-monitored community gardens that optimize water usage for local food"
         assert offspring2.agent_name == "SemanticCrossoverOperator"
 
     @pytest.mark.asyncio 
@@ -293,9 +295,9 @@ OFFSPRING_2: Community gardens integrated with water-saving sensor networks"""
         
         mock_llm_provider.generate.return_value = LLMResponse(
             content=batch_response,
+            provider=LLMProvider.GOOGLE,
             model="gemini-2.5-flash",
-            prompt_tokens=200,
-            completion_tokens=100,
+            usage={"prompt_tokens": 200, "completion_tokens": 100},
             cost=0.002
         )
         
@@ -315,9 +317,9 @@ OFFSPRING_2: Community gardens integrated with water-saving sensor networks"""
         """Test crossover result caching."""
         mock_llm_provider.generate.return_value = LLMResponse(
             content="OFFSPRING_1: Cached result 1\nOFFSPRING_2: Cached result 2",
+            provider=LLMProvider.GOOGLE,
             model="gemini-2.5-flash",
-            prompt_tokens=100,
-            completion_tokens=50,
+            usage={"prompt_tokens": 100, "completion_tokens": 50},
             cost=0.001
         )
         

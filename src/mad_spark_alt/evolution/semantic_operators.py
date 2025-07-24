@@ -1,0 +1,532 @@
+"""
+Semantic (LLM-powered) genetic operators for evolution.
+
+This module implements mutation and crossover operators that use LLMs to create
+meaningful variations and combinations of ideas, with caching and batch processing.
+"""
+
+import hashlib
+import logging
+import random
+import time
+from datetime import datetime, timezone
+from typing import Dict, List, Optional, Tuple
+
+from mad_spark_alt.core.interfaces import GeneratedIdea
+from mad_spark_alt.core.llm_provider import GoogleProvider, LLMRequest, LLMResponse
+from mad_spark_alt.evolution.interfaces import CrossoverInterface, MutationInterface
+
+logger = logging.getLogger(__name__)
+
+
+class SemanticOperatorCache:
+    """
+    Simple in-memory cache for semantic operator results.
+    
+    Reduces redundant LLM calls by caching mutation and crossover results.
+    """
+    
+    def __init__(self, ttl_seconds: int = 3600):
+        """
+        Initialize cache with time-to-live.
+        
+        Args:
+            ttl_seconds: Time-to-live for cache entries in seconds
+        """
+        self.ttl_seconds = ttl_seconds
+        self._cache: Dict[str, Tuple[str, float]] = {}  # key -> (value, timestamp)
+        
+    def _get_cache_key(self, content: str) -> str:
+        """Generate consistent cache key from content."""
+        return hashlib.md5(content.encode()).hexdigest()
+        
+    def get(self, content: str) -> Optional[str]:
+        """
+        Get cached result if available and not expired.
+        
+        Args:
+            content: Original content to look up
+            
+        Returns:
+            Cached mutation result or None if not found/expired
+        """
+        key = self._get_cache_key(content)
+        
+        if key in self._cache:
+            value, timestamp = self._cache[key]
+            
+            # Check if expired
+            if time.time() - timestamp < self.ttl_seconds:
+                logger.debug(f"Cache hit for content hash {key[:8]}")
+                return value
+            else:
+                # Remove expired entry
+                del self._cache[key]
+                logger.debug(f"Cache expired for content hash {key[:8]}")
+                
+        return None
+        
+    def put(self, content: str, result: str) -> None:
+        """
+        Store result in cache.
+        
+        Args:
+            content: Original content
+            result: Mutation/crossover result to cache
+        """
+        key = self._get_cache_key(content)
+        self._cache[key] = (result, time.time())
+        logger.debug(f"Cached result for content hash {key[:8]}")
+
+
+class BatchSemanticMutationOperator(MutationInterface):
+    """
+    LLM-powered mutation operator with batch processing and caching.
+    
+    Creates semantically meaningful variations of ideas using different
+    mutation strategies like perspective shifts and mechanism changes.
+    """
+    
+    # Mutation prompt templates
+    MUTATION_SYSTEM_PROMPT = """You are a genetic mutation operator for idea evolution.
+Your role is to create meaningful variations of ideas while preserving the core goal.
+
+IMPORTANT: Return ONLY the mutated idea text, no explanations or metadata."""
+
+    SINGLE_MUTATION_PROMPT = """Original idea: {idea}
+Problem context: {context}
+
+Create a semantically different variation that:
+1. Addresses the same core problem
+2. Uses a fundamentally different approach or mechanism
+3. Maintains feasibility but explores new solution space
+
+Mutation type: {mutation_type}
+- perspective_shift: Change viewpoint (individual→community, local→global, etc.)
+- mechanism_change: Use different methods to achieve the same goal
+- constraint_variation: Add or remove constraints
+- abstraction_shift: Make more concrete or more abstract
+
+Output only the mutated idea:"""
+
+    BATCH_MUTATION_PROMPT = """Generate diverse variations for these ideas. Each variation should use a different approach.
+
+Context: {context}
+
+Ideas to mutate:
+{ideas_list}
+
+For each idea, provide ONE variation that is semantically different but addresses the same goal.
+Use different mutation strategies: perspective shift, mechanism change, or abstraction level.
+
+Format your response EXACTLY as:
+IDEA_1_MUTATION: [mutation text]
+IDEA_2_MUTATION: [mutation text]
+...
+
+No other text or formatting."""
+    
+    def __init__(
+        self, 
+        llm_provider: GoogleProvider,
+        cache_ttl: int = 3600
+    ):
+        """
+        Initialize batch mutation operator.
+        
+        Args:
+            llm_provider: LLM provider for generating mutations
+            cache_ttl: Cache time-to-live in seconds
+        """
+        self.llm_provider = llm_provider
+        self.cache = SemanticOperatorCache(ttl_seconds=cache_ttl)
+        self.mutation_types = [
+            "perspective_shift",
+            "mechanism_change", 
+            "constraint_variation",
+            "abstraction_shift"
+        ]
+        
+    @property
+    def name(self) -> str:
+        return "batch_semantic_mutation"
+        
+    def validate_config(self, config: Dict) -> bool:
+        """Validate mutation configuration."""
+        return True  # No specific validation needed
+        
+    async def mutate(
+        self,
+        idea: GeneratedIdea,
+        mutation_rate: float,
+        context: Optional[str] = None
+    ) -> GeneratedIdea:
+        """
+        Mutate a single idea using LLM.
+        
+        Args:
+            idea: Idea to mutate
+            mutation_rate: Probability of mutation (not used for semantic)
+            context: Optional context for mutation
+            
+        Returns:
+            Mutated idea
+        """
+        return await self.mutate_single(idea, context)
+        
+    async def mutate_single(
+        self,
+        idea: GeneratedIdea,
+        context: Optional[str] = None
+    ) -> GeneratedIdea:
+        """
+        Mutate a single idea with caching.
+        
+        Args:
+            idea: Idea to mutate
+            context: Optional context
+            
+        Returns:
+            Mutated idea
+        """
+        # Check cache first
+        cached_result = self.cache.get(idea.content)
+        if cached_result:
+            return self._create_mutated_idea(idea, cached_result, 0.0)
+            
+        # Generate mutation using LLM
+        mutation_type = random.choice(self.mutation_types)
+        
+        request = LLMRequest(
+            system_prompt=self.MUTATION_SYSTEM_PROMPT,
+            user_prompt=self.SINGLE_MUTATION_PROMPT.format(
+                idea=idea.content,
+                context=context or idea.generation_prompt,
+                mutation_type=mutation_type
+            ),
+            max_tokens=200,
+            temperature=0.8  # Higher temperature for creativity
+        )
+        
+        response = await self.llm_provider.generate(request)
+        
+        # Cache the result
+        self.cache.put(idea.content, response.content)
+        
+        return self._create_mutated_idea(
+            idea, 
+            response.content,
+            response.cost,
+            mutation_type
+        )
+        
+    async def mutate_batch(
+        self,
+        ideas: List[GeneratedIdea],
+        context: Optional[str] = None
+    ) -> List[GeneratedIdea]:
+        """
+        Mutate multiple ideas in a single LLM call.
+        
+        Args:
+            ideas: List of ideas to mutate
+            context: Optional context
+            
+        Returns:
+            List of mutated ideas
+        """
+        # Separate cached and uncached ideas
+        cached_results = {}
+        uncached_ideas = []
+        
+        for idea in ideas:
+            cached_result = self.cache.get(idea.content)
+            if cached_result:
+                cached_results[idea.content] = cached_result
+            else:
+                uncached_ideas.append(idea)
+                
+        # If all are cached, return immediately
+        if not uncached_ideas:
+            return [
+                self._create_mutated_idea(idea, cached_results[idea.content], 0.0)
+                for idea in ideas
+            ]
+            
+        # Batch process uncached ideas
+        if uncached_ideas:
+            # Create batch prompt
+            ideas_list = "\n".join([
+                f"IDEA_{i+1}: {idea.content}"
+                for i, idea in enumerate(uncached_ideas)
+            ])
+            
+            request = LLMRequest(
+                system_prompt=self.MUTATION_SYSTEM_PROMPT,
+                user_prompt=self.BATCH_MUTATION_PROMPT.format(
+                    context=context or "general improvement",
+                    ideas_list=ideas_list
+                ),
+                max_tokens=min(200 * len(uncached_ideas), 1000),
+                temperature=0.8
+            )
+            
+            response = await self.llm_provider.generate(request)
+            
+            # Parse batch response
+            mutations = self._parse_batch_response(response.content, len(uncached_ideas))
+            
+            # Cache results
+            for idea, mutation in zip(uncached_ideas, mutations):
+                self.cache.put(idea.content, mutation)
+                
+            # Distribute cost across mutations
+            cost_per_mutation = response.cost / len(mutations) if mutations else 0
+            
+            # Create result list maintaining original order
+            results = []
+            uncached_index = 0
+            
+            for idea in ideas:
+                if idea.content in cached_results:
+                    results.append(
+                        self._create_mutated_idea(idea, cached_results[idea.content], 0.0)
+                    )
+                else:
+                    results.append(
+                        self._create_mutated_idea(
+                            idea,
+                            mutations[uncached_index],
+                            cost_per_mutation
+                        )
+                    )
+                    uncached_index += 1
+                    
+            return results
+            
+    def _parse_batch_response(self, response: str, expected_count: int) -> List[str]:
+        """
+        Parse batch mutation response from LLM.
+        
+        Args:
+            response: LLM response text
+            expected_count: Expected number of mutations
+            
+        Returns:
+            List of mutation texts
+        """
+        mutations = []
+        lines = response.strip().split('\n')
+        
+        for i in range(expected_count):
+            # Look for IDEA_N_MUTATION: pattern
+            pattern = f"IDEA_{i+1}_MUTATION:"
+            
+            for line in lines:
+                if pattern in line:
+                    # Extract mutation text after the pattern
+                    mutation = line.split(pattern, 1)[1].strip()
+                    mutations.append(mutation)
+                    break
+            else:
+                # Fallback if pattern not found
+                logger.warning(f"Could not find mutation for IDEA_{i+1}")
+                mutations.append(f"Enhanced version of idea {i+1}")
+                
+        return mutations
+        
+    def _create_mutated_idea(
+        self,
+        original: GeneratedIdea,
+        mutated_content: str,
+        llm_cost: float,
+        mutation_type: Optional[str] = None
+    ) -> GeneratedIdea:
+        """Create a mutated idea object."""
+        return GeneratedIdea(
+            content=mutated_content,
+            thinking_method=original.thinking_method,
+            agent_name="BatchSemanticMutationOperator",
+            generation_prompt=f"Semantic mutation of: '{original.content[:50]}...'",
+            confidence_score=(original.confidence_score or 0.5) * 0.95,
+            reasoning=f"Applied semantic mutation to create variation",
+            parent_ideas=[original.content],
+            metadata={
+                "operator": "semantic_mutation",
+                "mutation_type": mutation_type or "semantic_variation",
+                "llm_cost": llm_cost,
+                "generation": original.metadata.get("generation", 0) + 1,
+            },
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+
+
+class SemanticCrossoverOperator(CrossoverInterface):
+    """
+    LLM-powered crossover operator that meaningfully combines parent ideas.
+    
+    Uses LLM to understand key concepts from both parents and create
+    offspring that integrate these concepts synergistically.
+    """
+    
+    CROSSOVER_SYSTEM_PROMPT = """You are a genetic crossover operator for idea evolution.
+Your role is to meaningfully combine concepts from two parent ideas into offspring.
+
+IMPORTANT: Return ONLY the offspring idea texts, no explanations."""
+
+    CROSSOVER_PROMPT = """Parent Idea 1: {parent1}
+Parent Idea 2: {parent2}
+Context: {context}
+
+Analyze the key concepts in each parent and create TWO offspring ideas that:
+1. Meaningfully integrate concepts from BOTH parents
+2. Are not just concatenations or word swaps
+3. Create synergy between the parent concepts
+4. Maintain coherence and feasibility
+
+Format your response EXACTLY as:
+OFFSPRING_1: [first offspring idea]
+OFFSPRING_2: [second offspring idea]
+
+No other text or formatting."""
+    
+    def __init__(
+        self,
+        llm_provider: GoogleProvider,
+        cache_ttl: int = 3600
+    ):
+        """
+        Initialize semantic crossover operator.
+        
+        Args:
+            llm_provider: LLM provider for generating crossovers
+            cache_ttl: Cache time-to-live in seconds
+        """
+        self.llm_provider = llm_provider
+        self.cache = SemanticOperatorCache(ttl_seconds=cache_ttl)
+        
+    @property
+    def name(self) -> str:
+        return "semantic_crossover"
+        
+    def validate_config(self, config: Dict) -> bool:
+        """Validate crossover configuration."""
+        return True
+        
+    async def crossover(
+        self,
+        parent1: GeneratedIdea,
+        parent2: GeneratedIdea,
+        context: Optional[str] = None
+    ) -> Tuple[GeneratedIdea, GeneratedIdea]:
+        """
+        Perform semantic crossover between two parent ideas.
+        
+        Args:
+            parent1: First parent idea
+            parent2: Second parent idea
+            context: Optional context for crossover
+            
+        Returns:
+            Tuple of two offspring ideas
+        """
+        # Create cache key from both parents
+        cache_key = f"{parent1.content}||{parent2.content}"
+        cached_result = self.cache.get(cache_key)
+        
+        if cached_result:
+            # Parse cached result
+            offspring_contents = cached_result.split("||")
+            if len(offspring_contents) >= 2:
+                return (
+                    self._create_offspring(parent1, parent2, offspring_contents[0], 0.0),
+                    self._create_offspring(parent2, parent1, offspring_contents[1], 0.0)
+                )
+                
+        # Generate crossover using LLM
+        request = LLMRequest(
+            system_prompt=self.CROSSOVER_SYSTEM_PROMPT,
+            user_prompt=self.CROSSOVER_PROMPT.format(
+                parent1=parent1.content,
+                parent2=parent2.content,
+                context=context or "general optimization"
+            ),
+            max_tokens=400,
+            temperature=0.7  # Moderate temperature for balanced creativity
+        )
+        
+        response = await self.llm_provider.generate(request)
+        
+        # Parse response
+        offspring1_content, offspring2_content = self._parse_crossover_response(
+            response.content
+        )
+        
+        # Cache the result
+        self.cache.put(cache_key, f"{offspring1_content}||{offspring2_content}")
+        
+        # Distribute cost
+        cost_per_offspring = response.cost / 2
+        
+        return (
+            self._create_offspring(parent1, parent2, offspring1_content, cost_per_offspring),
+            self._create_offspring(parent2, parent1, offspring2_content, cost_per_offspring)
+        )
+        
+    def _parse_crossover_response(self, response: str) -> Tuple[str, str]:
+        """
+        Parse crossover response from LLM.
+        
+        Args:
+            response: LLM response text
+            
+        Returns:
+            Tuple of two offspring contents
+        """
+        lines = response.strip().split('\n')
+        offspring1 = None
+        offspring2 = None
+        
+        for line in lines:
+            if "OFFSPRING_1:" in line:
+                offspring1 = line.split("OFFSPRING_1:", 1)[1].strip()
+            elif "OFFSPRING_2:" in line:
+                offspring2 = line.split("OFFSPRING_2:", 1)[1].strip()
+                
+        # Fallback if parsing fails
+        if not offspring1:
+            offspring1 = "Combined approach integrating both parent concepts"
+        if not offspring2:
+            offspring2 = "Alternative combination of parent ideas"
+            
+        return offspring1, offspring2
+        
+    def _create_offspring(
+        self,
+        primary_parent: GeneratedIdea,
+        secondary_parent: GeneratedIdea,
+        content: str,
+        llm_cost: float
+    ) -> GeneratedIdea:
+        """Create an offspring idea object."""
+        return GeneratedIdea(
+            content=content,
+            thinking_method=primary_parent.thinking_method,
+            agent_name="SemanticCrossoverOperator",
+            generation_prompt=f"Crossover of: '{primary_parent.content[:30]}...' and '{secondary_parent.content[:30]}...'",
+            confidence_score=(
+                (primary_parent.confidence_score or 0.5) +
+                (secondary_parent.confidence_score or 0.5)
+            ) / 2,
+            reasoning="Semantic integration of parent concepts",
+            parent_ideas=[primary_parent.content, secondary_parent.content],
+            metadata={
+                "operator": "semantic_crossover",
+                "llm_cost": llm_cost,
+                "generation": max(
+                    primary_parent.metadata.get("generation", 0),
+                    secondary_parent.metadata.get("generation", 0)
+                ) + 1,
+            },
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
