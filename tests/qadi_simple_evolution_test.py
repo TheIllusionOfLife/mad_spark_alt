@@ -36,9 +36,20 @@ class TestQadiSimpleEvolution:
     @pytest.fixture
     def mock_genetic_algorithm(self):
         """Mock GeneticAlgorithm class."""
-        with patch('qadi_simple.GeneticAlgorithm') as MockGA:
+        with patch('mad_spark_alt.evolution.GeneticAlgorithm') as MockGA:
             mock_instance = MagicMock()
-            mock_instance.evolve = AsyncMock()
+            
+            # Create a proper mock EvolutionResult
+            from mad_spark_alt.evolution.interfaces import EvolutionResult
+            mock_result = EvolutionResult(
+                final_population=[],
+                best_ideas=[],
+                generation_snapshots=[],
+                total_generations=2,
+                execution_time=0.1,
+                evolution_metrics={'fitness_improvement_percent': 5.0}
+            )
+            mock_instance.evolve = AsyncMock(return_value=mock_result)
             MockGA.return_value = mock_instance
             yield MockGA, mock_instance
 
@@ -49,13 +60,14 @@ class TestQadiSimpleEvolution:
             MockEnum.GOOGLE = 'GOOGLE'
             yield MockEnum
 
-    async def test_genetic_algorithm_receives_llm_provider(
+    @pytest.mark.asyncio
+    async def test_genetic_algorithm_uses_no_llm_provider_by_default(
         self,
         mock_llm_manager,
         mock_genetic_algorithm,
         mock_llm_provider_enum
     ):
-        """Test that GeneticAlgorithm receives LLM provider when available."""
+        """Test that GeneticAlgorithm disables semantic operators by default for performance."""
         MockGA, mock_instance = mock_genetic_algorithm
         
         # Import the evolution function
@@ -83,13 +95,13 @@ class TestQadiSimpleEvolution:
                     population=4
                 )
             
-            # Verify GeneticAlgorithm was called with llm_provider
+            # Verify GeneticAlgorithm was called without llm_provider (None for performance)
             MockGA.assert_called()
             call_kwargs = MockGA.call_args.kwargs
             assert 'llm_provider' in call_kwargs
-            assert call_kwargs['llm_provider'] is not None
-            assert call_kwargs['llm_provider'] == mock_llm_manager.providers['GOOGLE']
+            assert call_kwargs['llm_provider'] is None  # Disabled by default for performance
 
+    @pytest.mark.asyncio
     async def test_semantic_operators_initialized_when_llm_available(
         self,
         mock_llm_manager,
@@ -131,6 +143,7 @@ class TestQadiSimpleEvolution:
             assert MockGA.called
             assert 'llm_provider' in MockGA.call_args.kwargs
 
+    @pytest.mark.asyncio
     async def test_fallback_when_no_llm_provider(
         self,
         mock_genetic_algorithm,

@@ -99,22 +99,19 @@ class TestGeneticAlgorithmSemanticIntegration:
         ga = GeneticAlgorithm(llm_provider=mock_llm_provider)
 
         # Mock fitness evaluator 
-        with patch.object(ga.fitness_evaluator, 'calculate_population_diversity', return_value=0.8):
-            with patch.object(ga.fitness_evaluator, 'evaluate_population') as mock_eval:
-                # Mock fitness evaluation
-                def mock_evaluate(ideas, config, context=None):
-                    return [
-                        IndividualFitness(
-                            idea=idea,
-                            creativity_score=0.7,
-                            diversity_score=0.7,
-                            quality_score=0.7,
-                            overall_fitness=0.7
-                        )
-                        for idea in ideas
-                    ]
-                
-                mock_eval.side_effect = mock_evaluate
+        with patch.object(ga.fitness_evaluator, 'calculate_population_diversity', new_callable=AsyncMock, return_value=0.8):
+            with patch.object(ga.fitness_evaluator, 'evaluate_population', new_callable=AsyncMock) as mock_eval:
+                # Mock fitness evaluation to return proper IndividualFitness objects
+                mock_eval.return_value = [
+                    IndividualFitness(
+                        idea=idea,
+                        creativity_score=0.7,
+                        diversity_score=0.7,
+                        quality_score=0.7,
+                        overall_fitness=0.7
+                    )
+                    for idea in sample_ideas
+                ]
 
                 # Create evolution request
                 request = EvolutionRequest(
