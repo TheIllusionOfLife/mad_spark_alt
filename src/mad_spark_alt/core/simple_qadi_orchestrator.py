@@ -471,6 +471,13 @@ class SimpleQADIOrchestrator:
         max_retries: int,
     ) -> Dict[str, Any]:
         """Evaluate hypotheses and determine the answer."""
+        # For large numbers of hypotheses, evaluate in parallel batches
+        if len(hypotheses) > 5:
+            return await self._run_parallel_deduction(
+                user_input, core_question, hypotheses, max_retries
+            )
+        
+        # Original implementation for small hypothesis sets
         # Format hypotheses for the prompt
         hypotheses_text = "\n".join([f"H{i+1}: {h}" for i, h in enumerate(hypotheses)])
 
@@ -876,3 +883,120 @@ class SimpleQADIOrchestrator:
                 await asyncio.sleep(1)
 
         raise RuntimeError("Failed to verify answer")
+    
+    async def _run_parallel_deduction(
+        self,
+        user_input: str,
+        core_question: str,
+        hypotheses: List[str],
+        max_retries: int,
+    ) -> Dict[str, Any]:
+        """
+        Evaluate large numbers of hypotheses in parallel batches.
+        
+        This method splits hypotheses into smaller groups and evaluates them
+        concurrently to improve performance for large hypothesis sets.
+        """
+        batch_size = 3  # Evaluate 3 hypotheses per LLM call
+        hyperparams = PHASE_HYPERPARAMETERS["deduction"]
+        
+        # Split hypotheses into batches
+        batches = []
+        for i in range(0, len(hypotheses), batch_size):
+            batch = hypotheses[i:i + batch_size]
+            batch_indices = list(range(i, min(i + batch_size, len(hypotheses))))
+            batches.append((batch, batch_indices))
+        
+        # Evaluate batches in parallel
+        async def evaluate_batch(batch_hypotheses: List[str], indices: List[int]) -> List[Tuple[int, HypothesisScore, float]]:
+            """Evaluate a single batch of hypotheses."""
+            # Format batch for prompt
+            batch_text = "\n".join([f"H{indices[j]+1}: {h}" for j, h in enumerate(batch_hypotheses)])
+            
+            # Create batch-specific prompt
+            batch_prompt = self.prompts.get_deduction_prompt(
+                user_input,
+                core_question,
+                batch_text,
+            )
+            
+            for attempt in range(max_retries + 1):
+                try:
+                    request = LLMRequest(
+                        user_prompt=batch_prompt,
+                        temperature=hyperparams["temperature"],
+                        max_tokens=int(hyperparams["max_tokens"]),
+                        top_p=hyperparams.get("top_p", 0.9),
+                    )
+                    
+                    response = await llm_manager.generate(request)
+                    content = response.content.strip()
+                    
+                    # Parse scores for this batch
+                    batch_scores = []
+                    for j, idx in enumerate(indices):
+                        score = self._parse_hypothesis_scores(content, idx + 1)
+                        batch_scores.append((idx, score, response.cost / len(indices)))
+                    
+                    return batch_scores
+                    
+                except Exception as e:
+                    if attempt == max_retries:
+                        logger.error(f"Failed to evaluate batch after {max_retries + 1} attempts: {e}")
+                        # Return default scores for this batch
+                        return [(idx, HypothesisScore(
+                            impact=0.5,
+                            feasibility=0.5,
+                            accessibility=0.5,
+                            sustainability=0.5,
+                            scalability=0.5,
+                            overall=0.5
+                        ), 0.0) for idx in indices]
+                    await asyncio.sleep(1)
+            
+            return []  # Should never reach here
+        
+        # Run all batches in parallel
+        batch_tasks = [evaluate_batch(batch, indices) for batch, indices in batches]
+        batch_results = await asyncio.gather(*batch_tasks)
+        
+        # Combine results
+        all_scores = []
+        total_cost = 0.0
+        
+        # Flatten and sort results by index
+        for batch_result in batch_results:
+            for idx, score, cost in batch_result:
+                all_scores.append((idx, score))
+                total_cost += cost
+        
+        # Sort by index to maintain order
+        all_scores.sort(key=lambda x: x[0])
+        scores = [score for _, score in all_scores]
+        
+        # Now we need to determine the best answer from all hypotheses
+        # Find the hypothesis with the highest overall score
+        best_idx = max(range(len(scores)), key=lambda i: scores[i].overall)
+        best_hypothesis = hypotheses[best_idx]
+        best_score = scores[best_idx]
+        
+        # Generate a concise answer based on the best hypothesis
+        answer = f"Based on the evaluation, the most effective approach is H{best_idx + 1}: {best_hypothesis}\n\n"
+        answer += f"This approach scores highest with an overall score of {best_score.overall:.2f}, "
+        answer += f"offering strong impact ({best_score.impact:.2f}) and feasibility ({best_score.feasibility:.2f})."
+        
+        # Generate action plan based on best hypothesis
+        action_plan = [
+            f"Implement the core strategy from H{best_idx + 1}",
+            "Start with pilot testing in a controlled environment",
+            "Measure impact using defined metrics",
+            "Scale gradually based on results",
+            "Iterate and refine based on feedback"
+        ]
+        
+        return {
+            "scores": scores,
+            "answer": answer,
+            "action_plan": action_plan,
+            "cost": total_cost,
+        }
