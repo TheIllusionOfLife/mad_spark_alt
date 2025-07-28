@@ -9,6 +9,7 @@ import asyncio
 import logging
 import random
 import time
+from dataclasses import replace
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
@@ -329,8 +330,11 @@ class GeneticAlgorithm:
             # Only count if mutation actually occurred (content changed)
             if mutated_offspring.content != offspring.content:
                 mutation_stats['semantic_mutations'] = 1
-                mutation_stats['semantic_llm_calls'] = 1
                 self.semantic_operator_metrics['semantic_mutations'] += 1
+                
+            # Track LLM calls based on metadata (cache hits won't have llm_cost)
+            if mutated_offspring.metadata.get('llm_cost', 0) > 0:
+                mutation_stats['semantic_llm_calls'] = 1
                 self.semantic_operator_metrics['semantic_llm_calls'] += 1
         else:
             mutated_offspring = await self.mutation_operator.mutate(
@@ -381,13 +385,17 @@ class GeneticAlgorithm:
                 error_message="Invalid evolution request",
             )
 
-        # Auto-correct max_parallel_evaluations if it exceeds population_size
-        # This was previously done in validate() but that violates the principle of pure functions
-        if request.config.max_parallel_evaluations > request.config.population_size:
-            request.config.max_parallel_evaluations = request.config.population_size
+        # Create a copy of config if we need to adjust max_parallel_evaluations
+        config = request.config
+        if config.max_parallel_evaluations > config.population_size:
+            # Create a new config instance with adjusted value
+            config = replace(
+                config,
+                max_parallel_evaluations=config.population_size
+            )
             logger.info(
-                f"Adjusted max_parallel_evaluations to {request.config.max_parallel_evaluations} "
-                f"to match population_size"
+                f"Using max_parallel_evaluations of {config.max_parallel_evaluations} "
+                f"(adjusted from {request.config.max_parallel_evaluations} to match population_size)"
             )
 
         try:

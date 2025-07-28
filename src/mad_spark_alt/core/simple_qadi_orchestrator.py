@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Constants for parsing LLM responses
 QUESTION_PREFIX = "Q:"
-HYPOTHESIS_PATTERN = r"^(?:H|Hypothesis\s*|Approach\s*)([123])(?:\s*:|\.)\s*(.*)$"
+HYPOTHESIS_PATTERN = r"^(?:H|Hypothesis\s*|Approach\s*)(\d+)(?:\s*:|\.)\s*(.*)$"
 ANSWER_PREFIX = "ANSWER:"
 ACTION_PLAN_PREFIX = "Action Plan:"
 CONCLUSION_PREFIX = "Conclusion:"
@@ -348,8 +348,9 @@ class SimpleQADIOrchestrator:
                 # Log what was extracted
                 logger.debug("Extracted %d hypotheses: %s", len(hypotheses), hypotheses)
 
-                if len(hypotheses) >= min(self.num_hypotheses, 3):  # At least the requested number (or 3 minimum)
-                    return hypotheses, total_cost
+                if len(hypotheses) >= self.num_hypotheses:
+                    # Return exactly the requested number of hypotheses
+                    return hypotheses[:self.num_hypotheses], total_cost
                 
                 # Fallback: Try alternative parsing methods
                 logger.warning(
@@ -409,7 +410,7 @@ class SimpleQADIOrchestrator:
                     hypotheses.append(current_hypothesis.strip())
                 
                 # Additional fallback: try to extract content between common delimiters
-                if len(hypotheses) < min(self.num_hypotheses, 3):
+                if len(hypotheses) < self.num_hypotheses:
                     # Look for sections separated by double newlines
                     sections = re.split(r'\n\s*\n', content)
                     for section in sections:
@@ -423,7 +424,7 @@ class SimpleQADIOrchestrator:
                             if len(cleaned.strip()) > MIN_HYPOTHESIS_LENGTH and not any(h == cleaned.strip() for h in hypotheses):
                                 hypotheses.append(cleaned.strip())
                 
-                if len(hypotheses) >= min(self.num_hypotheses, 3):
+                if len(hypotheses) >= self.num_hypotheses:
                     logger.info("Fallback parsing extracted %d hypotheses", len(hypotheses))
                     return hypotheses[:self.num_hypotheses], total_cost  # Return requested number
                     

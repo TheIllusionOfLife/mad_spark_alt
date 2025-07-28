@@ -164,29 +164,21 @@ No other text or formatting."""
         """
         Mutate a single idea using LLM.
         
+        Note: When used as a semantic operator selected by SmartOperatorSelector,
+        this method always applies mutation (ignores mutation_rate) since the
+        selector has already decided to use semantic mutation.
+        
         Args:
             idea: Idea to mutate
-            mutation_rate: Probability of mutation (0-1)
+            mutation_rate: Probability of mutation (ignored for semantic operators)
             context: Optional context for mutation
             
         Returns:
-            Mutated idea (or original if no mutation occurs)
+            Mutated idea
         """
-        # Check if mutation should occur
-        if random.random() < mutation_rate:
-            return await self.mutate_single(idea, context)
-        else:
-            # Return a copy to maintain consistency with MutationOperator behavior
-            return GeneratedIdea(
-                content=idea.content,
-                thinking_method=idea.thinking_method,
-                agent_name=idea.agent_name,
-                generation_prompt=idea.generation_prompt,
-                confidence_score=idea.confidence_score,
-                reasoning=idea.reasoning,
-                parent_ideas=idea.parent_ideas.copy() if idea.parent_ideas else [],
-                metadata=idea.metadata.copy()
-            )
+        # Always apply mutation - the SmartOperatorSelector has already
+        # decided to use semantic mutation based on diversity and fitness
+        return await self.mutate_single(idea, context)
         
     async def mutate_single(
         self,
