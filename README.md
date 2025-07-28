@@ -251,6 +251,33 @@ uv run black src/ tests/ && uv run isort src/ tests/
 - [DEVELOPMENT.md](DEVELOPMENT.md): Architecture, API reference, contribution guide
 - [RESEARCH.md](RESEARCH.md): QADI methodology background
 - [SESSIONS.md](SESSIONS.md): Development history
+- [SEMANTIC_OPERATORS_IMPLEMENTATION.md](SEMANTIC_OPERATORS_IMPLEMENTATION.md): Semantic evolution operators guide
+
+## Future Improvements
+
+### Performance Optimizations
+- [ ] Add performance benchmarks for diversity calculation (O(n²) complexity)
+- [ ] Implement cache warming strategies for semantic operators
+- [ ] Consider async batch evaluation for better parallelism
+- [ ] Optimize string similarity calculations with better algorithms
+
+### Enhanced Features
+- [ ] Add more sophisticated fitness estimation for unevaluated offspring
+- [ ] Implement adaptive mutation strategies based on population convergence
+- [ ] Add visualization tools for evolution progress
+- [ ] Support for multi-objective optimization
+
+### Code Quality
+- [ ] Add more integration tests with real LLM calls
+- [ ] Implement comprehensive error recovery for LLM API failures
+- [ ] Add telemetry and monitoring for production usage
+- [ ] Create plugin architecture for custom operators
+
+### Documentation
+- [ ] Add tutorial for implementing custom genetic operators
+- [ ] Create performance tuning guide
+- [ ] Document best practices for population/generation sizing
+- [ ] Add troubleshooting guide for common issues
 
 ## License
 

@@ -663,9 +663,8 @@ async def _run_evolution_pipeline(
             )
 
             # Get LLM provider for semantic operators if available
-            llm_provider = None
-            if LLMProvider.GOOGLE in llm_manager.providers:
-                llm_provider = llm_manager.providers[LLMProvider.GOOGLE]
+            from mad_spark_alt.core.llm_provider import get_google_provider
+            llm_provider = get_google_provider()
             
             ga = GeneticAlgorithm(
                 use_cache=True,

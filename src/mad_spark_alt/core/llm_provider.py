@@ -470,3 +470,15 @@ async def setup_llm_providers(
     llm_manager.set_default_model(LLMProvider.GOOGLE, default_model)
 
     return llm_manager
+
+
+def get_google_provider() -> Optional[Any]:
+    """
+    Get Google LLM provider if available.
+    
+    Returns:
+        Google provider instance or None if not available
+    """
+    if LLMProvider.GOOGLE in llm_manager.providers:
+        return llm_manager.providers[LLMProvider.GOOGLE]
+    return None

@@ -443,8 +443,9 @@ No other text or formatting."""
         Returns:
             Tuple of two offspring ideas
         """
-        # Create cache key from both parents
-        cache_key = f"{parent1.content}||{parent2.content}"
+        # Create a canonical, order-independent cache key from sorted parent content
+        sorted_contents = sorted([parent1.content, parent2.content])
+        cache_key = f"{sorted_contents[0]}||{sorted_contents[1]}"
         cached_result = self.cache.get(cache_key)
         
         if cached_result:

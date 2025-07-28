@@ -299,9 +299,16 @@ class GeneticAlgorithm:
         }
 
         # Create a temporary IndividualFitness for smart selection
+        # Use a conservative estimate for unevaluated offspring:
+        # - If parents have high fitness (>0.6), use 80% of parent average
+        # - Otherwise, use 50% of parent average to be conservative
+        estimated_fitness = (
+            avg_parent_fitness * 0.8 if avg_parent_fitness > 0.6 
+            else avg_parent_fitness * 0.5
+        )
         temp_individual = IndividualFitness(
             idea=offspring,
-            overall_fitness=avg_parent_fitness
+            overall_fitness=estimated_fitness
         )
 
         # Determine whether to use semantic mutation

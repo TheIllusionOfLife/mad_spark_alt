@@ -27,6 +27,7 @@ HYPOTHESIS_PATTERN = r"^(?:H|Hypothesis\s*|Approach\s*)([123])(?:\s*:|\.)\s*(.*)
 ANSWER_PREFIX = "ANSWER:"
 ACTION_PLAN_PREFIX = "Action Plan:"
 CONCLUSION_PREFIX = "Conclusion:"
+MIN_HYPOTHESIS_LENGTH = 20  # Minimum length for valid hypothesis text
 
 
 @dataclass
@@ -382,7 +383,7 @@ class SimpleQADIOrchestrator:
                         match = re.match(pattern, line, re.IGNORECASE)
                         if match:
                             # Save previous hypothesis if we have one
-                            if current_hypothesis.strip() and len(current_hypothesis.strip()) > 20:
+                            if current_hypothesis.strip() and len(current_hypothesis.strip()) > MIN_HYPOTHESIS_LENGTH:
                                 hypotheses.append(current_hypothesis.strip())
                             
                             # Start new hypothesis
@@ -404,7 +405,7 @@ class SimpleQADIOrchestrator:
                         current_hypothesis += " " + line
                 
                 # Don't forget the last hypothesis
-                if current_hypothesis.strip() and len(current_hypothesis.strip()) > 20:
+                if current_hypothesis.strip() and len(current_hypothesis.strip()) > MIN_HYPOTHESIS_LENGTH:
                     hypotheses.append(current_hypothesis.strip())
                 
                 # Additional fallback: try to extract content between common delimiters
@@ -419,7 +420,7 @@ class SimpleQADIOrchestrator:
                                 continue
                             # Clean up section markers but preserve content
                             cleaned = re.sub(r'^(?:\d+[.)]\s*|[•\-]\s+|\*\s+|H\d+[:.]\s*)', '', section, flags=re.IGNORECASE)
-                            if len(cleaned.strip()) > 20 and not any(h == cleaned.strip() for h in hypotheses):
+                            if len(cleaned.strip()) > MIN_HYPOTHESIS_LENGTH and not any(h == cleaned.strip() for h in hypotheses):
                                 hypotheses.append(cleaned.strip())
                 
                 if len(hypotheses) >= min(self.num_hypotheses, 3):

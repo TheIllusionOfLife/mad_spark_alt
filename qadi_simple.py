@@ -21,7 +21,7 @@ try:
     from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
     from mad_spark_alt.core.terminal_renderer import render_markdown
     from mad_spark_alt.core.qadi_prompts import QADIPrompts
-    from mad_spark_alt.core.llm_provider import LLMProvider, llm_manager
+    from mad_spark_alt.core.llm_provider import LLMProvider, llm_manager, get_google_provider
 except ImportError:
     # Fallback if package is not installed
     sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -29,7 +29,7 @@ except ImportError:
     from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
     from mad_spark_alt.core.terminal_renderer import render_markdown
     from mad_spark_alt.core.qadi_prompts import QADIPrompts
-    from mad_spark_alt.core.llm_provider import LLMProvider, llm_manager
+    from mad_spark_alt.core.llm_provider import LLMProvider, llm_manager, get_google_provider
 
 
 # Create custom prompts with simpler Phase 1
