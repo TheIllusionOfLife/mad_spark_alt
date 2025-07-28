@@ -385,23 +385,10 @@ class GeneticAlgorithm:
                 error_message="Invalid evolution request",
             )
 
-        # Create a copy of config if we need to adjust max_parallel_evaluations
-        config = request.config
-        if config.max_parallel_evaluations > config.population_size:
-            # Create a new config instance with adjusted value
-            config = replace(
-                config,
-                max_parallel_evaluations=config.population_size
-            )
-            logger.info(
-                f"Using max_parallel_evaluations of {config.max_parallel_evaluations} "
-                f"(adjusted from {request.config.max_parallel_evaluations} to match population_size)"
-            )
-
         try:
             # Initialize population
             current_population = await self._initialize_population(
-                request.initial_population, config
+                request.initial_population, request.config
             )
 
             # Create initial snapshot (generation 0) for the starting population
