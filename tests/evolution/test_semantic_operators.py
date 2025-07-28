@@ -47,9 +47,14 @@ class TestSemanticOperatorCache:
         result = cache.get("new content")
         assert result is None
 
-    def test_cache_expiration(self):
+    def test_cache_expiration(self, monkeypatch):
         """Test cache expiration after TTL."""
+        import time
         cache = SemanticOperatorCache(ttl_seconds=1)  # 1 second TTL
+        
+        # Mock time.time to control expiration
+        current_time = time.time()
+        monkeypatch.setattr(time, 'time', lambda: current_time)
         
         # Add to cache
         cache.put("test content", "mutated content")
@@ -57,9 +62,8 @@ class TestSemanticOperatorCache:
         # Should hit cache immediately
         assert cache.get("test content") == "mutated content"
         
-        # Mock time to simulate expiration
-        import time
-        time.sleep(1.1)
+        # Advance time past TTL
+        monkeypatch.setattr(time, 'time', lambda: current_time + 2.0)
         
         # Should miss cache after expiration
         assert cache.get("test content") is None
