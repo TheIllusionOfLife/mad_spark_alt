@@ -328,7 +328,8 @@ class SimpleQADIOrchestrator:
                         continue
 
                     # Check if line starts with H1:, H2:, or H3: (with potential markdown formatting)
-                    hypothesis_match = re.match(r"^(?:\*\*)?(?:H|Hypothesis\s*)(\d+)(?:\s*:|\.)\s*(.*)(?:\*\*)?$", line)
+                    # Also support "Approach" prefix for compatibility
+                    hypothesis_match = re.match(r"^(?:\*\*)?(?:H|Hypothesis\s*|Approach\s*)(\d+)(?:\s*:|\.)\s*(.*)(?:\*\*)?$", line)
                     if hypothesis_match:
                         # Save previous hypothesis if we have one
                         if current_index is not None and current_hypothesis.strip():

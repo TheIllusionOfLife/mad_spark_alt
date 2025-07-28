@@ -18,6 +18,17 @@ from mad_spark_alt.evolution.interfaces import CrossoverInterface, MutationInter
 
 logger = logging.getLogger(__name__)
 
+# Cache configuration constants
+_CACHE_MAX_SIZE = 500  # Maximum number of cache entries
+_SIMILARITY_KEY_LENGTH = 16  # Length of similarity hash key
+_SIMILARITY_CONTENT_PREFIX_LENGTH = 50  # Characters to use for similarity matching
+_SIMILARITY_WORDS_COUNT = 10  # Number of meaningful words for similarity key
+_SESSION_TTL_EXTENSION_RATE = 0.1  # Rate of TTL extension during session
+_MAX_SESSION_TTL_EXTENSION = 3600  # Maximum TTL extension in seconds
+
+# Stop words for similarity matching
+_STOP_WORDS = {'the', 'a', 'an', 'and', 'or', 'but', 'by', 'for', 'with', 'to', 'of', 'in', 'on', 'at'}
+
 
 class SemanticOperatorCache:
     """
@@ -36,6 +47,7 @@ class SemanticOperatorCache:
         """
         self.ttl_seconds = ttl_seconds
         self._cache: Dict[str, Tuple[str, float]] = {}  # key -> (value, timestamp)
+        self._similarity_index: Dict[str, List[str]] = {}  # Map similarity keys to cache keys
         self._session_start = time.time()  # Track session for extended caching
         
     def _get_cache_key(self, content: str, operation_type: str = "default") -> str:
@@ -56,12 +68,11 @@ class SemanticOperatorCache:
         Uses first 50 characters of normalized content for similarity matching.
         """
         # Normalize content for similarity matching
-        normalized = content.lower().strip()[:50]
+        normalized = content.lower().strip()[:_SIMILARITY_CONTENT_PREFIX_LENGTH]
         # Remove common words that don't affect semantic meaning
-        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'by', 'for', 'with', 'to', 'of', 'in', 'on', 'at'}
-        words = [w for w in normalized.split() if w not in stop_words]
-        key_content = ' '.join(words[:10])  # Use first 10 meaningful words
-        return hashlib.md5(key_content.encode()).hexdigest()[:16]  # Shorter key for clustering
+        words = [w for w in normalized.split() if w not in _STOP_WORDS]
+        key_content = ' '.join(words[:_SIMILARITY_WORDS_COUNT])
+        return hashlib.md5(key_content.encode()).hexdigest()[:_SIMILARITY_KEY_LENGTH]
         
     def get(self, content: str, operation_type: str = "default") -> Optional[str]:
         """
@@ -83,7 +94,7 @@ class SemanticOperatorCache:
             # Check if expired (extended session-based TTL)
             current_time = time.time()
             session_duration = current_time - self._session_start
-            effective_ttl = self.ttl_seconds + min(session_duration * 0.1, 3600)  # Extend TTL during long sessions
+            effective_ttl = self.ttl_seconds + min(session_duration * _SESSION_TTL_EXTENSION_RATE, _MAX_SESSION_TTL_EXTENSION)
             
             if current_time - timestamp < effective_ttl:
                 logger.debug(f"Cache exact hit for {operation_type} hash {exact_key[:8]}")
@@ -94,14 +105,18 @@ class SemanticOperatorCache:
                 logger.debug(f"Cache expired for {operation_type} hash {exact_key[:8]}")
         
         # Try similarity-based lookup for mutation operations
-        if operation_type == "mutation":
+        # Store similarity keys separately for efficient lookup
+        if operation_type == "mutation" and hasattr(self, '_similarity_index'):
             similarity_key = self._get_similarity_key(content)
-            for cache_key, (cached_value, timestamp) in self._cache.items():
-                if cache_key.startswith(f"{operation_type}:") and similarity_key in cache_key:
-                    current_time = time.time()
-                    if current_time - timestamp < self.ttl_seconds:
-                        logger.debug(f"Cache similarity hit for {operation_type} hash {cache_key[:8]}")
-                        return cached_value
+            if similarity_key in self._similarity_index:
+                # Get all cache keys with this similarity
+                for cache_key in self._similarity_index[similarity_key]:
+                    if cache_key in self._cache:
+                        cached_value, timestamp = self._cache[cache_key]
+                        current_time = time.time()
+                        if current_time - timestamp < self.ttl_seconds:
+                            logger.debug(f"Cache similarity hit for {operation_type} hash {cache_key[:8]}")
+                            return cached_value
                 
         return None
         
@@ -118,8 +133,15 @@ class SemanticOperatorCache:
         self._cache[key] = (result, time.time())
         logger.debug(f"Cached {operation_type} result for hash {key[:8]}")
         
+        # Update similarity index for mutation operations
+        if operation_type == "mutation":
+            similarity_key = self._get_similarity_key(content)
+            if similarity_key not in self._similarity_index:
+                self._similarity_index[similarity_key] = []
+            self._similarity_index[similarity_key].append(key)
+        
         # Periodic cache cleanup to prevent memory growth
-        if len(self._cache) > 500:  # Limit cache size
+        if len(self._cache) > _CACHE_MAX_SIZE:
             self._cleanup_expired_entries()
     
     def _cleanup_expired_entries(self) -> None:
@@ -127,12 +149,18 @@ class SemanticOperatorCache:
         current_time = time.time()
         expired_keys = []
         
-        for key, (value, timestamp) in self._cache.items():
+        for key, (_, timestamp) in self._cache.items():
             if current_time - timestamp >= self.ttl_seconds:
                 expired_keys.append(key)
         
         for key in expired_keys:
             del self._cache[key]
+        
+        # Clean up similarity index
+        for sim_key in list(self._similarity_index.keys()):
+            self._similarity_index[sim_key] = [k for k in self._similarity_index[sim_key] if k not in expired_keys]
+            if not self._similarity_index[sim_key]:
+                del self._similarity_index[sim_key]
         
         logger.debug(f"Cleaned up {len(expired_keys)} expired cache entries")
     
