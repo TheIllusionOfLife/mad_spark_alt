@@ -5,17 +5,14 @@ Tests algorithm complexity, memory usage, and semantic operator performance
 to prevent regressions and establish optimization baselines.
 """
 
-import asyncio
 import time
 import tracemalloc
 import statistics
-from typing import List, Dict, Any
+from typing import List
 import pytest
 from unittest.mock import AsyncMock
 from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
-from mad_spark_alt.evolution.genetic_algorithm import GeneticAlgorithm
-from mad_spark_alt.evolution.interfaces import EvolutionRequest, EvolutionConfig
-from mad_spark_alt.evolution.semantic_operators import BatchSemanticMutationOperator, SemanticCrossoverOperator, SemanticOperatorCache
+from mad_spark_alt.evolution.semantic_operators import BatchSemanticMutationOperator, SemanticOperatorCache
 from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
 from mad_spark_alt.core.llm_provider import GoogleProvider, LLMResponse, LLMProvider
 
@@ -154,9 +151,8 @@ class TestAlgorithmPerformance:
         
         # Test QADI orchestrator memory usage
         with PerformanceBenchmark("qadi-memory") as benchmark:
-            orchestrator = SimpleQADIOrchestrator()
-            # Simulate processing without actual LLM calls
-            test_data = ["hypothesis " + str(i) for i in range(10)]
+            # Create orchestrator to test memory usage
+            SimpleQADIOrchestrator()
             
         # QADI orchestrator should use minimal memory for initialization
         assert benchmark.peak_memory_used < 1024 * 1024, f"QADI orchestrator uses too much memory: {benchmark.peak_memory_used} bytes"
@@ -193,8 +189,7 @@ class TestAlgorithmPerformance:
             
             with PerformanceBenchmark(f"ideas-{pop_size}") as benchmark:
                 # Simulate processing ideas (sorting, filtering, etc.)
-                sorted_ideas = sorted(ideas, key=lambda x: x.confidence_score)
-                filtered_ideas = [idea for idea in sorted_ideas if idea.confidence_score > 0.5]
+                sorted(ideas, key=lambda x: x.confidence_score)
             
             durations.append(benchmark.duration)
         
@@ -252,7 +247,6 @@ class TestSemanticOperatorPerformance:
         """Test semantic mutation operator performance."""
         ideas = self.create_test_ideas(10)
         cache = SemanticOperatorCache()
-        mutation_operator = BatchSemanticMutationOperator(mock_llm_provider, cache_ttl=3600)
         
         durations = []
         
@@ -325,7 +319,7 @@ class TestSemanticOperatorPerformance:
             # Simulate Jaccard similarity calculation
             diversity_scores = []
             for i, idea1 in enumerate(ideas):
-                for j, idea2 in enumerate(ideas[i+1:], i+1):
+                for idea2 in ideas[i+1:]:
                     # Simple word-based similarity (avoiding LLM costs)
                     words1 = set(idea1.content.lower().split())
                     words2 = set(idea2.content.lower().split())
@@ -351,7 +345,7 @@ class TestPerformanceRegression:
         
         # Baseline: SimpleQADIOrchestrator initialization should be fast
         with PerformanceBenchmark("orchestrator-init") as benchmark:
-            orchestrator = SimpleQADIOrchestrator()
+            SimpleQADIOrchestrator()
         
         assert benchmark.duration < 0.1, f"Orchestrator initialization too slow: {benchmark.duration}s"
         assert benchmark.peak_memory_used < 10 * 1024 * 1024, f"Orchestrator uses too much memory: {benchmark.peak_memory_used} bytes"

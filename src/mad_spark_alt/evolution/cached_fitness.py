@@ -242,9 +242,11 @@ class FitnessCache:
         best_similarity = 0.0
         
         # Search through cache for similar entries
+        expired_keys = []
         for key, entry in self._cache.items():
-            # Skip expired entries
+            # Remove expired entries to prevent cache bloat
             if time.time() - entry.timestamp > self.ttl_seconds:
+                expired_keys.append(key)
                 continue
             
             # Compare idea content similarity
@@ -266,6 +268,15 @@ class FitnessCache:
                 if cached_idea.thinking_method == idea.thinking_method:
                     best_match = (key, similarity)
                     best_similarity = similarity
+        
+        # Clean up expired entries found during search
+        for key in expired_keys:
+            if key in self._cache:
+                del self._cache[key]
+            if key in self._access_order:
+                self._access_order.remove(key)
+            self._stats["evictions"] += 1
+            self._stats["ttl_evictions"] += 1
         
         if best_match:
             key, similarity = best_match
@@ -404,7 +415,25 @@ class CachedFitnessEvaluator:
         
         # Return all results in original order, filtering out any None values
         # At this point, all positions should have valid fitness results
-        return [result for result in cached_results if result is not None]
+        valid_results = [result for result in cached_results if result is not None]
+        
+        # Ensure we return the same number of results as input population
+        if len(valid_results) != len(population):
+            logger.error(f"Expected {len(population)} results but got {len(valid_results)}")
+            # Fill any missing results with default fitness scores to maintain contract
+            while len(valid_results) < len(population):
+                missing_idx = len(valid_results)
+                idea = population[missing_idx] if missing_idx < len(population) else population[0]
+                valid_results.append(IndividualFitness(
+                    idea=idea,
+                    creativity_score=0.0,
+                    diversity_score=0.0,
+                    quality_score=0.0,
+                    overall_fitness=0.0,
+                    evaluation_metadata={"error": "Evaluation failed for this idea"}
+                ))
+        
+        return valid_results
 
     async def calculate_population_diversity(
         self, population: List[IndividualFitness]

@@ -1,6 +1,5 @@
 """Tests for SimpleQADIOrchestrator - the true QADI hypothesis-driven implementation."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -8,7 +7,6 @@ import pytest
 from mad_spark_alt.core import SimpleQADIOrchestrator, SimpleQADIResult
 from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
 from mad_spark_alt.core.llm_provider import LLMResponse, LLMProvider
-from mad_spark_alt.core.simple_qadi_orchestrator import HypothesisScore
 
 
 @pytest.fixture

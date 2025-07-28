@@ -940,7 +940,7 @@ class SimpleQADIOrchestrator:
                     
                     # Parse scores for this batch
                     batch_scores = []
-                    for j, idx in enumerate(indices):
+                    for _, idx in enumerate(indices):
                         score = self._parse_hypothesis_scores(content, idx + 1)
                         batch_scores.append((idx, score, response.cost / len(indices)))
                     
@@ -949,6 +949,7 @@ class SimpleQADIOrchestrator:
                 except Exception as e:
                     if attempt == max_retries:
                         logger.error(f"Failed to evaluate batch after {max_retries + 1} attempts: {e}")
+                        logger.warning(f"Returning default scores for {len(indices)} hypotheses due to evaluation failure")
                         # Return default scores for this batch
                         return [(idx, HypothesisScore(
                             impact=0.5,
