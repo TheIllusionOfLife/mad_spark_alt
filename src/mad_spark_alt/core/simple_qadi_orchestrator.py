@@ -322,13 +322,14 @@ class SimpleQADIOrchestrator:
                 current_hypothesis = ""
                 current_index = None
 
-                for line in lines:
+                for i, line in enumerate(lines):
                     line = line.strip()
                     if not line:
                         continue
 
-                    # Check if line starts with H1:, H2:, or H3:
-                    hypothesis_match = re.match(HYPOTHESIS_PATTERN, line)
+                    # Check if line starts with H1:, H2:, or H3: (with potential markdown formatting)
+                    # Also support "Approach" prefix for compatibility
+                    hypothesis_match = re.match(r"^(?:\*\*)?(?:H|Hypothesis\s*|Approach\s*)(\d+)(?:\s*:|\.)\s*(.*)(?:\*\*)?$", line)
                     if hypothesis_match:
                         # Save previous hypothesis if we have one
                         if current_index is not None and current_hypothesis.strip():
@@ -336,10 +337,22 @@ class SimpleQADIOrchestrator:
 
                         # Start new hypothesis
                         current_index = int(hypothesis_match.group(1))
-                        current_hypothesis = hypothesis_match.group(2)
+                        current_hypothesis = hypothesis_match.group(2).strip()
+                        
+                        # Remove trailing ** if present
+                        if current_hypothesis.endswith("**"):
+                            current_hypothesis = current_hypothesis[:-2].strip()
+                        
+                        # If the line only contains the title (common with markdown formatting), 
+                        # the actual content will be on the next lines
+                        if not current_hypothesis:
+                            # Title is empty, content will be on next lines
+                            pass
                     elif current_index is not None:
-                        # Continue building current hypothesis
-                        current_hypothesis += " " + line
+                        # Continue building current hypothesis from subsequent lines
+                        # Skip empty lines and lines that are just markdown
+                        if line and not line.startswith("---") and not re.match(r"^\*+$", line):
+                            current_hypothesis += " " + line
 
                 # Don't forget the last hypothesis
                 if current_index is not None and current_hypothesis.strip():

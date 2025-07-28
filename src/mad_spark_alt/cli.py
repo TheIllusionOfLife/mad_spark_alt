@@ -93,6 +93,12 @@ def _create_evolution_results_table() -> Table:
     return table
 
 
+# Evolution timeout constants
+_BASE_TIMEOUT_SECONDS = 120.0  # Minimum 2 minutes
+_SECONDS_PER_EVALUATION_ESTIMATE = 20  # Estimate per evaluation
+_MAX_TIMEOUT_SECONDS = 600.0  # Maximum 10 minutes
+
+
 def calculate_evolution_timeout(generations: int, population: int) -> float:
     """
     Calculate adaptive timeout based on evolution complexity.
@@ -104,9 +110,8 @@ def calculate_evolution_timeout(generations: int, population: int) -> float:
     Returns:
         Timeout in seconds (min 120s, max 600s)
     """
-    base_timeout = 120.0  # Minimum 2 minutes (increased from 1)
-    estimated_time = generations * population * 15  # 15s per evaluation estimate (increased from 10)
-    return min(max(base_timeout, estimated_time), 600.0)  # Max 10 minutes
+    estimated_time = generations * population * _SECONDS_PER_EVALUATION_ESTIMATE
+    return min(max(_BASE_TIMEOUT_SECONDS, estimated_time), _MAX_TIMEOUT_SECONDS)
 
 
 def load_env_file() -> None:
