@@ -322,7 +322,7 @@ class SimpleQADIOrchestrator:
                 current_hypothesis = ""
                 current_index = None
 
-                for line in lines:
+                for i, line in enumerate(lines):
                     line = line.strip()
                     if not line:
                         continue
@@ -336,10 +336,27 @@ class SimpleQADIOrchestrator:
 
                         # Start new hypothesis
                         current_index = int(hypothesis_match.group(1))
-                        current_hypothesis = hypothesis_match.group(2)
+                        current_hypothesis = hypothesis_match.group(2).strip()
+                        
+                        # If the text after H1: is empty or just formatting, look for "Hypothesis:" on next line
+                        if not current_hypothesis or current_hypothesis.endswith(")**") or current_hypothesis.startswith("**"):
+                            # Look ahead for "Hypothesis:" line
+                            for j in range(i + 1, min(i + 3, len(lines))):  # Check next 2 lines
+                                next_line = lines[j].strip()
+                                if next_line.startswith("Hypothesis:"):
+                                    current_hypothesis = next_line[11:].strip()  # Remove "Hypothesis:" prefix
+                                    break
+                                elif next_line and not next_line.startswith("**") and len(next_line) > 20:
+                                    # Found substantial content without "Hypothesis:" prefix
+                                    current_hypothesis = next_line
+                                    break
                     elif current_index is not None:
-                        # Continue building current hypothesis
-                        current_hypothesis += " " + line
+                        # Skip lines that start with "Hypothesis:" if we already processed them
+                        if line.startswith("Hypothesis:") and not current_hypothesis:
+                            current_hypothesis = line[11:].strip()  # Remove "Hypothesis:" prefix
+                        elif not line.startswith("Hypothesis:"):
+                            # Continue building current hypothesis
+                            current_hypothesis += " " + line
 
                 # Don't forget the last hypothesis
                 if current_index is not None and current_hypothesis.strip():
