@@ -21,62 +21,133 @@ logger = logging.getLogger(__name__)
 
 class SemanticOperatorCache:
     """
-    Simple in-memory cache for semantic operator results.
+    Enhanced in-memory cache for semantic operator results with session-based TTL.
     
-    Reduces redundant LLM calls by caching mutation and crossover results.
+    Reduces redundant LLM calls by caching mutation and crossover results with
+    intelligent cache key clustering and extended session-based TTL.
     """
     
-    def __init__(self, ttl_seconds: int = 3600):
+    def __init__(self, ttl_seconds: int = 7200):  # Extended to 2 hours for longer sessions
         """
-        Initialize cache with time-to-live.
+        Initialize cache with enhanced session-based time-to-live.
         
         Args:
-            ttl_seconds: Time-to-live for cache entries in seconds
+            ttl_seconds: Time-to-live for cache entries in seconds (default: 2 hours)
         """
         self.ttl_seconds = ttl_seconds
         self._cache: Dict[str, Tuple[str, float]] = {}  # key -> (value, timestamp)
+        self._session_start = time.time()  # Track session for extended caching
         
-    def _get_cache_key(self, content: str) -> str:
-        """Generate consistent cache key from content."""
-        return hashlib.md5(content.encode()).hexdigest()
-        
-    def get(self, content: str) -> Optional[str]:
+    def _get_cache_key(self, content: str, operation_type: str = "default") -> str:
         """
-        Get cached result if available and not expired.
+        Generate consistent cache key with operation type for better clustering.
+        
+        Args:
+            content: Content to generate key for
+            operation_type: Type of operation (mutation, crossover, etc.) for clustering
+        """
+        # Include operation type in key for better cache organization
+        combined_content = f"{operation_type}:{content}"
+        return hashlib.md5(combined_content.encode()).hexdigest()
+    
+    def _get_similarity_key(self, content: str) -> str:
+        """
+        Generate similarity-based key for cache clustering.
+        Uses first 50 characters of normalized content for similarity matching.
+        """
+        # Normalize content for similarity matching
+        normalized = content.lower().strip()[:50]
+        # Remove common words that don't affect semantic meaning
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'by', 'for', 'with', 'to', 'of', 'in', 'on', 'at'}
+        words = [w for w in normalized.split() if w not in stop_words]
+        key_content = ' '.join(words[:10])  # Use first 10 meaningful words
+        return hashlib.md5(key_content.encode()).hexdigest()[:16]  # Shorter key for clustering
+        
+    def get(self, content: str, operation_type: str = "default") -> Optional[str]:
+        """
+        Get cached result with enhanced lookup including similarity matching.
         
         Args:
             content: Original content to look up
+            operation_type: Operation type for cache clustering
             
         Returns:
             Cached mutation result or None if not found/expired
         """
-        key = self._get_cache_key(content)
+        # Try exact match first
+        exact_key = self._get_cache_key(content, operation_type)
         
-        if key in self._cache:
-            value, timestamp = self._cache[key]
+        if exact_key in self._cache:
+            value, timestamp = self._cache[exact_key]
             
-            # Check if expired
-            if time.time() - timestamp < self.ttl_seconds:
-                logger.debug(f"Cache hit for content hash {key[:8]}")
+            # Check if expired (extended session-based TTL)
+            current_time = time.time()
+            session_duration = current_time - self._session_start
+            effective_ttl = self.ttl_seconds + min(session_duration * 0.1, 3600)  # Extend TTL during long sessions
+            
+            if current_time - timestamp < effective_ttl:
+                logger.debug(f"Cache exact hit for {operation_type} hash {exact_key[:8]}")
                 return value
             else:
                 # Remove expired entry
-                del self._cache[key]
-                logger.debug(f"Cache expired for content hash {key[:8]}")
+                del self._cache[exact_key]
+                logger.debug(f"Cache expired for {operation_type} hash {exact_key[:8]}")
+        
+        # Try similarity-based lookup for mutation operations
+        if operation_type == "mutation":
+            similarity_key = self._get_similarity_key(content)
+            for cache_key, (cached_value, timestamp) in self._cache.items():
+                if cache_key.startswith(f"{operation_type}:") and similarity_key in cache_key:
+                    current_time = time.time()
+                    if current_time - timestamp < self.ttl_seconds:
+                        logger.debug(f"Cache similarity hit for {operation_type} hash {cache_key[:8]}")
+                        return cached_value
                 
         return None
         
-    def put(self, content: str, result: str) -> None:
+    def put(self, content: str, result: str, operation_type: str = "default") -> None:
         """
-        Store result in cache.
+        Store result in enhanced cache with operation type clustering.
         
         Args:
             content: Original content
             result: Mutation/crossover result to cache
+            operation_type: Operation type for cache clustering
         """
-        key = self._get_cache_key(content)
+        key = self._get_cache_key(content, operation_type)
         self._cache[key] = (result, time.time())
-        logger.debug(f"Cached result for content hash {key[:8]}")
+        logger.debug(f"Cached {operation_type} result for hash {key[:8]}")
+        
+        # Periodic cache cleanup to prevent memory growth
+        if len(self._cache) > 500:  # Limit cache size
+            self._cleanup_expired_entries()
+    
+    def _cleanup_expired_entries(self) -> None:
+        """Clean up expired cache entries to manage memory usage."""
+        current_time = time.time()
+        expired_keys = []
+        
+        for key, (value, timestamp) in self._cache.items():
+            if current_time - timestamp >= self.ttl_seconds:
+                expired_keys.append(key)
+        
+        for key in expired_keys:
+            del self._cache[key]
+        
+        logger.debug(f"Cleaned up {len(expired_keys)} expired cache entries")
+    
+    def get_cache_stats(self) -> Dict[str, int]:
+        """Get cache statistics for monitoring performance."""
+        current_time = time.time()
+        valid_entries = sum(1 for _, (_, timestamp) in self._cache.items() 
+                           if current_time - timestamp < self.ttl_seconds)
+        
+        return {
+            "total_entries": len(self._cache),
+            "valid_entries": valid_entries,
+            "expired_entries": len(self._cache) - valid_entries,
+            "session_duration_minutes": int((current_time - self._session_start) / 60),
+        }
 
 
 class BatchSemanticMutationOperator(MutationInterface):
