@@ -24,7 +24,15 @@ class TestGeneticAlgorithmSemanticIntegration:
     def mock_llm_provider(self):
         """Create a mock LLM provider."""
         provider = AsyncMock(spec=GoogleProvider)
-        provider.generate = AsyncMock()
+        # Mock the generate method to return a proper LLMResponse
+        from mad_spark_alt.core.llm_provider import LLMResponse
+        provider.generate = AsyncMock(return_value=LLMResponse(
+            content="Test mutation result",
+            cost=0.01,
+            usage={"input_tokens": 100, "output_tokens": 50},
+            provider="google",
+            model="gemini-1.5-flash"
+        ))
         return provider
 
     @pytest.fixture
@@ -98,14 +106,10 @@ class TestGeneticAlgorithmSemanticIntegration:
             max_parallel_evaluations=3  # Explicitly set to avoid comparison issues
         )
 
-        ga = GeneticAlgorithm(llm_provider=mock_llm_provider)
-
-        # Mock fitness evaluator 
-        with patch.object(ga.fitness_evaluator, 'calculate_population_diversity', new_callable=AsyncMock) as mock_diversity:
-            mock_diversity.return_value = 0.8
-            with patch.object(ga.fitness_evaluator, 'evaluate_population', new_callable=AsyncMock) as mock_eval:
-                # Mock fitness evaluation to return proper IndividualFitness objects
-                mock_eval.return_value = [
+        # Create a custom mock fitness evaluator
+        class MockFitnessEvaluator:
+            async def evaluate_population(self, population, config, context=None):
+                return [
                     IndividualFitness(
                         idea=idea,
                         creativity_score=0.7,
@@ -113,27 +117,37 @@ class TestGeneticAlgorithmSemanticIntegration:
                         quality_score=0.7,
                         overall_fitness=0.7
                     )
-                    for idea in sample_ideas
+                    for idea in population
                 ]
+            
+            async def calculate_population_diversity(self, population):
+                return 0.8
 
-                # Create evolution request
-                request = EvolutionRequest(
-                    initial_population=sample_ideas,
-                    config=config,
-                    context="sustainability improvement"
-                )
+        # Initialize GA with mock fitness evaluator
+        ga = GeneticAlgorithm(
+            llm_provider=mock_llm_provider, 
+            fitness_evaluator=MockFitnessEvaluator(),
+            use_cache=False
+        )
 
-                # Run evolution - this should work without errors
-                result = await ga.evolve(request)
+        # Create evolution request
+        request = EvolutionRequest(
+            initial_population=sample_ideas,
+            config=config,
+            context="sustainability improvement"
+        )
 
-                # Verify that evolution completed successfully 
-                assert result.error_message is None or result.error_message == ""
-                assert len(result.final_population) == config.population_size
-                assert result.total_generations >= 0
+        # Run evolution - this should work without errors
+        result = await ga.evolve(request)
 
-                # Verify semantic operators are available
-                assert ga.semantic_mutation_operator is not None
-                assert ga.semantic_crossover_operator is not None
+        # Verify that evolution completed successfully 
+        assert result.error_message is None or result.error_message == ""
+        assert len(result.final_population) == config.population_size
+        assert result.total_generations >= 0
+
+        # Verify semantic operators are available
+        assert ga.semantic_mutation_operator is not None
+        assert ga.semantic_crossover_operator is not None
 
     @pytest.mark.asyncio  
     async def test_traditional_operators_used_with_high_diversity(
@@ -143,10 +157,10 @@ class TestGeneticAlgorithmSemanticIntegration:
         ga = GeneticAlgorithm(llm_provider=mock_llm_provider)
 
         # Mock fitness evaluator to return high diversity  
-        with patch.object(ga.fitness_evaluator, 'calculate_population_diversity', return_value=0.8):
+        with patch.object(ga.fitness_evaluator, 'calculate_population_diversity', new=AsyncMock(return_value=0.8)):
             with patch.object(ga.fitness_evaluator, 'evaluate_population') as mock_eval:
                 # Mock fitness evaluation
-                def mock_evaluate(ideas, config, context=None):
+                async def mock_evaluate(ideas, config, context=None):
                     return [
                         IndividualFitness(
                             idea=idea,
@@ -194,10 +208,10 @@ class TestGeneticAlgorithmSemanticIntegration:
         ga = GeneticAlgorithm(llm_provider=mock_llm_provider)
 
         # Mock fitness evaluator to return low diversity (which would normally trigger semantic)
-        with patch.object(ga.fitness_evaluator, 'calculate_population_diversity', return_value=0.2):
+        with patch.object(ga.fitness_evaluator, 'calculate_population_diversity', new=AsyncMock(return_value=0.2)):
             with patch.object(ga.fitness_evaluator, 'evaluate_population') as mock_eval:
                 # Mock fitness evaluation
-                def mock_evaluate(ideas, config, context=None):
+                async def mock_evaluate(ideas, config, context=None):
                     return [
                         IndividualFitness(
                             idea=idea,
@@ -235,10 +249,10 @@ class TestGeneticAlgorithmSemanticIntegration:
         """Test that smart selector is properly initialized with config."""
         ga = GeneticAlgorithm(llm_provider=mock_llm_provider)
 
-        with patch.object(ga.fitness_evaluator, 'calculate_population_diversity', return_value=0.5):
+        with patch.object(ga.fitness_evaluator, 'calculate_population_diversity', new=AsyncMock(return_value=0.5)):
             with patch.object(ga.fitness_evaluator, 'evaluate_population') as mock_eval:
                 # Mock fitness evaluation
-                def mock_evaluate(ideas, config, context=None):
+                async def mock_evaluate(ideas, config, context=None):
                     return [
                         IndividualFitness(
                             idea=idea,

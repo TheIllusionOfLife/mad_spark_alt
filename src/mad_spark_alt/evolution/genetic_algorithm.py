@@ -401,7 +401,7 @@ class GeneticAlgorithm:
         try:
             # Initialize population
             current_population = await self._initialize_population(
-                request.initial_population, request.config
+                request.initial_population, config
             )
 
             # Create initial snapshot (generation 0) for the starting population
