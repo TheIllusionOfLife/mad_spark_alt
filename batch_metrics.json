@@ -1,0 +1,57 @@
+{
+  "test_config": {
+    "generations": 3,
+    "population": 5,
+    "problem": "How can we reduce food waste in urban areas?",
+    "timestamp": "2025-07-28T19:17:47.636961",
+    "implementation": "batch_llm_calls"
+  },
+  "performance": {
+    "total_time_seconds": 207.93,
+    "total_time_minutes": 3.47,
+    "llm_calls": 0,
+    "total_cost": 0.0039,
+    "cost_per_idea": 0.0003
+  },
+  "evolution_metrics": {
+    "fitness_improvement_percent": 9.891236852144877,
+    "initial_best_fitness": 0.41000000000000003,
+    "final_best_fitness": 0.45055407109379403,
+    "initial_avg_fitness": 0.375,
+    "final_avg_fitness": 0.37904345478111956,
+    "best_fitness_generation": 3,
+    "diversity_trend": [
+      0.8437694511962058,
+      0.41159867827280383,
+      0.7758778701777392,
+      0.8490511519008039
+    ],
+    "fitness_trend": [
+      0.41000000000000003,
+      0.4341244541908151,
+      0.4438541439189323,
+      0.45055407109379403
+    ],
+    "total_ideas_evaluated": 17,
+    "semantic_operators_enabled": true,
+    "semantic_mutations": 0,
+    "semantic_crossovers": 3,
+    "traditional_mutations": 0,
+    "traditional_crossovers": 2,
+    "semantic_llm_calls": 3,
+    "cache_stats": {
+      "hits": 1,
+      "misses": 16,
+      "evictions": 0,
+      "hit_rate": 0.058823529411764705,
+      "size": 16
+    },
+    "total_evaluations": 17
+  },
+  "breakdown": {
+    "avg_time_per_generation": 69.31,
+    "avg_time_per_evaluation": 13.86,
+    "cache_hit_rate": 0.058823529411764705,
+    "semantic_operators_used": true
+  }
+}

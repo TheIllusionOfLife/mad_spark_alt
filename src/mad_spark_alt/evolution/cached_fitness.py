@@ -252,7 +252,7 @@ class CachedFitnessEvaluator:
         context: Optional[str] = None,
     ) -> List[IndividualFitness]:
         """
-        Evaluate fitness for entire population with caching.
+        Evaluate fitness for entire population with caching and batch optimization.
 
         Args:
             population: List of ideas to evaluate
@@ -262,22 +262,53 @@ class CachedFitnessEvaluator:
         Returns:
             List of individual fitness scores
         """
-        results = []
-
-        # Process each individual
-        for idea in population:
-            fitness = await self.evaluate_individual(idea, config, context)
-            results.append(fitness)
-
+        if not self.cache_enabled:
+            # No cache, use base evaluator directly with batch optimization
+            return await self.base_evaluator.evaluate_population(population, config, context)
+        
+        # With cache enabled, separate cached and uncached ideas
+        cached_results: List[Optional[IndividualFitness]] = []
+        uncached_ideas: List[GeneratedIdea] = []
+        uncached_indices: List[int] = []
+        
+        # Check cache for each idea
+        for i, idea in enumerate(population):
+            cache_key = self._generate_cache_key(idea, context, config)
+            cached_result = self.cache.get(cache_key)
+            
+            if cached_result is not None:
+                logger.debug(f"Cache hit for idea {i}: {idea.content[:50]}...")
+                cached_results.append(cached_result)
+            else:
+                logger.debug(f"Cache miss for idea {i}: {idea.content[:50]}...")
+                cached_results.append(None)
+                uncached_ideas.append(idea)
+                uncached_indices.append(i)
+        
+        # Evaluate uncached ideas in batch if there are any
+        if uncached_ideas:
+            # Use base evaluator's batch implementation
+            uncached_fitness = await self.base_evaluator.evaluate_population(
+                uncached_ideas, config, context
+            )
+            
+            # Store results in cache and merge with cached results
+            for idx, (orig_idx, fitness) in enumerate(zip(uncached_indices, uncached_fitness)):
+                idea = uncached_ideas[idx]
+                cache_key = self._generate_cache_key(idea, context, config)
+                self.cache.set(cache_key, fitness)
+                cached_results[orig_idx] = fitness
+        
         # Log cache performance
-        if self.cache_enabled and self.cache:
+        if self.cache:
             stats = self.cache.get_stats()
             logger.info(
                 f"Cache stats - Hits: {stats['hits']}, Misses: {stats['misses']}, "
                 f"Hit rate: {stats['hit_rate']:.2%}"
             )
-
-        return results
+        
+        # Return all results in original order
+        return [r for r in cached_results if r is not None]
 
     async def calculate_population_diversity(
         self, population: List[IndividualFitness]
