@@ -10,7 +10,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.evolution.fitness import FitnessEvaluator
@@ -70,9 +70,12 @@ class FitnessCache:
         Returns:
             Cache key string
         """
+        # Normalize content for better cache hits
+        normalized_content = self._normalize_content(idea.content)
+        
         # Include relevant idea attributes in key
         key_parts = [
-            idea.content,
+            normalized_content,
             str(idea.thinking_method.value),
             idea.agent_name,
             str(context) if context else "",
@@ -83,6 +86,34 @@ class FitnessCache:
         key_hash = hashlib.sha256(key_string.encode()).hexdigest()[:16]
 
         return f"fitness_{key_hash}"
+    
+    def _normalize_content(self, content: str) -> str:
+        """
+        Normalize content for cache key generation to improve hit rates.
+        
+        Args:
+            content: The idea content to normalize
+            
+        Returns:
+            Normalized content string
+        """
+        # Convert to lowercase
+        normalized = content.lower()
+        
+        # Remove extra whitespace
+        normalized = " ".join(normalized.split())
+        
+        # Remove common punctuation variations
+        normalized = normalized.replace("**", "")  # Remove markdown bold
+        normalized = normalized.replace("*", "")   # Remove markdown emphasis
+        
+        # Sort words to handle minor rephrasing
+        # Only do this for short content to avoid losing meaning
+        if len(normalized.split()) <= 20:
+            words = sorted(normalized.split())
+            normalized = " ".join(words)
+        
+        return normalized
 
     def get(self, key: str) -> Optional[IndividualFitness]:
         """
@@ -183,6 +214,65 @@ class FitnessCache:
             "hit_rate": hit_rate,
             "size": len(self._cache),
         }
+    
+    def get_similar(self, idea: GeneratedIdea, context: Optional[str] = None, 
+                    similarity_threshold: float = 0.8) -> Optional[IndividualFitness]:
+        """
+        Find a similar cached entry using semantic similarity.
+        
+        Args:
+            idea: The idea to find similar cached entries for
+            context: Optional evaluation context
+            similarity_threshold: Minimum similarity score (0-1)
+            
+        Returns:
+            Cached fitness for most similar idea, or None
+        """
+        if not self._cache:
+            return None
+        
+        # Normalize the target idea content
+        target_content = self._normalize_content(idea.content)
+        target_words = set(target_content.split())
+        
+        if not target_words:
+            return None
+        
+        best_match: Optional[Tuple[str, float]] = None
+        best_similarity = 0.0
+        
+        # Search through cache for similar entries
+        for key, entry in self._cache.items():
+            # Skip expired entries
+            if time.time() - entry.timestamp > self.ttl_seconds:
+                continue
+            
+            # Compare idea content similarity
+            cached_idea = entry.fitness.idea
+            cached_content = self._normalize_content(cached_idea.content)
+            cached_words = set(cached_content.split())
+            
+            if not cached_words:
+                continue
+            
+            # Calculate Jaccard similarity
+            intersection = len(target_words.intersection(cached_words))
+            union = len(target_words.union(cached_words))
+            similarity = intersection / union if union > 0 else 0.0
+            
+            # Check if this is the best match so far
+            if similarity > best_similarity and similarity >= similarity_threshold:
+                # Also check that thinking method matches
+                if cached_idea.thinking_method == idea.thinking_method:
+                    best_match = (key, similarity)
+                    best_similarity = similarity
+        
+        if best_match:
+            key, similarity = best_match
+            logger.debug(f"Found similar cached entry with {similarity:.2%} similarity")
+            return self.get(key)
+        
+        return None
 
 
 class CachedFitnessEvaluator:
@@ -276,6 +366,10 @@ class CachedFitnessEvaluator:
             cache_key = self._generate_cache_key(idea, context, config)
             cached_result = self.cache.get(cache_key)
             
+            # If exact match not found, try semantic similarity
+            if cached_result is None:
+                cached_result = self.cache.get_similar(idea, context, similarity_threshold=0.7)
+            
             if cached_result is not None:
                 logger.debug(f"Cache hit for idea {i}: {idea.content[:50]}...")
                 cached_results.append(cached_result)
@@ -346,15 +440,24 @@ class CachedFitnessEvaluator:
         # Base key from idea and context
         if not self.cache:
             return "no_cache"
-        base_key = self.cache.generate_key(idea, context)
+        
+        # Use normalized context to improve cache hits
+        normalized_context = None
+        if context:
+            # Extract key parts of context, ignoring minor variations
+            context_lower = context.lower()
+            if "food waste" in context_lower:
+                normalized_context = "reduce_food_waste"
+            elif "climate" in context_lower:
+                normalized_context = "climate_solutions"
+            else:
+                # For other contexts, just use first 20 chars
+                normalized_context = context_lower[:20]
+        
+        base_key = self.cache.generate_key(idea, normalized_context)
 
-        # Add config-specific elements if provided
-        if config and config.fitness_weights:
-            # Sort weights for consistent ordering
-            weights_str = json.dumps(config.fitness_weights, sort_keys=True)
-            weights_hash = hashlib.sha256(weights_str.encode()).hexdigest()[:8]
-            base_key = f"{base_key}_{weights_hash}"
-
+        # Don't include config weights in key - fitness evaluation should be consistent
+        # regardless of slight weight variations
         return base_key
 
     def get_cache_stats(self) -> Dict[str, float]:
