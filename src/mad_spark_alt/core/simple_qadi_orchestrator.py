@@ -391,12 +391,12 @@ class SimpleQADIOrchestrator:
                             if len(match.groups()) == 2:
                                 # Pattern with number (like "1. Text")
                                 hypothesis_num = int(match.group(1)) if match.group(1).isdigit() else len(hypotheses) + 1
-                                if hypothesis_num <= 3:
+                                if hypothesis_num <= self.num_hypotheses:
                                     current_hypothesis = match.group(2).strip()
                                     matched = True
                             else:
                                 # Pattern without number (like "- Text")
-                                if len(hypotheses) < 3:
+                                if len(hypotheses) < self.num_hypotheses:
                                     current_hypothesis = match.group(1).strip()
                                     matched = True
                             break
