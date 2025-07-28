@@ -415,20 +415,23 @@ class CachedFitnessEvaluator:
         
         # Ensure all positions have valid fitness results, maintaining order
         # IMPORTANT: Do NOT filter None values as it breaks index correspondence
+        final_results: List[IndividualFitness] = []
         for i, result in enumerate(cached_results):
             if result is None:
                 logger.error(f"Missing fitness result for idea at index {i}")
-                # Replace None with default fitness to maintain position
-                cached_results[i] = IndividualFitness(
+                # Use default fitness to maintain position
+                final_results.append(IndividualFitness(
                     idea=population[i],
                     creativity_score=0.0,
                     diversity_score=0.0,
                     quality_score=0.0,
                     overall_fitness=0.0,
                     evaluation_metadata={"error": "Evaluation failed for this idea"}
-                )
+                ))
+            else:
+                final_results.append(result)
         
-        return cached_results
+        return final_results
 
     async def calculate_population_diversity(
         self, population: List[IndividualFitness]
