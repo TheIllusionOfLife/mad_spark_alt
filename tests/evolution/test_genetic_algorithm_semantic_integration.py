@@ -60,7 +60,8 @@ class TestGeneticAlgorithmSemanticIntegration:
             use_semantic_operators=True,
             semantic_operator_threshold=0.5,
             mutation_rate=0.8,  # High rate to trigger mutations
-            crossover_rate=0.8  # High rate to trigger crossovers
+            crossover_rate=0.8,  # High rate to trigger crossovers
+            max_parallel_evaluations=3  # Explicitly set to avoid comparison issues
         )
 
     def test_ga_initialization_without_llm(self):
@@ -93,7 +94,8 @@ class TestGeneticAlgorithmSemanticIntegration:
             use_semantic_operators=True,
             semantic_operator_threshold=0.9,  # High threshold to avoid semantic ops
             mutation_rate=0.2,  # Lower rate
-            crossover_rate=0.2  # Lower rate
+            crossover_rate=0.2,  # Lower rate
+            max_parallel_evaluations=3  # Explicitly set to avoid comparison issues
         )
 
         ga = GeneticAlgorithm(llm_provider=mock_llm_provider)
@@ -185,7 +187,8 @@ class TestGeneticAlgorithmSemanticIntegration:
             generations=2,
             use_semantic_operators=False,  # Disabled
             mutation_rate=0.8,
-            crossover_rate=0.8
+            crossover_rate=0.8,
+            max_parallel_evaluations=3  # Explicitly set to avoid comparison issues
         )
 
         ga = GeneticAlgorithm(llm_provider=mock_llm_provider)
