@@ -413,27 +413,22 @@ class CachedFitnessEvaluator:
                 f"Hit rate: {stats['hit_rate']:.2%}"
             )
         
-        # Return all results in original order, filtering out any None values
-        # At this point, all positions should have valid fitness results
-        valid_results = [result for result in cached_results if result is not None]
-        
-        # Ensure we return the same number of results as input population
-        if len(valid_results) != len(population):
-            logger.error(f"Expected {len(population)} results but got {len(valid_results)}")
-            # Fill any missing results with default fitness scores to maintain contract
-            while len(valid_results) < len(population):
-                missing_idx = len(valid_results)
-                idea = population[missing_idx] if missing_idx < len(population) else population[0]
-                valid_results.append(IndividualFitness(
-                    idea=idea,
+        # Ensure all positions have valid fitness results, maintaining order
+        # IMPORTANT: Do NOT filter None values as it breaks index correspondence
+        for i, result in enumerate(cached_results):
+            if result is None:
+                logger.error(f"Missing fitness result for idea at index {i}")
+                # Replace None with default fitness to maintain position
+                cached_results[i] = IndividualFitness(
+                    idea=population[i],
                     creativity_score=0.0,
                     diversity_score=0.0,
                     quality_score=0.0,
                     overall_fitness=0.0,
                     evaluation_metadata={"error": "Evaluation failed for this idea"}
-                ))
+                )
         
-        return valid_results
+        return cached_results
 
     async def calculate_population_diversity(
         self, population: List[IndividualFitness]
