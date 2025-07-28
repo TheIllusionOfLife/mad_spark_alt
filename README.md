@@ -221,7 +221,7 @@ uv run black src/ tests/ && uv run isort src/ tests/
 
 1. **Performance Optimization**: Profile and optimize semantic operators
    - Context: Semantic operators now implemented and working well
-   - Approach: 
+   - Approach:
      * Add performance benchmarks for evolution with semantic operators
      * Optimize LLM call batching for multiple mutations
      * Implement more aggressive caching strategies
@@ -237,15 +237,19 @@ uv run black src/ tests/ && uv run isort src/ tests/
    - Approach: Add `--list-perspectives` flag and interactive selection mode
 
 #### Known Issues / Blockers
-- SimpleQADIOrchestrator tests failing due to HypothesisScore attribute mismatch
-  - Tests expect old attributes (novelty, cost, risks) but class has new ones (impact, feasibility, accessibility, sustainability, scalability)
-  - Not blocking main functionality, but needs cleanup
+- **SimpleQADIOrchestrator tests failing** (7/15 tests fail due to schema changes)
+  - Root cause: Tests expect old HypothesisScore attributes (novelty, cost, risks) but class uses new 5-criteria system (impact, feasibility, accessibility, sustainability, scalability)
+  - Impact: Tests excluded from CI to maintain green build
+  - Fix needed: Update test expectations to match current implementation
 
 #### Session Learnings
-- **AsyncMock Pattern**: Must use `new=AsyncMock(return_value=...)` not `new_callable=AsyncMock` to avoid coroutine issues
-- **Diversity Calculation**: Jaccard similarity on content is more reliable than LLM-generated novelty scores
-- **Config Validation**: Always check if existing validation prevents invalid states before adding redundant code
-- **Bot Reviews**: Cursor bot catches subtle bugs like hardcoded limits and redundant logic effectively
+Key insights from PR #56 development cycle analysis:
+- **Integration Testing**: Mock-reality divergence was primary cause of extended debugging (see [Integration Testing Guide](/.claude/integration-testing-guide.md))
+- **AsyncMock Pattern**: Proper async mocking patterns prevent coroutine issues
+- **Config Validation**: Existing validation can make adjustment code unreachable
+- **Bot Reviews**: Effective at catching hardcoded limits and redundant logic
+
+See [CLAUDE.md](CLAUDE.md) for detailed technical patterns and [core-patterns.md](/.claude/core-patterns.md) for comprehensive development guidelines.
 
 #### System Health
 
