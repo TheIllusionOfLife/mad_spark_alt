@@ -364,10 +364,10 @@ class CachedFitnessEvaluator:
         # Check cache for each idea
         for i, idea in enumerate(population):
             cache_key = self._generate_cache_key(idea, context, config)
-            cached_result = self.cache.get(cache_key)
+            cached_result = self.cache.get(cache_key) if self.cache else None
             
             # If exact match not found, try semantic similarity
-            if cached_result is None:
+            if cached_result is None and self.cache:
                 cached_result = self.cache.get_similar(idea, context, similarity_threshold=0.7)
             
             if cached_result is not None:
@@ -390,7 +390,8 @@ class CachedFitnessEvaluator:
             for idx, (orig_idx, fitness) in enumerate(zip(uncached_indices, uncached_fitness)):
                 idea = uncached_ideas[idx]
                 cache_key = self._generate_cache_key(idea, context, config)
-                self.cache.set(cache_key, fitness)
+                if self.cache:
+                    self.cache.set(cache_key, fitness)
                 cached_results[orig_idx] = fitness
         
         # Log cache performance
@@ -401,8 +402,9 @@ class CachedFitnessEvaluator:
                 f"Hit rate: {stats['hit_rate']:.2%}"
             )
         
-        # Return all results in original order (all should be non-None at this point)
-        return cached_results
+        # Return all results in original order, filtering out any None values
+        # At this point, all positions should have valid fitness results
+        return [result for result in cached_results if result is not None]
 
     async def calculate_population_diversity(
         self, population: List[IndividualFitness]
