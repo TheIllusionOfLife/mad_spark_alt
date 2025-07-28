@@ -114,7 +114,11 @@ class SemanticOperatorCache:
                     if cache_key in self._cache:
                         cached_value, timestamp = self._cache[cache_key]
                         current_time = time.time()
-                        if current_time - timestamp < self.ttl_seconds:
+                        # Use same TTL calculation as exact hits for consistency
+                        session_duration = current_time - self._session_start
+                        effective_ttl = self.ttl_seconds + min(session_duration * _SESSION_TTL_EXTENSION_RATE, _MAX_SESSION_TTL_EXTENSION)
+                        
+                        if current_time - timestamp < effective_ttl:
                             logger.debug(f"Cache similarity hit for {operation_type} hash {cache_key[:8]}")
                             return cached_value
                 
@@ -149,8 +153,12 @@ class SemanticOperatorCache:
         current_time = time.time()
         expired_keys = []
         
+        # Use the same TTL calculation as get() method for consistency
+        session_duration = current_time - self._session_start
+        effective_ttl = self.ttl_seconds + min(session_duration * _SESSION_TTL_EXTENSION_RATE, _MAX_SESSION_TTL_EXTENSION)
+        
         for key, (_, timestamp) in self._cache.items():
-            if current_time - timestamp >= self.ttl_seconds:
+            if current_time - timestamp >= effective_ttl:
                 expired_keys.append(key)
         
         for key in expired_keys:
