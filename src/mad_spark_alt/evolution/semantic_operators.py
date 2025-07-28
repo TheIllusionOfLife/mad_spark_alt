@@ -74,6 +74,14 @@ class SemanticOperatorCache:
         key_content = ' '.join(words[:_SIMILARITY_WORDS_COUNT])
         return hashlib.md5(key_content.encode()).hexdigest()[:_SIMILARITY_KEY_LENGTH]
         
+    def _get_effective_ttl(self, current_time: float) -> float:
+        """Calculate effective TTL with session-based extension."""
+        session_duration = current_time - self._session_start
+        return self.ttl_seconds + min(
+            session_duration * _SESSION_TTL_EXTENSION_RATE,
+            _MAX_SESSION_TTL_EXTENSION
+        )
+    
     def get(self, content: str, operation_type: str = "default") -> Optional[str]:
         """
         Get cached result with enhanced lookup including similarity matching.
@@ -93,8 +101,7 @@ class SemanticOperatorCache:
             
             # Check if expired (extended session-based TTL)
             current_time = time.time()
-            session_duration = current_time - self._session_start
-            effective_ttl = self.ttl_seconds + min(session_duration * _SESSION_TTL_EXTENSION_RATE, _MAX_SESSION_TTL_EXTENSION)
+            effective_ttl = self._get_effective_ttl(current_time)
             
             if current_time - timestamp < effective_ttl:
                 logger.debug(f"Cache exact hit for {operation_type} hash {exact_key[:8]}")
@@ -113,8 +120,7 @@ class SemanticOperatorCache:
                 for cache_key in self._similarity_index[similarity_key]:
                     if cache_key in self._cache:
                         cached_value, timestamp = self._cache[cache_key]
-                        current_time = time.time()
-                        if current_time - timestamp < self.ttl_seconds:
+                        if current_time - timestamp < effective_ttl:  # Reuse calculated TTL
                             logger.debug(f"Cache similarity hit for {operation_type} hash {cache_key[:8]}")
                             return cached_value
                 
@@ -147,10 +153,11 @@ class SemanticOperatorCache:
     def _cleanup_expired_entries(self) -> None:
         """Clean up expired cache entries to manage memory usage."""
         current_time = time.time()
+        effective_ttl = self._get_effective_ttl(current_time)
         expired_keys = []
         
         for key, (_, timestamp) in self._cache.items():
-            if current_time - timestamp >= self.ttl_seconds:
+            if current_time - timestamp >= effective_ttl:
                 expired_keys.append(key)
         
         for key in expired_keys:

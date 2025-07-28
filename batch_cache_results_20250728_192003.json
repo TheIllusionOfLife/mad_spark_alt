@@ -1,0 +1,74 @@
+{
+  "problem": "How can we reduce food waste in urban areas?",
+  "context": "Focus on practical, implementable solutions",
+  "execution_time": 108.92597603797913,
+  "generations": 4,
+  "llm_cost": 0.0022373999999999996,
+  "metrics": {
+    "fitness_improvement_percent": 12.805488418903336,
+    "initial_best_fitness": 0.38,
+    "final_best_fitness": 0.4286608559918327,
+    "initial_avg_fitness": 0.33999999999999997,
+    "final_avg_fitness": 0.38454622916000253,
+    "best_fitness_generation": 3,
+    "diversity_trend": [
+      0.8910510791310461,
+      0.4112369585515364,
+      0.6783064504570171,
+      0.8707098996055591
+    ],
+    "fitness_trend": [
+      0.38,
+      0.40766737709576584,
+      0.4231894355312623,
+      0.4286608559918327
+    ],
+    "total_ideas_evaluated": 17,
+    "semantic_operators_enabled": true,
+    "semantic_mutations": 0,
+    "semantic_crossovers": 4,
+    "traditional_mutations": 1,
+    "traditional_crossovers": 2,
+    "semantic_llm_calls": 4,
+    "cache_stats": {
+      "hits": 1,
+      "misses": 16,
+      "evictions": 0,
+      "hit_rate": 0.058823529411764705,
+      "size": 15
+    },
+    "total_evaluations": 17
+  },
+  "best_ideas": [
+    {
+      "content": "An \"Integrated Neighborhood Resource Network\" where the \"Community Food Share Hubs\" function as multi-purpose physical nodes, supported critically by an expanded digital platform. This platform would enable the exchange of not only surplus food but also other valuable community resources like shared tools, excess garden produce, or gently used household goods. These hubs would thus become central points for diversified resource circularity and mutual aid, significantly strengthening overall neighborhood resilience and reducing various forms of waste.",
+      "fitness_score": 0.4286608559918327,
+      "generation": 2,
+      "thinking_method": "abduction"
+    },
+    {
+      "content": "Alternative combination of parent ideas",
+      "fitness_score": 0.39504231391538325,
+      "generation": 3,
+      "thinking_method": "abduction"
+    },
+    {
+      "content": "An Integrated Neighborhood Resource Network where a robust digital platform is the critical operational backbone, enabling hyper-efficient matching and tracking of diverse resources (food, tools, goods) across all Community Food Share Hubs, which serve as smart, accessible physical points for automated or user-driven exchange, maximizing circularity and data-informed waste reduction.",
+      "fitness_score": 0.37984837876479155,
+      "generation": 3,
+      "thinking_method": "abduction"
+    },
+    {
+      "content": "A network of \"Smart Neighborhood Resource Hubs\" combining temperature-controlled food sharing stations with dedicated sections for circulating shared tools, garden produce, and gently used household goods. Each hub, volunteer-managed and digitally integrated, serves as a central, accessible point for comprehensive resource circularity, drastically reducing diverse waste streams while bolstering local community",
+      "fitness_score": 0.37478373371459434,
+      "generation": 3,
+      "thinking_method": "abduction"
+    },
+    {
+      "content": "An Integrated Neighborhood Resource Network centered on Community Food Share Hubs as vibrant, multi-purpose physical nodes, where an intuitive digital platform provides seamless support for resource discovery, scheduling, and community engagement, amplifying the hubs' capacity for diversified resource circularity and mutual aid by connecting more neighbors and reducing various forms of waste.",
+      "fitness_score": 0.344395863413411,
+      "generation": 3,
+      "thinking_method": "abduction"
+    }
+  ]
+}

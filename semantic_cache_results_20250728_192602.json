@@ -1,0 +1,74 @@
+{
+  "problem": "How can we reduce food waste in urban areas?",
+  "context": "Focus on practical, implementable solutions",
+  "execution_time": 58.047510862350464,
+  "generations": 4,
+  "llm_cost": 0.0022010999999999997,
+  "metrics": {
+    "fitness_improvement_percent": 28.963849272904834,
+    "initial_best_fitness": 0.35000000000000003,
+    "final_best_fitness": 0.45137347245516696,
+    "initial_avg_fitness": 0.316,
+    "final_avg_fitness": 0.42821418753138574,
+    "best_fitness_generation": 3,
+    "diversity_trend": [
+      0.8926037019750913,
+      0.5515151515151515,
+      0.8345881369528734,
+      0.5385778424948428
+    ],
+    "fitness_trend": [
+      0.35000000000000003,
+      0.38782773946851434,
+      0.3942428703611986,
+      0.45137347245516696
+    ],
+    "total_ideas_evaluated": 17,
+    "semantic_operators_enabled": true,
+    "semantic_mutations": 0,
+    "semantic_crossovers": 2,
+    "traditional_mutations": 3,
+    "traditional_crossovers": 4,
+    "semantic_llm_calls": 2,
+    "cache_stats": {
+      "hits": 8,
+      "misses": 15,
+      "evictions": 0,
+      "hit_rate": 0.34782608695652173,
+      "size": 9
+    },
+    "total_evaluations": 17
+  },
+  "best_ideas": [
+    {
+      "content": "Policy Gaps & Regulatory Ambiguity A core systemic barrier is the *lack of comprehensive, harmonized urban policies and clear regulatory frameworks* that standardize food donation liability protection, mandate or incentivize food waste reporting, promote source separation of organics, and encourage innovative circular economy models. This regulatory ambiguity and absence of clear mandates create uncertainty and discourage investment in waste reduction strategies.",
+      "fitness_score": 0.45137347245516696,
+      "generation": 0,
+      "thinking_method": "abduction"
+    },
+    {
+      "content": "Policy Gaps & Regulatory Ambiguity A core systemic barrier is the *lack of comprehensive, harmonized urban policies and clear regulatory frameworks* that standardize food donation liability protection, mandate or incentivize food waste reporting, promote source separation of organics, and encourage innovative circular economy models. This regulatory ambiguity and absence of clear mandates create uncertainty and discourage investment in waste reduction strategies.",
+      "fitness_score": 0.45137347245516696,
+      "generation": 0,
+      "thinking_method": "abduction"
+    },
+    {
+      "content": "Policy Gaps & Regulatory Ambiguity A core systemic barrier is the *lack of comprehensive, harmonized urban policies and clear regulatory frameworks* that standardize food donation liability protection, mandate or incentivize food waste reporting, promote source separation of organics, and encourage innovative circular economy models. This regulatory ambiguity and absence of clear mandates create uncertainty and discourage investment in waste reduction strategies.",
+      "fitness_score": 0.45137347245516696,
+      "generation": 0,
+      "thinking_method": "abduction"
+    },
+    {
+      "content": "Implement a progressive regulatory framework that incentivizes source separation of organics through clear urban mandates and supports innovative circular economy models via dedicated policy sandboxes, directly addressing the uncertainty that currently discourages investment in new waste management strategies.",
+      "fitness_score": 0.39347526014571393,
+      "generation": 2,
+      "thinking_method": "abduction"
+    },
+    {
+      "content": "Harmonized urban policies providing clear liability protection and standardized reporting mandates for food donations and waste, specifically designed to de-risk and incentivize the emergence of agile, third-party logistics and processing hubs that can efficiently manage and redistribute excess or cosmetically imperfect inventory from rigid retail supply chains, fostering new circular economy models.",
+      "fitness_score": 0.39347526014571393,
+      "generation": 2,
+      "thinking_method": "abduction"
+    }
+  ]
+}

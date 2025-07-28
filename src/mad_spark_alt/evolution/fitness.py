@@ -67,38 +67,65 @@ class FitnessEvaluator:
         config: EvolutionConfig,
         context: Optional[str] = None,
     ) -> List[IndividualFitness]:
-        """Evaluate population in parallel with concurrency control."""
-        semaphore = asyncio.Semaphore(config.max_parallel_evaluations)
-
-        async def evaluate_with_semaphore(idea: GeneratedIdea) -> IndividualFitness:
-            async with semaphore:
-                return await self.evaluate_individual(idea, config, context)
-
-        tasks = [evaluate_with_semaphore(idea) for idea in population]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Handle any exceptions
+        """Evaluate population in parallel with batch optimization."""
+        # Use batch evaluation for better performance
+        batch_size = min(5, config.max_parallel_evaluations)  # Batch up to 5 at a time
+        
+        # Extract hypotheses from ideas
+        hypotheses = [idea.content for idea in population]
+        
+        # Perform batch evaluation
+        evaluations = await self.unified_evaluator.evaluate_multiple(
+            hypotheses=hypotheses,
+            context=context or population[0].generation_prompt if population else "",
+            core_question=population[0].metadata.get("core_question") if population else None,
+            parallel=True,
+            batch_size=batch_size
+        )
+        
+        # Convert evaluations to fitness results
         fitness_results: List[IndividualFitness] = []
-        for i, result in enumerate(results):
-            # Check if result is an exception (more robust for Python 3.13)
-            is_exception = isinstance(result, BaseException)
-
-            if is_exception:
-                logger.error(f"Error evaluating idea {i}: {result}")
-                # Create default fitness for failed evaluations
+        for idea, evaluation in zip(population, evaluations):
+            try:
+                fitness = IndividualFitness(
+                    idea=idea,
+                    # Map unified scores to evolution fitness fields
+                    creativity_score=evaluation.scores.get("novelty", 0.0),
+                    diversity_score=(
+                        evaluation.scores.get("novelty", 0.0)
+                        + evaluation.scores.get("impact", 0.0)
+                    )
+                    / 2,  # Combined metric
+                    quality_score=evaluation.scores.get("feasibility", 0.0),
+                    overall_fitness=evaluation.overall_score,
+                    evaluation_metadata={
+                        "unified_scores": evaluation.scores,
+                        "unified_explanations": evaluation.explanations,
+                        "llm_cost": evaluation.metadata.get("llm_cost", 0.0),
+                        "batch_evaluation": evaluation.metadata.get("batch_evaluation", False),
+                        "evaluation_criteria": {
+                            "novelty": evaluation.scores.get("novelty", 0.0),
+                            "impact": evaluation.scores.get("impact", 0.0),
+                            "cost": evaluation.scores.get("cost", 0.0),
+                            "feasibility": evaluation.scores.get("feasibility", 0.0),
+                            "risks": evaluation.scores.get("risks", 0.0),
+                        },
+                    },
+                )
+                fitness_results.append(fitness)
+            except Exception as e:
+                logger.error(f"Error converting evaluation to fitness: {e}")
                 fitness_results.append(
                     IndividualFitness(
-                        idea=population[i],
+                        idea=idea,
                         creativity_score=0.0,
                         diversity_score=0.0,
                         quality_score=0.0,
                         overall_fitness=0.0,
-                        evaluation_metadata={"error": str(result)},
+                        evaluation_metadata={"error": str(e)},
                     )
                 )
-            elif isinstance(result, IndividualFitness):
-                fitness_results.append(result)
-
+        
         return fitness_results
 
     async def _evaluate_sequential(
@@ -107,14 +134,47 @@ class FitnessEvaluator:
         config: EvolutionConfig,
         context: Optional[str] = None,
     ) -> List[IndividualFitness]:
-        """Evaluate population sequentially."""
-        fitness_results = []
-        for idea in population:
+        """Evaluate population sequentially with batch optimization."""
+        # Even in sequential mode, we can still batch the LLM calls
+        batch_size = 5  # Process 5 at a time for efficiency
+        
+        # Extract hypotheses from ideas
+        hypotheses = [idea.content for idea in population]
+        
+        # Perform batch evaluation
+        evaluations = await self.unified_evaluator.evaluate_multiple(
+            hypotheses=hypotheses,
+            context=context or population[0].generation_prompt if population else "",
+            core_question=population[0].metadata.get("core_question") if population else None,
+            parallel=False,  # Sequential processing
+            batch_size=batch_size
+        )
+        
+        # Convert evaluations to fitness results
+        fitness_results: List[IndividualFitness] = []
+        for idea, evaluation in zip(population, evaluations):
             try:
-                fitness = await self.evaluate_individual(idea, config, context)
+                fitness = IndividualFitness(
+                    idea=idea,
+                    creativity_score=evaluation.scores.get("novelty", 0.0),
+                    diversity_score=(
+                        evaluation.scores.get("novelty", 0.0)
+                        + evaluation.scores.get("impact", 0.0)
+                    )
+                    / 2,
+                    quality_score=evaluation.scores.get("feasibility", 0.0),
+                    overall_fitness=evaluation.overall_score,
+                    evaluation_metadata={
+                        "unified_scores": evaluation.scores,
+                        "unified_explanations": evaluation.explanations,
+                        "llm_cost": evaluation.metadata.get("llm_cost", 0.0),
+                        "batch_evaluation": evaluation.metadata.get("batch_evaluation", False),
+                        "evaluation_criteria": evaluation.scores,
+                    },
+                )
                 fitness_results.append(fitness)
             except Exception as e:
-                logger.error(f"Error evaluating idea: {e}")
+                logger.error(f"Error converting evaluation to fitness: {e}")
                 fitness_results.append(
                     IndividualFitness(
                         idea=idea,
