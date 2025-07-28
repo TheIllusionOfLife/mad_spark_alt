@@ -84,11 +84,11 @@ uv run python qadi.py "Your question here"  # Simple version
 
 ### API Key Required for LLM Features
 ```bash
-# The project stores the API key in .env file (NOT in version control):
-# /Users/yuyamukai/dev/mad_spark_alt/.env
+# The project stores the API key in .env file (NOT in version control) at the project root:
+# .env
 # 
 # To use it in your session:
-source /Users/yuyamukai/dev/mad_spark_alt/.env
+source .env
 
 # The .env file should contain:
 # GOOGLE_API_KEY="your-actual-key-here"

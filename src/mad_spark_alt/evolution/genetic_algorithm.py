@@ -269,6 +269,73 @@ class GeneticAlgorithm:
             error_message=None,
         )
 
+    async def _apply_mutation_with_smart_selection(
+        self,
+        offspring: GeneratedIdea,
+        avg_parent_fitness: float,
+        population_diversity: float,
+        generation: int,
+        config: EvolutionConfig,
+        context: Optional[str] = None,
+    ) -> Tuple[GeneratedIdea, Dict[str, int]]:
+        """
+        Apply mutation to an offspring with smart semantic selection.
+
+        Args:
+            offspring: The offspring idea to mutate
+            avg_parent_fitness: Average fitness of the parents
+            population_diversity: Current population diversity
+            generation: Current generation number
+            config: Evolution configuration
+            context: Optional context for mutation
+
+        Returns:
+            Tuple of (mutated offspring, mutation statistics)
+        """
+        mutation_stats = {
+            'semantic_mutations': 0,
+            'traditional_mutations': 0,
+            'semantic_llm_calls': 0,
+        }
+
+        # Create a temporary IndividualFitness for smart selection
+        temp_individual = IndividualFitness(
+            idea=offspring,
+            overall_fitness=avg_parent_fitness
+        )
+
+        # Determine whether to use semantic mutation
+        use_semantic = (
+            self.semantic_mutation_operator is not None and
+            self.smart_selector is not None and
+            self.smart_selector.should_use_semantic_mutation(
+                temp_individual, population_diversity, generation
+            )
+        )
+
+        # Apply appropriate mutation type
+        if use_semantic:
+            assert self.semantic_mutation_operator is not None
+            mutated_offspring = await self.semantic_mutation_operator.mutate(
+                offspring, config.mutation_rate, context
+            )
+            # Only count if mutation actually occurred (content changed)
+            if mutated_offspring.content != offspring.content:
+                mutation_stats['semantic_mutations'] = 1
+                mutation_stats['semantic_llm_calls'] = 1
+                self.semantic_operator_metrics['semantic_mutations'] += 1
+                self.semantic_operator_metrics['semantic_llm_calls'] += 1
+        else:
+            mutated_offspring = await self.mutation_operator.mutate(
+                offspring, config.mutation_rate, context
+            )
+            # Only count if mutation actually occurred (content changed)
+            if mutated_offspring.content != offspring.content:
+                mutation_stats['traditional_mutations'] = 1
+                self.semantic_operator_metrics['traditional_mutations'] += 1
+
+        return mutated_offspring, mutation_stats
+
     async def evolve(self, request: EvolutionRequest) -> EvolutionResult:
         """
         Run the genetic evolution process.
@@ -562,79 +629,23 @@ class GeneticAlgorithm:
                 # If no crossover, just copy parents
                 offspring1, offspring2 = parents[0].idea, parents[1].idea
 
-            # Mutation for offspring1 (with smart semantic selection)
-            # Create a temporary IndividualFitness for smart selection
-            # Use average fitness from parents as initial estimate
+            # Use average fitness from parents as initial estimate for offspring
             avg_parent_fitness = (parents[0].overall_fitness + parents[1].overall_fitness) / 2
-            temp_individual = IndividualFitness(
-                idea=offspring1,
-                overall_fitness=avg_parent_fitness
-            )
-            use_semantic = (
-                self.semantic_mutation_operator is not None and
-                self.smart_selector is not None and
-                self.smart_selector.should_use_semantic_mutation(
-                    temp_individual, population_diversity, generation
-                )
-            )
-            
-            if use_semantic:
-                assert self.semantic_mutation_operator is not None
-                mutated_offspring1 = await self.semantic_mutation_operator.mutate(
-                    offspring1, config.mutation_rate, context
-                )
-                # Only count if mutation actually occurred (content changed)
-                if mutated_offspring1.content != offspring1.content:
-                    semantic_mutations += 1
-                    semantic_llm_calls += 1  # Each mutation makes 1 LLM call
-                    self.semantic_operator_metrics['semantic_mutations'] += 1
-                    self.semantic_operator_metrics['semantic_llm_calls'] += 1
-                offspring1 = mutated_offspring1
-            else:
-                mutated_offspring1 = await self.mutation_operator.mutate(
-                    offspring1, config.mutation_rate, context
-                )
-                # Only count if mutation actually occurred (content changed)
-                if mutated_offspring1.content != offspring1.content:
-                    traditional_mutations += 1
-                    self.semantic_operator_metrics['traditional_mutations'] += 1
-                offspring1 = mutated_offspring1
 
-            # Mutation for offspring2 (with smart semantic selection)
-            # Create a temporary IndividualFitness for smart selection
-            temp_individual2 = IndividualFitness(
-                idea=offspring2,
-                overall_fitness=avg_parent_fitness  # Use same average as offspring1
+            # Apply mutation to both offspring
+            offspring1, mutation_stats1 = await self._apply_mutation_with_smart_selection(
+                offspring1, avg_parent_fitness, population_diversity, generation, config, context
             )
-            use_semantic2 = (
-                self.semantic_mutation_operator is not None and
-                self.smart_selector is not None and
-                self.smart_selector.should_use_semantic_mutation(
-                    temp_individual2, population_diversity, generation
-                )
+            semantic_mutations += mutation_stats1['semantic_mutations']
+            traditional_mutations += mutation_stats1['traditional_mutations']
+            semantic_llm_calls += mutation_stats1['semantic_llm_calls']
+
+            offspring2, mutation_stats2 = await self._apply_mutation_with_smart_selection(
+                offspring2, avg_parent_fitness, population_diversity, generation, config, context
             )
-            
-            if use_semantic2:
-                assert self.semantic_mutation_operator is not None
-                mutated_offspring2 = await self.semantic_mutation_operator.mutate(
-                    offspring2, config.mutation_rate, context
-                )
-                # Only count if mutation actually occurred (content changed)
-                if mutated_offspring2.content != offspring2.content:
-                    semantic_mutations += 1
-                    semantic_llm_calls += 1  # Each mutation makes 1 LLM call
-                    self.semantic_operator_metrics['semantic_mutations'] += 1
-                    self.semantic_operator_metrics['semantic_llm_calls'] += 1
-                offspring2 = mutated_offspring2
-            else:
-                mutated_offspring2 = await self.mutation_operator.mutate(
-                    offspring2, config.mutation_rate, context
-                )
-                # Only count if mutation actually occurred (content changed)
-                if mutated_offspring2.content != offspring2.content:
-                    traditional_mutations += 1
-                    self.semantic_operator_metrics['traditional_mutations'] += 1
-                offspring2 = mutated_offspring2
+            semantic_mutations += mutation_stats2['semantic_mutations']
+            traditional_mutations += mutation_stats2['traditional_mutations']
+            semantic_llm_calls += mutation_stats2['semantic_llm_calls']
 
             # Add generation info to metadata
             offspring1.metadata["generation"] = generation + 1

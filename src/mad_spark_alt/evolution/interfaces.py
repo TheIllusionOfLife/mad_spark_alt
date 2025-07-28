@@ -103,9 +103,8 @@ class EvolutionConfig:
         if self.tournament_size > self.population_size:
             return False
         # Max parallel evaluations should not exceed population size
-        # But if population is very small, we adjust it automatically
         if self.max_parallel_evaluations > self.population_size:
-            self.max_parallel_evaluations = min(self.max_parallel_evaluations, self.population_size)
+            return False
         
         # Validate semantic operator config
         if self.use_semantic_operators:
