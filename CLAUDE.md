@@ -375,3 +375,12 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Argument Validation**: Validate mutually exclusive arguments with helpful error messages
 - **DRY Defaults**: Use `parser.get_default()` instead of hardcoding default values
 - **User Guidance**: Provide actionable error messages that suggest corrections
+
+### Semantic Evolution Operators (PR #56)
+- **Smart Selection**: Uses population diversity and individual fitness to decide between semantic/traditional operators
+- **LLM-Powered Mutation**: Creates contextually meaningful variations instead of random changes
+- **Caching Layer**: Prevents redundant LLM calls for identical operations
+- **Diversity Calculation**: Uses Jaccard similarity on idea content instead of unreliable LLM metadata
+- **Operator Metrics**: Track semantic vs traditional operator usage for transparency
+- **AsyncMock Testing**: Use `new=AsyncMock(return_value=...)` not `new_callable=AsyncMock`
+- **Config Validation**: EvolutionConfig.validate() prevents max_parallel_evaluations > population_size
