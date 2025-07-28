@@ -104,8 +104,8 @@ def calculate_evolution_timeout(generations: int, population: int) -> float:
     Returns:
         Timeout in seconds (min 120s, max 600s)
     """
-    base_timeout = 120.0  # Minimum 2 minutes (increased from 1)
-    estimated_time = generations * population * 15  # 15s per evaluation estimate (increased from 10)
+    base_timeout = 120.0  # Minimum 2 minutes
+    estimated_time = generations * population * 20  # 20s per evaluation estimate (increased from 15)
     return min(max(base_timeout, estimated_time), 600.0)  # Max 10 minutes
 
 
