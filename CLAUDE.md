@@ -384,3 +384,31 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Operator Metrics**: Track semantic vs traditional operator usage for transparency
 - **AsyncMock Testing**: Use `new=AsyncMock(return_value=...)` not `new_callable=AsyncMock`
 - **Config Validation**: EvolutionConfig.validate() prevents max_parallel_evaluations > population_size
+
+### Complex Integration Testing Strategy (PR #56 Learnings)
+**Problem**: PR #56 took 4 days with 55% fix commits despite following TDD
+**Root Cause**: Mock-reality divergence and insufficient integration testing
+**Solution**: Enhanced testing strategy for complex integrations
+
+**Early Integration Testing**:
+- Write integration tests alongside unit tests from the start
+- Create "smoke tests" combining real components before extensive implementation
+- Test component interactions, not just individual behaviors
+- Run integration tests during development, not just CI
+
+**Realistic Test Data**:
+- Use production-like responses in ALL mocks (copy actual API responses)
+- Include ALL required fields in mock objects (e.g., LLMResponse needs provider, model)
+- Test with real response formats (LLM markdown, not simplified strings)
+- AsyncMock pattern: `new=AsyncMock(return_value=...)` not `new_callable=AsyncMock`
+
+**Configuration Matrix Testing**:
+- Test ALL valid parameter combinations and boundaries
+- Test invalid configurations to ensure proper validation
+- Check for dead code from redundant validation
+- Example: If config.validate() prevents X, don't add code to handle X
+
+**Commit Pattern Analysis**:
+- Many fix commits (>50% of total) indicate insufficient initial test coverage
+- Should see pattern: 8 test commits → 10 feature commits → 2-3 fix commits
+- Not: 8 test commits → 10 feature commits → 22 fix commits
