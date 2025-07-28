@@ -401,8 +401,8 @@ class CachedFitnessEvaluator:
                 f"Hit rate: {stats['hit_rate']:.2%}"
             )
         
-        # Return all results in original order
-        return [r for r in cached_results if r is not None]
+        # Return all results in original order (all should be non-None at this point)
+        return cached_results
 
     async def calculate_population_diversity(
         self, population: List[IndividualFitness]

@@ -333,13 +333,16 @@ class SimpleQADIOrchestrator:
                     if hypothesis_match:
                         # Save previous hypothesis if we have one
                         if current_index is not None and current_hypothesis.strip():
-                            hypotheses.append(current_hypothesis.strip())
+                            if len(current_hypothesis.strip()) > MIN_HYPOTHESIS_LENGTH:
+                                hypotheses.append(current_hypothesis.strip())
 
                         # Start new hypothesis
                         current_index = int(hypothesis_match.group(1))
                         current_hypothesis = hypothesis_match.group(2).strip()
                         
-                        # Remove trailing ** if present
+                        # Remove markdown formatting (both leading and trailing **)
+                        if current_hypothesis.startswith("**"):
+                            current_hypothesis = current_hypothesis[2:].strip()
                         if current_hypothesis.endswith("**"):
                             current_hypothesis = current_hypothesis[:-2].strip()
                         
@@ -356,7 +359,8 @@ class SimpleQADIOrchestrator:
 
                 # Don't forget the last hypothesis
                 if current_index is not None and current_hypothesis.strip():
-                    hypotheses.append(current_hypothesis.strip())
+                    if len(current_hypothesis.strip()) > MIN_HYPOTHESIS_LENGTH:
+                        hypotheses.append(current_hypothesis.strip())
 
                 # Log what was extracted
                 logger.debug("Extracted %d hypotheses: %s", len(hypotheses), hypotheses)
@@ -416,7 +420,9 @@ class SimpleQADIOrchestrator:
                     
                     if not matched and current_hypothesis:
                         # Continue building current hypothesis (multi-line content)
-                        current_hypothesis += " " + line
+                        # But stop if we hit lines that look like explanatory text
+                        if not line.startswith(("These", "This", "The above", "Note:")):
+                            current_hypothesis += " " + line
                 
                 # Don't forget the last hypothesis
                 if current_hypothesis.strip() and len(current_hypothesis.strip()) > MIN_HYPOTHESIS_LENGTH:

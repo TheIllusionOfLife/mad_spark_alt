@@ -11,12 +11,13 @@ import tracemalloc
 import statistics
 from typing import List, Dict, Any
 import pytest
+from unittest.mock import AsyncMock
 from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
 from mad_spark_alt.evolution.genetic_algorithm import GeneticAlgorithm
 from mad_spark_alt.evolution.interfaces import EvolutionRequest, EvolutionConfig
-from mad_spark_alt.evolution.semantic_operators import SemanticMutationOperator, SemanticCrossoverOperator
-from mad_spark_alt.evolution.semantic_cache import SemanticOperatorCache
+from mad_spark_alt.evolution.semantic_operators import BatchSemanticMutationOperator, SemanticCrossoverOperator, SemanticOperatorCache
 from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
+from mad_spark_alt.core.llm_provider import GoogleProvider, LLMResponse, LLMProvider
 
 
 class PerformanceBenchmark:
@@ -113,7 +114,7 @@ class TestAlgorithmPerformance:
         cached_result = "Enhanced solution: Implement solar panel networks with community energy sharing"
         
         with PerformanceBenchmark("cache-set") as benchmark:
-            cache.set(test_content, cached_result)
+            cache.put(test_content, cached_result)
         
         assert benchmark.duration < 0.001  # Cache set should be very fast (<1ms)
         
@@ -130,7 +131,7 @@ class TestAlgorithmPerformance:
         
         # Add multiple cache entries
         for i in range(20):
-            cache.set(f"content_{i}", f"result_{i}")
+            cache.put(f"content_{i}", f"result_{i}")
         
         with PerformanceBenchmark("cache-bulk-operations") as benchmark:
             for i in range(total_requests):
@@ -165,7 +166,7 @@ class TestAlgorithmPerformance:
             
             # Add many entries to test memory scaling
             for i in range(100):
-                cache.set(f"key_{i}", f"value_{i}" * 100)  # 100-char values
+                cache.put(f"key_{i}", f"value_{i}" * 100)  # 100-char values
         
         # Cache should use reasonable memory (less than 1MB for 100 entries)
         assert benchmark.peak_memory_used < 1024 * 1024, f"Cache uses too much memory: {benchmark.peak_memory_used} bytes"
@@ -207,6 +208,20 @@ class TestAlgorithmPerformance:
 class TestSemanticOperatorPerformance:
     """Performance tests for semantic evolution operators."""
 
+    @pytest.fixture
+    def mock_llm_provider(self):
+        """Create a mock LLM provider."""
+        provider = AsyncMock(spec=GoogleProvider)
+        provider.generate = AsyncMock()
+        provider.generate.return_value = LLMResponse(
+            content="Optimized version of the idea",
+            provider=LLMProvider.GOOGLE,
+            model="gemini-2.5-flash",
+            usage={"prompt_tokens": 100, "completion_tokens": 50},
+            cost=0.001
+        )
+        return provider
+
     def create_test_ideas(self, count: int) -> List[GeneratedIdea]:
         """Create test ideas for performance testing."""
         ideas = []
@@ -232,11 +247,11 @@ class TestSemanticOperatorPerformance:
         
         return ideas
 
-    def test_semantic_mutation_performance(self):
+    def test_semantic_mutation_performance(self, mock_llm_provider):
         """Test semantic mutation operator performance."""
         ideas = self.create_test_ideas(10)
         cache = SemanticOperatorCache()
-        mutation_operator = SemanticMutationOperator(cache)
+        mutation_operator = BatchSemanticMutationOperator(mock_llm_provider, cache_ttl=3600)
         
         durations = []
         
@@ -246,7 +261,7 @@ class TestSemanticOperatorPerformance:
                 # Mock the actual LLM call for performance testing
                 # In real implementation, this would call LLM
                 mutated_content = f"[MUTATED] {idea.content}"
-                cache.set(idea.content, mutated_content)
+                cache.put(idea.content, mutated_content)
             
             durations.append(benchmark.duration)
         
@@ -270,7 +285,7 @@ class TestSemanticOperatorPerformance:
                     cache_key = idea.content
                     if not cache.get(cache_key):
                         # Simulate LLM call result
-                        cache.set(cache_key, f"[BATCH_MUTATED] {idea.content}")
+                        cache.put(cache_key, f"[BATCH_MUTATED] {idea.content}")
         
         # Batch operations should be efficient
         assert benchmark.duration < 0.1, f"Batch operations too slow: {benchmark.duration}s"
@@ -285,7 +300,7 @@ class TestSemanticOperatorPerformance:
         # Fill cache with entries
         with PerformanceBenchmark("cache-fill") as benchmark:
             for i in range(50):
-                cache.set(f"key_{i}", f"value_{i}")
+                cache.put(f"key_{i}", f"value_{i}")
         
         assert benchmark.duration < 0.1, "Cache filling too slow"
         
@@ -345,7 +360,7 @@ class TestPerformanceRegression:
         
         with PerformanceBenchmark("cache-operations") as benchmark:
             for i in range(100):
-                cache.set(f"key_{i}", f"value_{i}")
+                cache.put(f"key_{i}", f"value_{i}")
                 cache.get(f"key_{i}")
         
         avg_time_per_op = benchmark.duration / 200  # 100 sets + 100 gets
@@ -369,7 +384,7 @@ class TestPerformanceRegression:
             
             # Simulate processing
             for idea in ideas:
-                cache.set(f"cycle_{cycle}_{idea.content[:20]}", f"processed_{idea.content}")
+                cache.put(f"cycle_{cycle}_{idea.content[:20]}", f"processed_{idea.content}")
                 cache.get(f"cycle_{cycle}_{idea.content[:20]}")
             
             # Clear references
