@@ -1,0 +1,74 @@
+{
+  "problem": "How can we reduce food waste in urban areas?",
+  "context": "Focus on practical, implementable solutions",
+  "execution_time": 142.61656999588013,
+  "generations": 4,
+  "llm_cost": 0.0017096999999999998,
+  "metrics": {
+    "fitness_improvement_percent": 9.189077885521138,
+    "initial_best_fitness": 0.41000000000000003,
+    "final_best_fitness": 0.4476752193306367,
+    "initial_avg_fitness": 0.306,
+    "final_avg_fitness": 0.39584339836646676,
+    "best_fitness_generation": 3,
+    "diversity_trend": [
+      0.7900090556056614,
+      0.9055413388464707,
+      0.5265143393192174,
+      0.6722688946309614
+    ],
+    "fitness_trend": [
+      0.41000000000000003,
+      0.41387280510729474,
+      0.4334690889636984,
+      0.4476752193306367
+    ],
+    "total_ideas_evaluated": 17,
+    "semantic_operators_enabled": true,
+    "semantic_mutations": 0,
+    "semantic_crossovers": 4,
+    "traditional_mutations": 3,
+    "traditional_crossovers": 2,
+    "semantic_llm_calls": 4,
+    "cache_stats": {
+      "hits": 4,
+      "misses": 13,
+      "evictions": 0,
+      "hit_rate": 0.23529411764705882,
+      "size": 13
+    },
+    "total_evaluations": 17
+  },
+  "best_ideas": [
+    {
+      "content": "Local Infrastructure & Coordination Gaps** Significant drivers of urban food waste across the **retail and food service stages** stem from the absence of robust, readily accessible local food recovery and redistribution infrastructures, coupled with a lack of coordinated community-level initiatives that effectively connect surplus food generators (e.g., restaurants, supermarkets) with recipient organizations or consumers before food spoils.",
+      "fitness_score": 0.4476752193306367,
+      "generation": 0,
+      "thinking_method": "abduction"
+    },
+    {
+      "content": "Develop a replicable community food recovery model, leveraging standardized operational toolkits and a centralized data platform, to empower local groups in coordinating efficient collection and redistribution of surplus food from urban retail and food service generators to consumers and charities, ensuring scalable waste reduction.",
+      "fitness_score": 0.4027815131093925,
+      "generation": 3,
+      "thinking_method": "abduction"
+    },
+    {
+      "content": "Develop a replicable community food recovery model, leveraging standardized operational toolkits and a centralized data platform, to empower local groups in coordinating efficient collection and redistribution of surplus food from urban retail and food service generators to consumers and charities, ensuring scalable waste reduction. Scalability should be a key consideration.",
+      "fitness_score": 0.3821260508986544,
+      "generation": 3,
+      "thinking_method": "abduction"
+    },
+    {
+      "content": "Establish a scalable, digitally-integrated logistics network featuring shared cold chain infrastructure and real-time matching, enabling rapid, widespread recovery of surplus food from retail and food service to efficiently redistribute to diverse recipient organizations before spoilage.",
+      "fitness_score": 0.3733171042468251,
+      "generation": 3,
+      "thinking_method": "abduction"
+    },
+    {
+      "content": "Establish a scalable, digitally-integrated logistics network featuring shared cold chain infrastructure and real-time matching, enabling rapid, widespread recovery of surplus food from retail and food service to efficiently redistribute to diverse recipient organizations before spoilage.",
+      "fitness_score": 0.3733171042468251,
+      "generation": 3,
+      "thinking_method": "abduction"
+    }
+  ]
+}
