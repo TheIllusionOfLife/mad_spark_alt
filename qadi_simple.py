@@ -156,7 +156,8 @@ async def run_qadi_analysis(
     verbose: bool = False,
     evolve: bool = False,
     generations: int = 3,
-    population: int = 12
+    population: int = 12,
+    traditional: bool = False
 ) -> None:
     """Run QADI analysis with simplified Phase 1 and optional evolution."""
 
@@ -329,13 +330,18 @@ async def run_qadi_analysis(
                     SelectionStrategy,
                 )
                 
-                # Disable semantic operators by default in qadi_simple for performance
-                # Semantic operators can make evolution 10x slower due to API calls
-                llm_provider = None
-                print("🧬 Semantic evolution operators: DISABLED (using traditional operators)")
-                print("   (Semantic operators disabled by default for better performance)")
+                # Get LLM provider for semantic operators unless --traditional is used
+                if traditional:
+                    llm_provider = None
+                    print("🧬 Evolution operators: TRADITIONAL (faster but less creative)")
+                    print("   (Use without --traditional for semantic operators)")
+                else:
+                    from mad_spark_alt.core.llm_provider import get_google_provider
+                    llm_provider = get_google_provider()
+                    print("🧬 Evolution operators: SEMANTIC (LLM-powered for better creativity)")
+                    print("   (Use --traditional for faster traditional operators)")
                 
-                # Create genetic algorithm instance without LLM provider
+                # Create genetic algorithm instance with or without LLM provider
                 ga = GeneticAlgorithm(
                     use_cache=True,
                     cache_ttl=3600,
@@ -608,6 +614,9 @@ def main() -> None:
     parser.add_argument(
         "--population", "-p", type=int, default=10, help="Population size for evolution (with --evolve)"
     )
+    parser.add_argument(
+        "--traditional", action="store_true", help="Use traditional operators instead of semantic operators (with --evolve)"
+    )
 
     args = parser.parse_args()
 
@@ -674,7 +683,8 @@ def main() -> None:
             verbose=args.verbose,
             evolve=args.evolve,
             generations=args.generations,
-            population=args.population
+            population=args.population,
+            traditional=args.traditional
         )
 
     # Run analysis

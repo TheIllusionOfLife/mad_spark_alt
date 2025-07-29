@@ -546,6 +546,11 @@ def _summary_to_dict(summary: EvaluationSummary) -> Dict[str, Any]:
     help="Temperature for hypothesis generation (0.0-2.0, default: 0.8)",
 )
 @click.option("--output", "-o", type=click.Path(), help="Save results to file")
+@click.option(
+    "--traditional",
+    is_flag=True,
+    help="Use traditional operators instead of semantic operators"
+)
 def evolve(
     problem: str,
     context: Optional[str],
@@ -554,6 +559,7 @@ def evolve(
     population: int,
     temperature: Optional[float],
     output: Optional[str],
+    traditional: bool,
 ) -> None:
     """Evolve ideas using QADI methodology + Genetic Algorithm.
 
@@ -610,7 +616,7 @@ def evolve(
     # Run the evolution pipeline
     asyncio.run(
         _run_evolution_pipeline(
-            problem, context, quick, generations, population, temperature, output
+            problem, context, quick, generations, population, temperature, output, traditional
         )
     )
 
@@ -623,6 +629,7 @@ async def _run_evolution_pipeline(
     population: int,
     temperature: Optional[float],
     output_file: Optional[str],
+    traditional: bool,
 ) -> None:
     """Run the evolution pipeline with progress tracking."""
 
@@ -668,9 +675,14 @@ async def _run_evolution_pipeline(
                 f"Evolving ideas ({generations} generations)...", total=None
             )
 
-            # Get LLM provider for semantic operators if available
-            from mad_spark_alt.core.llm_provider import get_google_provider
-            llm_provider = get_google_provider()
+            # Get LLM provider for semantic operators unless traditional is specified
+            if traditional:
+                llm_provider = None
+                console.print("[dim]🧬 Using traditional evolution operators[/dim]")
+            else:
+                from mad_spark_alt.core.llm_provider import get_google_provider
+                llm_provider = get_google_provider()
+                console.print("[dim]🧬 Using semantic evolution operators (LLM-powered)[/dim]")
             
             ga = GeneticAlgorithm(
                 use_cache=True,
