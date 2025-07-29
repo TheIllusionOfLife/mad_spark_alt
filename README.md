@@ -36,23 +36,7 @@ uv run mad_spark_alt "How can we reduce plastic waste?"
 uv run mad_spark_alt "How can we reduce plastic waste?" --evolve
 
 # Customize evolution parameters
-uv run mad_spark_alt "Your question" --evolve --generations 5 --population 10
-
-# Use traditional operators for faster processing
-uv run mad_spark_alt "Your question" --evolve --traditional
-```
-
-### Other Analysis Modes
-
-```bash
-# Simple QADI analysis with direct prompts
-uv run python qadi_simple.py "Your question here"
-
-# Multi-agent analysis with type detection
-uv run python qadi_simple_multi.py "Your question here"
-
-# Multi-perspective analysis (environmental/personal/technical/business/etc.)
-uv run python qadi_multi_perspective.py "Your question here"
+uv run mad_spark_alt "Your question" --evolve --generations 3 --population 3
 ```
 
 ### Advanced Options
@@ -61,37 +45,8 @@ uv run python qadi_multi_perspective.py "Your question here"
 # Temperature control (creativity level)
 uv run python qadi_simple.py "Your question" --temperature 1.2
 
-# Evolution with custom parameters (semantic operators by default)
-uv run python qadi_simple.py "Your question" --evolve --generations 10 --population 15
-
 # Use traditional operators for faster evolution
 uv run python qadi_simple.py "Your question" --evolve --traditional
-
-# Multi-perspective with forced perspectives
-uv run python qadi_multi_perspective.py "Your question" --perspectives environmental,technical
-
-# Note: Evolution arguments require --evolve flag
-# This will show helpful error: uv run python qadi_simple.py "question" --generations 5
-```
-
-### Example Prompts
-
-**Business**: "How can small businesses compete with large corporations?"
-**Technology**: "How can AI improve rural healthcare accessibility?"
-**Environment**: "How can cities become carbon-neutral by 2030?"
-**Creative**: "What if gravity worked differently on weekends?"
-
-### CLI Tools
-
-```bash
-# Evaluate creativity
-uv run mad-spark evaluate "The AI dreamed of electric sheep"
-
-# Compare ideas
-uv run mad-spark compare "Business communication" -r "Email" -r "AI video"
-
-# List evaluators
-uv run mad-spark list-evaluators
 ```
 
 ### Python API
@@ -117,30 +72,6 @@ asyncio.run(run_analysis())
 ```
 
 For detailed API examples and advanced usage patterns, see [DEVELOPMENT.md](DEVELOPMENT.md).
-
-## 🧬 Genetic Evolution
-
-```bash
-# Evolve ideas with semantic operators (default - more creative)
-uv run mad-spark evolve "How can we reduce food waste?"
-uv run mad-spark evolve "Climate solutions" --quick
-uv run mad-spark evolve "New product ideas" --generations 5 --population 10
-
-# Use traditional operators for faster processing
-uv run mad-spark evolve "Innovation ideas" --traditional
-```
-
-### How It Works
-
-1. **Initial**: QADI generates starting hypotheses
-2. **Fitness**: 5-criteria scoring (Novelty 20%, Impact 30%, Cost 20%, Feasibility 20%, Risks 10%)
-3. **Selection**: Best hypotheses breed
-4. **Evolution Operators**:
-   - **Semantic (default)**: LLM-powered mutations and crossovers for creative variations
-   - **Traditional (--traditional)**: Faster text-based mutations and crossovers
-5. **Repeat**: Until optimal solutions emerge
-
-**Features**: Semantic operators | Parallel evaluation | Smart caching (50-70% reduction) | Checkpointing | Diversity preservation
 
 ## How QADI Works
 
