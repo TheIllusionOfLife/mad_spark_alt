@@ -2,46 +2,6 @@
 
 Intelligent analysis system using QADI methodology (Question → Abduction → Deduction → Induction) to provide structured, multi-perspective insights on any topic.
 
-## Session Handover
-
-### Last Updated: July 29, 2025 06:19 PM JST
-
-#### Recently Completed
-- ✅ [PR #62]: Fix evolution display and hypothesis parsing issues
-  - Enhanced QADI prompts for detailed 100+ word responses
-  - Robust ANSI code removal with multiple targeted regex patterns
-  - Fixed evolution config validation constraints
-  - Added comprehensive test coverage for parsing edge cases
-- ✅ [PR #61]: Remove batch evaluation functionality
-- ✅ [PR #60]: Comprehensive performance optimizations and timeout fixes
-
-#### Next Priority Tasks
-1. **Expand Real LLM Integration Tests**: Improve coverage of integration tests with actual API calls
-   - Source: README.md roadmap
-   - Context: Current integration tests are minimal; need comprehensive real-world validation
-   - Approach: Expand test suite with API key requirement, mark as integration tests
-   
-2. **Enhance LLM API Error Recovery**: Add more advanced error handling
-   - Source: README.md roadmap
-   - Context: Current retry logic is basic; need more robust failure handling like provider fallbacks
-   - Approach: Implement fallback strategies and more granular error handling
-
-3. **Fix Mock-Reality Divergence**: Ensure all test mocks match actual LLM formats
-   - Source: PR #62 experience
-   - Context: Tests passed but real usage failed due to format differences
-   - Approach: Copy real API responses for all mock data
-
-#### Known Issues / Blockers
-- Evolution config has strict validation rules (generations: 2-5, population: 2-10)
-- ANSI code patterns vary between LLM providers
-- Test timeouts may occur with slow API responses
-
-#### Session Learnings
-- LLM output parsing requires multiple targeted regex patterns, not overly broad patterns like `.*` that may remove legitimate content
-- Evolution display was showing summaries due to insufficient token limits (now 2500)
-- Mock test data must exactly match real LLM response formats
-- CI test updates are mandatory for parser changes and bug fixes
-
 ## Features
 
 - **QADI Methodology**: Structured 4-phase analysis for any question or problem
@@ -115,12 +75,10 @@ For detailed API examples and advanced usage patterns, see [DEVELOPMENT.md](DEVE
 
 ## How QADI Works
 
-1. **Q**: Extract core question ("I want X" → "What causes Y?")
-2. **A**: Generate hypotheses (H1, H2, H3...)
+1. **Q**: Extract core question
+2. **A**: Generate hypotheses
 3. **D**: Evaluate & determine best answer
 4. **I**: Verify with real examples
-
-**Temperature**: 0.0-0.5 (conservative) | 0.6-1.0 (balanced) | 1.1-2.0 (creative)
 
 ## Architecture
 
@@ -179,6 +137,46 @@ uv run black src/ tests/ && uv run isort src/ tests/
 - [RESEARCH.md](RESEARCH.md): QADI methodology background
 - [SESSIONS.md](SESSIONS.md): Development history
 - [SEMANTIC_OPERATORS_IMPLEMENTATION.md](SEMANTIC_OPERATORS_IMPLEMENTATION.md): Semantic evolution operators guide
+
+## Session Handover
+
+### Last Updated: July 29, 2025 06:19 PM JST
+
+#### Recently Completed
+- ✅ [PR #62]: Fix evolution display and hypothesis parsing issues
+  - Enhanced QADI prompts for detailed 100+ word responses
+  - Robust ANSI code removal with multiple targeted regex patterns
+  - Fixed evolution config validation constraints
+  - Added comprehensive test coverage for parsing edge cases
+- ✅ [PR #61]: Remove batch evaluation functionality
+- ✅ [PR #60]: Comprehensive performance optimizations and timeout fixes
+
+#### Next Priority Tasks
+1. **Expand Real LLM Integration Tests**: Improve coverage of integration tests with actual API calls
+   - Source: README.md roadmap
+   - Context: Current integration tests are minimal; need comprehensive real-world validation
+   - Approach: Expand test suite with API key requirement, mark as integration tests
+   
+2. **Enhance LLM API Error Recovery**: Add more advanced error handling
+   - Source: README.md roadmap
+   - Context: Current retry logic is basic; need more robust failure handling like provider fallbacks
+   - Approach: Implement fallback strategies and more granular error handling
+
+3. **Fix Mock-Reality Divergence**: Ensure all test mocks match actual LLM formats
+   - Source: PR #62 experience
+   - Context: Tests passed but real usage failed due to format differences
+   - Approach: Copy real API responses for all mock data
+
+#### Known Issues / Blockers
+- Evolution config has strict validation rules (generations: 2-5, population: 2-10)
+- ANSI code patterns vary between LLM providers
+- Test timeouts may occur with slow API responses
+
+#### Session Learnings
+- LLM output parsing requires multiple targeted regex patterns, not overly broad patterns like `.*` that may remove legitimate content
+- Evolution display was showing summaries due to insufficient token limits (now 2500)
+- Mock test data must exactly match real LLM response formats
+- CI test updates are mandatory for parser changes and bug fixes
 
 ## Future Improvements
 
