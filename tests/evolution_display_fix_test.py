@@ -127,11 +127,13 @@ class TestEvolutionDisplayFix:
         
         # Configure evolution
         config = EvolutionConfig(
-            population_size=2,
-            generations=1,
+            population_size=3,  # Increased to ensure it works with defaults
+            generations=2,  # Minimum allowed generations
             mutation_rate=1.0,  # Force mutation
             crossover_rate=0.0,
-            elite_size=0
+            elite_size=0,
+            tournament_size=2,  # Explicitly set to avoid issues
+            max_parallel_evaluations=2  # Must not exceed population_size
         )
         
         request = EvolutionRequest(
