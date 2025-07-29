@@ -49,30 +49,6 @@ uv run python qadi_simple.py "Your question" --temperature 1.2
 uv run python qadi_simple.py "Your question" --evolve --traditional
 ```
 
-### Python API
-
-```python
-import asyncio
-from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
-
-async def run_analysis():
-    orchestrator = SimpleQADIOrchestrator(temperature_override=1.2)
-    result = await orchestrator.run_qadi_cycle(
-        user_input="How can we reduce plastic waste?",
-        context="Focus on practical, scalable solutions"
-    )
-    
-    print(f"Core Question: {result.core_question}")
-    print(f"\nBest Answer: {result.final_answer}")
-    print(f"\nAction Plan:")
-    for i, action in enumerate(result.action_plan):
-        print(f"{i+1}. {action}")
-
-asyncio.run(run_analysis())
-```
-
-For detailed API examples and advanced usage patterns, see [DEVELOPMENT.md](DEVELOPMENT.md).
-
 ## How QADI Works
 
 1. **Q**: Extract core question
