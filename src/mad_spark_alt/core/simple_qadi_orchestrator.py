@@ -320,8 +320,11 @@ class SimpleQADIOrchestrator:
                 # Remove ANSI codes first
                 content = re.sub(r'\x1b\[[0-9;]*m', '', content)  # Standard ANSI codes with escape character
                 # Remove standalone ANSI codes that lost their escape character during processing
-                # Only match patterns like [1m, [0m, [32m, [1;32m at word boundaries to avoid matching legitimate content
-                content = re.sub(r'\b\[([0-9]{1,2}m|[0-9];[0-9]{1,2}m)\b', '', content)
+                # These patterns appear at beginning of line or after whitespace and before ':'
+                # e.g., "[1mApproach 1:[0m" -> "Approach 1:"
+                content = re.sub(r'\[([0-9]{1,2})m(Approach|H|Hypothesis)\s*(\d+):\[0m', r'\2 \3:', content)
+                # Also remove any remaining [Nm] or [N;Nm] patterns that look like ANSI codes
+                content = re.sub(r'\[([0-9]{1,2}(?:;[0-9]{1,2})?m)\]', '', content)
                 
                 lines = content.split("\n")
 
