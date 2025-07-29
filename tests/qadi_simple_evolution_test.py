@@ -179,7 +179,8 @@ class TestQadiSimpleEvolution:
             MockOrchestrator.return_value = mock_orchestrator
             
             with patch('os.getenv', return_value='test-api-key'):
-                await qadi_simple.run_qadi_analysis("Test", evolve=True)
+                with patch('mad_spark_alt.evolution.GeneticAlgorithm', MockGA):
+                    await qadi_simple.run_qadi_analysis("Test", evolve=True)
             
             # Verify semantic operators would be initialized
             assert MockGA.called
@@ -224,7 +225,8 @@ class TestQadiSimpleEvolution:
                 MockOrchestrator.return_value = mock_orchestrator
                 
                 with patch('os.getenv', return_value='test-api-key'):
-                    await qadi_simple.run_qadi_analysis("Test", evolve=True)
+                    with patch('mad_spark_alt.evolution.GeneticAlgorithm', MockGA):
+                        await qadi_simple.run_qadi_analysis("Test", evolve=True)
                 
                 # Verify GA was called without llm_provider
                 MockGA.assert_called()
