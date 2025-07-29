@@ -325,8 +325,8 @@ class SimpleQADIOrchestrator:
                 # and "[1mH1:[0m" -> "H1:" (without space for single letters)
                 content = re.sub(r'\[([0-9]{1,2})m(Approach|Hypothesis)\s*(\d+):\[0m', r'\2 \3:', content)
                 content = re.sub(r'\[([0-9]{1,2})m(H)\s*(\d+):\[0m', r'\2\3:', content)
-                # Also remove any remaining [Nm] or [N;Nm] patterns that look like ANSI codes (without extra bracket)
-                content = re.sub(r'\[([0-9]{1,2}(?:;[0-9]{1,2})?m)', '', content)
+                # Also remove any remaining [Nm] or [N;Nm] patterns that look like ANSI codes
+                content = re.sub(r'\[([0-9]{1,2}(?:;[0-9]{1,2})?m)\]', '', content)
                 
                 lines = content.split("\n")
 

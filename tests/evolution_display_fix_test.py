@@ -75,7 +75,7 @@ class TestEvolutionDisplayFix:
         )
         
         # Perform mutation
-        mutated = await mutation_op.mutate(original_idea, "Build AGI system")
+        mutated = await mutation_op.mutate(original_idea, 0.5, "Build AGI system")
         
         # Verify detailed output
         assert len(mutated.content) > 1000  # Should be much longer than original
