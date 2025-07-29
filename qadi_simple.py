@@ -327,8 +327,14 @@ async def run_qadi_analysis(
         # Evolution phase if requested
         if evolve and result.synthesized_ideas:
             print("\n" + "═" * 50)
-            print(f"🧬 Evolving ideas ({generations} generations, {min(population, len(result.synthesized_ideas))} population)...")
+            # Show requested values, not calculated minimum
+            print(f"🧬 Evolving ideas ({generations} generations, {population} population)...")
             print("─" * 50)
+            
+            # Check if we have fewer ideas than requested
+            actual_population = min(population, len(result.synthesized_ideas))
+            if actual_population < population:
+                print(f"   (Using {actual_population} ideas from available {len(result.synthesized_ideas)})")
             
             try:
                 from mad_spark_alt.evolution import (
@@ -358,7 +364,6 @@ async def run_qadi_analysis(
                 
                 # Configure evolution with higher mutation rate for diversity
                 # For small populations, increase mutation rate even more
-                actual_population = min(population, len(result.synthesized_ideas))
                 mutation_rate = 0.5 if actual_population <= 3 else 0.3
                 
                 config = EvolutionConfig(

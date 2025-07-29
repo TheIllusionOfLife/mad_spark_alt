@@ -54,22 +54,27 @@ class TestEvolutionDisplayLogic:
         assert fixed_display == "🧬 Evolving ideas (3 generations, 10 population)..."
         
     @patch('sys.stdout', new_callable=io.StringIO)
-    def test_evolution_display_output(self, mock_stdout):
-        """Test what actually gets printed to stdout."""
+    def test_evolution_display_output_fixed(self, mock_stdout):
+        """Test what gets printed with the fixed code."""
         # Simulate the print statements
         generations = 5
         population = 8
         synthesized_ideas = ["idea1", "idea2", "idea3"]  # Only 3 ideas
         
-        # Current buggy code
-        print(f"🧬 Evolving ideas ({generations} generations, {min(population, len(synthesized_ideas))} population)...")
+        # Fixed code - show requested values
+        print(f"🧬 Evolving ideas ({generations} generations, {population} population)...")
         print("─" * 50)
+        
+        # Check if we have fewer ideas than requested
+        actual_population = min(population, len(synthesized_ideas))
+        if actual_population < population:
+            print(f"   (Using {actual_population} ideas from available {len(synthesized_ideas)})")
         
         output = mock_stdout.getvalue()
         
-        # This test should FAIL with current code
-        assert "8 population" not in output  # Currently shows "3 population"
-        assert "3 population" in output  # This is the bug
+        # This test should PASS with fixed code
+        assert "8 population" in output  # Shows requested population
+        assert "Using 3 ideas from available 3" in output  # Shows clarification
         
     def test_config_creation_vs_display(self):
         """Test that config uses actual but display shows requested."""
