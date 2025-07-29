@@ -36,7 +36,7 @@ class TestQadiSimpleEvolution:
     @pytest.fixture
     def mock_genetic_algorithm(self):
         """Mock GeneticAlgorithm class."""
-        with patch('mad_spark_alt.evolution.genetic_algorithm.GeneticAlgorithm') as MockGA:
+        with patch('mad_spark_alt.evolution.GeneticAlgorithm') as MockGA:
             mock_instance = MagicMock()
             
             # Create a proper mock EvolutionResult
