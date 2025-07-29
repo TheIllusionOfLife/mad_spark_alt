@@ -13,8 +13,12 @@ import sys
 import time
 from pathlib import Path
 import re
+import logging
 from difflib import SequenceMatcher
 from typing import Any, List, Optional, Set
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 try:
     from mad_spark_alt.core import setup_llm_providers
@@ -214,6 +218,10 @@ async def run_qadi_analysis(
             
             if evolve:
                 print("\n*Note: These initial ideas will be refined through AI evolution...*")
+                # Debug: Check if synthesized ideas have full content
+                logger.info("Synthesized ideas for evolution:")
+                for idx, idea in enumerate(result.synthesized_ideas[:3]):
+                    logger.info(f"Idea {idx+1} length: {len(idea.content)} chars")
             print()
         
         # Show phases in verbose mode

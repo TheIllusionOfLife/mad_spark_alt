@@ -317,19 +317,32 @@ class SimpleQADIOrchestrator:
                 # Log the actual response for debugging
                 logger.debug("LLM response for abduction phase:\n%s", content)
                 
+                # Remove ANSI codes first
+                content = re.sub(r'\x1b\[[0-9;]*m', '', content)  # Standard ANSI codes with escape character
+                # Remove standalone ANSI codes that lost their escape character during processing
+                # These patterns appear at beginning of line or after whitespace and before ':'
+                # Handle different cases: "[1mApproach 1:[0m" -> "Approach 1:" (with space) 
+                # and "[1mH1:[0m" -> "H1:" (without space for single letters)
+                content = re.sub(r'\[([0-9]{1,2})m(Approach|Hypothesis)\s*(\d+):\[0m', r'\2 \3:', content)
+                content = re.sub(r'\[([0-9]{1,2})m(H)\s*(\d+):\[0m', r'\2\3:', content)
+                # Also remove any remaining [Nm] or [N;Nm] patterns that look like ANSI codes
+                content = re.sub(r'\[([0-9]{1,2}(?:;[0-9]{1,2})?m)\]', '', content)
+                
                 lines = content.split("\n")
 
                 current_hypothesis = ""
                 current_index = None
+                current_title = ""
 
                 for i, line in enumerate(lines):
                     line = line.strip()
                     if not line:
                         continue
 
-                    # Check if line starts with H1:, H2:, or H3: (with potential markdown formatting)
-                    # Also support "Approach" prefix for compatibility
-                    hypothesis_match = re.match(r"^(?:\*\*)?(?:H|Hypothesis\s*|Approach\s*)(\d+)(?:\s*:|\.)\s*(.*)(?:\*\*)?$", line)
+                    # Check if line starts with H1:, H2:, H3:, Approach N:, etc.
+                    # Pattern matches various hypothesis formats after ANSI codes have been stripped
+                    hypothesis_match = re.match(r"^(?:\*\*)?(?:H|Hypothesis\s*|Approach\s*)(\d+)(?:\*\*)?(?:\s*:|\.)\s*(.*)$", line)
+                    
                     if hypothesis_match:
                         # Save previous hypothesis if we have one
                         if current_index is not None and current_hypothesis.strip():
@@ -338,24 +351,31 @@ class SimpleQADIOrchestrator:
 
                         # Start new hypothesis
                         current_index = int(hypothesis_match.group(1))
-                        current_hypothesis = hypothesis_match.group(2).strip()
+                        title_and_content = hypothesis_match.group(2).strip()
                         
-                        # Remove markdown formatting (both leading and trailing **)
-                        if current_hypothesis.startswith("**"):
-                            current_hypothesis = current_hypothesis[2:].strip()
-                        if current_hypothesis.endswith("**"):
-                            current_hypothesis = current_hypothesis[:-2].strip()
+                        # Remove any remaining bold formatting
+                        title_and_content = re.sub(r'\*\*', '', title_and_content)
                         
-                        # If the line only contains the title (common with markdown formatting), 
-                        # the actual content will be on the next lines
-                        if not current_hypothesis:
-                            # Title is empty, content will be on next lines
-                            pass
+                        # Check if this line contains just a title in brackets
+                        title_match = re.match(r'^\[([^\]]+)\]$', title_and_content)
+                        if title_match:
+                            # This is just a title, content will follow
+                            current_title = title_match.group(1)
+                            current_hypothesis = ""
+                        else:
+                            # This line contains content
+                            # Remove brackets from the content if they exist
+                            title_and_content = re.sub(r'\[([^\]]+)\]', r'\1', title_and_content)
+                            current_hypothesis = title_and_content
                     elif current_index is not None:
                         # Continue building current hypothesis from subsequent lines
                         # Skip empty lines and lines that are just markdown
                         if line and not line.startswith("---") and not re.match(r"^\*+$", line):
-                            current_hypothesis += " " + line
+                            if current_hypothesis:
+                                current_hypothesis += " " + line
+                            else:
+                                # First content line after title
+                                current_hypothesis = line
 
                 # Don't forget the last hypothesis
                 if current_index is not None and current_hypothesis.strip():

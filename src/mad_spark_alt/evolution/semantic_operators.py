@@ -197,7 +197,8 @@ class BatchSemanticMutationOperator(MutationInterface):
     MUTATION_SYSTEM_PROMPT = """You are a genetic mutation operator for idea evolution.
 Your role is to create meaningful variations of ideas while preserving the core goal.
 
-IMPORTANT: Return ONLY the mutated idea text, no explanations or metadata."""
+IMPORTANT: Generate comprehensive, detailed implementations with specific steps, technologies, and methodologies.
+Return ONLY the mutated idea text, no explanations or metadata."""
 
     SINGLE_MUTATION_PROMPT = """Original idea: {idea}
 Problem context: {context}
@@ -206,6 +207,8 @@ Create a semantically different variation that:
 1. Addresses the same core problem
 2. Uses a fundamentally different approach or mechanism
 3. Maintains feasibility but explores new solution space
+4. Provides DETAILED implementation with specific steps, technologies, and methodologies
+5. Includes at least 150-200 words of comprehensive explanation
 
 Mutation type: {mutation_type}
 - perspective_shift: Change viewpoint (individual→community, local→global, etc.)
@@ -213,7 +216,14 @@ Mutation type: {mutation_type}
 - constraint_variation: Add or remove constraints
 - abstraction_shift: Make more concrete or more abstract
 
-Output only the mutated idea:"""
+Generate a complete, detailed solution that includes:
+- Specific implementation steps
+- Technologies or tools to be used
+- Resources required
+- Expected outcomes and benefits
+- How it addresses the core problem
+
+Output only the detailed mutated idea (minimum 150 words):"""
 
     BATCH_MUTATION_PROMPT = """Generate diverse variations for these ideas. Each variation should use a different approach.
 
@@ -222,12 +232,21 @@ Context: {context}
 Ideas to mutate:
 {ideas_list}
 
-For each idea, provide ONE variation that is semantically different but addresses the same goal.
-Use different mutation strategies: perspective shift, mechanism change, or abstraction level.
+For each idea, provide ONE variation that:
+- Is semantically different but addresses the same goal
+- Uses different mutation strategies: perspective shift, mechanism change, or abstraction level
+- Provides DETAILED implementation (minimum 150 words per variation)
+- Includes specific steps, technologies, methodologies, and resources
+
+Generate complete, detailed solutions that include:
+- Specific implementation steps
+- Technologies or tools to be used
+- Resources required
+- Expected outcomes and benefits
 
 Format your response EXACTLY as:
-IDEA_1_MUTATION: [mutation text]
-IDEA_2_MUTATION: [mutation text]
+IDEA_1_MUTATION: [detailed mutation text - minimum 150 words]
+IDEA_2_MUTATION: [detailed mutation text - minimum 150 words]
 ...
 
 No other text or formatting."""
@@ -483,7 +502,8 @@ class SemanticCrossoverOperator(CrossoverInterface):
     CROSSOVER_SYSTEM_PROMPT = """You are a genetic crossover operator for idea evolution.
 Your role is to meaningfully combine concepts from two parent ideas into offspring.
 
-IMPORTANT: Return ONLY the offspring idea texts, no explanations."""
+IMPORTANT: Generate comprehensive, detailed implementations with specific steps, technologies, and methodologies.
+Return ONLY the offspring idea texts, no explanations."""
 
     CROSSOVER_PROMPT = """Parent Idea 1: {parent1}
 Parent Idea 2: {parent2}
@@ -494,10 +514,19 @@ Analyze the key concepts in each parent and create TWO offspring ideas that:
 2. Are not just concatenations or word swaps
 3. Create synergy between the parent concepts
 4. Maintain coherence and feasibility
+5. Provide DETAILED implementation (minimum 150 words per offspring)
+6. Include specific steps, technologies, methodologies, and resources
+
+Generate complete, detailed solutions that include:
+- Specific implementation steps combining elements from both parents
+- Technologies or tools from both approaches
+- Resources required for the hybrid solution
+- Expected outcomes showing synergy
+- How it leverages strengths of both parent ideas
 
 Format your response EXACTLY as:
-OFFSPRING_1: [first offspring idea]
-OFFSPRING_2: [second offspring idea]
+OFFSPRING_1: [detailed first offspring idea - minimum 150 words]
+OFFSPRING_2: [detailed second offspring idea - minimum 150 words]
 
 No other text or formatting."""
     
