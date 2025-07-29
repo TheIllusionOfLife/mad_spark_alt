@@ -331,7 +331,7 @@ async def run_qadi_analysis(
                 )
                 
                 # Get LLM provider for semantic operators unless --traditional is used
-                if args.traditional:
+                if traditional:
                     llm_provider = None
                     print("🧬 Evolution operators: TRADITIONAL (faster but less creative)")
                     print("   (Use without --traditional for semantic operators)")
