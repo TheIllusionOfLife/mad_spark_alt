@@ -37,7 +37,7 @@ class TerminalRenderer:
             color_system = None
 
         self.console = Console(
-            force_terminal=True,
+            force_terminal=force_color if force_color is not None else None,
             color_system=color_system,
         )
         self._fallback_mode = not self.console.color_system
@@ -51,6 +51,15 @@ class TerminalRenderer:
         """
         # Clean ANSI codes before rendering
         content = clean_ansi_codes(content)
+        
+        # Debug: Check if content still has ANSI codes after cleaning
+        import re
+        if re.search(r'\[(?:[0-9]{1,3}(?:;[0-9]{1,3})*)?m', content):
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning("ANSI codes still present after cleaning in render_markdown")
+            # Additional cleaning attempt
+            content = re.sub(r'\[([0-9]{1,3}(?:;[0-9]{1,3})*)?m', '', content)
         
         if self._fallback_mode:
             # Simple fallback for terminals without color support

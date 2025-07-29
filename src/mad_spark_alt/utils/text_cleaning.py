@@ -36,14 +36,18 @@ def clean_ansi_codes(text: Optional[str]) -> str:
     text = re.sub(r'\[([0-9]{1,3}(?:;[0-9]{1,3})*)?m', '', text)
     
     # Handle specific patterns from LLM output
+    # Use non-greedy matching and handle newlines
     # [1mApproach 1:[0m -> Approach 1:
-    text = re.sub(r'\[1m([^[]*)\[0m', r'\1', text)
+    text = re.sub(r'\[1m(.*?)\[0m', r'\1', text, flags=re.DOTALL)
     
     # [3mText[0m -> Text (italic)
-    text = re.sub(r'\[3m([^[]*)\[0m', r'\1', text)
+    text = re.sub(r'\[3m(.*?)\[0m', r'\1', text, flags=re.DOTALL)
     
     # [33mText[0m -> Text (color codes)
-    text = re.sub(r'\[([0-9]{1,2})m([^[]*)\[0m', r'\2', text)
+    text = re.sub(r'\[([0-9]{1,2})m(.*?)\[0m', r'\2', text, flags=re.DOTALL)
+    
+    # Handle compound codes like [1;33m
+    text = re.sub(r'\[([0-9]{1,2});([0-9]{1,2})m(.*?)\[0m', r'\3', text, flags=re.DOTALL)
     
     # Clean up any remaining orphaned [0m reset codes
     text = re.sub(r'\[0m', '', text)

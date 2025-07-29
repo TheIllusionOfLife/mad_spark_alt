@@ -68,13 +68,13 @@ class SimplerQADIOrchestrator(SimpleQADIOrchestrator):
 def get_approach_label(text: str, index: int) -> str:
     """Determine the approach type label based on content."""
     if "Individual" in text or "Personal" in text:
-        return "**Personal Approach:** "
+        return "Personal Approach: "
     elif "Community" in text or "Collective" in text or "Team" in text:
-        return "**Collaborative Approach:** "
+        return "Collaborative Approach: "
     elif "System" in text or "Organization" in text or "Structural" in text:
-        return "**Systemic Approach:** "
+        return "Systemic Approach: "
     else:
-        return f"**Approach {index}:** "
+        return f"Approach {index}: "
 
 
 def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List[str]:
@@ -277,7 +277,7 @@ async def run_qadi_analysis(
         if result.action_plan:
             print("\n## 🎯 Your Recommended Path (Final Synthesis)\n")
             for i, action in enumerate(result.action_plan):
-                render_markdown(f"**{i+1}.** {action}")
+                render_markdown(f"{i+1}. {action}")
 
         # Examples section - make it more concise
         if result.verification_examples and (verbose or len(result.verification_examples) <= 2):
