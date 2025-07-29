@@ -317,8 +317,9 @@ class SimpleQADIOrchestrator:
                 # Log the actual response for debugging
                 logger.debug("LLM response for abduction phase:\n%s", content)
                 
-                # Remove ANSI codes first
-                content = re.sub(r'\x1b\[[0-9;]*m', '', content)
+                # Remove ANSI codes first (both with and without escape character)
+                content = re.sub(r'\x1b\[[0-9;]*m', '', content)  # Standard ANSI codes
+                content = re.sub(r'\[(?:[0-9]{1,2}m|[0-9];[0-9]{1,2}m)', '', content)  # Codes without escape char
                 
                 lines = content.split("\n")
 

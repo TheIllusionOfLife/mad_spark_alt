@@ -141,7 +141,7 @@ class TestEvolutionDisplayFix:
         )
         
         # Run evolution
-        with patch.object(ga, '_evaluate_fitness', new_callable=AsyncMock) as mock_eval:
+        with patch.object(ga.fitness_evaluator, 'evaluate_individual', new_callable=AsyncMock) as mock_eval:
             mock_eval.return_value = 0.9
             result = await ga.evolve(request)
         

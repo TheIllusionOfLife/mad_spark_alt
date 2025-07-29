@@ -56,9 +56,9 @@ class TestHypothesisParsingFix:
         """Test parsing hypotheses with 'Approach N:' format."""
         orchestrator = SimpleQADIOrchestrator()
         
-        # Mock LLM provider
-        mock_provider = AsyncMock()
-        orchestrator.llm_provider = mock_provider
+        # Mock LLM manager
+        mock_llm_manager = MagicMock()
+        mock_llm_manager.generate = AsyncMock()
         
         # Response with "Approach N:" format
         response_approach_format = """Approach 1: Implement a blockchain-based solution for transparent tracking and verification of all transactions in the supply chain.
@@ -77,8 +77,9 @@ Approach 3: Develop a collaborative platform that connects suppliers, manufactur
             metadata={"test": True}
         )
         
-        # Test hypothesis extraction
-        hypotheses, cost = await orchestrator._run_abduction_phase("test input", "test question", max_retries=0)
+        # Test hypothesis extraction with patched llm_manager
+        with patch("mad_spark_alt.core.simple_qadi_orchestrator.llm_manager", mock_llm_manager):
+            hypotheses, cost = await orchestrator._run_abduction_phase("test input", "test question", max_retries=0)
         
         assert len(hypotheses) == 3
         assert "blockchain-based solution" in hypotheses[0]
@@ -90,9 +91,9 @@ Approach 3: Develop a collaborative platform that connects suppliers, manufactur
         """Test parsing hypotheses with mixed formats."""
         orchestrator = SimpleQADIOrchestrator()
         
-        # Mock LLM provider
-        mock_provider = AsyncMock()
-        orchestrator.llm_provider = mock_provider
+        # Mock LLM manager
+        mock_llm_manager = MagicMock()
+        mock_llm_manager.generate = AsyncMock()
         
         # Response with mixed formats
         response_mixed = """H1: Traditional approach using established methodologies.
@@ -111,8 +112,9 @@ Approach 3: Develop a collaborative platform that connects suppliers, manufactur
             metadata={"test": True}
         )
         
-        # Test hypothesis extraction
-        hypotheses, cost = await orchestrator._run_abduction_phase("test input", "test question", max_retries=0)
+        # Test hypothesis extraction with patched llm_manager
+        with patch("mad_spark_alt.core.simple_qadi_orchestrator.llm_manager", mock_llm_manager):
+            hypotheses, cost = await orchestrator._run_abduction_phase("test input", "test question", max_retries=0)
         
         assert len(hypotheses) == 3
         assert "Traditional approach" in hypotheses[0]
@@ -124,9 +126,9 @@ Approach 3: Develop a collaborative platform that connects suppliers, manufactur
         """Test that full hypotheses are passed to evolution, not truncated versions."""
         orchestrator = SimpleQADIOrchestrator()
         
-        # Mock LLM provider
-        mock_provider = AsyncMock()
-        orchestrator.llm_provider = mock_provider
+        # Mock LLM manager
+        mock_llm_manager = MagicMock()
+        mock_llm_manager.generate = AsyncMock()
         
         # Long hypothesis that would be truncated for display
         long_hypothesis = "A" * 500  # 500 characters
@@ -147,8 +149,45 @@ H3: Another short one."""
             metadata={"test": True}
         )
         
-        # Run QADI cycle
-        result = await orchestrator.run_qadi_cycle("test input", "test context")
+        # Mock all phases for full QADI cycle
+        mock_llm_manager.generate.side_effect = [
+            # Questioning phase response
+            LLMResponse(
+                content="Q: How to test hypothesis preservation?",
+                provider=LLMProvider.GOOGLE,
+                model="gemini-1.5-flash",
+                usage={"input_tokens": 50, "output_tokens": 20},
+                cost=0.0001,
+                response_time=0.1,
+                metadata={"test": True}
+            ),
+            # Abduction phase response (already configured above)
+            mock_llm_manager.generate.return_value,
+            # Deduction phase response
+            LLMResponse(
+                content="H1:\n* Impact: 0.8\n* Feasibility: 0.7\n\nANSWER: Test answer",
+                provider=LLMProvider.GOOGLE,
+                model="gemini-1.5-flash",
+                usage={"input_tokens": 200, "output_tokens": 100},
+                cost=0.001,
+                response_time=0.3,
+                metadata={"test": True}
+            ),
+            # Induction phase response
+            LLMResponse(
+                content="Example 1: Test example",
+                provider=LLMProvider.GOOGLE,
+                model="gemini-1.5-flash",
+                usage={"input_tokens": 150, "output_tokens": 80},
+                cost=0.0005,
+                response_time=0.2,
+                metadata={"test": True}
+            )
+        ]
+        
+        # Run QADI cycle with patched llm_manager
+        with patch("mad_spark_alt.core.simple_qadi_orchestrator.llm_manager", mock_llm_manager):
+            result = await orchestrator.run_qadi_cycle("test input", "test context")
         
         # Check synthesized ideas contain full content
         assert len(result.synthesized_ideas) >= 1
