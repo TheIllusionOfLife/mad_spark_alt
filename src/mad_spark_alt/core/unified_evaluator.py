@@ -5,8 +5,10 @@ This module provides consistent evaluation across the QADI deduction phase
 and the evolution fitness system using the same 5-criteria scoring.
 """
 
+import asyncio
 import logging
 import re
+import warnings
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -110,7 +112,7 @@ class UnifiedEvaluator:
         context: str,
         core_question: Optional[str] = None,
         parallel: bool = True,
-        batch_size: int = 5,  # Kept for backward compatibility but ignored
+        batch_size: Optional[int] = None,  # Deprecated and ignored
     ) -> List[HypothesisEvaluation]:
         """
         Evaluate multiple hypotheses using individual evaluations.
@@ -120,14 +122,19 @@ class UnifiedEvaluator:
             context: Context for evaluation
             core_question: Optional core question being answered
             parallel: Whether to evaluate in parallel
-            batch_size: Ignored (kept for backward compatibility)
+            batch_size: Deprecated and ignored. Kept for backward compatibility.
 
         Returns:
             List of HypothesisEvaluation objects
         """
-        if parallel:
-            import asyncio
+        if batch_size is not None:
+            warnings.warn(
+                "'batch_size' is deprecated and has no effect. It will be removed in a future version.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
+        if parallel:
             tasks = [
                 self.evaluate_hypothesis(h, context, core_question) for h in hypotheses
             ]

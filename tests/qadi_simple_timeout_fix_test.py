@@ -50,19 +50,18 @@ async def test_evolution_with_timeout_wrapping():
 
 
 @pytest.mark.asyncio 
-async def test_semantic_operators_disabled_by_default():
-    """Test that semantic operators are disabled when --traditional flag is used."""
+async def test_traditional_flag_logic():
+    """Test the conditional logic for traditional flag."""
     
-    # When traditional=True is passed, llm_provider should be None
+    # Test traditional=True case
     traditional = True
     llm_provider = None if traditional else "mock_provider"
-    
-    # In qadi_simple.py, this should result in traditional operators being used
     assert llm_provider is None
     
-    # The output message should indicate traditional operators
-    expected_message = "Evolution operators: TRADITIONAL (faster but less creative)"
-    assert expected_message  # This would be printed in the actual code
+    # Test traditional=False case
+    traditional = False
+    llm_provider = None if traditional else "mock_provider"
+    assert llm_provider == "mock_provider"
 
 
 @pytest.mark.asyncio
