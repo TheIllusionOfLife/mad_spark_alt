@@ -37,7 +37,7 @@ class TerminalRenderer:
             color_system = None
 
         self.console = Console(
-            force_terminal=force_color,
+            force_terminal=None,  # Let Rich auto-detect if we're in a terminal
             color_system=color_system,
         )
         self._fallback_mode = not self.console.color_system
