@@ -179,7 +179,7 @@ PHASE_HYPERPARAMETERS = {
     },
     "abduction": {
         "temperature": 0.8,  # High - need creative hypotheses (default)
-        "max_tokens": 400,  # Medium - 3 hypotheses
+        "max_tokens": 2500,  # Increased for detailed hypotheses with 150+ words each
         "top_p": 0.95,
         "user_adjustable": True,  # Allow --temperature override
     },

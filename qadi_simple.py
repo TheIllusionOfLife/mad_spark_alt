@@ -13,8 +13,12 @@ import sys
 import time
 from pathlib import Path
 import re
+import logging
 from difflib import SequenceMatcher
 from typing import Any, List, Optional, Set
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 try:
     from mad_spark_alt.core import setup_llm_providers
