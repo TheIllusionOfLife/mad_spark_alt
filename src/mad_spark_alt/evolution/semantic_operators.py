@@ -634,11 +634,11 @@ No other text or formatting."""
             elif "OFFSPRING_2:" in line:
                 offspring2 = line.split("OFFSPRING_2:", 1)[1].strip()
                 
-        # Fallback if parsing fails
+        # Fallback if parsing fails - create more meaningful generic combinations
         if not offspring1:
-            offspring1 = "Combined approach integrating both parent concepts"
+            offspring1 = "Integrated solution combining complementary strengths: This approach synthesizes the core methodologies from both parent concepts, creating a hybrid solution that leverages their respective advantages. By merging the foundational elements with enhanced scalability features, this combination addresses limitations present in either approach alone. The integration focuses on creating synergy between different implementation strategies while maintaining practical feasibility."
         if not offspring2:
-            offspring2 = "Alternative combination of parent ideas"
+            offspring2 = "Alternative fusion emphasizing innovation: This variation explores a different integration pattern by prioritizing the innovative aspects of one approach while using the structural framework of the other. The result is a solution that pushes boundaries while remaining grounded in proven methodologies. This alternative path demonstrates how the same parent concepts can yield distinctly different yet equally valuable outcomes through creative recombination."
             
         return offspring1, offspring2
         
