@@ -78,7 +78,13 @@ class TestCLIArgumentDisplay:
         
         with patch("builtins.print", side_effect=mock_print):
             with patch("os.getenv", return_value="fake-api-key"):  # Mock API key check
-                with patch("mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator") as mock_orchestrator_class:
+                # Import here to avoid early execution
+                import sys
+                sys.path.insert(0, '.')
+                import qadi_simple
+                
+                # Patch the orchestrator after importing qadi_simple
+                with patch.object(qadi_simple, "SimplerQADIOrchestrator") as mock_orchestrator_class:
                     # Mock the orchestrator instance
                     mock_orchestrator = MagicMock()
                     mock_orchestrator.run_qadi_cycle = AsyncMock(return_value=mock_qadi_result)
@@ -90,11 +96,8 @@ class TestCLIArgumentDisplay:
                         mock_ga.evolve = AsyncMock(return_value=mock_evolution_result)
                         mock_ga_class.return_value = mock_ga
                         
-                        # Import here to avoid early execution
-                        from qadi_simple import run_qadi_analysis
-                        
                         # Run with population=10 but only 3 ideas available
-                        await run_qadi_analysis(
+                        await qadi_simple.run_qadi_analysis(
                             "Test question",
                             evolve=True,
                             generations=3,
@@ -165,33 +168,40 @@ class TestCLIArgumentDisplay:
             captured_output.append(" ".join(str(arg) for arg in args))
         
         with patch("builtins.print", side_effect=mock_print):
-            with patch("mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator.run_qadi_cycle") as mock_qadi:
-                mock_qadi.return_value = mock_qadi_result
+            with patch("os.getenv", return_value="fake-api-key"):
+                import sys
+                sys.path.insert(0, '.')
+                import qadi_simple
                 
-                with patch("mad_spark_alt.evolution.genetic_algorithm.GeneticAlgorithm.evolve") as mock_evolve:
-                    # Mock evolution to avoid actual processing
-                    mock_evolve.return_value = EvolutionResult(
-                        final_population=[],
-                        best_ideas=[],
-                        generation_snapshots=[],
-                        total_generations=5,
-                        execution_time=15.0,
-                        evolution_metrics={
-                            "generations_completed": 5,
-                            "total_ideas_evaluated": 50,
-                        },
-                    )
+                with patch.object(qadi_simple, "SimplerQADIOrchestrator") as mock_orchestrator_class:
+                    mock_orchestrator = MagicMock()
+                    mock_orchestrator.run_qadi_cycle = AsyncMock(return_value=mock_qadi_result)
+                    mock_orchestrator_class.return_value = mock_orchestrator
                     
-                    from qadi_simple import run_qadi_analysis
-                    
-                    # Run with population=8, we have 15 ideas
-                    await run_qadi_analysis(
-                        "Test question",
-                        evolve=True,
-                        generations=5,
-                        population=8,
-                        traditional=True
-                    )
+                    with patch("mad_spark_alt.evolution.genetic_algorithm.GeneticAlgorithm") as mock_ga_class:
+                        mock_ga = MagicMock()
+                        # Mock evolution to avoid actual processing
+                        mock_ga.evolve = AsyncMock(return_value=EvolutionResult(
+                            final_population=[],
+                            best_ideas=[],
+                            generation_snapshots=[],
+                            total_generations=5,
+                            execution_time=15.0,
+                            evolution_metrics={
+                                "generations_completed": 5,
+                                "total_ideas_evaluated": 50,
+                            },
+                        ))
+                        mock_ga_class.return_value = mock_ga
+                        
+                        # Run with population=8, we have 15 ideas
+                        await qadi_simple.run_qadi_analysis(
+                            "Test question",
+                            evolve=True,
+                            generations=5,
+                            population=8,
+                            traditional=True
+                        )
         
         # Find the evolution display line
         evolution_line = None
