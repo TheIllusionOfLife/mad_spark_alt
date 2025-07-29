@@ -51,16 +51,17 @@ async def test_evolution_with_timeout_wrapping():
 
 @pytest.mark.asyncio 
 async def test_semantic_operators_disabled_by_default():
-    """Test that semantic operators are disabled by default in qadi_simple."""
+    """Test that semantic operators are disabled when --traditional flag is used."""
     
-    # When llm_provider is None, semantic operators should be disabled
-    llm_provider = None
+    # When traditional=True is passed, llm_provider should be None
+    traditional = True
+    llm_provider = None if traditional else "mock_provider"
     
     # In qadi_simple.py, this should result in traditional operators being used
     assert llm_provider is None
     
-    # The output message should indicate disabled semantic operators
-    expected_message = "Semantic evolution operators: DISABLED (using traditional operators)"
+    # The output message should indicate traditional operators
+    expected_message = "Evolution operators: TRADITIONAL (faster but less creative)"
     assert expected_message  # This would be printed in the actual code
 
 

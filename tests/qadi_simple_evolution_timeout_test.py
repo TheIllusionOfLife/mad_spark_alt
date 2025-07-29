@@ -223,7 +223,7 @@ async def test_evolution_timeout_calculation():
 
 @pytest.mark.asyncio
 async def test_evolution_disabled_semantic_operators(mock_qadi_result, capfd, monkeypatch):
-    """Test that semantic operators are disabled by default in qadi_simple."""
+    """Test that semantic operators can be disabled with --traditional flag."""
     # Mock GOOGLE_API_KEY
     monkeypatch.setenv('GOOGLE_API_KEY', 'test-key')
     
@@ -251,16 +251,17 @@ async def test_evolution_disabled_semantic_operators(mock_qadi_result, capfd, mo
             ))
             mock_ga_class.return_value = mock_ga_instance
             
-            # Mock LLM manager to NOT have Google provider (simulating disabled semantic operators)
-            with patch('mad_spark_alt.core.llm_provider.llm_manager') as mock_llm:
-                mock_llm.providers = {}  # No providers
+            # Mock get_google_provider to simulate provider being available
+            with patch('mad_spark_alt.core.llm_provider.get_google_provider') as mock_get_provider:
+                mock_get_provider.return_value = AsyncMock()
                 
-                # Run with evolution
+                # Run with evolution and --traditional flag
                 await run_qadi_analysis(
                     "Test query",
                     evolve=True,
                     generations=2,
-                    population=3
+                    population=3,
+                    traditional=True  # This should disable semantic operators
                 )
                 
                 # Verify genetic algorithm was created without llm_provider
@@ -268,9 +269,62 @@ async def test_evolution_disabled_semantic_operators(mock_qadi_result, capfd, mo
                 call_kwargs = mock_ga_class.call_args[1]
                 assert call_kwargs.get('llm_provider') is None
                 
-                # Check output indicates semantic operators are disabled
+                # Check output indicates traditional operators are being used
                 captured = capfd.readouterr()
-                assert "Semantic evolution operators: DISABLED" in captured.out
+                assert "Evolution operators: TRADITIONAL" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_evolution_enabled_semantic_operators_by_default(mock_qadi_result, capfd, monkeypatch):
+    """Test that semantic operators are enabled by default in qadi_simple."""
+    # Mock GOOGLE_API_KEY
+    monkeypatch.setenv('GOOGLE_API_KEY', 'test-key')
+    
+    with patch('qadi_simple.SimplerQADIOrchestrator') as mock_orchestrator:
+        # Mock the orchestrator to return our test result
+        mock_instance = AsyncMock()
+        mock_instance.run_qadi_cycle = AsyncMock(return_value=mock_qadi_result)
+        mock_orchestrator.return_value = mock_instance
+        
+        # Mock genetic algorithm constructor to verify parameters
+        with patch('mad_spark_alt.evolution.GeneticAlgorithm') as mock_ga_class:
+            mock_ga_instance = AsyncMock()
+            mock_ga_instance.evolve = AsyncMock(return_value=EvolutionResult(
+                final_population=[],
+                best_ideas=[],
+                generation_snapshots=[],
+                total_generations=2,
+                execution_time=1.0,
+                evolution_metrics={
+                    'total_generations': 2,
+                    'total_ideas_evaluated': 6,
+                    'fitness_improvement_percent': 5.0,
+                },
+                error_message=None,
+            ))
+            mock_ga_class.return_value = mock_ga_instance
+            
+            # Mock get_google_provider to simulate provider being available
+            with patch('mad_spark_alt.core.llm_provider.get_google_provider') as mock_get_provider:
+                mock_llm_provider = AsyncMock()
+                mock_get_provider.return_value = mock_llm_provider
+                
+                # Run with evolution (no traditional flag = semantic operators enabled)
+                await run_qadi_analysis(
+                    "Test query",
+                    evolve=True,
+                    generations=2,
+                    population=3
+                )
+                
+                # Verify genetic algorithm was created WITH llm_provider
+                mock_ga_class.assert_called_once()
+                call_kwargs = mock_ga_class.call_args[1]
+                assert call_kwargs.get('llm_provider') is mock_llm_provider
+                
+                # Check output indicates semantic operators are enabled
+                captured = capfd.readouterr()
+                assert "Evolution operators: SEMANTIC" in captured.out
 
 
 @pytest.mark.asyncio
