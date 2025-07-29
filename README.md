@@ -32,11 +32,14 @@ echo "GOOGLE_API_KEY=your_key_here" > .env
 # Simple, clear analysis with improved Phase 1
 uv run mad_spark_alt "How can we reduce plastic waste?"
 
-# Add genetic evolution to optimize ideas
+# Add genetic evolution to optimize ideas (uses semantic operators by default)
 uv run mad_spark_alt "How can we reduce plastic waste?" --evolve
 
 # Customize evolution parameters
 uv run mad_spark_alt "Your question" --evolve --generations 5 --population 10
+
+# Use traditional operators for faster processing
+uv run mad_spark_alt "Your question" --evolve --traditional
 ```
 
 ### Other Analysis Modes
@@ -58,8 +61,11 @@ uv run python qadi_multi_perspective.py "Your question here"
 # Temperature control (creativity level)
 uv run python qadi_simple.py "Your question" --temperature 1.2
 
-# Evolution with custom parameters
+# Evolution with custom parameters (semantic operators by default)
 uv run python qadi_simple.py "Your question" --evolve --generations 10 --population 15
+
+# Use traditional operators for faster evolution
+uv run python qadi_simple.py "Your question" --evolve --traditional
 
 # Multi-perspective with forced perspectives
 uv run python qadi_multi_perspective.py "Your question" --perspectives environmental,technical
@@ -115,10 +121,13 @@ For detailed API examples and advanced usage patterns, see [DEVELOPMENT.md](DEVE
 ## 🧬 Genetic Evolution
 
 ```bash
-# Evolve ideas
+# Evolve ideas with semantic operators (default - more creative)
 uv run mad-spark evolve "How can we reduce food waste?"
 uv run mad-spark evolve "Climate solutions" --quick
 uv run mad-spark evolve "New product ideas" --generations 5 --population 10
+
+# Use traditional operators for faster processing
+uv run mad-spark evolve "Innovation ideas" --traditional
 ```
 
 ### How It Works
@@ -126,11 +135,12 @@ uv run mad-spark evolve "New product ideas" --generations 5 --population 10
 1. **Initial**: QADI generates starting hypotheses
 2. **Fitness**: 5-criteria scoring (Novelty 20%, Impact 30%, Cost 20%, Feasibility 20%, Risks 10%)
 3. **Selection**: Best hypotheses breed
-4. **Crossover**: Combine parent ideas (75% rate)
-5. **Mutation**: Add variations (15% rate)
-6. **Repeat**: Until optimal solutions emerge
+4. **Evolution Operators**:
+   - **Semantic (default)**: LLM-powered mutations and crossovers for creative variations
+   - **Traditional (--traditional)**: Faster text-based mutations and crossovers
+5. **Repeat**: Until optimal solutions emerge
 
-**Features**: Parallel evaluation | Smart caching (50-70% reduction) | Checkpointing | Diversity preservation
+**Features**: Semantic operators | Parallel evaluation | Smart caching (50-70% reduction) | Checkpointing | Diversity preservation
 
 ## How QADI Works
 
@@ -196,6 +206,13 @@ uv run black src/ tests/ && uv run isort src/ tests/
 ### Last Updated: July 28, 2025
 
 #### Recently Completed
+
+- ✅ **PR #61**: Remove Batch Evaluation & Enable Semantic Operators by Default
+  - Removed inefficient batch evaluation that increased costs (195 lines removed)
+  - Enabled semantic operators by default for more creative evolution
+  - Added --traditional flag for users who prefer faster processing
+  - Updated tests to reflect new default behavior
+  - Key insight: Batch evaluation caused token inflation without proportional benefit
 
 - ✅ **PR #56**: Semantic Evolution Operators Implementation
   - Implemented LLM-powered semantic mutation and crossover operators
