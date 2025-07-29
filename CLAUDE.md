@@ -412,3 +412,16 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - Many fix commits (>50% of total) indicate insufficient initial test coverage
 - Should see pattern: 8 test commits → 10 feature commits → 2-3 fix commits
 - Not: 8 test commits → 10 feature commits → 22 fix commits
+
+### Evolution Configuration Validation (PR #62)
+- **Generations**: Must be between 2-5 (not 1)
+- **Population Size**: Must be between 2-10
+- **Tournament Size**: Must not exceed population_size
+- **Max Parallel Evaluations**: Must not exceed population_size
+- **Elite Size**: Must be less than population_size
+
+### LLM Response Parsing Patterns (PR #62)
+- **ANSI Code Removal**: Use multiple targeted regex patterns, not one broad pattern
+- **Format Flexibility**: Support "H1:", "Approach 1:", "[1mH1:[0m" formats
+- **Preserve Content**: Be careful with patterns like `\[.*?\]` that remove legitimate bracketed content
+- **Space Preservation**: "Approach 1:" needs space, "H1:" doesn't
