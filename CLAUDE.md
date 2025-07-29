@@ -425,3 +425,9 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Format Flexibility**: Support "H1:", "Approach 1:", "[1mH1:[0m" formats
 - **Preserve Content**: Be careful with patterns like `\[.*?\]` that remove legitimate bracketed content
 - **Space Preservation**: "Approach 1:" needs space, "H1:" doesn't
+
+### CLI User Experience Patterns (PR #64)
+- **Display Requested Values**: Show what user asked for, not internal calculations (e.g., "10 population" not min "3")
+- **Terminal Detection**: Check `sys.stdout.isatty()` before using Rich formatting to prevent ANSI in pipes
+- **Meaningful Fallbacks**: Semantic operators need 150+ char fallback text, not generic placeholders
+- **Clear User Messaging**: When system uses fewer resources than requested, explain why clearly
