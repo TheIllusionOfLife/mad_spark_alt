@@ -321,8 +321,10 @@ class SimpleQADIOrchestrator:
                 content = re.sub(r'\x1b\[[0-9;]*m', '', content)  # Standard ANSI codes with escape character
                 # Remove standalone ANSI codes that lost their escape character during processing
                 # These patterns appear at beginning of line or after whitespace and before ':'
-                # e.g., "[1mApproach 1:[0m" -> "Approach 1:" and "[1mH1:[0m" -> "H1:"
-                content = re.sub(r'\[([0-9]{1,2})m(Approach|H|Hypothesis)\s*(\d+):\[0m', r'\2\3:', content)
+                # Handle different cases: "[1mApproach 1:[0m" -> "Approach 1:" (with space) 
+                # and "[1mH1:[0m" -> "H1:" (without space for single letters)
+                content = re.sub(r'\[([0-9]{1,2})m(Approach|Hypothesis)\s*(\d+):\[0m', r'\2 \3:', content)
+                content = re.sub(r'\[([0-9]{1,2})m(H)\s*(\d+):\[0m', r'\2\3:', content)
                 # Also remove any remaining [Nm] or [N;Nm] patterns that look like ANSI codes (without extra bracket)
                 content = re.sub(r'\[([0-9]{1,2}(?:;[0-9]{1,2})?m)', '', content)
                 
