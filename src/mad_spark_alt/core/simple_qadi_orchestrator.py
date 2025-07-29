@@ -17,6 +17,7 @@ from .interfaces import (
 )
 from .llm_provider import LLMRequest, llm_manager
 from .qadi_prompts import PHASE_HYPERPARAMETERS, QADIPrompts, calculate_hypothesis_score
+from ..utils.text_cleaning import clean_ansi_codes
 
 logger = logging.getLogger(__name__)
 
@@ -255,7 +256,7 @@ class SimpleQADIOrchestrator:
                 total_cost += response.cost
 
                 # Extract the core question
-                content = response.content.strip()
+                content = clean_ansi_codes(response.content.strip())
                 match = re.search(rf"{QUESTION_PREFIX}\s*(.+)", content)
                 if match:
                     return match.group(1).strip(), total_cost
@@ -317,16 +318,8 @@ class SimpleQADIOrchestrator:
                 # Log the actual response for debugging
                 logger.debug("LLM response for abduction phase:\n%s", content)
                 
-                # Remove ANSI codes first
-                content = re.sub(r'\x1b\[[0-9;]*m', '', content)  # Standard ANSI codes with escape character
-                # Remove standalone ANSI codes that lost their escape character during processing
-                # These patterns appear at beginning of line or after whitespace and before ':'
-                # Handle different cases: "[1mApproach 1:[0m" -> "Approach 1:" (with space) 
-                # and "[1mH1:[0m" -> "H1:" (without space for single letters)
-                content = re.sub(r'\[([0-9]{1,2})m(Approach|Hypothesis)\s*(\d+):\[0m', r'\2 \3:', content)
-                content = re.sub(r'\[([0-9]{1,2})m(H)\s*(\d+):\[0m', r'\2\3:', content)
-                # Also remove any remaining [Nm] or [N;Nm] patterns that look like ANSI codes
-                content = re.sub(r'\[([0-9]{1,2}(?:;[0-9]{1,2})?m)\]', '', content)
+                # Clean all ANSI codes using comprehensive cleaning function
+                content = clean_ansi_codes(content)
                 
                 lines = content.split("\n")
 
@@ -524,7 +517,7 @@ class SimpleQADIOrchestrator:
                 )
 
                 response = await llm_manager.generate(request)
-                content = response.content.strip()
+                content = clean_ansi_codes(response.content.strip())
 
                 # Parse the evaluation scores
                 scores = []
@@ -771,7 +764,7 @@ class SimpleQADIOrchestrator:
                 )
 
                 response = await llm_manager.generate(request)
-                content = response.content.strip()
+                content = clean_ansi_codes(response.content.strip())
 
                 # Extract verification examples using pattern matching
                 examples = []
@@ -956,7 +949,7 @@ class SimpleQADIOrchestrator:
                     )
                     
                     response = await llm_manager.generate(request)
-                    content = response.content.strip()
+                    content = clean_ansi_codes(response.content.strip())
                     
                     # Parse scores for this batch
                     batch_scores = []

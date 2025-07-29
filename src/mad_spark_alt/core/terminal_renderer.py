@@ -12,6 +12,8 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.text import Text
 
+from ..utils.text_cleaning import clean_ansi_codes
+
 
 class TerminalRenderer:
     """Enhanced terminal renderer using Rich library."""
@@ -35,7 +37,7 @@ class TerminalRenderer:
             color_system = None
 
         self.console = Console(
-            force_terminal=True,
+            force_terminal=None,  # Let Rich auto-detect if we're in a terminal
             color_system=color_system,
         )
         self._fallback_mode = not self.console.color_system
@@ -47,6 +49,9 @@ class TerminalRenderer:
         Args:
             content: Markdown content to render
         """
+        # Clean ANSI codes before rendering
+        content = clean_ansi_codes(content)
+        
         if self._fallback_mode:
             # Simple fallback for terminals without color support
             self.console.print(content)
@@ -99,6 +104,9 @@ class TerminalRenderer:
             text: Text to render
             style: Rich style string (e.g., "bold green", "red")
         """
+        # Clean ANSI codes before rendering
+        text = clean_ansi_codes(text)
+        
         if self._fallback_mode or not style:
             self.console.print(text)
         else:
@@ -189,7 +197,15 @@ class TerminalRenderer:
             *args: Arguments to print
             **kwargs: Keyword arguments for console.print
         """
-        self.console.print(*args, **kwargs)
+        # Clean ANSI codes from string arguments
+        cleaned_args = []
+        for arg in args:
+            if isinstance(arg, str):
+                cleaned_args.append(clean_ansi_codes(arg))
+            else:
+                cleaned_args.append(arg)
+        
+        self.console.print(*cleaned_args, **kwargs)
 
 
 # Global renderer instance

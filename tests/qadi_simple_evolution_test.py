@@ -71,29 +71,56 @@ class TestQadiSimpleEvolution:
         MockGA, mock_instance = mock_genetic_algorithm
         
         # Import the evolution function
-        from qadi_simple import run_qadi_analysis
+        import qadi_simple
         
         # Mock the orchestrator to return some ideas
-        with patch('qadi_simple.SimplerQADIOrchestrator') as MockOrchestrator:
+        with patch.object(qadi_simple, 'SimplerQADIOrchestrator') as MockOrchestrator:
             mock_orchestrator = AsyncMock()
+            # Create proper GeneratedIdea objects
+            from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
             mock_result = MagicMock()
             mock_result.synthesized_ideas = [
-                MagicMock(content="Idea 1"),
-                MagicMock(content="Idea 2"),
-                MagicMock(content="Idea 3"),
+                GeneratedIdea(
+                    content="Idea 1",
+                    thinking_method=ThinkingMethod.QUESTIONING,
+                    agent_name="test_agent",
+                    generation_prompt="test"
+                ),
+                GeneratedIdea(
+                    content="Idea 2",
+                    thinking_method=ThinkingMethod.ABDUCTION,
+                    agent_name="test_agent",
+                    generation_prompt="test"
+                ),
+                GeneratedIdea(
+                    content="Idea 3",
+                    thinking_method=ThinkingMethod.DEDUCTION,
+                    agent_name="test_agent",
+                    generation_prompt="test"
+                ),
             ]
             mock_result.total_llm_cost = 0.01
+            mock_result.core_question = "Test question"
+            mock_result.hypotheses = ["H1", "H2"]
+            mock_result.hypothesis_scores = []
+            mock_result.final_answer = "Test answer"
+            mock_result.action_plan = ["Action 1"]
+            mock_result.verification_examples = []
+            mock_result.verification_conclusion = ""
             mock_orchestrator.run_qadi_cycle = AsyncMock(return_value=mock_result)
             MockOrchestrator.return_value = mock_orchestrator
             
             # Run with evolution enabled
             with patch('os.getenv', return_value='test-api-key'):
-                await run_qadi_analysis(
-                    "Test question",
-                    evolve=True,
-                    generations=2,
-                    population=4
-                )
+                # Patch where GeneticAlgorithm is imported from
+                with patch('mad_spark_alt.evolution.GeneticAlgorithm', MockGA):
+                    await qadi_simple.run_qadi_analysis(
+                        "Test question",
+                        evolve=True,
+                        generations=2,
+                        population=4,
+                        traditional=True  # This should force llm_provider=None
+                    )
             
             # Verify GeneticAlgorithm was called without llm_provider (None for performance)
             MockGA.assert_called()
@@ -126,18 +153,34 @@ class TestQadiSimpleEvolution:
         
         MockGA.side_effect = init_side_effect
         
-        from qadi_simple import run_qadi_analysis
+        import qadi_simple
         
-        with patch('qadi_simple.SimplerQADIOrchestrator') as MockOrchestrator:
+        with patch.object(qadi_simple, 'SimplerQADIOrchestrator') as MockOrchestrator:
             mock_orchestrator = AsyncMock()
+            from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
             mock_result = MagicMock()
-            mock_result.synthesized_ideas = [MagicMock(content="Idea 1")]
+            mock_result.synthesized_ideas = [
+                GeneratedIdea(
+                    content="Idea 1",
+                    thinking_method=ThinkingMethod.QUESTIONING,
+                    agent_name="test_agent",
+                    generation_prompt="test"
+                )
+            ]
             mock_result.total_llm_cost = 0.01
+            mock_result.core_question = "Test question"
+            mock_result.hypotheses = ["H1"]
+            mock_result.hypothesis_scores = []
+            mock_result.final_answer = "Test answer"
+            mock_result.action_plan = ["Action 1"]
+            mock_result.verification_examples = []
+            mock_result.verification_conclusion = ""
             mock_orchestrator.run_qadi_cycle = AsyncMock(return_value=mock_result)
             MockOrchestrator.return_value = mock_orchestrator
             
             with patch('os.getenv', return_value='test-api-key'):
-                await run_qadi_analysis("Test", evolve=True)
+                with patch('mad_spark_alt.evolution.GeneticAlgorithm', MockGA):
+                    await qadi_simple.run_qadi_analysis("Test", evolve=True)
             
             # Verify semantic operators would be initialized
             assert MockGA.called
@@ -156,18 +199,34 @@ class TestQadiSimpleEvolution:
         with patch('qadi_simple.llm_manager') as mock_manager:
             mock_manager.providers = {}  # No providers available
             
-            from qadi_simple import run_qadi_analysis
+            import qadi_simple
             
-            with patch('qadi_simple.SimplerQADIOrchestrator') as MockOrchestrator:
+            with patch.object(qadi_simple, 'SimplerQADIOrchestrator') as MockOrchestrator:
                 mock_orchestrator = AsyncMock()
+                from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
                 mock_result = MagicMock()
-                mock_result.synthesized_ideas = [MagicMock(content="Idea 1")]
+                mock_result.synthesized_ideas = [
+                    GeneratedIdea(
+                        content="Idea 1",
+                        thinking_method=ThinkingMethod.QUESTIONING,
+                        agent_name="test_agent",
+                        generation_prompt="test"
+                    )
+                ]
                 mock_result.total_llm_cost = 0.01
+                mock_result.core_question = "Test question"
+                mock_result.hypotheses = ["H1"]
+                mock_result.hypothesis_scores = []
+                mock_result.final_answer = "Test answer"
+                mock_result.action_plan = ["Action 1"]
+                mock_result.verification_examples = []
+                mock_result.verification_conclusion = ""
                 mock_orchestrator.run_qadi_cycle = AsyncMock(return_value=mock_result)
                 MockOrchestrator.return_value = mock_orchestrator
                 
                 with patch('os.getenv', return_value='test-api-key'):
-                    await run_qadi_analysis("Test", evolve=True)
+                    with patch('mad_spark_alt.evolution.GeneticAlgorithm', MockGA):
+                        await qadi_simple.run_qadi_analysis("Test", evolve=True)
                 
                 # Verify GA was called without llm_provider
                 MockGA.assert_called()
