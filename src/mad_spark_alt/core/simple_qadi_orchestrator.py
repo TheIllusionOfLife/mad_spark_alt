@@ -317,9 +317,11 @@ class SimpleQADIOrchestrator:
                 # Log the actual response for debugging
                 logger.debug("LLM response for abduction phase:\n%s", content)
                 
-                # Remove ANSI codes first (both with and without escape character)
-                content = re.sub(r'\x1b\[[0-9;]*m', '', content)  # Standard ANSI codes
-                content = re.sub(r'\[(?:[0-9]{1,2}m|[0-9];[0-9]{1,2}m)', '', content)  # Codes without escape char
+                # Remove ANSI codes first
+                content = re.sub(r'\x1b\[[0-9;]*m', '', content)  # Standard ANSI codes with escape character
+                # Remove standalone ANSI codes that lost their escape character during processing
+                # Only match patterns like [1m, [0m, [32m, [1;32m at word boundaries to avoid matching legitimate content
+                content = re.sub(r'\b\[([0-9]{1,2}m|[0-9];[0-9]{1,2}m)\b', '', content)
                 
                 lines = content.split("\n")
 
@@ -333,8 +335,8 @@ class SimpleQADIOrchestrator:
                         continue
 
                     # Check if line starts with H1:, H2:, H3:, Approach N:, etc.
-                    # More flexible pattern that handles various formats
-                    hypothesis_match = re.match(r"^(?:\[1m)?(?:\*\*)?(?:H|Hypothesis\s*|Approach\s*)(\d+)(?:\])?(?:\*\*)?(?:\s*:|\.)\s*(.*)(?:\[0m)?$", line)
+                    # Pattern matches various hypothesis formats after ANSI codes have been stripped
+                    hypothesis_match = re.match(r"^(?:\*\*)?(?:H|Hypothesis\s*|Approach\s*)(\d+)(?:\*\*)?(?:\s*:|\.)\s*(.*)$", line)
                     
                     if hypothesis_match:
                         # Save previous hypothesis if we have one
@@ -346,17 +348,19 @@ class SimpleQADIOrchestrator:
                         current_index = int(hypothesis_match.group(1))
                         title_and_content = hypothesis_match.group(2).strip()
                         
-                        # Remove any remaining formatting
+                        # Remove any remaining bold formatting
                         title_and_content = re.sub(r'\*\*', '', title_and_content)
-                        title_and_content = re.sub(r'\[([^\]]+)\]', r'\1', title_and_content)
                         
-                        # Check if this line contains just a title in brackets or full content
-                        if title_and_content.startswith('[') and title_and_content.endswith(']'):
+                        # Check if this line contains just a title in brackets
+                        title_match = re.match(r'^\[([^\]]+)\]$', title_and_content)
+                        if title_match:
                             # This is just a title, content will follow
-                            current_title = title_and_content[1:-1]
+                            current_title = title_match.group(1)
                             current_hypothesis = ""
                         else:
-                            # This line contains content (and maybe title)
+                            # This line contains content
+                            # Remove brackets from the content if they exist
+                            title_and_content = re.sub(r'\[([^\]]+)\]', r'\1', title_and_content)
                             current_hypothesis = title_and_content
                     elif current_index is not None:
                         # Continue building current hypothesis from subsequent lines

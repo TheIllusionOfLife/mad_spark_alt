@@ -76,9 +76,7 @@ H6: [Sixth approach title]
 [Detailed explanation of the sixth approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]
 
 H7: [Seventh approach title]
-[Detailed explanation of the seventh approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]""" if num_hypotheses > 5 else "") + """
-
-Do not use any special formatting characters, ANSI codes, or markdown bold markers. Use only plain text."""
+[Detailed explanation of the seventh approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]""" if num_hypotheses > 5 else "")
 
     @staticmethod
     def get_deduction_prompt(

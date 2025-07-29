@@ -219,9 +219,9 @@ async def run_qadi_analysis(
             if evolve:
                 print("\n*Note: These initial ideas will be refined through AI evolution...*")
                 # Debug: Check if synthesized ideas have full content
-                logger.debug("Synthesized ideas for evolution:")
+                logger.info("Synthesized ideas for evolution:")
                 for idx, idea in enumerate(result.synthesized_ideas[:3]):
-                    logger.debug(f"Idea {idx+1} length: {len(idea.content)} chars")
+                    logger.info(f"Idea {idx+1} length: {len(idea.content)} chars")
             print()
         
         # Show phases in verbose mode

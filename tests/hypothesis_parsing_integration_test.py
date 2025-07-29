@@ -12,8 +12,6 @@ class TestHypothesisParsingIntegration:
 
     def test_parse_ansi_codes_in_hypothesis_extraction(self):
         """Test that ANSI codes are handled in hypothesis extraction."""
-        orchestrator = SimpleQADIOrchestrator()
-        
         # Simulate what happens during hypothesis extraction
         content = """[1mApproach 1:[0m Create a foundational AGI kernel.
 [1mApproach 2:[0m Develop multi-modal learning system.
