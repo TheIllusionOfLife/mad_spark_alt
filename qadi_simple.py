@@ -26,6 +26,7 @@ try:
     from mad_spark_alt.core.terminal_renderer import render_markdown
     from mad_spark_alt.core.qadi_prompts import QADIPrompts
     from mad_spark_alt.core.llm_provider import LLMProvider, llm_manager, get_google_provider
+    from mad_spark_alt.utils.text_cleaning import clean_ansi_codes
 except ImportError:
     # Fallback if package is not installed
     sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -34,6 +35,7 @@ except ImportError:
     from mad_spark_alt.core.terminal_renderer import render_markdown
     from mad_spark_alt.core.qadi_prompts import QADIPrompts
     from mad_spark_alt.core.llm_provider import LLMProvider, llm_manager, get_google_provider
+    from mad_spark_alt.utils.text_cleaning import clean_ansi_codes
 
 
 # Create custom prompts with simpler Phase 1
@@ -77,6 +79,9 @@ def get_approach_label(text: str, index: int) -> str:
 
 def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List[str]:
     """Extract the top 3 solutions from QADI results."""
+    
+    # Import here to avoid circular import
+    from mad_spark_alt.utils.text_cleaning import clean_ansi_codes
     
     def clean_markdown_text(text: str) -> str:
         """Remove all markdown formatting and clean up text."""
@@ -132,7 +137,9 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
     # Extract from hypotheses first
     for h in hypotheses[:3]:
         if h and h.strip():
-            title = extract_main_title(h)
+            # Clean ANSI codes first
+            h_clean = clean_ansi_codes(h)
+            title = extract_main_title(h_clean)
             if title and len(title) > 10:  # Must be meaningful
                 solutions.append(title)
     
@@ -201,7 +208,7 @@ async def run_qadi_analysis(
             print("\n## 💡 Initial Solutions (Hypothesis Generation)\n")
             for i, solution in enumerate(initial_solutions, 1):
                 # Clean up solution text but don't truncate - show full solution
-                solution_clean = solution.strip()
+                solution_clean = clean_ansi_codes(solution.strip())
                 # Only truncate if extremely long (over 400 characters)
                 if len(solution_clean) > 400:
                     # Find a good breaking point (sentence or clause)
@@ -231,8 +238,10 @@ async def run_qadi_analysis(
 
             print("\n## 💡 Phase 2: Hypothesis Generation (Abduction)\n")
             for i, hypothesis in enumerate(result.hypotheses):
+                # Clean ANSI codes from hypothesis
+                hypothesis_clean = clean_ansi_codes(hypothesis)
                 # Try to identify approach type
-                label_text = get_approach_label(hypothesis, i+1)
+                label_text = get_approach_label(hypothesis_clean, i+1)
                 # Extract just the label part without markdown
                 if "Personal" in label_text:
                     label = "Personal"
@@ -242,7 +251,7 @@ async def run_qadi_analysis(
                     label = "Systemic"
                 else:
                     label = f"H{i+1}"
-                render_markdown(f"**{label} Approach:** {hypothesis}")
+                render_markdown(f"**{label} Approach:** {hypothesis_clean}")
 
             print("\n## 🔍 Phase 3: Logical Analysis (Deduction)\n")
 
