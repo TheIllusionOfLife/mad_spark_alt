@@ -2,6 +2,46 @@
 
 Intelligent analysis system using QADI methodology (Question → Abduction → Deduction → Induction) to provide structured, multi-perspective insights on any topic.
 
+## Session Handover
+
+### Last Updated: July 29, 2025 06:19 PM JST
+
+#### Recently Completed
+- ✅ [PR #62]: Fix evolution display and hypothesis parsing issues
+  - Enhanced QADI prompts for detailed 150+ word responses
+  - Robust ANSI code removal with multiple targeted regex patterns
+  - Fixed evolution config validation constraints
+  - Added comprehensive test coverage for parsing edge cases
+- ✅ [PR #61]: Remove batch evaluation functionality
+- ✅ [PR #60]: Comprehensive performance optimizations and timeout fixes
+
+#### Next Priority Tasks
+1. **Add Real LLM Integration Tests**: Create integration tests with actual API calls
+   - Source: README.md roadmap
+   - Context: Current tests use mocks; need real-world validation
+   - Approach: Create test suite with API key requirement, mark as integration tests
+   
+2. **Implement LLM API Error Recovery**: Add comprehensive error handling
+   - Source: README.md roadmap
+   - Context: Production usage needs robust failure handling
+   - Approach: Implement retry logic, fallback strategies, and user-friendly errors
+
+3. **Fix Mock-Reality Divergence**: Ensure all test mocks match actual LLM formats
+   - Source: PR #62 experience
+   - Context: Tests passed but real usage failed due to format differences
+   - Approach: Copy real API responses for all mock data
+
+#### Known Issues / Blockers
+- Evolution config has strict validation rules (generations: 2-5, population: 2-10)
+- ANSI code patterns vary between LLM providers
+- Test timeouts may occur with slow API responses
+
+#### Session Learnings
+- LLM output parsing requires multiple targeted regex patterns, not broad catch-alls
+- Evolution display was showing summaries due to insufficient token limits (now 2500)
+- Mock test data must exactly match real LLM response formats
+- CI test updates are mandatory for parser changes and bug fixes
+
 ## Features
 
 - **QADI Methodology**: Structured 4-phase analysis for any question or problem
