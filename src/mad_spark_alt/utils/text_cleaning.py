@@ -28,15 +28,8 @@ def clean_ansi_codes(text: Optional[str]) -> str:
     if not text:
         return ""
     
-    # Remove standard ANSI escape sequences with \x1b
-    text = re.sub(r'\x1b\[[0-9;]*m', '', text)
-    
-    # Remove orphaned ANSI codes (lost escape character)
-    # Pattern: [Nm or [N;Nm where N is 1-3 digits
-    text = re.sub(r'\[([0-9]{1,3}(?:;[0-9]{1,3})*)?m', '', text)
-    
-    # Handle specific patterns from LLM output
-    # Use non-greedy matching and handle newlines
+    # 1. First, unwrap content from paired ANSI-like tags from LLM output.
+    # This handles patterns like [1m...[0m] by keeping the content.
     # [1mApproach 1:[0m -> Approach 1:
     text = re.sub(r'\[1m(.*?)\[0m', r'\1', text, flags=re.DOTALL)
     
@@ -49,14 +42,16 @@ def clean_ansi_codes(text: Optional[str]) -> str:
     # Handle compound codes like [1;33m
     text = re.sub(r'\[([0-9]{1,2});([0-9]{1,2})m(.*?)\[0m', r'\3', text, flags=re.DOTALL)
     
-    # Clean up any remaining orphaned [0m reset codes
-    text = re.sub(r'\[0m', '', text)
+    # 2. Remove standard ANSI escape sequences with the escape character.
+    # This handles all ANSI codes with \x1b escape character
+    text = re.sub(r'\x1b\[[0-9;]*m', '', text)
     
-    # Clean up any remaining orphaned start codes at end of lines
-    text = re.sub(r'\[[0-9;]*m$', '', text, flags=re.MULTILINE)
+    # 3. Remove any remaining orphaned or unmatched ANSI-like codes.
+    # This now happens AFTER unwrapping, so it won't interfere with paired tags.
+    text = re.sub(r'\[[0-9;]*m', '', text)
     
-    # Clean up any remaining orphaned start codes at beginning of lines
-    text = re.sub(r'^\[[0-9;]*m', '', text, flags=re.MULTILINE)
+    # 4. Clean up any remaining escape characters
+    text = text.replace('\x1b', '')
     
     return text
 

@@ -5,11 +5,7 @@ Test specific display functions without running the full flow.
 """
 
 import io
-import sys
-from contextlib import redirect_stdout
-from unittest.mock import Mock, patch
-
-import pytest
+from unittest.mock import patch
 
 
 class TestEvolutionDisplayLogic:
