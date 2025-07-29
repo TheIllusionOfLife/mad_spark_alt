@@ -51,18 +51,34 @@ Generate hypotheses that cover different scales or perspectives:
 
 Each hypothesis should:
 - Directly address the core question
-- Be concrete and actionable
+- Be concrete and actionable with specific implementation details
+- Provide comprehensive explanation (minimum 100 words per hypothesis)
 - Offer a meaningfully different path forward
 
-Format:
-H1: [First approach - often individual/immediate]
-H2: [Second approach - often community/collaborative]
-H3: [Third approach - often systemic/long-term]""" + (f"""
-H4: [Fourth approach - alternative perspective]
-H5: [Fifth approach - innovative solution]""" if num_hypotheses > 3 else "") + (f"""
-H6: [Sixth approach - transformative idea]
-H7: [Seventh approach - radical rethinking]""" if num_hypotheses > 5 else "") + """
-"""
+IMPORTANT OUTPUT FORMAT - You MUST follow this exact format without any modifications:
+
+H1: [First approach title]
+[Detailed explanation of the first approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]
+
+H2: [Second approach title]
+[Detailed explanation of the second approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]
+
+H3: [Third approach title]
+[Detailed explanation of the third approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]""" + (f"""
+
+H4: [Fourth approach title]
+[Detailed explanation of the fourth approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]
+
+H5: [Fifth approach title]
+[Detailed explanation of the fifth approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]""" if num_hypotheses > 3 else "") + (f"""
+
+H6: [Sixth approach title]
+[Detailed explanation of the sixth approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]
+
+H7: [Seventh approach title]
+[Detailed explanation of the seventh approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]""" if num_hypotheses > 5 else "") + """
+
+Do not use any special formatting characters, ANSI codes, or markdown bold markers. Use only plain text."""
 
     @staticmethod
     def get_deduction_prompt(
