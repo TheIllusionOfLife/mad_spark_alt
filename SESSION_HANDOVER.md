@@ -128,7 +128,7 @@ print('Agent status:', status)
 # Edit src/mad_spark_alt/core/smart_registry.py
 
 # 4. Test evolution once fixed  
-uv run mad-spark evolve "test prompt" --quick
+uv run mad-spark evolve "test prompt" --generations 2
 ```
 
 ## Success Criteria

@@ -96,8 +96,8 @@ uv run mad-spark evolve "How can we reduce food waste?"
 # With additional context
 uv run mad-spark evolve "Improve remote work" --context "Focus on team collaboration"
 
-# Quick mode (faster, fewer generations)
-uv run mad-spark evolve "Climate solutions" --quick --generations 2
+# With custom parameters
+uv run mad-spark evolve "Climate solutions" --generations 2
 
 # Save results
 uv run mad-spark evolve "Business innovation" --output results.json

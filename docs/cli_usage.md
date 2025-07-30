@@ -83,8 +83,8 @@ uv run mad-spark evolve "How can we reduce food waste?"
 # With custom context
 uv run mad-spark evolve "Improve customer service" --context "E-commerce platform"
 
-# Quick mode (faster, smaller population)
-uv run mad-spark evolve "Climate solutions" --quick
+# With custom parameters
+uv run mad-spark evolve "Climate solutions" --generations 2
 
 # Save results to file
 uv run mad-spark evolve "New product ideas" --output results.json
@@ -312,8 +312,8 @@ uv run mad-spark evolve "Improve remote work" \
   --generations 5 \
   --population 15
 
-# Quick evolution mode (faster for testing)
-uv run mad-spark evolve "Climate solutions" --quick
+# Evolution with minimum parameters
+uv run mad-spark evolve "Climate solutions" --generations 2 --population 2
 
 # Save evolution results
 uv run mad-spark evolve "Innovation challenge" \
