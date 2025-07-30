@@ -536,9 +536,8 @@ def _summary_to_dict(summary: EvaluationSummary) -> Dict[str, Any]:
 @main.command()
 @click.argument("problem")
 @click.option("--context", "-c", help="Additional context for the problem")
-@click.option("--quick", "-q", is_flag=True, help="Quick mode: faster execution")
-@click.option("--generations", "-g", default=3, help="Number of evolution generations")
-@click.option("--population", "-p", default=8, help="Population size for evolution")
+@click.option("--generations", "-g", default=2, help="Number of evolution generations")
+@click.option("--population", "-p", default=5, help="Population size for evolution")
 @click.option(
     "--temperature",
     "-t",
@@ -554,7 +553,6 @@ def _summary_to_dict(summary: EvaluationSummary) -> Dict[str, Any]:
 def evolve(
     problem: str,
     context: Optional[str],
-    quick: bool,
     generations: int,
     population: int,
     temperature: Optional[float],
@@ -566,7 +564,7 @@ def evolve(
     Examples:
       mad-spark evolve "How can we reduce food waste?"
       mad-spark evolve "Improve remote work" --context "Focus on team collaboration"
-      mad-spark evolve "Climate solutions" --quick --generations 2
+      mad-spark evolve "Climate solutions" --generations 2
       mad-spark evolve "New product ideas" --temperature 1.5
     """
     import os
@@ -599,9 +597,6 @@ def evolve(
     if not context:
         context = "Consider practical, implementable solutions"
 
-    if quick:
-        generations = min(2, generations)
-        population = min(8, population)
 
     temp_display = f" | Temperature: {temperature}" if temperature else ""
     console.print(
@@ -616,7 +611,7 @@ def evolve(
     # Run the evolution pipeline
     asyncio.run(
         _run_evolution_pipeline(
-            problem, context, quick, generations, population, temperature, output, traditional
+            problem, context, generations, population, temperature, output, traditional
         )
     )
 
@@ -624,7 +619,6 @@ def evolve(
 async def _run_evolution_pipeline(
     problem: str,
     context: str,
-    quick: bool,
     generations: int,
     population: int,
     temperature: Optional[float],
@@ -687,8 +681,8 @@ async def _run_evolution_pipeline(
             ga = GeneticAlgorithm(
                 use_cache=True,
                 cache_ttl=3600,
-                checkpoint_dir=".evolution_checkpoints" if not quick else None,
-                checkpoint_interval=3 if not quick else 0,
+                checkpoint_dir=".evolution_checkpoints",
+                checkpoint_interval=1,
                 llm_provider=llm_provider,
             )
 
@@ -847,7 +841,7 @@ async def _run_evolution_pipeline(
                 )
 
         except asyncio.TimeoutError:
-            console.print("[red]⏱️  Process timed out. Try --quick mode.[/red]")
+            console.print("[red]⏱️  Process timed out. Try reducing generations or population size.[/red]")
         except Exception as e:
             console.print(f"[red]❌ Error: {e}[/red]")
 
