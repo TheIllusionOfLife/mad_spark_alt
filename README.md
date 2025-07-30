@@ -35,18 +35,21 @@ uv run mad_spark_alt "How can we reduce plastic waste?"
 # Add genetic evolution to optimize ideas (uses semantic operators by default)
 uv run mad_spark_alt "How can we reduce plastic waste?" --evolve
 
-# Customize evolution parameters
-uv run mad_spark_alt "Your question" --evolve --generations 3 --population 3
+# Display help
+uv run mad_spark_alt --help
 ```
 
 ### Advanced Options
 
 ```bash
 # Temperature control (creativity level)
-uv run python qadi_simple.py "Your question" --temperature 1.2
+uv run mad_spark_alt "Your question" --temperature 1.2
+
+# Customize evolution parameters (generations = 2, population = 5 by default)
+uv run mad_spark_alt "Your question" --evolve --generations 3 --population 8
 
 # Use traditional operators for faster evolution
-uv run python qadi_simple.py "Your question" --evolve --traditional
+uv run mad_spark_alt "Your question" --evolve --traditional
 ```
 
 ## How QADI Works
