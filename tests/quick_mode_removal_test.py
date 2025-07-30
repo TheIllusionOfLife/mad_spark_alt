@@ -2,6 +2,7 @@
 Tests for removal of quick mode functionality and checkpoint frequency updates.
 """
 
+import os
 import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -10,6 +11,7 @@ import json
 
 from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
 from mad_spark_alt.evolution import GeneticAlgorithm, EvolutionRequest, EvolutionConfig
+from mad_spark_alt.cli import _run_evolution_pipeline
 
 
 class TestQuickModeRemoval:
@@ -69,8 +71,6 @@ class TestCheckpointFrequency:
     @pytest.mark.asyncio
     async def test_cli_checkpoint_config(self):
         """Verify CLI passes correct checkpoint configuration to GeneticAlgorithm."""
-        from mad_spark_alt.cli import _run_evolution_pipeline
-        
         with patch('mad_spark_alt.cli.GeneticAlgorithm') as mock_ga_class:
             # Mock the genetic algorithm instance
             mock_ga = AsyncMock()
@@ -184,12 +184,11 @@ class TestIntegrationScenarios:
     @pytest.mark.asyncio
     async def test_evolution_with_real_api(self):
         """Test evolution with real Google API key."""
-        import os
         if not os.getenv("GOOGLE_API_KEY"):
             pytest.skip("GOOGLE_API_KEY not available")
             
         # Test with minimal settings
-        await _run_evolution_pipeline(
+        result = await _run_evolution_pipeline(
             problem="How to reduce plastic waste?",
             context="Focus on practical solutions",
             generations=2,  # Minimum
@@ -198,6 +197,10 @@ class TestIntegrationScenarios:
             output_file=None,
             traditional=False
         )
+        
+        # Verify the evolution completed successfully
+        assert result is not None, "Evolution should return a result"
+        # Note: We can't assert specific values without mocking since this uses real API
         
     @pytest.mark.asyncio 
     async def test_evolution_checkpoint_creation(self):
