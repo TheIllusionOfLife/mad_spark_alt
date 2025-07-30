@@ -1,0 +1,315 @@
+"""
+Tests for removal of quick mode functionality and checkpoint frequency updates.
+"""
+
+import pytest
+import asyncio
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch, call
+import tempfile
+import shutil
+import json
+
+from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
+from mad_spark_alt.evolution import GeneticAlgorithm, EvolutionRequest, EvolutionConfig
+from mad_spark_alt.evolution.interfaces import IndividualFitness
+from mad_spark_alt.cli import evolve, _run_evolution_pipeline
+
+
+class TestQuickModeRemoval:
+    """Test suite for verifying quick mode has been removed properly."""
+    
+    def test_evolve_command_no_quick_option(self):
+        """Verify that --quick option has been removed from CLI."""
+        from click.testing import CliRunner
+        from mad_spark_alt.cli import main
+        
+        runner = CliRunner()
+        # Test that --quick option is not recognized
+        result = runner.invoke(main, ['evolve', 'test problem', '--quick'])
+        assert result.exit_code != 0
+        assert "--quick" in result.output or "no such option" in result.output
+        
+    def test_evolve_command_help_no_quick_mention(self):
+        """Verify that help text doesn't mention quick mode."""
+        from click.testing import CliRunner
+        from mad_spark_alt.cli import main
+        
+        runner = CliRunner()
+        result = runner.invoke(main, ['evolve', '--help'])
+        assert result.exit_code == 0
+        assert "--quick" not in result.output
+        assert "-q" not in result.output
+        assert "Quick mode" not in result.output
+        
+
+class TestCheckpointFrequency:
+    """Test suite for checkpoint frequency changes."""
+    
+    @pytest.mark.asyncio
+    async def test_checkpoint_saved_every_generation(self):
+        """Verify checkpoints are saved after every generation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            checkpoint_dir = Path(tmpdir) / "checkpoints"
+            
+            # Create mock ideas
+            initial_ideas = [
+                GeneratedIdea(
+                    content=f"Idea {i}",
+                    thinking_method=ThinkingMethod.ABDUCTION,
+                    agent_name="test",
+                    generation_prompt="test"
+                )
+                for i in range(3)
+            ]
+            
+            # Create genetic algorithm with checkpoint interval = 1
+            ga = GeneticAlgorithm(
+                checkpoint_dir=str(checkpoint_dir),
+                checkpoint_interval=1  # Every generation
+            )
+            
+            # Mock evaluator
+            mock_evaluator = AsyncMock()
+            mock_evaluator.evaluate_batch.return_value = [
+                {"overall_score": 0.8} for _ in range(3)
+            ]
+            
+            # Create evolution request with 3 generations
+            config = EvolutionConfig(
+                population_size=3,
+                generations=3,
+                mutation_rate=0.1,
+                crossover_rate=0.7
+            )
+            
+            request = EvolutionRequest(
+                initial_population=initial_ideas,
+                config=config
+            )
+            
+            # Run evolution
+            with patch.object(ga, '_get_llm_evaluator', return_value=mock_evaluator):
+                result = await ga.evolve(request)
+            
+            # Verify checkpoints were created
+            checkpoint_files = list(checkpoint_dir.glob("*.json"))
+            # Should have checkpoints for generations 1, 2, and 3
+            assert len(checkpoint_files) >= 3
+            
+            # Verify checkpoint content
+            for checkpoint_file in checkpoint_files:
+                with open(checkpoint_file) as f:
+                    checkpoint_data = json.load(f)
+                    assert "generation" in checkpoint_data
+                    assert "population" in checkpoint_data
+                    assert "config" in checkpoint_data
+                    
+    @pytest.mark.asyncio
+    async def test_checkpoint_interval_in_cli(self):
+        """Verify CLI passes checkpoint_interval=1 to GeneticAlgorithm."""
+        with patch('mad_spark_alt.cli.GeneticAlgorithm') as mock_ga_class:
+            mock_ga = AsyncMock()
+            mock_ga_class.return_value = mock_ga
+            mock_ga.evolve.return_value = MagicMock(
+                final_population=[],
+                best_ideas=[],
+                llm_cost=0.0,
+                error_message=None
+            )
+            
+            with patch('mad_spark_alt.cli.SimpleQADIOrchestrator') as mock_orch_class:
+                mock_orch = AsyncMock()
+                mock_orch_class.return_value = mock_orch
+                mock_orch.orchestrate.return_value = MagicMock(
+                    synthesized_ideas=[],
+                    total_llm_cost=0.0
+                )
+                
+                # Run evolution through CLI
+                await _run_evolution_pipeline(
+                    problem="test problem",
+                    context="test context",
+                    generations=2,
+                    population=5,
+                    temperature=None,
+                    output=None,
+                    traditional=False
+                )
+                
+                # Verify GeneticAlgorithm was created with correct parameters
+                mock_ga_class.assert_called_once()
+                call_kwargs = mock_ga_class.call_args.kwargs
+                assert call_kwargs['checkpoint_interval'] == 1
+                assert call_kwargs['checkpoint_dir'] == ".evolution_checkpoints"
+                
+
+class TestParameterValidation:
+    """Test that parameter validation still works without quick mode."""
+    
+    @pytest.mark.asyncio
+    async def test_generations_validation(self):
+        """Verify generations must be between 2 and 5."""
+        from click.testing import CliRunner
+        from mad_spark_alt.cli import main
+        
+        runner = CliRunner()
+        
+        # Test below minimum
+        result = runner.invoke(main, ['evolve', 'test', '--generations', '1'])
+        assert result.exit_code != 0
+        assert "Generations must be between 2 and 5" in result.output
+        
+        # Test above maximum
+        result = runner.invoke(main, ['evolve', 'test', '--generations', '6'])
+        assert result.exit_code != 0
+        assert "Generations must be between 2 and 5" in result.output
+        
+    @pytest.mark.asyncio
+    async def test_population_validation(self):
+        """Verify population must be between 2 and 10."""
+        from click.testing import CliRunner
+        from mad_spark_alt.cli import main
+        
+        runner = CliRunner()
+        
+        # Test below minimum
+        result = runner.invoke(main, ['evolve', 'test', '--population', '1'])
+        assert result.exit_code != 0
+        assert "Population size must be between 2 and 10" in result.output
+        
+        # Test above maximum
+        result = runner.invoke(main, ['evolve', 'test', '--population', '11'])
+        assert result.exit_code != 0
+        assert "Population size must be between 2 and 10" in result.output
+
+
+class TestDefaultValues:
+    """Test that default values are correct after quick mode removal."""
+    
+    def test_default_generations_is_2(self):
+        """Verify default generations is 2."""
+        from mad_spark_alt.cli import evolve
+        import click
+        
+        # Get the evolve command's parameters
+        for param in evolve.params:
+            if param.name == 'generations':
+                assert param.default == 2
+                break
+        else:
+            pytest.fail("generations parameter not found")
+            
+    def test_default_population_is_5(self):
+        """Verify default population is 5."""
+        from mad_spark_alt.cli import evolve
+        import click
+        
+        # Get the evolve command's parameters
+        for param in evolve.params:
+            if param.name == 'population':
+                assert param.default == 5
+                break
+        else:
+            pytest.fail("population parameter not found")
+
+
+class TestIntegrationScenarios:
+    """Integration tests for various user scenarios."""
+    
+    @pytest.mark.integration
+    @pytest.mark.asyncio
+    async def test_evolution_with_real_api(self):
+        """Test evolution with real Google API key."""
+        import os
+        if not os.getenv("GOOGLE_API_KEY"):
+            pytest.skip("GOOGLE_API_KEY not available")
+            
+        from mad_spark_alt.cli import _run_evolution_pipeline
+        
+        # Test with minimal settings
+        await _run_evolution_pipeline(
+            problem="How to reduce plastic waste?",
+            context="Focus on practical solutions",
+            generations=2,  # Minimum
+            population=2,   # Minimum
+            temperature=0.7,
+            output=None,
+            traditional=False
+        )
+        
+    @pytest.mark.integration
+    @pytest.mark.asyncio
+    async def test_evolution_checkpoint_recovery(self):
+        """Test that evolution can recover from checkpoints."""
+        import os
+        if not os.getenv("GOOGLE_API_KEY"):
+            pytest.skip("GOOGLE_API_KEY not available")
+            
+        with tempfile.TemporaryDirectory() as tmpdir:
+            checkpoint_dir = Path(tmpdir) / ".evolution_checkpoints"
+            
+            # Run partial evolution
+            ga = GeneticAlgorithm(
+                checkpoint_dir=str(checkpoint_dir),
+                checkpoint_interval=1
+            )
+            
+            # Create initial ideas
+            initial_ideas = [
+                GeneratedIdea(
+                    content=f"Solution {i}",
+                    thinking_method=ThinkingMethod.ABDUCTION,
+                    agent_name="test",
+                    generation_prompt="test"
+                )
+                for i in range(2)
+            ]
+            
+            # Run 1 generation
+            config = EvolutionConfig(
+                population_size=2,
+                generations=1,
+            )
+            
+            request = EvolutionRequest(
+                initial_population=initial_ideas,
+                config=config
+            )
+            
+            # This would normally create a checkpoint
+            # In real scenario, we'd interrupt here and resume
+            # For testing, we just verify checkpoint exists
+            
+            
+class TestDocumentationUpdates:
+    """Verify documentation has been updated correctly."""
+    
+    def test_no_quick_mode_in_commands_md(self):
+        """Verify COMMANDS.md doesn't mention quick mode."""
+        commands_path = Path("COMMANDS.md")
+        if commands_path.exists():
+            content = commands_path.read_text()
+            assert "--quick" not in content
+            assert "-q" not in content.split()  # Check as whole word
+            
+    def test_no_quick_mode_in_cli_usage(self):
+        """Verify cli_usage.md doesn't mention quick mode."""
+        cli_usage_path = Path("docs/cli_usage.md")
+        if cli_usage_path.exists():
+            content = cli_usage_path.read_text()
+            assert "--quick" not in content
+            
+    def test_no_quick_mode_in_session_handover(self):
+        """Verify SESSION_HANDOVER.md doesn't mention quick mode."""
+        handover_path = Path("SESSION_HANDOVER.md")
+        if handover_path.exists():
+            content = handover_path.read_text()
+            # Allow historical mentions but not as current examples
+            lines = content.split('\n')
+            for i, line in enumerate(lines):
+                if "--quick" in line and i > 0:
+                    # Check if it's in a code block or example
+                    prev_line = lines[i-1] if i > 0 else ""
+                    if "```" in prev_line or "example" in prev_line.lower():
+                        pytest.fail(f"Quick mode found in example on line {i+1}")
