@@ -59,8 +59,8 @@ Format: "Q: [The user's question]"
 class SimplerQADIOrchestrator(SimpleQADIOrchestrator):
     """QADI orchestrator with simplified Phase 1."""
     
-    def __init__(self, temperature_override: Optional[float] = None) -> None:
-        super().__init__(temperature_override)
+    def __init__(self, temperature_override: Optional[float] = None, num_hypotheses: int = 3) -> None:
+        super().__init__(temperature_override, num_hypotheses)
         # Use custom prompts
         self.prompts = SimplerQADIPrompts()
 
@@ -78,7 +78,7 @@ def get_approach_label(text: str, index: int) -> str:
 
 
 def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List[str]:
-    """Extract the top 3 solutions from QADI results."""
+    """Extract key solutions from QADI results."""
     
     # Import here to avoid circular import
     from mad_spark_alt.utils.text_cleaning import clean_ansi_codes
@@ -135,7 +135,7 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
     solutions = []
     
     # Extract from hypotheses first
-    for h in hypotheses[:3]:
+    for h in hypotheses:
         if h and h.strip():
             # Clean ANSI codes first
             h_clean = clean_ansi_codes(h)
@@ -158,7 +158,8 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
                 elif len(action_clean) > 20:
                     solutions.append(action_clean[:100].strip())
     
-    return solutions[:3]
+    # Return all solutions, not just 3
+    return solutions
 
 
 async def run_qadi_analysis(
@@ -187,8 +188,10 @@ async def run_qadi_analysis(
         print("  export GOOGLE_API_KEY='your-key-here'")
         return
 
-    # Create orchestrator with optional temperature override
-    orchestrator = SimplerQADIOrchestrator(temperature_override=temperature)
+    # Create orchestrator with optional temperature override and num_hypotheses for evolution
+    # When evolving, generate as many hypotheses as the requested population
+    num_hypotheses = population if evolve else 3
+    orchestrator = SimplerQADIOrchestrator(temperature_override=temperature, num_hypotheses=num_hypotheses)
     
     start_time = time.time()
 
@@ -343,7 +346,8 @@ async def run_qadi_analysis(
             # Check if we have fewer ideas than requested
             actual_population = min(population, len(result.synthesized_ideas))
             if actual_population < population:
-                print(f"   (Using {actual_population} ideas from available {len(result.synthesized_ideas)})")
+                print(f"   (Note: Generated {len(result.synthesized_ideas)} hypotheses, but {population} were requested)")
+                print(f"   (Using all {actual_population} available ideas for evolution)")
             
             try:
                 from mad_spark_alt.evolution import (
@@ -396,15 +400,15 @@ async def run_qadi_analysis(
                 # Calculate adaptive timeout based on evolution complexity
                 def calculate_evolution_timeout(gens: int, pop: int) -> float:
                     """Calculate timeout in seconds based on generations and population."""
-                    base_timeout = 60.0  # Base 1 minute
-                    time_per_eval = 2.0  # 2 seconds per idea evaluation
+                    base_timeout = 90.0  # Base 1.5 minutes
+                    time_per_eval = 5.0  # 5 seconds per idea evaluation (more realistic for LLM calls)
                     
-                    # Estimate total evaluations
-                    total_evaluations = gens * pop
+                    # Estimate total evaluations (including initial population)
+                    total_evaluations = gens * pop + pop  # Initial eval + each generation
                     estimated_time = base_timeout + (total_evaluations * time_per_eval)
                     
-                    # Cap at 10 minutes
-                    return min(estimated_time, 600.0)
+                    # Cap at 15 minutes for very large evolutions
+                    return min(estimated_time, 900.0)
                 
                 evolution_timeout = calculate_evolution_timeout(generations, actual_population)
                 print(f"⏱️  Evolution timeout: {evolution_timeout:.0f}s (adjust --generations or --population if needed)")
@@ -634,7 +638,8 @@ def main() -> None:
         "--generations", "-g", type=int, default=2, help="Number of evolution generations (default: 2, with --evolve)"
     )
     parser.add_argument(
-        "--population", "-p", type=int, default=5, help="Population size for evolution (default: 5, with --evolve)"
+        "--population", "-p", type=int, default=5, 
+        help="Population size for evolution. Also determines number of initial hypotheses generated (default: 5, with --evolve)"
     )
     parser.add_argument(
         "--traditional", action="store_true", help="Use traditional operators instead of semantic operators (with --evolve)"
