@@ -257,6 +257,13 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Token Limits**: Deduction phase needs 1500+ tokens for complete analysis with scores and explanations
 - **Testing Pattern**: Use `tests/test_integration_real_llm.py` and `tests/test_prompt_parser_validation.py`
 
+### Dynamic Hypothesis Generation (PR #67)
+- **Pattern**: Pass population size as `num_hypotheses` parameter through orchestrator hierarchy
+- **Implementation**: `SimplerQADIOrchestrator(num_hypotheses=population if evolve else 3)`
+- **Timeout Scaling**: Base 90s + (generations × population + population) × 5s, capped at 900s
+- **Display Pattern**: Show requested population with clarification when actual differs
+- **Test Synchronization**: Extract timeout calculations to module level to prevent divergence
+
 ### Evolution System Testing
 - **Pattern**: Test genetic algorithms with variance tolerance, not exact values
 - **Convention**: Use `assert final_fitness >= initial_fitness * 0.9` for randomness
