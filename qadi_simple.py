@@ -631,10 +631,10 @@ def main() -> None:
         "--evolve", "-e", action="store_true", help="Evolve ideas using genetic algorithm after QADI analysis"
     )
     parser.add_argument(
-        "--generations", "-g", type=int, default=3, help="Number of evolution generations (with --evolve)"
+        "--generations", "-g", type=int, default=2, help="Number of evolution generations (with --evolve)"
     )
     parser.add_argument(
-        "--population", "-p", type=int, default=10, help="Population size for evolution (with --evolve)"
+        "--population", "-p", type=int, default=5, help="Population size for evolution (with --evolve)"
     )
     parser.add_argument(
         "--traditional", action="store_true", help="Use traditional operators instead of semantic operators (with --evolve)"

@@ -16,8 +16,8 @@ uv run mad_spark_alt "Your question" --evolve
 uv run mad_spark_alt "Your question" -e              # Short form
 
 # With custom parameters
-uv run mad_spark_alt "Your question" --evolve --generations 5 --population 20
-uv run mad_spark_alt "Your question" -e -g 5 -p 20   # Short form
+uv run mad_spark_alt "Your question" --evolve --generations 5 --population 10
+uv run mad_spark_alt "Your question" -e -g 5 -p 10   # Short form
 
 # Other options
 uv run mad_spark_alt "Your question" --temperature 0.5  # More focused
@@ -27,8 +27,8 @@ uv run mad_spark_alt "Your question" -e -v -t 1.5       # All options
 
 Options:
 - `--evolve, -e`: Add genetic evolution after QADI analysis
-- `--generations, -g`: Number of evolution generations (default: 3)
-- `--population, -p`: Population size for evolution (default: 12)
+- `--generations, -g`: Number of evolution generations (default: 2)
+- `--population, -p`: Population size for evolution (default: 5)
 - `--temperature, -t`: Creativity temperature 0.0-2.0 (default: 0.8)
 - `--verbose, -v`: Show detailed evaluation scores
 
