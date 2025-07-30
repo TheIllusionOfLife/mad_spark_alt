@@ -399,15 +399,15 @@ async def run_qadi_analysis(
                 # Calculate adaptive timeout based on evolution complexity
                 def calculate_evolution_timeout(gens: int, pop: int) -> float:
                     """Calculate timeout in seconds based on generations and population."""
-                    base_timeout = 60.0  # Base 1 minute
-                    time_per_eval = 2.0  # 2 seconds per idea evaluation
+                    base_timeout = 90.0  # Base 1.5 minutes
+                    time_per_eval = 5.0  # 5 seconds per idea evaluation (more realistic for LLM calls)
                     
-                    # Estimate total evaluations
-                    total_evaluations = gens * pop
+                    # Estimate total evaluations (including initial population)
+                    total_evaluations = gens * pop + pop  # Initial eval + each generation
                     estimated_time = base_timeout + (total_evaluations * time_per_eval)
                     
-                    # Cap at 10 minutes
-                    return min(estimated_time, 600.0)
+                    # Cap at 15 minutes for very large evolutions
+                    return min(estimated_time, 900.0)
                 
                 evolution_timeout = calculate_evolution_timeout(generations, actual_population)
                 print(f"⏱️  Evolution timeout: {evolution_timeout:.0f}s (adjust --generations or --population if needed)")
@@ -637,7 +637,8 @@ def main() -> None:
         "--generations", "-g", type=int, default=2, help="Number of evolution generations (default: 2, with --evolve)"
     )
     parser.add_argument(
-        "--population", "-p", type=int, default=5, help="Population size for evolution (default: 5, with --evolve)"
+        "--population", "-p", type=int, default=5, 
+        help="Population size for evolution. Also determines number of initial hypotheses generated (default: 5, with --evolve)"
     )
     parser.add_argument(
         "--traditional", action="store_true", help="Use traditional operators instead of semantic operators (with --evolve)"
