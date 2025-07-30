@@ -70,18 +70,50 @@ class TestCheckpointFrequency:
         )
         assert ga.checkpointer is None
                     
-    def test_cli_checkpoint_config(self):
-        """Verify CLI checkpoint configuration values."""
-        # Import the actual function to check the code
+    @pytest.mark.asyncio
+    async def test_cli_checkpoint_config(self):
+        """Verify CLI passes correct checkpoint configuration to GeneticAlgorithm."""
+        from unittest.mock import patch, AsyncMock, MagicMock
         from mad_spark_alt.cli import _run_evolution_pipeline
-        import inspect
         
-        # Get the source code of the function
-        source = inspect.getsource(_run_evolution_pipeline)
-        
-        # Verify checkpoint configuration in source
-        assert 'checkpoint_dir=".evolution_checkpoints"' in source
-        assert 'checkpoint_interval=1' in source
+        with patch('mad_spark_alt.cli.GeneticAlgorithm') as mock_ga_class:
+            # Mock the genetic algorithm instance
+            mock_ga = AsyncMock()
+            mock_ga_class.return_value = mock_ga
+            mock_ga.evolve.return_value = MagicMock(
+                final_population=[],
+                best_ideas=[],
+                evolution_metrics={},
+                error_message=None,
+                success=True,
+                execution_time=1.0,
+                total_generations=2
+            )
+            
+            with patch('mad_spark_alt.cli.SimpleQADIOrchestrator') as mock_orch_class:
+                mock_orch = AsyncMock()
+                mock_orch_class.return_value = mock_orch
+                mock_orch.run_qadi_cycle.return_value = MagicMock(
+                    synthesized_ideas=[MagicMock(content="test", metadata={})],
+                    total_llm_cost=0.01
+                )
+                
+                # Run the pipeline
+                await _run_evolution_pipeline(
+                    problem="test",
+                    context="test context",
+                    generations=2,
+                    population=2,
+                    temperature=None,
+                    output_file=None,
+                    traditional=False
+                )
+                
+                # Verify GeneticAlgorithm was created with correct checkpoint config
+                mock_ga_class.assert_called_once()
+                call_kwargs = mock_ga_class.call_args.kwargs
+                assert call_kwargs['checkpoint_dir'] == ".evolution_checkpoints"
+                assert call_kwargs['checkpoint_interval'] == 1
                 
 
 class TestParameterValidation:
@@ -178,22 +210,11 @@ class TestIntegrationScenarios:
             traditional=False
         )
         
-    @pytest.mark.integration
-    @pytest.mark.asyncio
-    async def test_evolution_checkpoint_recovery(self):
-        """Test that evolution can recover from checkpoints."""
-        import os
-        if not os.getenv("GOOGLE_API_KEY"):
-            pytest.skip("GOOGLE_API_KEY not available")
-            
+    @pytest.mark.asyncio 
+    async def test_evolution_checkpoint_creation(self):
+        """Test that checkpoints are created during evolution."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            checkpoint_dir = Path(tmpdir) / ".evolution_checkpoints"
-            
-            # Run partial evolution
-            ga = GeneticAlgorithm(
-                checkpoint_dir=str(checkpoint_dir),
-                checkpoint_interval=1
-            )
+            checkpoint_dir = Path(tmpdir) / "checkpoints"
             
             # Create initial ideas
             initial_ideas = [
@@ -206,20 +227,56 @@ class TestIntegrationScenarios:
                 for i in range(2)
             ]
             
-            # Run 1 generation
-            config = EvolutionConfig(
-                population_size=2,
-                generations=1,
-            )
-            
-            request = EvolutionRequest(
-                initial_population=initial_ideas,
-                config=config
-            )
-            
-            # This would normally create a checkpoint
-            # In real scenario, we'd interrupt here and resume
-            # For testing, we just verify checkpoint exists
+            # Mock the fitness evaluator
+            from unittest.mock import patch, AsyncMock
+            with patch('mad_spark_alt.evolution.fitness.FitnessEvaluator') as mock_eval_class:
+                mock_evaluator = AsyncMock()
+                mock_eval_class.return_value = mock_evaluator
+                
+                # Mock evaluate_batch to return proper results
+                mock_evaluator.evaluate_batch.return_value = [
+                    {"overall_score": 0.8, "diversity_score": 0.7}
+                    for _ in range(10)  # Enough for multiple calls
+                ]
+                
+                # Create GA with checkpoint interval = 1
+                ga = GeneticAlgorithm(
+                    checkpoint_dir=str(checkpoint_dir),
+                    checkpoint_interval=1,
+                    use_cache=False
+                )
+                
+                # Run 2 generations
+                config = EvolutionConfig(
+                    population_size=2,
+                    generations=2,
+                    max_parallel_evaluations=2,  # Must not exceed population_size
+                )
+                
+                request = EvolutionRequest(
+                    initial_population=initial_ideas,
+                    config=config,
+                    context="Test evolution context"  # Add required context
+                )
+                
+                # Run evolution
+                result = await ga.evolve(request)
+                
+                # Verify evolution succeeded
+                assert result.success
+                
+                # Verify checkpoints were created (at least 1)
+                checkpoint_files = list(checkpoint_dir.glob("*.json"))
+                assert len(checkpoint_files) >= 1, f"Expected at least 1 checkpoint, found {len(checkpoint_files)}"
+                
+                # Verify checkpoint content
+                for checkpoint_file in checkpoint_files:
+                    with open(checkpoint_file) as f:
+                        data = json.load(f)
+                        assert "generation" in data
+                        assert "population" in data
+                        assert "config" in data
+                        assert data["generation"] >= 1  # Should be 1 or higher
             
             
 class TestDocumentationUpdates:

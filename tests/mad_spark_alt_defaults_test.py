@@ -12,30 +12,30 @@ class TestMadSparkAltDefaults:
     """Test suite for mad_spark_alt command defaults and validation."""
     
     def test_default_generations_is_2(self):
-        """Verify default generations is 2 in qadi_simple.py."""
-        # Check the actual source code
-        qadi_simple_path = Path(__file__).parent.parent / "qadi_simple.py"
-        with open(qadi_simple_path) as f:
-            content = f.read()
-        
-        # Look for the generations argument definition
-        import re
-        match = re.search(r'--generations.*default=(\d+)', content)
-        assert match is not None, "Could not find --generations argument"
-        assert match.group(1) == "2", f"Expected default=2, found default={match.group(1)}"
+        """Verify default generations is 2 in help text."""
+        result = subprocess.run(
+            ["uv", "run", "python", "qadi_simple.py", "--help"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        help_text = result.stdout
+        # Check that help text shows the default value
+        assert "--generations" in help_text
+        assert "default: 2" in help_text, "Default for --generations should be 2 in help text"
         
     def test_default_population_is_5(self):
-        """Verify default population is 5 in qadi_simple.py."""
-        # Check the actual source code
-        qadi_simple_path = Path(__file__).parent.parent / "qadi_simple.py"
-        with open(qadi_simple_path) as f:
-            content = f.read()
-        
-        # Look for the population argument definition
-        import re
-        match = re.search(r'--population.*default=(\d+)', content)
-        assert match is not None, "Could not find --population argument"
-        assert match.group(1) == "5", f"Expected default=5, found default={match.group(1)}"
+        """Verify default population is 5 in help text."""
+        result = subprocess.run(
+            ["uv", "run", "python", "qadi_simple.py", "--help"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        help_text = result.stdout
+        # Check that help text shows the default value
+        assert "--population" in help_text
+        assert "default: 5" in help_text, "Default for --population should be 5 in help text"
         
 
 class TestMadSparkAltValidation:
@@ -93,19 +93,31 @@ class TestMadSparkAltHelp:
             text=True
         )
         assert result.returncode == 0
-        # Help should show the defaults
-        assert "evolution" in result.stdout.lower()
+        # Check specific defaults are shown
+        assert "default: 2" in result.stdout, "Help should show default generations=2"
+        assert "default: 5" in result.stdout, "Help should show default population=5"
+        # Check evolution is mentioned
+        assert "--evolve" in result.stdout or "-e" in result.stdout
         
 
 class TestMadSparkAltEvolution:
     """Test evolution functionality with new defaults."""
     
+    @pytest.mark.integration
     def test_evolution_without_params_uses_defaults(self):
         """Test that evolution uses default values when not specified."""
-        # This test would need API key, so we just check the command parses correctly
+        # This test requires API key
+        import os
+        if not os.getenv("GOOGLE_API_KEY"):
+            pytest.skip("GOOGLE_API_KEY not available")
+        
+        # Test with minimal input
         result = subprocess.run(
-            ["uv", "run", "python", "qadi_simple.py", "--help"],
+            ["uv", "run", "python", "qadi_simple.py", "test", "--evolve"],
             capture_output=True,
-            text=True
+            text=True,
+            timeout=30  # Short timeout
         )
-        assert result.returncode == 0
+        # Check that it mentions the default values
+        assert "2 generations" in result.stdout or "generations, 2" in result.stdout
+        assert "5 population" in result.stdout or "population 5" in result.stdout
