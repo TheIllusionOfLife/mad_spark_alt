@@ -154,10 +154,7 @@ uv run black src/ tests/ && uv run isort src/ tests/
 - Test timeouts may occur with slow API responses
 
 #### Session Learnings
-- CLI argument display must show what user requested, not internal calculated minimums
-- Terminal detection is crucial: Rich outputs ANSI codes to non-TTY, must check `sys.stdout.isatty()`
-- Semantic operator fallback text should be meaningful (150+ chars) not generic placeholders
-- ANSI removal needs multiple specific patterns, not broad ones that remove legitimate brackets
+- Key learnings from PR #64 about CLI user experience, ANSI code handling, and semantic operator fallbacks have been documented. See the [CLI Output and Terminal Detection Patterns in CLAUDE.md](./CLAUDE.md#cli-output-and-terminal-detection-patterns-pr-64) for details.
 
 ## Future Improvements
 

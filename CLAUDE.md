@@ -426,8 +426,9 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Preserve Content**: Be careful with patterns like `\[.*?\]` that remove legitimate bracketed content
 - **Space Preservation**: "Approach 1:" needs space, "H1:" doesn't
 
-### CLI User Experience Patterns (PR #64)
+### CLI Output and Terminal Detection Patterns (PR #64)
 - **Display Requested Values**: Show what user asked for, not internal calculations (e.g., "10 population" not min "3")
 - **Terminal Detection**: Check `sys.stdout.isatty()` before using Rich formatting to prevent ANSI in pipes
+- **Targeted ANSI Removal**: Use multiple specific regex patterns for ANSI code removal to avoid stripping legitimate bracketed content
 - **Meaningful Fallbacks**: Semantic operators need 150+ char fallback text, not generic placeholders
 - **Clear User Messaging**: When system uses fewer resources than requested, explain why clearly
