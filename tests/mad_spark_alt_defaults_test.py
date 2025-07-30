@@ -3,9 +3,7 @@ Tests for mad_spark_alt command default values and validation.
 """
 
 import subprocess
-import sys
 import pytest
-from pathlib import Path
 
 
 class TestMadSparkAltDefaults:

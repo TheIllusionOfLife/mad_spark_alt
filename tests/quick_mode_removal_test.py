@@ -3,17 +3,13 @@ Tests for removal of quick mode functionality and checkpoint frequency updates.
 """
 
 import pytest
-import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 import tempfile
-import shutil
 import json
 
 from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
 from mad_spark_alt.evolution import GeneticAlgorithm, EvolutionRequest, EvolutionConfig
-from mad_spark_alt.evolution.interfaces import IndividualFitness
-from mad_spark_alt.cli import evolve, _run_evolution_pipeline
 
 
 class TestQuickModeRemoval:
@@ -28,7 +24,7 @@ class TestQuickModeRemoval:
         # Test that --quick option is not recognized
         result = runner.invoke(main, ['evolve', 'test problem', '--quick'])
         assert result.exit_code != 0
-        assert "--quick" in result.output or "no such option" in result.output
+        assert "No such option: --quick" in result.output
         
     def test_evolve_command_help_no_quick_mention(self):
         """Verify that help text doesn't mention quick mode."""
@@ -73,7 +69,6 @@ class TestCheckpointFrequency:
     @pytest.mark.asyncio
     async def test_cli_checkpoint_config(self):
         """Verify CLI passes correct checkpoint configuration to GeneticAlgorithm."""
-        from unittest.mock import patch, AsyncMock, MagicMock
         from mad_spark_alt.cli import _run_evolution_pipeline
         
         with patch('mad_spark_alt.cli.GeneticAlgorithm') as mock_ga_class:
@@ -119,8 +114,7 @@ class TestCheckpointFrequency:
 class TestParameterValidation:
     """Test that parameter validation still works without quick mode."""
     
-    @pytest.mark.asyncio
-    async def test_generations_validation(self):
+    def test_generations_validation(self):
         """Verify generations must be between 2 and 5."""
         from click.testing import CliRunner
         from mad_spark_alt.cli import main
@@ -137,8 +131,7 @@ class TestParameterValidation:
         assert result.exit_code != 0
         assert "Generations must be between 2 and 5" in result.output
         
-    @pytest.mark.asyncio
-    async def test_population_validation(self):
+    def test_population_validation(self):
         """Verify population must be between 2 and 10."""
         from click.testing import CliRunner
         from mad_spark_alt.cli import main
@@ -162,7 +155,6 @@ class TestDefaultValues:
     def test_default_generations_is_2(self):
         """Verify default generations is 2."""
         from mad_spark_alt.cli import evolve
-        import click
         
         # Get the evolve command's parameters
         for param in evolve.params:
@@ -175,7 +167,6 @@ class TestDefaultValues:
     def test_default_population_is_5(self):
         """Verify default population is 5."""
         from mad_spark_alt.cli import evolve
-        import click
         
         # Get the evolve command's parameters
         for param in evolve.params:
@@ -197,8 +188,6 @@ class TestIntegrationScenarios:
         if not os.getenv("GOOGLE_API_KEY"):
             pytest.skip("GOOGLE_API_KEY not available")
             
-        from mad_spark_alt.cli import _run_evolution_pipeline
-        
         # Test with minimal settings
         await _run_evolution_pipeline(
             problem="How to reduce plastic waste?",
@@ -228,7 +217,6 @@ class TestIntegrationScenarios:
             ]
             
             # Mock the fitness evaluator
-            from unittest.mock import patch, AsyncMock
             with patch('mad_spark_alt.evolution.fitness.FitnessEvaluator') as mock_eval_class:
                 mock_evaluator = AsyncMock()
                 mock_eval_class.return_value = mock_evaluator
