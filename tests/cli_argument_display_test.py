@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from mad_spark_alt.core.interfaces import GeneratedIdea
+from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
 from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIResult
 from mad_spark_alt.evolution.interfaces import (
     EvolutionConfig,
@@ -32,7 +32,7 @@ class TestCLIArgumentDisplay:
         mock_ideas = [
             GeneratedIdea(
                 content=f"Test idea {i}",
-                thinking_method="test",
+                thinking_method=ThinkingMethod.QUESTIONING,
                 agent_name="test",
                 generation_prompt="test",
             )
@@ -133,7 +133,7 @@ class TestCLIArgumentDisplay:
         assert displayed_population == 10, f"Expected population=10, got {displayed_population}"
         
         # Also check if there's a clarification message about using fewer ideas
-        has_clarification = any("Using 3 ideas from available 3" in line for line in captured_output)
+        has_clarification = any("Using all 3 available ideas for evolution" in line for line in captured_output)
         assert has_clarification, "Should clarify when using fewer ideas than requested"
 
     @pytest.mark.asyncio
@@ -143,7 +143,7 @@ class TestCLIArgumentDisplay:
         mock_ideas = [
             GeneratedIdea(
                 content=f"Test idea {i}",
-                thinking_method="test",
+                thinking_method=ThinkingMethod.QUESTIONING,
                 agent_name="test",
                 generation_prompt="test",
             )

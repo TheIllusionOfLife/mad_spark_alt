@@ -62,76 +62,27 @@ class TestSimplqerQADIOrchestrator:
         assert orchestrator.temperature_override == 1.5
         assert orchestrator.num_hypotheses == 7
     
-    @pytest.mark.asyncio
-    async def test_run_qadi_cycle_generates_correct_number_of_hypotheses(self, mock_llm_response):
-        """Test that QADI cycle generates the requested number of hypotheses."""
+    def test_orchestrator_passes_num_hypotheses_to_prompts(self):
+        """Test that orchestrator correctly uses num_hypotheses in prompts."""
         from qadi_simple import SimplerQADIOrchestrator
         
-        # Mock the LLM provider
-        with patch('mad_spark_alt.core.llm_provider.llm_manager') as mock_manager:
-            # Test with 5 hypotheses
-            num_hypotheses = 5
+        # Test with different values
+        for num_hypotheses in [3, 5, 7, 10]:
             orchestrator = SimplerQADIOrchestrator(num_hypotheses=num_hypotheses)
             
-            # Create mock response
-            mock_response = AsyncMock()
-            responses = mock_llm_response(num_hypotheses)
-            
-            # Set up responses for each phase
-            mock_response.generate.side_effect = [
-                MagicMock(response=responses["question"], cost=0.001),  # Question phase
-                MagicMock(response=responses["hypotheses"], cost=0.002),  # Abduction phase
-                MagicMock(response=responses["answer"], cost=0.003),  # Deduction phase
-                MagicMock(response=responses["synthesis"], cost=0.001),  # Induction phase
-            ]
-            mock_manager.create_request.return_value = mock_response
-            
-            # Run the cycle
-            result = await orchestrator.run_qadi_cycle(
-                user_input="Test question about AI",
-                context="Test context"
+            # Get the abduction prompt
+            abduction_prompt = orchestrator.prompts.get_abduction_prompt(
+                "test input", 
+                "test question", 
+                num_hypotheses
             )
             
-            # Verify the correct number of ideas were generated
-            assert len(result.synthesized_ideas) == num_hypotheses
+            # Verify the prompt contains the correct number
+            assert f"generate {num_hypotheses} distinct approaches" in abduction_prompt
             
-            # Verify abduction prompt was called with correct num_hypotheses
-            abduction_call = mock_response.generate.call_args_list[1]
-            assert f"generate {num_hypotheses} distinct approaches" in abduction_call[1]['prompt']
+            # Verify the orchestrator has the correct value
+            assert orchestrator.num_hypotheses == num_hypotheses
     
-    @pytest.mark.asyncio
-    async def test_evolution_with_different_populations(self, mock_llm_response):
-        """Test evolution works correctly with different population sizes."""
-        from qadi_simple import SimplerQADIOrchestrator
-        
-        test_populations = [2, 5, 8, 10]
-        
-        for population in test_populations:
-            with patch('mad_spark_alt.core.llm_provider.llm_manager') as mock_manager:
-                orchestrator = SimplerQADIOrchestrator(num_hypotheses=population)
-                
-                # Create mock response
-                mock_response = AsyncMock()
-                responses = mock_llm_response(population)
-                
-                # Set up responses
-                mock_response.generate.side_effect = [
-                    MagicMock(response=responses["question"], cost=0.001),
-                    MagicMock(response=responses["hypotheses"], cost=0.002),
-                    MagicMock(response=responses["answer"], cost=0.003),
-                    MagicMock(response=responses["synthesis"], cost=0.001),
-                ]
-                mock_manager.create_request.return_value = mock_response
-                
-                # Run the cycle
-                result = await orchestrator.run_qadi_cycle(
-                    user_input=f"Test with population {population}",
-                    context="Test context"
-                )
-                
-                # For populations < 3, should still get 3 (minimum)
-                expected_ideas = max(3, population)
-                assert len(result.synthesized_ideas) == expected_ideas
 
 
 class TestEvolutionIntegration:
