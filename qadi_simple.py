@@ -59,8 +59,8 @@ Format: "Q: [The user's question]"
 class SimplerQADIOrchestrator(SimpleQADIOrchestrator):
     """QADI orchestrator with simplified Phase 1."""
     
-    def __init__(self, temperature_override: Optional[float] = None) -> None:
-        super().__init__(temperature_override)
+    def __init__(self, temperature_override: Optional[float] = None, num_hypotheses: int = 3) -> None:
+        super().__init__(temperature_override, num_hypotheses)
         # Use custom prompts
         self.prompts = SimplerQADIPrompts()
 
@@ -187,8 +187,10 @@ async def run_qadi_analysis(
         print("  export GOOGLE_API_KEY='your-key-here'")
         return
 
-    # Create orchestrator with optional temperature override
-    orchestrator = SimplerQADIOrchestrator(temperature_override=temperature)
+    # Create orchestrator with optional temperature override and num_hypotheses for evolution
+    # When evolving, generate as many hypotheses as the requested population
+    num_hypotheses = population if evolve else 3
+    orchestrator = SimplerQADIOrchestrator(temperature_override=temperature, num_hypotheses=num_hypotheses)
     
     start_time = time.time()
 
@@ -343,7 +345,8 @@ async def run_qadi_analysis(
             # Check if we have fewer ideas than requested
             actual_population = min(population, len(result.synthesized_ideas))
             if actual_population < population:
-                print(f"   (Using {actual_population} ideas from available {len(result.synthesized_ideas)})")
+                print(f"   (Note: Generated {len(result.synthesized_ideas)} hypotheses, but {population} were requested)")
+                print(f"   (Using all {actual_population} available ideas for evolution)")
             
             try:
                 from mad_spark_alt.evolution import (
