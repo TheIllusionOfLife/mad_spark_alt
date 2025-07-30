@@ -93,7 +93,14 @@ class TestScoreParsingWarnings:
             # Should parse successfully without using defaults
             assert score.impact == 0.9
             assert score.feasibility == 0.7
-            assert score.overall == 0.86
+            # Calculate expected overall based on weights:
+            # impact: 0.9 * 0.3 = 0.27
+            # feasibility: 0.7 * 0.2 = 0.14
+            # accessibility: 0.8 * 0.2 = 0.16
+            # sustainability: 0.9 * 0.2 = 0.18
+            # scalability: 0.8 * 0.1 = 0.08
+            # total: 0.27 + 0.14 + 0.16 + 0.18 + 0.08 = 0.83
+            assert abs(score.overall - 0.83) < 0.01  # Allow for floating point precision
 
 
 class TestEnhancedApproachContent:

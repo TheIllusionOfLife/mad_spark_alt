@@ -34,12 +34,12 @@ class TestQadiSimpleEvolutionCI:
         from qadi_simple import SimplerQADIPrompts
         
         prompts = SimplerQADIPrompts()
-        prompt = prompts.get_questioning_prompt("Test input", "Test context")
+        prompt = prompts.get_questioning_prompt("Test input")
         
-        # Should use simplified prompt
-        assert "academic masturbation" not in prompt.lower()
-        assert "actionable" in prompt.lower()
-        assert "Core Question:" in prompt
+        # Should use simplified prompt  
+        assert "What is the user asking?" in prompt
+        assert "State their question clearly and directly" in prompt
+        assert "Q: [The user's question]" in prompt
     
     @pytest.mark.asyncio
     async def test_hypothesis_count_propagation(self):
