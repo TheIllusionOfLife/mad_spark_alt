@@ -78,7 +78,7 @@ def get_approach_label(text: str, index: int) -> str:
 
 
 def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List[str]:
-    """Extract the top 3 solutions from QADI results."""
+    """Extract key solutions from QADI results."""
     
     # Import here to avoid circular import
     from mad_spark_alt.utils.text_cleaning import clean_ansi_codes
@@ -135,7 +135,7 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
     solutions = []
     
     # Extract from hypotheses first
-    for h in hypotheses[:3]:
+    for h in hypotheses:
         if h and h.strip():
             # Clean ANSI codes first
             h_clean = clean_ansi_codes(h)
@@ -158,7 +158,8 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
                 elif len(action_clean) > 20:
                     solutions.append(action_clean[:100].strip())
     
-    return solutions[:3]
+    # Return all solutions, not just 3
+    return solutions
 
 
 async def run_qadi_analysis(
