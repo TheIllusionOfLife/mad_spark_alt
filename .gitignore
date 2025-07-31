@@ -93,3 +93,6 @@ profile_*.py
 
 # Evolution checkpoints (runtime-generated temporary files)
 .evolution_checkpoints/
+
+# Output files from timeout workaround scripts
+outputs/

@@ -126,12 +126,37 @@ uv run black src/ tests/ && uv run isort src/ tests/
 ```
 
 
+## Known Issues
+
+### 2-Minute Timeout in Some Environments
+
+When running long commands (especially with `--evolve`), you may encounter a timeout after exactly 2 minutes:
+```text
+Command timed out after 2m 0.0s
+```
+
+This is caused by the execution environment (terminal/shell/IDE), not the application itself.
+
+**Solution**: Use the provided nohup wrapper script for long-running tasks:
+```bash
+# Instead of: uv run mad_spark_alt "prompt" --evolve
+# Use: ./run_nohup.sh "prompt" --evolve
+
+# Example
+./run_nohup.sh "Create a game concept" --evolve --generations 3 --population 10
+```
+
+Output will be saved to `outputs/mad_spark_alt_output_TIMESTAMP.txt`. 
+
+See [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md) for detailed information.
+
 ## Documentation
 
 - [DEVELOPMENT.md](DEVELOPMENT.md): Architecture, API reference, contribution guide
 - [RESEARCH.md](RESEARCH.md): QADI methodology background
 - [SESSIONS.md](SESSIONS.md): Development history
 - [SEMANTIC_OPERATORS_IMPLEMENTATION.md](SEMANTIC_OPERATORS_IMPLEMENTATION.md): Semantic evolution operators guide
+- [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md): Timeout issue workaround
 
 ## Session Handover
 
