@@ -253,7 +253,7 @@ async def run_qadi_analysis(
                 elif "Systemic" in label_text:
                     label = "Systemic"
                 else:
-                    label = f"H{i+1}"
+                    label = f"Approach {i+1}"
                 render_markdown(f"**{label} Approach:** {hypothesis_clean}")
 
             print("\n## 🔍 Phase 3: Logical Analysis (Deduction)\n")

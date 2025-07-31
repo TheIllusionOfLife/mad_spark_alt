@@ -57,25 +57,25 @@ Each hypothesis should:
 
 IMPORTANT OUTPUT FORMAT - You MUST follow this exact format without any modifications:
 
-H1: [First approach title]
+1. [First approach title]
 [Detailed explanation of the first approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]
 
-H2: [Second approach title]
+2. [Second approach title]
 [Detailed explanation of the second approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]
 
-H3: [Third approach title]
+3. [Third approach title]
 [Detailed explanation of the third approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]""" + (f"""
 
-H4: [Fourth approach title]
+4. [Fourth approach title]
 [Detailed explanation of the fourth approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]
 
-H5: [Fifth approach title]
+5. [Fifth approach title]
 [Detailed explanation of the fifth approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]""" if num_hypotheses > 3 else "") + (f"""
 
-H6: [Sixth approach title]
+6. [Sixth approach title]
 [Detailed explanation of the sixth approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]
 
-H7: [Seventh approach title]
+7. [Seventh approach title]
 [Detailed explanation of the seventh approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]""" if num_hypotheses > 5 else "")
 
     @staticmethod
@@ -100,9 +100,9 @@ Score each approach from 0.0 to 1.0 on these universal criteria:
 - Sustainability: Will this solution last? (0=temporary fix, 1=permanent solution)
 - Scalability: Can this grow from small to large? (0=limited scope, 1=unlimited potential)
 
-IMPORTANT: You MUST use the exact format below with "H1:", "H2:", "H3:" headers and numerical scores.
+IMPORTANT: You MUST use the exact format below with "Approach 1:", "Approach 2:", "Approach 3:" headers and numerical scores.
 
-H1:
+Approach 1:
 * Impact: [decimal score like 0.8] - [brief explanation]
 * Feasibility: [decimal score] - [brief explanation]
 * Accessibility: [decimal score] - [brief explanation]
@@ -110,7 +110,7 @@ H1:
 * Scalability: [decimal score] - [brief explanation]
 * Overall: [calculated weighted score]
 
-H2:
+Approach 2:
 * Impact: [decimal score] - [brief explanation]
 * Feasibility: [decimal score] - [brief explanation]
 * Accessibility: [decimal score] - [brief explanation]
@@ -118,7 +118,7 @@ H2:
 * Scalability: [decimal score] - [brief explanation]
 * Overall: [calculated weighted score]
 
-H3:
+Approach 3:
 * Impact: [decimal score] - [brief explanation]
 * Feasibility: [decimal score] - [brief explanation]
 * Accessibility: [decimal score] - [brief explanation]
