@@ -236,7 +236,7 @@ class GoogleProvider(LLMProviderInterface):
             )  # At least 3x the requested tokens
 
         # Build generation config
-        generation_config = {
+        generation_config: Dict[str, Any] = {
             "temperature": request.temperature,
             "maxOutputTokens": max_output_tokens,
             "topP": 0.95,
