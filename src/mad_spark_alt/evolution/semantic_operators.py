@@ -31,11 +31,8 @@ _MAX_SESSION_TTL_EXTENSION = 3600  # Maximum TTL extension in seconds
 _STOP_WORDS = {'the', 'a', 'an', 'and', 'or', 'but', 'by', 'for', 'with', 'to', 'of', 'in', 'on', 'at'}
 
 
-def get_mutation_schema(num_ideas: int) -> Dict[str, Any]:
+def get_mutation_schema() -> Dict[str, Any]:
     """Get JSON schema for structured mutation output.
-    
-    Args:
-        num_ideas: Number of ideas to mutate
         
     Returns:
         JSON schema dictionary for Gemini structured output
@@ -437,7 +434,7 @@ No other text or formatting."""
         ])
         
         # Create request with structured output
-        schema = get_mutation_schema(len(uncached_ideas))
+        schema = get_mutation_schema()
         request = LLMRequest(
             system_prompt=self.MUTATION_SYSTEM_PROMPT,
             user_prompt=self.BATCH_MUTATION_PROMPT.format(

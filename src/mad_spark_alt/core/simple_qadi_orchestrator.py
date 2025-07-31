@@ -32,11 +32,8 @@ CONCLUSION_PREFIX = "Conclusion:"
 MIN_HYPOTHESIS_LENGTH = 20  # Minimum length for valid hypothesis text
 
 
-def get_hypothesis_generation_schema(num_hypotheses: int) -> Dict[str, Any]:
+def get_hypothesis_generation_schema() -> Dict[str, Any]:
     """Get JSON schema for structured hypothesis generation.
-    
-    Args:
-        num_hypotheses: Number of hypotheses to generate
         
     Returns:
         JSON schema dictionary for Gemini structured output
@@ -60,11 +57,8 @@ def get_hypothesis_generation_schema(num_hypotheses: int) -> Dict[str, Any]:
     }
 
 
-def get_deduction_schema(num_hypotheses: int) -> Dict[str, Any]:
+def get_deduction_schema() -> Dict[str, Any]:
     """Get JSON schema for structured deduction/scoring.
-    
-    Args:
-        num_hypotheses: Number of hypotheses to evaluate (for adjusting schema if needed)
     
     Returns:
         JSON schema dictionary for Gemini structured output
@@ -380,7 +374,7 @@ class SimpleQADIOrchestrator:
                     temperature=hyperparams["temperature"],
                     max_tokens=int(hyperparams["max_tokens"]),
                     top_p=hyperparams.get("top_p", 0.95),
-                    response_schema=get_hypothesis_generation_schema(self.num_hypotheses),
+                    response_schema=get_hypothesis_generation_schema(),
                     response_mime_type="application/json"
                 )
 
@@ -607,7 +601,7 @@ class SimpleQADIOrchestrator:
         for attempt in range(max_retries + 1):
             try:
                 # Create request with structured output schema
-                schema = get_deduction_schema(len(hypotheses))
+                schema = get_deduction_schema()
                 request = LLMRequest(
                     user_prompt=prompt,
                     temperature=hyperparams["temperature"],
@@ -622,29 +616,28 @@ class SimpleQADIOrchestrator:
 
                 # Try to parse as JSON first (structured output)
                 try:
-                    import json
                     data = json.loads(content)
                     
                     # Extract scores from structured response
                     scores = []
                     for eval_data in data.get("evaluations", []):
                         score_data = eval_data.get("scores", {})
-                        # Calculate overall score as average
-                        individual_scores = [
-                            score_data.get("impact", 0.5),
-                            score_data.get("feasibility", 0.5),
-                            score_data.get("accessibility", 0.5),
-                            score_data.get("sustainability", 0.5),
-                            score_data.get("scalability", 0.5),
-                        ]
-                        overall = sum(individual_scores) / len(individual_scores)
+                        # Calculate overall score using the consistent weighted method
+                        scores_dict = {
+                            "impact": score_data.get("impact", 0.5),
+                            "feasibility": score_data.get("feasibility", 0.5),
+                            "accessibility": score_data.get("accessibility", 0.5),
+                            "sustainability": score_data.get("sustainability", 0.5),
+                            "scalability": score_data.get("scalability", 0.5),
+                        }
+                        overall = calculate_hypothesis_score(scores_dict)
                         
                         score = HypothesisScore(
-                            impact=score_data.get("impact", 0.5),
-                            feasibility=score_data.get("feasibility", 0.5),
-                            accessibility=score_data.get("accessibility", 0.5),
-                            sustainability=score_data.get("sustainability", 0.5),
-                            scalability=score_data.get("scalability", 0.5),
+                            impact=scores_dict["impact"],
+                            feasibility=scores_dict["feasibility"],
+                            accessibility=scores_dict["accessibility"],
+                            sustainability=scores_dict["sustainability"],
+                            scalability=scores_dict["scalability"],
                             overall=overall,
                         )
                         scores.append(score)
@@ -671,9 +664,9 @@ class SimpleQADIOrchestrator:
                         "raw_content": content,
                     }
                     
-                except json.JSONDecodeError:
+                except (json.JSONDecodeError, KeyError, TypeError) as e:
                     # Fall back to text parsing
-                    logger.debug("Structured output parsing failed, falling back to text parsing")
+                    logger.debug("Structured output parsing failed, falling back to text parsing: %s", e)
                 
                 # Parse the evaluation scores using text parsing
                 scores = []
@@ -1098,7 +1091,7 @@ class SimpleQADIOrchestrator:
             for attempt in range(max_retries + 1):
                 try:
                     # Create request with structured output schema
-                    schema = get_deduction_schema(len(batch_hypotheses))
+                    schema = get_deduction_schema()
                     request = LLMRequest(
                         user_prompt=batch_prompt,
                         temperature=hyperparams["temperature"],
@@ -1114,30 +1107,29 @@ class SimpleQADIOrchestrator:
                     # Try to parse as JSON first
                     batch_scores = []
                     try:
-                        import json
                         data = json.loads(content)
                         
                         # Extract scores from structured response
-                        for i, (_, idx) in enumerate(zip(data.get("evaluations", []), indices)):
-                            eval_data = data["evaluations"][i] if i < len(data.get("evaluations", [])) else {}
+                        evaluations = data.get("evaluations", [])
+                        for eval_data, idx in zip(evaluations, indices):
                             score_data = eval_data.get("scores", {})
                             
-                            # Calculate overall score as average
-                            individual_scores = [
-                                score_data.get("impact", 0.5),
-                                score_data.get("feasibility", 0.5),
-                                score_data.get("accessibility", 0.5),
-                                score_data.get("sustainability", 0.5),
-                                score_data.get("scalability", 0.5),
-                            ]
-                            overall = sum(individual_scores) / len(individual_scores)
+                            # Use consistent weighted score calculation
+                            scores_dict = {
+                                "impact": score_data.get("impact", 0.5),
+                                "feasibility": score_data.get("feasibility", 0.5),
+                                "accessibility": score_data.get("accessibility", 0.5),
+                                "sustainability": score_data.get("sustainability", 0.5),
+                                "scalability": score_data.get("scalability", 0.5),
+                            }
+                            overall = calculate_hypothesis_score(scores_dict)
                             
                             score = HypothesisScore(
-                                impact=score_data.get("impact", 0.5),
-                                feasibility=score_data.get("feasibility", 0.5),
-                                accessibility=score_data.get("accessibility", 0.5),
-                                sustainability=score_data.get("sustainability", 0.5),
-                                scalability=score_data.get("scalability", 0.5),
+                                impact=scores_dict["impact"],
+                                feasibility=scores_dict["feasibility"],
+                                accessibility=scores_dict["accessibility"],
+                                sustainability=scores_dict["sustainability"],
+                                scalability=scores_dict["scalability"],
                                 overall=overall,
                             )
                             batch_scores.append((idx, score, response.cost / len(indices)))
@@ -1154,9 +1146,9 @@ class SimpleQADIOrchestrator:
                                 overall=0.5,
                             ), response.cost / len(indices)))
                             
-                    except json.JSONDecodeError:
+                    except (json.JSONDecodeError, KeyError, TypeError) as e:
                         # Fall back to text parsing
-                        logger.debug("Structured output parsing failed for batch, falling back to text parsing")
+                        logger.debug("Structured output parsing failed for batch, falling back to text parsing: %s", e)
                         for _, idx in enumerate(indices):
                             score = self._parse_hypothesis_scores(content, idx + 1)
                             batch_scores.append((idx, score, response.cost / len(indices)))
