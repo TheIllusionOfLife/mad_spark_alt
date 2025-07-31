@@ -10,7 +10,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .interfaces import (
     GeneratedIdea,
@@ -96,6 +96,23 @@ def get_deduction_schema() -> Dict[str, Any]:
         },
         "required": ["evaluations", "answer", "action_plan"]
     }
+
+
+def parse_structured_response(response_content: str, fallback_parser: Callable[[str], Any]) -> Any:
+    """Parse structured response with fallback to text parsing.
+    
+    Args:
+        response_content: The raw response content
+        fallback_parser: Function to call if JSON parsing fails
+        
+    Returns:
+        Parsed data from either JSON or fallback parser
+    """
+    try:
+        return json.loads(response_content)
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
+        logger.debug("Structured output parsing failed: %s, falling back to text parsing", e)
+        return fallback_parser(response_content)
 
 
 @dataclass
