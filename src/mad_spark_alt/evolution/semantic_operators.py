@@ -790,10 +790,10 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
                 
         # Fallback if parsing fails - create meaningful combinations based on parent content
         if not offspring1:
-            logger.warning("Using fallback text for offspring 1 - LLM parsing failed")
+            logger.debug("Using fallback text for offspring 1 - LLM parsing failed")
             offspring1 = self._generate_crossover_fallback(parent1, parent2, is_first=True)
         if not offspring2:
-            logger.warning("Using fallback text for offspring 2 - LLM parsing failed")
+            logger.debug("Using fallback text for offspring 2 - LLM parsing failed")
             offspring2 = self._generate_crossover_fallback(parent1, parent2, is_first=False)
             
         return offspring1, offspring2

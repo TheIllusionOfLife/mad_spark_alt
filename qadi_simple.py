@@ -349,6 +349,12 @@ async def run_qadi_analysis(
                 print(f"   (Note: Generated {len(result.synthesized_ideas)} hypotheses, but {population} were requested)")
                 print(f"   (Using all {actual_population} available ideas for evolution)")
             
+            # Configure logging to suppress debug messages during evolution
+            import logging
+            evolution_logger = logging.getLogger('mad_spark_alt.evolution')
+            original_level = evolution_logger.level
+            evolution_logger.setLevel(logging.INFO)  # Hide DEBUG messages
+            
             try:
                 from mad_spark_alt.evolution import (
                     EvolutionConfig,
@@ -605,6 +611,9 @@ async def run_qadi_analysis(
                 if verbose:
                     import traceback
                     traceback.print_exc()
+            finally:
+                # Restore original logging level
+                evolution_logger.setLevel(original_level)
 
     except Exception as e:
         print(f"\n❌ Error: {e}")

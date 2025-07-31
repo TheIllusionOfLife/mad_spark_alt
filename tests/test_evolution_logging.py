@@ -52,12 +52,8 @@ class TestEvolutionLogging:
         # Capture output
         stdout_buffer = io.StringIO()
         
-        with patch('qadi_simple.GeneticAlgorithm', return_value=mock_ga), \
-             patch.object(mock_ga, 'evolve', new=AsyncMock(return_value=mock_result)), \
-             redirect_stdout(stdout_buffer):
-            
-            # This would normally be called during evolution
-            # We'll simulate the progress output
+        with redirect_stdout(stdout_buffer):
+            # Simulate the progress output that would appear during evolution
             print("   ...evolving (10s elapsed, ~280s remaining)", end='\r')
             print("   ...evolving (20s elapsed, ~270s remaining)", end='\r')
         
