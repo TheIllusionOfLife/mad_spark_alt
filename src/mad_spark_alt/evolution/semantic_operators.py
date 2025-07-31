@@ -473,7 +473,7 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         except (json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("Structured output parsing failed, falling back to text parsing: %s", e)
             # Fall back to text parsing
-            mutations = self._parse_batch_response(response.content, len(uncached_ideas))
+            mutations = self._parse_batch_response(response.content, len(uncached_ideas), uncached_ideas)
         
         # Cache results
         for idea, mutation in zip(uncached_ideas, mutations):
@@ -503,13 +503,14 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 
         return results
             
-    def _parse_batch_response(self, response: str, expected_count: int) -> List[str]:
+    def _parse_batch_response(self, response: str, expected_count: int, original_ideas: Optional[List[GeneratedIdea]] = None) -> List[str]:
         """
         Parse batch mutation response from LLM.
         
         Args:
             response: LLM response text
             expected_count: Expected number of mutations
+            original_ideas: Original ideas for context-aware fallback
             
         Returns:
             List of mutation texts
@@ -530,7 +531,11 @@ Return JSON with mutations array containing idea_id and mutated_content for each
             else:
                 # Fallback if pattern not found - create meaningful variation
                 logger.warning(f"Could not find mutation for IDEA_{i+1}, using fallback")
-                mutations.append(f"Enhanced variation exploring alternative approaches: This mutation investigates different implementation strategies while maintaining the core objective of the original idea. The approach introduces alternative methodologies, tools, and frameworks to achieve similar outcomes through a different pathway. By exploring varied perspectives such as changing the scale of implementation, shifting target audience, or adopting different technological foundations, this variation demonstrates how the same fundamental problem can be addressed through multiple viable and innovative solutions.")
+                if original_ideas and i < len(original_ideas):
+                    original_content = original_ideas[i].content
+                    mutations.append(f"Enhanced variation of original concept: Building upon '{original_content[:50]}...', this mutation explores alternative implementation strategies while maintaining the core objective. The approach introduces different methodologies, tools, and frameworks to achieve similar outcomes through a varied pathway. By shifting perspectives on scale, audience, or technological approach, this variation demonstrates how the fundamental concept can be realized through innovative alternatives.")
+                else:
+                    mutations.append(f"Enhanced variation exploring alternative approaches: This mutation investigates different implementation strategies while maintaining the core objective of the original idea. The approach introduces alternative methodologies, tools, and frameworks to achieve similar outcomes through a different pathway. By exploring varied perspectives such as changing the scale of implementation, shifting target audience, or adopting different technological foundations, this variation demonstrates how the same fundamental problem can be addressed through multiple viable and innovative solutions.")
                 
         return mutations
         
@@ -720,17 +725,39 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
                 
         # Fallback if parsing fails - create meaningful combinations based on parent content
         if not offspring1:
-            if parent1 and parent2:
-                offspring1 = f"Hybrid approach combining elements from both parent ideas: This solution integrates key aspects from '{parent1.content[:50]}...' and '{parent2.content[:50]}...'. The approach combines the structural framework of the first concept with the innovative mechanisms of the second, creating a comprehensive solution that addresses the same core problem through multiple complementary strategies. Implementation would involve adapting the proven methodologies from both approaches while ensuring seamless integration and enhanced effectiveness."
-            else:
-                offspring1 = "Integrated solution combining complementary strengths: This approach synthesizes the core methodologies from both parent concepts, creating a hybrid solution that leverages their respective advantages. By merging the foundational elements with enhanced scalability features, this combination addresses limitations present in either approach alone. The integration focuses on creating synergy between different implementation strategies while maintaining practical feasibility."
+            offspring1 = self._generate_crossover_fallback(parent1, parent2, is_first=True)
         if not offspring2:
-            if parent1 and parent2:
-                offspring2 = f"Alternative integration emphasizing synergy: This variation explores a different combination pattern by merging the core principles from '{parent1.content[:50]}...' with the practical implementation strategies from '{parent2.content[:50]}...'. The resulting solution maintains the strengths of both parent approaches while introducing novel elements that emerge from their interaction. This alternative demonstrates how the same foundational concepts can yield distinctly different yet equally valuable outcomes through strategic recombination."
-            else:
-                offspring2 = "Alternative fusion emphasizing innovation: This variation explores a different integration pattern by prioritizing the innovative aspects of one approach while using the structural framework of the other. The result is a solution that pushes boundaries while remaining grounded in proven methodologies. This alternative path demonstrates how the same parent concepts can yield distinctly different yet equally valuable outcomes through creative recombination."
+            offspring2 = self._generate_crossover_fallback(parent1, parent2, is_first=False)
             
         return offspring1, offspring2
+    
+    def _generate_crossover_fallback(
+        self, 
+        parent1: Optional[GeneratedIdea], 
+        parent2: Optional[GeneratedIdea], 
+        is_first: bool
+    ) -> str:
+        """
+        Generate fallback text for crossover offspring.
+        
+        Args:
+            parent1: First parent idea
+            parent2: Second parent idea
+            is_first: Whether this is the first offspring
+            
+        Returns:
+            Fallback text for offspring
+        """
+        if parent1 and parent2:
+            if is_first:
+                return f"Hybrid approach combining elements from both parent ideas: This solution integrates key aspects from '{parent1.content[:50]}...' and '{parent2.content[:50]}...'. The approach combines the structural framework of the first concept with the innovative mechanisms of the second, creating a comprehensive solution that addresses the same core problem through multiple complementary strategies. Implementation would involve adapting the proven methodologies from both approaches while ensuring seamless integration and enhanced effectiveness."
+            else:
+                return f"Alternative integration emphasizing synergy: This variation explores a different combination pattern by merging the core principles from '{parent1.content[:50]}...' with the practical implementation strategies from '{parent2.content[:50]}...'. The resulting solution maintains the strengths of both parent approaches while introducing novel elements that emerge from their interaction. This alternative demonstrates how the same foundational concepts can yield distinctly different yet equally valuable outcomes through strategic recombination."
+        else:
+            if is_first:
+                return "Integrated solution combining complementary strengths: This approach synthesizes the core methodologies from both parent concepts, creating a hybrid solution that leverages their respective advantages. By merging the foundational elements with enhanced scalability features, this combination addresses limitations present in either approach alone. The integration focuses on creating synergy between different implementation strategies while maintaining practical feasibility."
+            else:
+                return "Alternative fusion emphasizing innovation: This variation explores a different integration pattern by prioritizing the innovative aspects of one approach while using the structural framework of the other. The result is a solution that pushes boundaries while remaining grounded in proven methodologies. This alternative path demonstrates how the same parent concepts can yield distinctly different yet equally valuable outcomes through creative recombination."
         
     def _create_offspring(
         self,
