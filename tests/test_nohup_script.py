@@ -55,7 +55,7 @@ class TestNohupScript:
         
         assert result.returncode == 1, "Should exit with error code 1"
         assert "Usage:" in result.stdout, "Should show usage message"
-        assert "Example:" in result.stdout, "Should show example"
+        assert "Examples:" in result.stdout, "Should show examples"
     
     def test_script_checks_venv(self, script_dir, tmp_path):
         """Test script checks for virtual environment."""
@@ -138,7 +138,7 @@ class TestDocumentationUpdates:
             content = doc_path.read_text()
             
             # Should mention that direct execution doesn't work
-            assert "direct execution" in content.lower() or "still timed out" in content.lower(), \
+            assert "direct python execution" in content.lower() or "still times out" in content.lower(), \
                 "Should mention direct execution doesn't work"
             
             # Should emphasize nohup as the working solution
