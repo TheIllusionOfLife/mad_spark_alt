@@ -190,6 +190,107 @@ IDEA_1_MUTATION: Implement comprehensive plastic reduction strategies including 
         assert "comprehensive plastic reduction strategies" in mutated_ideas[0].content
         assert "single-use plastics" in mutated_ideas[0].content
 
+    @pytest.mark.asyncio
+    async def test_mutation_batch_with_zero_based_ids(self, mutation_operator, llm_provider):
+        """Test batch mutation handles 0-based idea_ids correctly."""
+        # Create test ideas
+        ideas = [
+            GeneratedIdea(
+                content="Original idea A",
+                thinking_method=ThinkingMethod.ABDUCTION,
+                agent_name="TestAgent",
+                generation_prompt="Test prompt",
+            ),
+            GeneratedIdea(
+                content="Original idea B", 
+                thinking_method=ThinkingMethod.DEDUCTION,
+                agent_name="TestAgent",
+                generation_prompt="Test prompt",
+            )
+        ]
+        
+        # Mock structured output response with 0-based IDs
+        structured_response = {
+            "mutations": [
+                {"idea_id": 0, "mutated_content": "Enhanced idea A content"},
+                {"idea_id": 1, "mutated_content": "Enhanced idea B content"}
+            ]
+        }
+        
+        # Mock LLM response
+        mock_response = LLMResponse(
+            content=json.dumps(structured_response),
+            provider=LLMProvider.GOOGLE,
+            model="gemini-2.5-flash",
+            usage={"prompt_tokens": 100, "completion_tokens": 150},
+            cost=0.001
+        )
+        
+        llm_provider.generate = AsyncMock(return_value=mock_response)
+        
+        # Test batch mutation
+        results = await mutation_operator.mutate_batch(ideas, "test context")
+        
+        # Verify results - mutations should be applied in correct order regardless of ID system
+        assert len(results) == 2
+        assert results[0].content == "Enhanced idea A content"
+        assert results[1].content == "Enhanced idea B content"
+
+    @pytest.mark.asyncio
+    async def test_mutation_batch_with_non_sequential_ids(self, mutation_operator, llm_provider):
+        """Test batch mutation handles non-sequential idea_ids correctly."""
+        # Create test ideas
+        ideas = [
+            GeneratedIdea(
+                content="Original idea A",
+                thinking_method=ThinkingMethod.ABDUCTION,
+                agent_name="TestAgent",
+                generation_prompt="Test prompt",
+            ),
+            GeneratedIdea(
+                content="Original idea B", 
+                thinking_method=ThinkingMethod.DEDUCTION,
+                agent_name="TestAgent",
+                generation_prompt="Test prompt",
+            ),
+            GeneratedIdea(
+                content="Original idea C", 
+                thinking_method=ThinkingMethod.INDUCTION,
+                agent_name="TestAgent",
+                generation_prompt="Test prompt",
+            )
+        ]
+        
+        # Mock structured output response with non-sequential IDs (out of order)
+        structured_response = {
+            "mutations": [
+                {"idea_id": 3, "mutated_content": "Enhanced idea C content"},
+                {"idea_id": 1, "mutated_content": "Enhanced idea A content"},
+                {"idea_id": 2, "mutated_content": "Enhanced idea B content"}
+            ]
+        }
+        
+        # Mock LLM response
+        mock_response = LLMResponse(
+            content=json.dumps(structured_response),
+            provider=LLMProvider.GOOGLE,
+            model="gemini-2.5-flash",
+            usage={"prompt_tokens": 150, "completion_tokens": 200},
+            cost=0.002
+        )
+        
+        llm_provider.generate = AsyncMock(return_value=mock_response)
+        
+        # Test batch mutation
+        results = await mutation_operator.mutate_batch(ideas, "test context")
+        
+        # Verify results - mutations should be applied in sorted order by ID
+        assert len(results) == 3
+        # ID 1 should be first, ID 2 second, ID 3 third after sorting
+        assert results[0].content == "Enhanced idea A content"
+        assert results[1].content == "Enhanced idea B content"
+        assert results[2].content == "Enhanced idea C content"
+
 
 class TestStructuredCrossover:
     """Test structured output for semantic crossover operator."""

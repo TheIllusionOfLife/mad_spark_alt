@@ -454,18 +454,27 @@ No other text or formatting."""
         try:
             data = json.loads(response.content)
             if "mutations" in data and isinstance(data["mutations"], list):
-                # Extract mutations in order
-                mutation_dict = {}
+                # Extract mutations and sort by idea_id to handle any ordering
+                mutation_list = []
                 for mut in data["mutations"]:
                     if isinstance(mut, dict) and "idea_id" in mut and "mutated_content" in mut:
-                        idea_id = mut["idea_id"]
-                        mutation_dict[idea_id] = mut["mutated_content"]
+                        mutation_list.append((mut["idea_id"], mut["mutated_content"]))
                 
-                # Create mutations list in correct order
-                for i in range(1, len(uncached_ideas) + 1):
-                    mutations.append(mutation_dict.get(i, f"Enhanced version of idea {i}"))
+                # Sort by idea_id to ensure correct order
+                mutation_list.sort(key=lambda x: x[0])
                 
-                logger.debug("Successfully parsed %d mutations from structured output", len(mutations))
+                # Extract just the content in the correct order
+                # Handle both 0-based and 1-based indexing by using array position
+                mutations = [content for _, content in mutation_list]
+                
+                # Ensure we have the right number of mutations
+                if len(mutations) == len(uncached_ideas):
+                    logger.debug("Successfully parsed %d mutations from structured output", len(mutations))
+                else:
+                    logger.warning("Mutation count mismatch: expected %d, got %d", 
+                                 len(uncached_ideas), len(mutations))
+                    # If count doesn't match, fall back to text parsing
+                    mutations = []
         except (json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("Structured output parsing failed, falling back to text parsing: %s", e)
             # Fall back to text parsing
