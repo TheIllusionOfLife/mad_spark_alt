@@ -329,6 +329,22 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Implementation**: Use `${ARGUMENTS:-default_value}` for optional parameters
 - **Usage**: Enables flexible command reuse without duplication
 
+### Terminal Timeout Workarounds (PR #69)
+- **Problem**: Some environments kill processes after exactly 2 minutes regardless of Python timeout settings
+- **Root Cause**: Terminal/shell/IDE environment timeout, not Python or uv
+- **Solution**: Use `nohup` to detach process from terminal completely
+- **Implementation Pattern**:
+  ```bash
+  # Essential components for nohup wrapper
+  set -euo pipefail  # Fail fast on errors
+  cd "$SCRIPT_DIR" || exit  # Handle cd failures explicitly
+  source .env  # Load environment variables
+  export PYTHONUNBUFFERED=1  # Enable real-time output
+  nohup command > outputs/file_$TIMESTAMP.txt 2>&1 &
+  ```
+- **Viewing Output**: Use `cat` to view the complete output file after process completes
+- **Testing**: Integration tests must verify actual file creation, not just stdout
+
 ### GeneticAlgorithm API
 - **Constructor**: Takes no arguments - `GeneticAlgorithm()`
 - **Evolution**: Use `EvolutionRequest` object with `evolve()` method
@@ -396,6 +412,17 @@ print(f'Available methods: {list(registry._agents.keys())}')
 **Problem**: PR #56 took 4 days with 55% fix commits despite following TDD
 **Root Cause**: Mock-reality divergence and insufficient integration testing
 **Solution**: Enhanced testing strategy for complex integrations
+
+### PR Review Bot Patterns (PR #69)
+- **Multiple Review Sources**: Always check PR comments, PR reviews, AND line comments
+- **Common Bot Reviewers**: claude[bot], coderabbitai[bot], cursor[bot], gemini-code-assist[bot]
+- **Review Priorities**: 
+  - Critical: Security, breaking functionality, missing CI tests
+  - High: Dependencies, API compatibility, runtime errors
+  - Medium: Code quality, error handling, best practices
+  - Low: Style suggestions, optional enhancements
+- **Batch Similar Fixes**: Group related issues for efficient commits
+- **Script Robustness**: Always use `set -euo pipefail` in bash scripts
 
 **Early Integration Testing**:
 - Write integration tests alongside unit tests from the start
