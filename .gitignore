@@ -82,7 +82,7 @@ benchmarks/test_benchmark_*.json
 
 # Debug and development files
 debug_*.py
-test_*.py
+/test_*.py
 trace_*.py
 fix_*.py
 run_*.py
