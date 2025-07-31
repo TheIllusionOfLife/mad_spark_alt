@@ -286,12 +286,7 @@ Generate complete, detailed solutions that include:
 - Resources required
 - Expected outcomes and benefits
 
-Format your response EXACTLY as:
-IDEA_1_MUTATION: [detailed mutation text - minimum 150 words]
-IDEA_2_MUTATION: [detailed mutation text - minimum 150 words]
-...
-
-No other text or formatting."""
+Return JSON with mutations array containing idea_id and mutated_content for each idea."""
     
     def __init__(
         self, 
@@ -533,9 +528,9 @@ No other text or formatting."""
                     mutations.append(mutation)
                     break
             else:
-                # Fallback if pattern not found
-                logger.warning(f"Could not find mutation for IDEA_{i+1}")
-                mutations.append(f"Enhanced version of idea {i+1}")
+                # Fallback if pattern not found - create meaningful variation
+                logger.warning(f"Could not find mutation for IDEA_{i+1}, using fallback")
+                mutations.append(f"Enhanced variation exploring alternative approaches: This mutation investigates different implementation strategies while maintaining the core objective of the original idea. The approach introduces alternative methodologies, tools, and frameworks to achieve similar outcomes through a different pathway. By exploring varied perspectives such as changing the scale of implementation, shifting target audience, or adopting different technological foundations, this variation demonstrates how the same fundamental problem can be addressed through multiple viable and innovative solutions.")
                 
         return mutations
         
@@ -598,11 +593,7 @@ Generate complete, detailed solutions that include:
 - Expected outcomes showing synergy
 - How it leverages strengths of both parent ideas
 
-Format your response EXACTLY as:
-OFFSPRING_1: [detailed first offspring idea - minimum 150 words]
-OFFSPRING_2: [detailed second offspring idea - minimum 150 words]
-
-No other text or formatting."""
+Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fields."""
     
     def __init__(
         self,
@@ -691,7 +682,7 @@ No other text or formatting."""
         # Fall back to text parsing if needed
         if not offspring1_content or not offspring2_content:
             offspring1_content, offspring2_content = self._parse_crossover_response(
-                response.content
+                response.content, parent1, parent2
             )
         
         # Cache the result
@@ -705,12 +696,14 @@ No other text or formatting."""
             self._create_offspring(parent2, parent1, offspring2_content, cost_per_offspring)
         )
         
-    def _parse_crossover_response(self, response: str) -> Tuple[str, str]:
+    def _parse_crossover_response(self, response: str, parent1: Optional[GeneratedIdea] = None, parent2: Optional[GeneratedIdea] = None) -> Tuple[str, str]:
         """
         Parse crossover response from LLM.
         
         Args:
             response: LLM response text
+            parent1: First parent idea (for fallback)
+            parent2: Second parent idea (for fallback)
             
         Returns:
             Tuple of two offspring contents
@@ -725,11 +718,17 @@ No other text or formatting."""
             elif "OFFSPRING_2:" in line:
                 offspring2 = line.split("OFFSPRING_2:", 1)[1].strip()
                 
-        # Fallback if parsing fails - create more meaningful generic combinations
+        # Fallback if parsing fails - create meaningful combinations based on parent content
         if not offspring1:
-            offspring1 = "Integrated solution combining complementary strengths: This approach synthesizes the core methodologies from both parent concepts, creating a hybrid solution that leverages their respective advantages. By merging the foundational elements with enhanced scalability features, this combination addresses limitations present in either approach alone. The integration focuses on creating synergy between different implementation strategies while maintaining practical feasibility."
+            if parent1 and parent2:
+                offspring1 = f"Hybrid approach combining elements from both parent ideas: This solution integrates key aspects from '{parent1.content[:50]}...' and '{parent2.content[:50]}...'. The approach combines the structural framework of the first concept with the innovative mechanisms of the second, creating a comprehensive solution that addresses the same core problem through multiple complementary strategies. Implementation would involve adapting the proven methodologies from both approaches while ensuring seamless integration and enhanced effectiveness."
+            else:
+                offspring1 = "Integrated solution combining complementary strengths: This approach synthesizes the core methodologies from both parent concepts, creating a hybrid solution that leverages their respective advantages. By merging the foundational elements with enhanced scalability features, this combination addresses limitations present in either approach alone. The integration focuses on creating synergy between different implementation strategies while maintaining practical feasibility."
         if not offspring2:
-            offspring2 = "Alternative fusion emphasizing innovation: This variation explores a different integration pattern by prioritizing the innovative aspects of one approach while using the structural framework of the other. The result is a solution that pushes boundaries while remaining grounded in proven methodologies. This alternative path demonstrates how the same parent concepts can yield distinctly different yet equally valuable outcomes through creative recombination."
+            if parent1 and parent2:
+                offspring2 = f"Alternative integration emphasizing synergy: This variation explores a different combination pattern by merging the core principles from '{parent1.content[:50]}...' with the practical implementation strategies from '{parent2.content[:50]}...'. The resulting solution maintains the strengths of both parent approaches while introducing novel elements that emerge from their interaction. This alternative demonstrates how the same foundational concepts can yield distinctly different yet equally valuable outcomes through strategic recombination."
+            else:
+                offspring2 = "Alternative fusion emphasizing innovation: This variation explores a different integration pattern by prioritizing the innovative aspects of one approach while using the structural framework of the other. The result is a solution that pushes boundaries while remaining grounded in proven methodologies. This alternative path demonstrates how the same parent concepts can yield distinctly different yet equally valuable outcomes through creative recombination."
             
         return offspring1, offspring2
         

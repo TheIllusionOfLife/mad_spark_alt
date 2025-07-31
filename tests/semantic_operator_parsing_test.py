@@ -157,9 +157,11 @@ class TestSemanticOperatorIntegration:
         # Run crossover
         offspring1, offspring2 = await operator.crossover(parent1, parent2)
         
-        # Should get detailed fallback content
-        assert "Integrated solution combining complementary strengths" in offspring1.content
-        assert "Alternative fusion emphasizing innovation" in offspring2.content
+        # Should get detailed fallback content with parent references
+        assert "Hybrid approach combining elements from both parent ideas" in offspring1.content
+        assert "Parent 1 content" in offspring1.content
+        assert "Alternative integration emphasizing synergy" in offspring2.content
+        assert "Parent 2 content" in offspring2.content
         assert len(offspring1.content) > 150
         assert len(offspring2.content) > 150
         
