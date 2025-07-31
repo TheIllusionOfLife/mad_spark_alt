@@ -10,6 +10,7 @@ Intelligent analysis system using QADI methodology (Question → Abduction → D
 - **Temperature Control**: Adjust creativity level (0.0-2.0)
 - **Audience-Neutral**: Practical insights for everyone, not just businesses
 - **Real-World Examples**: Concrete applications at individual, community, and systemic levels
+- **Structured Output**: Utilizes Gemini's structured output API for reliable parsing of hypotheses and scores
 
 ## Installation
 
@@ -210,6 +211,19 @@ See [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md) for detailed informatio
 - **PR Review Efficiency**: Bot reviews come from 3 sources (PR comments, reviews, line comments). Batch similar fixes.
 - **Bash Script Robustness**: Always use `set -euo pipefail` and handle `cd` failures explicitly.
 - **Dynamic Parameter Propagation**: Successfully implemented CLI → orchestrator → prompts flow
+
+## Technical Notes
+
+### Structured Output Implementation
+
+The system now uses Gemini's structured output feature (`responseMimeType` and `responseSchema`) to improve reliability of hypothesis generation and score parsing. This addresses previous issues with brittle regex-based parsing:
+
+- **Hypothesis Generation**: Uses JSON schema to ensure consistent hypothesis extraction
+- **Score Parsing**: Structured output for reliable extraction of evaluation scores
+- **Evolution Operators**: Mutation and crossover operations use structured schemas
+- **Fallback Mechanism**: Gracefully falls back to text parsing if structured output fails
+
+This implementation significantly reduces "Failed to extract enough hypotheses" errors and ensures more reliable parsing of LLM responses.
 
 ## Future Improvements
 
