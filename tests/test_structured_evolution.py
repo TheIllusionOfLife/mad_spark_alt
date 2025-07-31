@@ -323,7 +323,7 @@ class TestEvolutionOperatorSchemas:
         """Test the structure of mutation schema."""
         from mad_spark_alt.evolution.semantic_operators import get_mutation_schema
         
-        schema = get_mutation_schema(3)  # For 3 ideas
+        schema = get_mutation_schema()  # No arguments needed
         
         # Verify structure
         assert schema["type"] == "OBJECT"
