@@ -219,3 +219,38 @@ class TestSemanticOperatorsStructured:
         assert "Alternative fusion approach" in offspring2.content
         assert "[FALLBACK TEXT]" not in offspring1.content
         assert "[FALLBACK TEXT]" not in offspring2.content
+    
+    @pytest.mark.asyncio
+    async def test_single_mutation_with_structured_output(self):
+        """Test that single mutation properly uses structured output."""
+        mock_llm = MagicMock()
+        operator = BatchSemanticMutationOperator(llm_provider=mock_llm)
+        
+        # Mock structured JSON response for single mutation
+        mock_response = LLMResponse(
+            content='{"mutated_content": "This is a mutated idea with perspective shift that explores the problem from a community angle rather than individual..."}',
+            model="gemini-pro",
+            provider="google",
+            cost=0.001
+        )
+        mock_llm.generate = AsyncMock(return_value=mock_response)
+        
+        idea = GeneratedIdea(
+            content="Original idea content",
+            thinking_method=ThinkingMethod.ABDUCTION,
+            agent_name="test_agent",
+            generation_prompt="test prompt",
+            confidence_score=0.8
+        )
+        
+        # Mutate single idea
+        result = await operator.mutate_single(idea, context="test context")
+        
+        # Verify structured output was parsed correctly
+        assert "This is a mutated idea with perspective shift" in result.content
+        assert "[FALLBACK TEXT]" not in result.content
+        
+        # Verify request included structured output schema
+        call_args = mock_llm.generate.call_args[0][0]
+        assert call_args.response_schema is not None
+        assert call_args.response_mime_type == "application/json"

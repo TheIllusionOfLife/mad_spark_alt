@@ -293,7 +293,7 @@ class BatchSemanticMutationOperator(MutationInterface):
 Your role is to create meaningful variations of ideas while preserving the core goal.
 
 IMPORTANT: Generate comprehensive, detailed implementations with specific steps, technologies, and methodologies.
-Return ONLY the mutated idea text, no explanations or metadata."""
+When returning results, follow the exact format requested in the prompt (JSON or plain text)."""
 
     SINGLE_MUTATION_PROMPT = """Original idea: {idea}
 Problem context: {context}
@@ -318,7 +318,7 @@ Generate a complete, detailed solution that includes:
 - Expected outcomes and benefits
 - How it addresses the core problem
 
-Output only the detailed mutated idea (minimum 150 words):"""
+Return the mutated idea as JSON with the field "mutated_content" containing the detailed solution (minimum 150 words)."""
 
     BATCH_MUTATION_PROMPT = """Generate diverse variations for these ideas. Each variation should use a different approach.
 
@@ -418,6 +418,15 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         # Generate mutation using LLM
         mutation_type = random.choice(self.mutation_types)
         
+        # Create single mutation schema
+        single_schema = {
+            "type": "OBJECT",
+            "properties": {
+                "mutated_content": {"type": "STRING"}
+            },
+            "required": ["mutated_content"]
+        }
+        
         request = LLMRequest(
             system_prompt=self.MUTATION_SYSTEM_PROMPT,
             user_prompt=self.SINGLE_MUTATION_PROMPT.format(
@@ -426,21 +435,34 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 mutation_type=mutation_type
             ),
             max_tokens=500,
-            temperature=0.8  # Higher temperature for creativity
+            temperature=0.8,  # Higher temperature for creativity
+            response_schema=single_schema,
+            response_mime_type="application/json"
         )
         
         response = await self.llm_provider.generate(request)
         
+        # Try to parse as JSON first (structured output)
+        mutated_content = None
+        try:
+            data = json.loads(response.content)
+            if "mutated_content" in data:
+                mutated_content = data["mutated_content"]
+                logger.debug("Successfully parsed single mutation from structured output")
+        except (json.JSONDecodeError, KeyError, TypeError) as e:
+            logger.debug("Structured output parsing failed for single mutation, using raw content: %s", e)
+            mutated_content = response.content
+        
         # Check for truncation
-        if is_likely_truncated(response.content):
+        if is_likely_truncated(mutated_content):
             logger.warning("Mutation response appears truncated, may need higher token limit")
         
         # Cache the result
-        self.cache.put(idea.content, response.content)
+        self.cache.put(idea.content, mutated_content)
         
         return self._create_mutated_idea(
             idea, 
-            response.content,
+            mutated_content,
             response.cost,
             mutation_type
         )
@@ -636,7 +658,7 @@ class SemanticCrossoverOperator(CrossoverInterface):
 Your role is to meaningfully combine concepts from two parent ideas into offspring.
 
 IMPORTANT: Generate comprehensive, detailed implementations with specific steps, technologies, and methodologies.
-Return ONLY the offspring idea texts, no explanations."""
+When returning results, follow the exact format requested in the prompt (JSON or plain text)."""
 
     CROSSOVER_PROMPT = """Parent Idea 1: {parent1}
 Parent Idea 2: {parent2}
