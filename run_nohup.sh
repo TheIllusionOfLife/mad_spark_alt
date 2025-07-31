@@ -45,14 +45,21 @@ echo "Command: .venv/bin/mad_spark_alt $@"
 echo "Output will be saved to: $OUTPUT_FILE"
 echo "----------------------------------------"
 
-# Run with nohup, redirecting output to file
-nohup .venv/bin/mad_spark_alt "$@" > "$OUTPUT_FILE" 2>&1 &
+# Load environment variables if .env exists
+if [ -f ".env" ]; then
+    set -a  # automatically export all variables
+    source .env
+    set +a
+fi
+
+# Run with nohup, redirecting output to file with unbuffered output
+nohup env PYTHONUNBUFFERED=1 .venv/bin/mad_spark_alt "$@" > "$OUTPUT_FILE" 2>&1 &
 PID=$!
 
 echo "Process started with PID: $PID"
 echo ""
-echo "To monitor progress:"
-echo "  tail -f $OUTPUT_FILE"
+echo "To monitor output:"
+echo "  cat $OUTPUT_FILE"
 echo ""
 echo "To check if still running:"
 echo "  ps -p $PID"

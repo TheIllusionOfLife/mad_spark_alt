@@ -100,7 +100,7 @@ class TestNohupScript:
         # We'll verify by checking script content
         with open(script_path, 'r') as f:
             content = f.read()
-            assert 'tail -f' in content, "Should show tail command"
+            assert 'cat' in content, "Should show cat command"
             assert 'ps -p' in content, "Should show ps command"
 
 
