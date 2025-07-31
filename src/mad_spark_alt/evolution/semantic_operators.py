@@ -6,11 +6,12 @@ meaningful variations and combinations of ideas, with caching and batch processi
 """
 
 import hashlib
+import json
 import logging
 import random
 import time
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.core.llm_provider import GoogleProvider, LLMRequest, LLMResponse
@@ -28,6 +29,47 @@ _MAX_SESSION_TTL_EXTENSION = 3600  # Maximum TTL extension in seconds
 
 # Stop words for similarity matching
 _STOP_WORDS = {'the', 'a', 'an', 'and', 'or', 'but', 'by', 'for', 'with', 'to', 'of', 'in', 'on', 'at'}
+
+
+def get_mutation_schema() -> Dict[str, Any]:
+    """Get JSON schema for structured mutation output.
+        
+    Returns:
+        JSON schema dictionary for Gemini structured output
+    """
+    return {
+        "type": "OBJECT",
+        "properties": {
+            "mutations": {
+                "type": "ARRAY",
+                "items": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "idea_id": {"type": "INTEGER"},
+                        "mutated_content": {"type": "STRING"},
+                    },
+                    "required": ["idea_id", "mutated_content"]
+                }
+            }
+        },
+        "required": ["mutations"]
+    }
+
+
+def get_crossover_schema() -> Dict[str, Any]:
+    """Get JSON schema for structured crossover output.
+    
+    Returns:
+        JSON schema dictionary for Gemini structured output
+    """
+    return {
+        "type": "OBJECT",
+        "properties": {
+            "offspring_1": {"type": "STRING"},
+            "offspring_2": {"type": "STRING"}
+        },
+        "required": ["offspring_1", "offspring_2"]
+    }
 
 
 class SemanticOperatorCache:
@@ -391,6 +433,8 @@ No other text or formatting."""
             for i, idea in enumerate(uncached_ideas)
         ])
         
+        # Create request with structured output
+        schema = get_mutation_schema()
         request = LLMRequest(
             system_prompt=self.MUTATION_SYSTEM_PROMPT,
             user_prompt=self.BATCH_MUTATION_PROMPT.format(
@@ -398,13 +442,43 @@ No other text or formatting."""
                 ideas_list=ideas_list
             ),
             max_tokens=min(200 * len(uncached_ideas), 1000),
-            temperature=0.8
+            temperature=0.8,
+            response_schema=schema,
+            response_mime_type="application/json"
         )
         
         response = await self.llm_provider.generate(request)
         
-        # Parse batch response
-        mutations = self._parse_batch_response(response.content, len(uncached_ideas))
+        # Try to parse as JSON first (structured output)
+        mutations = []
+        try:
+            data = json.loads(response.content)
+            if "mutations" in data and isinstance(data["mutations"], list):
+                # Extract mutations and sort by idea_id to handle any ordering
+                mutation_list = []
+                for mut in data["mutations"]:
+                    if isinstance(mut, dict) and "idea_id" in mut and "mutated_content" in mut:
+                        mutation_list.append((mut["idea_id"], mut["mutated_content"]))
+                
+                # Sort by idea_id to ensure correct order
+                mutation_list.sort(key=lambda x: x[0])
+                
+                # Extract just the content in the correct order
+                # Handle both 0-based and 1-based indexing by using array position
+                mutations = [content for _, content in mutation_list]
+                
+                # Ensure we have the right number of mutations
+                if len(mutations) == len(uncached_ideas):
+                    logger.debug("Successfully parsed %d mutations from structured output", len(mutations))
+                else:
+                    logger.warning("Mutation count mismatch: expected %d, got %d", 
+                                 len(uncached_ideas), len(mutations))
+                    # If count doesn't match, fall back to text parsing
+                    mutations = []
+        except (json.JSONDecodeError, KeyError, TypeError) as e:
+            logger.debug("Structured output parsing failed, falling back to text parsing: %s", e)
+            # Fall back to text parsing
+            mutations = self._parse_batch_response(response.content, len(uncached_ideas))
         
         # Cache results
         for idea, mutation in zip(uncached_ideas, mutations):
@@ -584,7 +658,8 @@ No other text or formatting."""
                     self._create_offspring(parent2, parent1, offspring_contents[1], 0.0)
                 )
                 
-        # Generate crossover using LLM
+        # Generate crossover using LLM with structured output
+        schema = get_crossover_schema()
         request = LLMRequest(
             system_prompt=self.CROSSOVER_SYSTEM_PROMPT,
             user_prompt=self.CROSSOVER_PROMPT.format(
@@ -593,15 +668,31 @@ No other text or formatting."""
                 context=context or "general optimization"
             ),
             max_tokens=400,
-            temperature=0.7  # Moderate temperature for balanced creativity
+            temperature=0.7,  # Moderate temperature for balanced creativity
+            response_schema=schema,
+            response_mime_type="application/json"
         )
         
         response = await self.llm_provider.generate(request)
         
-        # Parse response
-        offspring1_content, offspring2_content = self._parse_crossover_response(
-            response.content
-        )
+        # Try to parse as JSON first (structured output)
+        offspring1_content = None
+        offspring2_content = None
+        
+        try:
+            data = json.loads(response.content)
+            if "offspring_1" in data and "offspring_2" in data:
+                offspring1_content = data["offspring_1"]
+                offspring2_content = data["offspring_2"]
+                logger.debug("Successfully parsed crossover from structured output")
+        except (json.JSONDecodeError, KeyError, TypeError) as e:
+            logger.debug("Structured output parsing failed, falling back to text parsing: %s", e)
+        
+        # Fall back to text parsing if needed
+        if not offspring1_content or not offspring2_content:
+            offspring1_content, offspring2_content = self._parse_crossover_response(
+                response.content
+            )
         
         # Cache the result
         self.cache.put(cache_key, f"{offspring1_content}||{offspring2_content}")

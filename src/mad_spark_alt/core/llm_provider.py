@@ -100,6 +100,8 @@ class LLMRequest(BaseModel):
     top_p: float = 0.9
     stop_sequences: Optional[List[str]] = None
     model_configuration: Optional[ModelConfig] = None
+    response_schema: Optional[Dict[str, Any]] = None
+    response_mime_type: Optional[str] = None
 
 
 class LLMResponse(BaseModel):
@@ -233,14 +235,22 @@ class GoogleProvider(LLMProviderInterface):
                 request.max_tokens * 3, 2048
             )  # At least 3x the requested tokens
 
+        # Build generation config
+        generation_config: Dict[str, Any] = {
+            "temperature": request.temperature,
+            "maxOutputTokens": max_output_tokens,
+            "topP": 0.95,
+            "topK": 40,
+        }
+        
+        # Add structured output configuration if provided
+        if request.response_schema and request.response_mime_type:
+            generation_config["responseMimeType"] = request.response_mime_type
+            generation_config["responseSchema"] = request.response_schema
+        
         payload = {
             "contents": [{"parts": [{"text": full_prompt}]}],
-            "generationConfig": {
-                "temperature": request.temperature,
-                "maxOutputTokens": max_output_tokens,
-                "topP": 0.95,
-                "topK": 40,
-            },
+            "generationConfig": generation_config,
         }
 
         params = {"key": self.api_key}
