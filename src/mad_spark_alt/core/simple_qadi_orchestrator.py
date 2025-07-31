@@ -6,6 +6,7 @@ No prompt classification, no adaptive prompts - just pure hypothesis-driven cons
 """
 
 import asyncio
+import json
 import logging
 import re
 from dataclasses import dataclass, field
@@ -29,6 +30,78 @@ ANSWER_PREFIX = "ANSWER:"
 ACTION_PLAN_PREFIX = "Action Plan:"
 CONCLUSION_PREFIX = "Conclusion:"
 MIN_HYPOTHESIS_LENGTH = 20  # Minimum length for valid hypothesis text
+
+
+def get_hypothesis_generation_schema(num_hypotheses: int) -> Dict[str, Any]:
+    """Get JSON schema for structured hypothesis generation.
+    
+    Args:
+        num_hypotheses: Number of hypotheses to generate
+        
+    Returns:
+        JSON schema dictionary for Gemini structured output
+    """
+    return {
+        "type": "OBJECT",
+        "properties": {
+            "hypotheses": {
+                "type": "ARRAY",
+                "items": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "id": {"type": "STRING"},
+                        "content": {"type": "STRING"},
+                    },
+                    "required": ["id", "content"]
+                }
+            }
+        },
+        "required": ["hypotheses"]
+    }
+
+
+def get_deduction_schema(num_hypotheses: int) -> Dict[str, Any]:
+    """Get JSON schema for structured deduction/scoring.
+    
+    Args:
+        num_hypotheses: Number of hypotheses to evaluate (for adjusting schema if needed)
+    
+    Returns:
+        JSON schema dictionary for Gemini structured output
+    """
+    return {
+        "type": "OBJECT",
+        "properties": {
+            "evaluations": {
+                "type": "ARRAY",
+                "items": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "hypothesis_id": {"type": "STRING"},
+                        "scores": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "impact": {"type": "NUMBER"},
+                                "feasibility": {"type": "NUMBER"},
+                                "accessibility": {"type": "NUMBER"},
+                                "sustainability": {"type": "NUMBER"},
+                                "scalability": {"type": "NUMBER"}
+                            },
+                            "required": ["impact", "feasibility", "accessibility", 
+                                       "sustainability", "scalability"]
+                        }
+                    },
+                    "required": ["hypothesis_id", "scores"]
+                }
+            },
+            "answer": {"type": "STRING"},
+            "action_plan": {
+                "type": "ARRAY",
+                "items": {"type": "STRING"}
+            }
+        },
+        "required": ["evaluations", "answer", "action_plan"]
+    }
 
 
 @dataclass
@@ -301,18 +374,39 @@ class SimpleQADIOrchestrator:
 
         for attempt in range(max_retries + 1):
             try:
+                # Try structured output first
                 request = LLMRequest(
                     user_prompt=prompt,
                     temperature=hyperparams["temperature"],
                     max_tokens=int(hyperparams["max_tokens"]),
                     top_p=hyperparams.get("top_p", 0.95),
+                    response_schema=get_hypothesis_generation_schema(self.num_hypotheses),
+                    response_mime_type="application/json"
                 )
 
                 response = await llm_manager.generate(request)
                 total_cost += response.cost
 
-                # Extract hypotheses using line-by-line parsing for robustness
-                hypotheses = []
+                # Try to parse as JSON first (structured output)
+                try:
+                    data = json.loads(response.content)
+                    if "hypotheses" in data and isinstance(data["hypotheses"], list):
+                        hypotheses = []
+                        for h in data["hypotheses"]:
+                            if isinstance(h, dict) and "content" in h:
+                                content = h["content"].strip()
+                                if len(content) >= MIN_HYPOTHESIS_LENGTH:
+                                    hypotheses.append(content)
+                        
+                        if len(hypotheses) >= self.num_hypotheses:
+                            logger.debug("Successfully extracted %d hypotheses using structured output", len(hypotheses))
+                            return hypotheses[:self.num_hypotheses], total_cost
+                        else:
+                            logger.warning("Structured output returned insufficient hypotheses: %d", len(hypotheses))
+                except (json.JSONDecodeError, KeyError, TypeError) as e:
+                    logger.debug("JSON parsing failed, falling back to text parsing: %s", e)
+
+                # Fall back to text parsing if structured output fails
                 content = response.content.strip()
                 
                 # Log the actual response for debugging
@@ -320,6 +414,9 @@ class SimpleQADIOrchestrator:
                 
                 # Clean all ANSI codes using comprehensive cleaning function
                 content = clean_ansi_codes(content)
+                
+                # Initialize hypotheses list for fallback parsing
+                hypotheses = []
                 
                 lines = content.split("\n")
 
@@ -509,17 +606,76 @@ class SimpleQADIOrchestrator:
 
         for attempt in range(max_retries + 1):
             try:
+                # Create request with structured output schema
+                schema = get_deduction_schema(len(hypotheses))
                 request = LLMRequest(
                     user_prompt=prompt,
                     temperature=hyperparams["temperature"],
                     max_tokens=int(hyperparams["max_tokens"]),
                     top_p=hyperparams.get("top_p", 0.9),
+                    response_schema=schema,
+                    response_mime_type="application/json",
                 )
 
                 response = await llm_manager.generate(request)
                 content = clean_ansi_codes(response.content.strip())
 
-                # Parse the evaluation scores
+                # Try to parse as JSON first (structured output)
+                try:
+                    import json
+                    data = json.loads(content)
+                    
+                    # Extract scores from structured response
+                    scores = []
+                    for eval_data in data.get("evaluations", []):
+                        score_data = eval_data.get("scores", {})
+                        # Calculate overall score as average
+                        individual_scores = [
+                            score_data.get("impact", 0.5),
+                            score_data.get("feasibility", 0.5),
+                            score_data.get("accessibility", 0.5),
+                            score_data.get("sustainability", 0.5),
+                            score_data.get("scalability", 0.5),
+                        ]
+                        overall = sum(individual_scores) / len(individual_scores)
+                        
+                        score = HypothesisScore(
+                            impact=score_data.get("impact", 0.5),
+                            feasibility=score_data.get("feasibility", 0.5),
+                            accessibility=score_data.get("accessibility", 0.5),
+                            sustainability=score_data.get("sustainability", 0.5),
+                            scalability=score_data.get("scalability", 0.5),
+                            overall=overall,
+                        )
+                        scores.append(score)
+                    
+                    # Ensure we have scores for all hypotheses
+                    while len(scores) < len(hypotheses):
+                        scores.append(HypothesisScore(
+                            impact=0.5,
+                            feasibility=0.5,
+                            accessibility=0.5,
+                            sustainability=0.5,
+                            scalability=0.5,
+                            overall=0.5,
+                        ))
+                    
+                    answer = data.get("answer", "")
+                    action_plan = data.get("action_plan", [])
+                    
+                    return {
+                        "scores": scores,
+                        "answer": answer,
+                        "action_plan": action_plan,
+                        "cost": response.cost,
+                        "raw_content": content,
+                    }
+                    
+                except json.JSONDecodeError:
+                    # Fall back to text parsing
+                    logger.debug("Structured output parsing failed, falling back to text parsing")
+                
+                # Parse the evaluation scores using text parsing
                 scores = []
                 for i in range(len(hypotheses)):
                     score = self._parse_hypothesis_scores(content, i + 1)
@@ -941,21 +1097,69 @@ class SimpleQADIOrchestrator:
             
             for attempt in range(max_retries + 1):
                 try:
+                    # Create request with structured output schema
+                    schema = get_deduction_schema(len(batch_hypotheses))
                     request = LLMRequest(
                         user_prompt=batch_prompt,
                         temperature=hyperparams["temperature"],
                         max_tokens=int(hyperparams["max_tokens"]),
                         top_p=hyperparams.get("top_p", 0.9),
+                        response_schema=schema,
+                        response_mime_type="application/json",
                     )
                     
                     response = await llm_manager.generate(request)
                     content = clean_ansi_codes(response.content.strip())
                     
-                    # Parse scores for this batch
+                    # Try to parse as JSON first
                     batch_scores = []
-                    for _, idx in enumerate(indices):
-                        score = self._parse_hypothesis_scores(content, idx + 1)
-                        batch_scores.append((idx, score, response.cost / len(indices)))
+                    try:
+                        import json
+                        data = json.loads(content)
+                        
+                        # Extract scores from structured response
+                        for i, (_, idx) in enumerate(zip(data.get("evaluations", []), indices)):
+                            eval_data = data["evaluations"][i] if i < len(data.get("evaluations", [])) else {}
+                            score_data = eval_data.get("scores", {})
+                            
+                            # Calculate overall score as average
+                            individual_scores = [
+                                score_data.get("impact", 0.5),
+                                score_data.get("feasibility", 0.5),
+                                score_data.get("accessibility", 0.5),
+                                score_data.get("sustainability", 0.5),
+                                score_data.get("scalability", 0.5),
+                            ]
+                            overall = sum(individual_scores) / len(individual_scores)
+                            
+                            score = HypothesisScore(
+                                impact=score_data.get("impact", 0.5),
+                                feasibility=score_data.get("feasibility", 0.5),
+                                accessibility=score_data.get("accessibility", 0.5),
+                                sustainability=score_data.get("sustainability", 0.5),
+                                scalability=score_data.get("scalability", 0.5),
+                                overall=overall,
+                            )
+                            batch_scores.append((idx, score, response.cost / len(indices)))
+                        
+                        # If we didn't get all scores, fill in defaults
+                        while len(batch_scores) < len(indices):
+                            idx = indices[len(batch_scores)]
+                            batch_scores.append((idx, HypothesisScore(
+                                impact=0.5,
+                                feasibility=0.5,
+                                accessibility=0.5,
+                                sustainability=0.5,
+                                scalability=0.5,
+                                overall=0.5,
+                            ), response.cost / len(indices)))
+                            
+                    except json.JSONDecodeError:
+                        # Fall back to text parsing
+                        logger.debug("Structured output parsing failed for batch, falling back to text parsing")
+                        for _, idx in enumerate(indices):
+                            score = self._parse_hypothesis_scores(content, idx + 1)
+                            batch_scores.append((idx, score, response.cost / len(indices)))
                     
                     return batch_scores
                     
