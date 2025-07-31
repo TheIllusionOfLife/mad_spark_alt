@@ -3,7 +3,7 @@
 ## Problem Description
 
 When running `mad_spark_alt` with long-running commands (especially `--evolve`), commands are being killed after exactly 2 minutes (120 seconds) with the error message:
-```
+```text
 Command timed out after 2m 0.0s
 ```
 
@@ -47,7 +47,7 @@ The 2-minute timeout is imposed by the execution environment itself (terminal, s
 1. The script runs `mad_spark_alt` using `nohup` which detaches it from the terminal
 2. Output is saved to `outputs/mad_spark_alt_output_TIMESTAMP.txt`
 3. The process continues running even if the terminal is closed
-4. You can monitor progress with `tail -f outputs/mad_spark_alt_output_TIMESTAMP.txt`
+4. You can view the output with `cat outputs/mad_spark_alt_output_TIMESTAMP.txt`
 
 ### Output Location
 

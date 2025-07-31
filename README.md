@@ -131,7 +131,7 @@ uv run black src/ tests/ && uv run isort src/ tests/
 ### 2-Minute Timeout in Some Environments
 
 When running long commands (especially with `--evolve`), you may encounter a timeout after exactly 2 minutes:
-```
+```text
 Command timed out after 2m 0.0s
 ```
 

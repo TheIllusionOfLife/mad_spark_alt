@@ -4,10 +4,10 @@ Tests for run_nohup.sh script functionality
 
 import os
 import subprocess
-import tempfile
-import time
 from pathlib import Path
 import pytest
+import re
+import time
 
 
 class TestNohupScript:
@@ -208,24 +208,47 @@ class TestScriptIntegration:
         return Path(__file__).parent.parent
     
     def test_nohup_script_creates_output_file(self, script_dir):
-        """Test that nohup script creates output file in outputs directory."""
+        """Test that nohup script creates an output file and cleans it up."""
         script_path = script_dir / "run_nohup.sh"
-        outputs_dir = script_dir / "outputs"
-        
         if not script_path.exists():
             pytest.skip("Script not yet created")
-        
+
         # Run a simple command that should complete quickly
         result = subprocess.run(
             [str(script_path), "test prompt", "--help"],
             capture_output=True,
-            text=True
+            text=True,
+            check=True
         )
-        
-        # Should show output file location
-        assert "Output will be saved to: outputs/" in result.stdout, \
-            "Should indicate output location in outputs directory"
-        
-        # Should show process ID
-        assert "Process started with PID:" in result.stdout, \
-            "Should show process ID"
+
+        # 1. Parse PID and output file path from stdout
+        pid_match = re.search(r"Process started with PID: (\d+)", result.stdout)
+        assert pid_match, "Should show process ID"
+        pid = int(pid_match.group(1))
+
+        output_file_match = re.search(r"Output will be saved to: (outputs/.+\.txt)", result.stdout)
+        assert output_file_match, "Should indicate output location"
+        output_file_path = script_dir / output_file_match.group(1)
+
+        try:
+            # 2. Wait for the background process to finish (poll for up to 10s)
+            for _ in range(100):
+                # Use ps to check if process exists. Exit code 0 means it exists.
+                proc_check = subprocess.run(["ps", "-p", str(pid)], capture_output=True)
+                if proc_check.returncode != 0:
+                    break  # Process finished
+                time.sleep(0.1)
+            else:
+                pytest.fail(f"Process {pid} did not finish in time.")
+
+            # 3. Assert that the output file exists
+            assert output_file_path.exists(), f"Output file {output_file_path} was not created"
+
+            # Optional: check content
+            content = output_file_path.read_text()
+            assert "usage: mad_spark_alt" in content.lower()
+
+        finally:
+            # 4. Clean up the created output file
+            if output_file_path.exists():
+                output_file_path.unlink()

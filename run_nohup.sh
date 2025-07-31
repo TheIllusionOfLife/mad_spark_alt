@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 # Script to run mad_spark_alt commands using nohup to avoid terminal timeout issues
 # This detaches the process from the terminal completely, avoiding 2-minute timeout issues
 
@@ -17,7 +18,10 @@ fi
 
 # Ensure we're in the right directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "$SCRIPT_DIR"
+cd "$SCRIPT_DIR" || {
+    echo "Error: Failed to change to script directory: $SCRIPT_DIR" >&2
+    exit 1
+}
 
 # Check if virtual environment exists
 if [ ! -d ".venv" ]; then
@@ -58,7 +62,7 @@ PID=$!
 
 echo "Process started with PID: $PID"
 echo ""
-echo "To monitor output:"
+echo "To view output:"
 echo "  cat $OUTPUT_FILE"
 echo ""
 echo "To check if still running:"

@@ -1,6 +1,7 @@
 #!/bin/bash
-# Script to run mad_spark_alt with evolution without timeout issues
-# This script runs the command in the background to avoid shell timeouts
+set -euo pipefail
+# Script to run mad_spark_alt with evolution
+# This script runs the command in the foreground, replacing the shell process.
 
 # Check if at least one argument is provided
 if [ $# -eq 0 ]; then
@@ -11,7 +12,10 @@ fi
 
 # Ensure we're in the right directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "$SCRIPT_DIR"
+cd "$SCRIPT_DIR" || {
+    echo "Error: Failed to change to script directory: $SCRIPT_DIR" >&2
+    exit 1
+}
 
 # Check if virtual environment exists
 if [ ! -d ".venv" ]; then
