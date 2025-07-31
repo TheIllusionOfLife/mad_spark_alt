@@ -57,16 +57,14 @@ uv run mad_spark_alt "Your question" --evolve --traditional
 This project provides two distinct command-line interfaces:
 
 ### 1. `mad_spark_alt` (Main Command - Recommended)
-- **Purpose**: QADI analysis with optional evolution
-- **Usage**: `uv run mad_spark_alt "question" [--evolve]`
-- **Evolution**: Added via `--evolve` flag
-- **Defaults**: generations=2, population=5
+- **Purpose**: QADI analysis for idea generation
+- **Example**: `uv run mad_spark_alt "prompt"`
+- **Commands**: `uv run mad_spark_alt --help`
 
 ### 2. `mad-spark` (Alternative CLI)
-- **Purpose**: General CLI for various evaluation tasks
-- **Usage**: `uv run mad-spark [command] [options]`
-- **Evolution**: Separate `evolve` subcommand
-- **Commands**: `evolve`, `evaluate`, `compare`, `batch-evaluate`
+- **Purpose**: General CLI for various tasks
+- **Example**: `uv run mad-spark [command] "prompt"`
+- **Commands**: `uv run mad-spark --help`
 
 **Note**: Most users should use `mad_spark_alt` for QADI analysis. The `mad-spark` CLI is for advanced evaluation workflows.
 
