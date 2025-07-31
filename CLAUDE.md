@@ -329,6 +329,17 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Implementation**: Use `${ARGUMENTS:-default_value}` for optional parameters
 - **Usage**: Enables flexible command reuse without duplication
 
+### Structured Output Implementation (PR #71)
+- **Core Problem**: "Failed to extract enough hypotheses" errors due to brittle regex parsing
+- **Solution**: Gemini's `responseMimeType` and `responseSchema` with graceful fallbacks
+- **Implementation**:
+  - LLM Provider: `LLMRequest` with `response_schema` and `response_mime_type` fields
+  - QADI Orchestrator: JSON schemas for hypotheses and score parsing
+  - Evolution Operators: Structured mutation/crossover with ID sorting
+- **Critical Pattern**: Always sort LLM-returned IDs and validate counts to prevent misalignment
+- **Fallback Strategy**: JSON parsing → regex parsing → default values
+- **Testing**: Comprehensive edge cases including 0-based and non-sequential IDs
+
 ### Terminal Timeout Workarounds (PR #69)
 - **Problem**: Some environments kill processes after exactly 2 minutes regardless of Python timeout settings
 - **Root Cause**: Terminal/shell/IDE environment timeout, not Python or uv
