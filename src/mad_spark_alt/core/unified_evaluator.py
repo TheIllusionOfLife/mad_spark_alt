@@ -23,7 +23,7 @@ class HypothesisEvaluation:
     """Complete evaluation of a hypothesis."""
 
     content: str
-    scores: Dict[str, float]  # novelty, impact, cost, feasibility, risks
+    scores: Dict[str, float]  # impact, feasibility, accessibility, sustainability, scalability
     overall_score: float
     explanations: Dict[str, str]
     metadata: Dict[str, Any]
@@ -32,7 +32,7 @@ class HypothesisEvaluation:
 class UnifiedEvaluator:
     """
     Unified evaluator that provides consistent scoring for hypotheses/ideas
-    using the 5-criteria system: novelty, impact, cost, feasibility, risks.
+    using the QADI 5-criteria system: impact, feasibility, accessibility, sustainability, scalability.
     """
 
     def __init__(self) -> None:
