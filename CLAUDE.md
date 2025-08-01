@@ -302,6 +302,28 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Relative Imports**: Use `from ...core import X` pattern
 - **Type Imports**: Use `from typing import TYPE_CHECKING` for circular deps
 
+### Logging Level Best Practices (PR #74)
+- **User-Visible Messages**: Use `logger.warning()` or higher only for issues users need to know about
+- **Internal Debug Info**: Use `logger.debug()` for fallback messages, parsing failures, internal state
+- **Evolution System**: Configure logging to suppress DEBUG messages during evolution runs
+- **Example**:
+  ```python
+  # In semantic_operators.py:
+  # Good: Use logger.debug for internal details
+  logger.debug("Using fallback text for offspring 1 - LLM parsing failed")
+
+  # In the evolution runner (e.g., qadi_simple.py):
+  # Good: Temporarily suppress DEBUG messages during evolution runs
+  evolution_logger = logging.getLogger('mad_spark_alt.evolution')
+  original_level = evolution_logger.level
+  evolution_logger.setLevel(logging.INFO)  # Suppress DEBUG messages
+  try:
+      # ... run evolution process ...
+  finally:
+      # Restore original logging level
+      evolution_logger.setLevel(original_level)
+  ```
+
 ### Deprecation Best Practices
 - **Module-Level Warnings**: Issue deprecation warnings at module import time
 - **Clear Migration Path**: Always specify what to use instead
