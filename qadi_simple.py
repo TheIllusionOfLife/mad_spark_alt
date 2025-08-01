@@ -502,7 +502,7 @@ async def run_qadi_analysis(
                     total_population = len(all_individuals)
                     
                     # Collect unique ideas with fuzzy matching from ALL sources
-                    unique_individuals: List[Any] = []
+                    unique_individuals: List[IndividualFitness] = []
                     for ind in sorted(
                         all_individuals,
                         key=lambda x: x.overall_fitness,

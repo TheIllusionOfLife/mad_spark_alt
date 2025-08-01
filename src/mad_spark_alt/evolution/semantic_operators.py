@@ -658,6 +658,9 @@ class SemanticCrossoverOperator(CrossoverInterface):
     offspring that integrate these concepts synergistically.
     """
     
+    # Similarity threshold for detecting duplicate offspring
+    SIMILARITY_THRESHOLD = 0.7
+    
     CROSSOVER_SYSTEM_PROMPT = """You are a genetic crossover operator for idea evolution.
 Your role is to meaningfully combine concepts from two parent ideas into offspring.
 
@@ -790,7 +793,7 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
         
         # Check for excessive duplication between offspring
         similarity = self._calculate_similarity(offspring1_content, offspring2_content)
-        if similarity > 0.7:  # More than 70% similar
+        if similarity > self.SIMILARITY_THRESHOLD:  # More than 70% similar
             logger.warning(f"High similarity detected between offspring: {similarity:.2f}")
             # Use fallback generation for more diverse offspring
             offspring1_content = self._generate_crossover_fallback(parent1, parent2, is_first=True)

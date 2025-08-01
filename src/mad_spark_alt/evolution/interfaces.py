@@ -25,6 +25,9 @@ from mad_spark_alt.evolution.constants import (
     ZERO_SCORE,
 )
 
+# Default weight for each QADI criterion when calculating overall fitness
+DEFAULT_QADI_CRITERION_WEIGHT = 0.2
+
 
 class SelectionStrategy(Enum):
     """Selection strategies for genetic algorithms."""
@@ -159,11 +162,11 @@ class IndividualFitness:
     def calculate_overall_fitness(self, weights: Dict[str, float]) -> float:
         """Calculate weighted overall fitness score using QADI criteria."""
         # Default equal weights for QADI criteria
-        impact_weight = weights.get("impact", 0.2)
-        feasibility_weight = weights.get("feasibility", 0.2)
-        accessibility_weight = weights.get("accessibility", 0.2)
-        sustainability_weight = weights.get("sustainability", 0.2)
-        scalability_weight = weights.get("scalability", 0.2)
+        impact_weight = weights.get("impact", DEFAULT_QADI_CRITERION_WEIGHT)
+        feasibility_weight = weights.get("feasibility", DEFAULT_QADI_CRITERION_WEIGHT)
+        accessibility_weight = weights.get("accessibility", DEFAULT_QADI_CRITERION_WEIGHT)
+        sustainability_weight = weights.get("sustainability", DEFAULT_QADI_CRITERION_WEIGHT)
+        scalability_weight = weights.get("scalability", DEFAULT_QADI_CRITERION_WEIGHT)
         
         self.overall_fitness = (
             impact_weight * self.impact
