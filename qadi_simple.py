@@ -38,6 +38,8 @@ except ImportError:
     from mad_spark_alt.core.qadi_prompts import QADIPrompts
     from mad_spark_alt.core.llm_provider import LLMProvider, llm_manager, get_google_provider
     from mad_spark_alt.utils.text_cleaning import clean_ansi_codes
+    from mad_spark_alt.evolution.interfaces import IndividualFitness
+    from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
 
 
 # Create custom prompts with simpler Phase 1

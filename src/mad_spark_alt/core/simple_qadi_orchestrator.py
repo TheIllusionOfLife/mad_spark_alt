@@ -1227,7 +1227,7 @@ class SimpleQADIOrchestrator:
         
         # Generate action plan based on best hypothesis
         action_plan = [
-            f"Implement the core strategy from H{best_idx + 1}",
+            f"Implement the core strategy from Approach {best_idx + 1}",
             "Start with pilot testing in a controlled environment",
             "Measure impact using defined metrics",
             "Scale gradually based on results",

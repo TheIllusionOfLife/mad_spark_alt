@@ -86,11 +86,11 @@ class UnifiedEvaluator:
             logger.exception("Failed to evaluate hypothesis: %s", hypothesis[:50])
             # Return default scores on failure with informative message
             default_scores = {
-                "novelty": 0.5,
                 "impact": 0.5,
-                "cost": 0.5,
                 "feasibility": 0.5,
-                "risks": 0.5,
+                "accessibility": 0.5,
+                "sustainability": 0.5,
+                "scalability": 0.5,
             }
             error_msg = "Evaluation failed - using default score"
             if "rate limit" in str(e).lower():
@@ -162,11 +162,11 @@ Hypothesis: {hypothesis}
 Context: {context}{question_context}
 
 Score each criterion:
-- Novelty: How innovative/unique is this approach? (0=common, 1=breakthrough)
 - Impact: What level of positive change will this create? (0=minimal, 1=transformative)
-- Cost: What resources required? (0=very expensive, 1=very cheap)
 - Feasibility: How practical is implementation? (0=nearly impossible, 1=easily doable)
-- Risks: What could go wrong? (0=high risk/many issues, 1=low risk/few issues)
+- Accessibility: How easily can people adopt this? (0=very difficult, 1=very easy)
+- Sustainability: How well can this be maintained long-term? (0=unsustainable, 1=highly sustainable)
+- Scalability: How well can this grow/expand? (0=doesn't scale, 1=scales excellently)
 
 Format your response EXACTLY as:
 Novelty: [score] - [one line explanation]
@@ -184,7 +184,7 @@ Risks: [score] - [one line explanation]
         scores = {}
         explanations = {}
 
-        criteria = ["novelty", "impact", "cost", "feasibility", "risks"]
+        criteria = ["impact", "feasibility", "accessibility", "sustainability", "scalability"]
 
         # Process line by line for more robust parsing
         lines = response.split("\n")
@@ -219,7 +219,7 @@ Risks: [score] - [one line explanation]
                     break
 
         # Fill in any missing criteria with defaults
-        expected_criteria = ["novelty", "impact", "cost", "feasibility", "risks"]
+        expected_criteria = ["impact", "feasibility", "accessibility", "sustainability", "scalability"]
         for criterion in expected_criteria:
             if criterion not in scores:
                 # Log debug message instead of warning for missing criteria
@@ -288,7 +288,7 @@ Risks: [score] - [one line explanation]
             return {}
 
         summary = {}
-        criteria = ["novelty", "impact", "cost", "feasibility", "risks", "overall"]
+        criteria = ["impact", "feasibility", "accessibility", "sustainability", "scalability", "overall"]
 
         for criterion in criteria:
             if criterion == "overall":
