@@ -601,8 +601,8 @@ async def run_qadi_analysis(
                         display_count += 1
                         
                         # Create score display
-                        scores = individual.get_scores_dict()
-                        score_display = f"[Overall: {scores['overall']:.2f} | Impact: {scores['impact']:.2f} | Feasibility: {scores['feasibility']:.2f} | Accessibility: {scores['accessibility']:.2f} | Sustainability: {scores['sustainability']:.2f} | Scalability: {scores['scalability']:.2f}]"
+                        score_dict = individual.get_scores_dict()
+                        score_display = f"[Overall: {score_dict['overall']:.2f} | Impact: {score_dict['impact']:.2f} | Feasibility: {score_dict['feasibility']:.2f} | Accessibility: {score_dict['accessibility']:.2f} | Sustainability: {score_dict['sustainability']:.2f} | Scalability: {score_dict['scalability']:.2f}]"
                         
                         print(f"**{display_count}. High Score Approach** {score_display}")
                         render_markdown(idea.content)
