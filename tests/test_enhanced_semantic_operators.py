@@ -448,6 +448,56 @@ class TestIntegrationWithEvolutionContext:
         assert mock_llm_provider.generate.call_count == 2
     
     @pytest.mark.asyncio
+    async def test_batch_mutation_breakthrough_metadata(self, mock_llm_provider, evaluation_context):
+        """Test that batch mutations correctly set breakthrough metadata for high-scoring ideas."""
+        # Create mix of regular and high-scoring ideas
+        regular_idea = GeneratedIdea(
+            content="Regular community program",
+            thinking_method=ThinkingMethod.ABDUCTION,
+            agent_name="TestAgent",
+            generation_prompt="Test",
+            metadata={"generation": 0, "fitness_score": 0.6}
+        )
+        
+        high_scoring_idea = GeneratedIdea(
+            content="Advanced AI-powered system",
+            thinking_method=ThinkingMethod.ABDUCTION,
+            agent_name="TestAgent",
+            generation_prompt="Test",
+            metadata={"generation": 2, "fitness_score": 0.88}
+        )
+        
+        ideas = [regular_idea, high_scoring_idea]
+        
+        # Mock batch response
+        mock_response = LLMResponse(
+            content=json.dumps({
+                "mutations": [
+                    {"idea_id": 1, "mutated_content": "Enhanced community program"},
+                    {"idea_id": 2, "mutated_content": "Revolutionary AI system"}
+                ]
+            }),
+            cost=0.02,
+            provider="google",
+            model="gemini-pro"
+        )
+        mock_llm_provider.generate = AsyncMock(return_value=mock_response)
+        
+        operator = BatchSemanticMutationOperator(mock_llm_provider)
+        
+        # Test batch mutation
+        results = await operator.mutate_batch(ideas, evaluation_context)
+        
+        # Verify breakthrough metadata is correctly set
+        assert len(results) == 2
+        assert results[0].metadata.get('is_breakthrough') == False  # Regular idea
+        assert results[1].metadata.get('is_breakthrough') == True   # High-scoring idea
+        
+        # Verify mutation types
+        assert 'breakthrough' not in results[0].metadata.get('operator', '').lower()
+        assert 'breakthrough' in results[1].metadata.get('operator', '').lower()
+    
+    @pytest.mark.asyncio
     async def test_context_aware_prompt_generation(self, mock_llm_provider, sample_idea):
         """Test that prompts adapt based on evaluation context."""
         mock_response = LLMResponse(

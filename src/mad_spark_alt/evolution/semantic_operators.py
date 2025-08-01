@@ -710,11 +710,20 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         # If all are cached, return immediately
         if not uncached_ideas:
             return [
-                self._create_mutated_idea(idea, cached_results[idea.content], 0.0)
+                self._create_mutated_idea(
+                    idea, 
+                    cached_results[idea.content], 
+                    0.0,
+                    "batch_mutation",
+                    self._is_high_scoring_idea(idea)
+                )
                 for idea in ideas
             ]
             
         # Batch process uncached ideas
+        # TODO: Currently batch mutations don't use breakthrough prompts/parameters for high-scoring ideas.
+        # Future improvement: Separate ideas into breakthrough and regular batches for proper handling.
+        # For now, breakthrough metadata is correctly set but mutations use regular parameters.
         # Create batch prompt
         ideas_list = "\n".join([
             f"IDEA_{i+1}: {idea.content}"
@@ -790,13 +799,20 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         uncached_index = 0
         
         for idea in ideas:
+            # Check if this idea qualifies for breakthrough
+            is_breakthrough = self._is_high_scoring_idea(idea)
+            
             if idea.content in cached_results:
                 results.append(
-                    self._create_mutated_idea(idea, cached_results[idea.content], 0.0)
+                    self._create_mutated_idea(
+                        idea, 
+                        cached_results[idea.content], 
+                        0.0,
+                        "batch_mutation",
+                        is_breakthrough
+                    )
                 )
             else:
-                # Check if this idea qualifies for breakthrough (for metadata tracking)
-                is_breakthrough = self._is_high_scoring_idea(idea)
                 results.append(
                     self._create_mutated_idea(
                         idea,
