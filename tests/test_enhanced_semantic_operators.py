@@ -601,6 +601,34 @@ class TestIntegrationWithEvolutionContext:
         assert result1.content == result2.content
     
     @pytest.mark.asyncio
+    async def test_invalid_cache_entry_handling(self, mock_llm_provider, sample_idea, evaluation_context):
+        """Test that invalid cache entries (dict without content key) are handled properly."""
+        # Mock response for when cache is skipped
+        mock_response = LLMResponse(
+            content='{"mutated_content": "New mutation after invalid cache"}',
+            cost=0.01,
+            provider="google",
+            model="gemini-pro"
+        )
+        mock_llm_provider.generate = AsyncMock(return_value=mock_response)
+        
+        operator = BatchSemanticMutationOperator(mock_llm_provider)
+        
+        # Manually inject an invalid cache entry (dict without content key)
+        from mad_spark_alt.evolution.semantic_operators import _prepare_cache_key_with_context
+        base_cache_key = _prepare_cache_key_with_context(sample_idea.content, evaluation_context)
+        cache_key = f"{base_cache_key}||breakthrough:False"
+        operator.cache.put(cache_key, {"mutation_type": "test", "invalid": "data"})  # No content key
+        
+        # Should skip invalid cache and generate new mutation
+        result = await operator.mutate_single(sample_idea, evaluation_context)
+        
+        # Verify LLM was called (cache was skipped)
+        assert mock_llm_provider.generate.call_count == 1
+        assert result.content == "New mutation after invalid cache"
+        assert result.metadata.get("mutation_type") in operator.mutation_types
+    
+    @pytest.mark.asyncio
     async def test_context_aware_prompt_generation(self, mock_llm_provider, sample_idea):
         """Test that prompts adapt based on evaluation context."""
         mock_response = LLMResponse(

@@ -626,8 +626,19 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         cached_result = self.cache.get(cache_key)
         if cached_result:
             # Extract content and original mutation type from cached data
-            cached_content = cached_result.get("content", cached_result) if isinstance(cached_result, dict) else cached_result
-            cached_mutation_type = cached_result.get("mutation_type") if isinstance(cached_result, dict) else None
+            if isinstance(cached_result, dict):
+                cached_content = cached_result.get("content")
+                if not isinstance(cached_content, str):
+                    # If content is missing or not a string, skip cache
+                    cached_result = None
+                else:
+                    cached_mutation_type = cached_result.get("mutation_type")
+            else:
+                # For backward compatibility with string cache entries
+                cached_content = cached_result
+                cached_mutation_type = None
+        
+        if cached_result:
             
             # Use cached mutation type if available, otherwise select appropriate type
             if cached_mutation_type:
@@ -764,7 +775,10 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 
                 # Extract content and mutation type from cached data
                 if isinstance(cached_data, dict):
-                    cached_content = cached_data.get("content", "")
+                    cached_content = cached_data.get("content")
+                    if not isinstance(cached_content, str):
+                        # Skip this cached entry if content is invalid
+                        continue
                     cached_mutation_type = cached_data.get("mutation_type", "batch_mutation")
                 else:
                     # Backward compatibility
@@ -874,7 +888,10 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 
                 # Extract content and mutation type from cached data
                 if isinstance(cached_data, dict):
-                    cached_content = cached_data.get("content", "")
+                    cached_content = cached_data.get("content")
+                    if not isinstance(cached_content, str):
+                        # Use original content if cache is invalid
+                        cached_content = idea.content
                     cached_mutation_type = cached_data.get("mutation_type", "batch_mutation")
                 else:
                     # Backward compatibility
