@@ -412,7 +412,7 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         self,
         idea: GeneratedIdea,
         mutation_rate: float,
-        context: Optional[str] = None
+        context: Union[Optional[str], EvaluationContext] = None
     ) -> GeneratedIdea:
         """
         Mutate a single idea using LLM.
@@ -524,7 +524,7 @@ Return JSON with mutations array containing idea_id and mutated_content for each
     async def mutate_batch(
         self,
         ideas: List[GeneratedIdea],
-        context: Optional[str] = None
+        context: Union[Optional[str], EvaluationContext] = None
     ) -> List[GeneratedIdea]:
         """
         Mutate multiple ideas in a single LLM call.

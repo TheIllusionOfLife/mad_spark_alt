@@ -13,7 +13,10 @@ import tracemalloc
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .interfaces import EvaluationContext
 
 try:
     import psutil  # type: ignore
@@ -386,6 +389,7 @@ class InstrumentedGeneticAlgorithm(GeneticAlgorithm):
         config: EvolutionConfig,
         context: Optional[str],
         generation: int,
+        evaluation_context: Optional["EvaluationContext"] = None,
     ) -> List[IndividualFitness]:
         """Instrumented generation evolution."""
         self._generation_start_time = time.time()
@@ -408,7 +412,7 @@ class InstrumentedGeneticAlgorithm(GeneticAlgorithm):
 
         # Run generation
         result = await super()._evolve_generation(
-            population, config, context, generation
+            population, config, context, generation, evaluation_context
         )
 
         # Record generation time
