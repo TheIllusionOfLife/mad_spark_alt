@@ -3,9 +3,6 @@ Tests for unified scoring system across QADI and evolution.
 """
 
 import pytest
-from dataclasses import dataclass
-from typing import Dict, Any
-from datetime import datetime, timezone
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.evolution.interfaces import IndividualFitness
@@ -101,19 +98,8 @@ class TestUnifiedScoring:
             )
         ]
         
-        # Create config
-        config = EvolutionConfig(
-            population_size=2,
-            generations=1,
-            mutation_rate=0.1,
-            crossover_rate=0.7
-        )
-        
-        # Create evaluator (will use mock in real test)
-        evaluator = FitnessEvaluator()
-        
+        # Config and evaluator would be used in actual implementation
         # For now, just test the expected structure
-        # In real implementation, we'd mock the UnifiedEvaluator
         expected_fitness = IndividualFitness(
             idea=ideas[0],
             impact=0.8,

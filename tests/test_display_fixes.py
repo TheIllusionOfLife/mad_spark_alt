@@ -2,13 +2,6 @@
 Tests for display formatting fixes.
 """
 
-import pytest
-import re
-from unittest.mock import Mock, AsyncMock, patch
-
-from mad_spark_alt.core.interfaces import GeneratedIdea
-from mad_spark_alt.core.simple_qadi_orchestrator import HypothesisScore, SimpleQADIOrchestrator
-from mad_spark_alt.core.llm_provider import GoogleProvider, LLMResponse
 
 
 class TestDisplayFixes:

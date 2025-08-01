@@ -3,7 +3,7 @@ Tests for semantic crossover duplication bug.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock
 from difflib import SequenceMatcher
 
 from mad_spark_alt.core.interfaces import GeneratedIdea

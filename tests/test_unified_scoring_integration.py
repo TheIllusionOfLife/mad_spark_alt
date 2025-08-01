@@ -4,7 +4,6 @@ Integration tests for unified scoring system.
 
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
-from typing import Dict, List
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.evolution.interfaces import (
@@ -129,8 +128,7 @@ class TestUnifiedScoringIntegration:
             side_effect=[qadi_scores_response, evolution_scores_response]
         )
         
-        # Test QADI scoring
-        qadi_orchestrator = SimpleQADIOrchestrator()
+        # QADI scoring would be tested here in actual implementation
         
         # Create mock hypothesis
         hypothesis_score = HypothesisScore(
@@ -256,20 +254,6 @@ class TestUnifiedScoringIntegration:
             # Mock diversity calculation
             mock_evaluator.calculate_population_diversity = AsyncMock(
                 return_value=0.8
-            )
-            
-            # Create GA and run evolution
-            ga = GeneticAlgorithm(llm_provider=mock_provider)
-            
-            request = EvolutionRequest(
-                initial_population=initial_ideas,
-                config=EvolutionConfig(
-                    population_size=3,
-                    generations=2,
-                    mutation_rate=0.1,
-                    crossover_rate=0.7,
-                    elite_size=1
-                )
             )
             
             # Mock the evolution process to avoid complex operator mocking

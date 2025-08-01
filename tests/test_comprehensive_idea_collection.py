@@ -2,8 +2,6 @@
 Tests for comprehensive idea collection from all generations.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from typing import List
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
