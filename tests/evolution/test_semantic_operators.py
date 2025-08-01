@@ -37,7 +37,7 @@ class TestSemanticOperatorCache:
         cache.put("test content", "mutated content")
         
         # Should hit cache
-        result = cache.get("test content")
+        result = cache.get("test content", return_dict=False)
         assert result == "mutated content"
 
     def test_cache_miss(self):
@@ -60,7 +60,7 @@ class TestSemanticOperatorCache:
         cache.put("test content", "mutated content")
         
         # Should hit cache immediately
-        assert cache.get("test content") == "mutated content"
+        assert cache.get("test content", return_dict=False) == "mutated content"
         
         # Advance time past TTL
         monkeypatch.setattr(time, 'time', lambda: current_time + 2.0)
@@ -191,14 +191,29 @@ IDEA_3_MUTATION: Deploy smart grid technology for real-time energy optimization"
     @pytest.mark.asyncio
     async def test_batch_with_cache(self, mock_llm_provider, sample_ideas):
         """Test batch mutation with some cached ideas."""
-        # Pre-cache one idea
+        # Pre-cache one idea by calling mutate_single
         operator = BatchSemanticMutationOperator(mock_llm_provider, cache_ttl=3600)
-        operator.cache.put(sample_ideas[0].content, "Cached mutation for idea 1")
+        
+        # Mock for single mutation to cache
+        single_response = LLMResponse(
+            content='{"mutated_content": "Cached mutation for idea 1"}',
+            provider=LLMProvider.GOOGLE,
+            model="gemini-2.5-flash",
+            usage={"prompt_tokens": 50, "completion_tokens": 25},
+            cost=0.0005
+        )
+        mock_llm_provider.generate.return_value = single_response
+        
+        # Cache the first idea
+        cached_result = await operator.mutate_single(sample_ideas[0], "context")
+        assert cached_result.content == "Cached mutation for idea 1"
         
         # Mock response for uncached ideas only
         batch_response = """IDEA_1_MUTATION: Transform rooftops into productive food forests
 IDEA_2_MUTATION: Deploy smart grid technology"""
         
+        # Reset mock for batch call
+        mock_llm_provider.generate.reset_mock()
         mock_llm_provider.generate.return_value = LLMResponse(
             content=batch_response,
             provider=LLMProvider.GOOGLE,

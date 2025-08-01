@@ -227,7 +227,7 @@ class SemanticOperatorCache:
             ttl_seconds: Time-to-live for cache entries in seconds (default: 2 hours)
         """
         self.ttl_seconds = ttl_seconds
-        self._cache: Dict[str, Tuple[str, float]] = {}  # key -> (value, timestamp)
+        self._cache: Dict[str, Tuple[Dict[str, Any], float]] = {}  # key -> (result_data, timestamp)
         self._similarity_index: Dict[str, List[str]] = {}  # Map similarity keys to cache keys
         self._session_start = time.time()  # Track session for extended caching
         
@@ -263,16 +263,17 @@ class SemanticOperatorCache:
             _MAX_SESSION_TTL_EXTENSION
         )
     
-    def get(self, content: str, operation_type: str = "default") -> Optional[str]:
+    def get(self, content: str, operation_type: str = "default", return_dict: bool = True) -> Optional[Union[str, Dict[str, Any]]]:
         """
         Get cached result with enhanced lookup including similarity matching.
         
         Args:
             content: Original content to look up
             operation_type: Operation type for cache clustering
+            return_dict: If False, return just content string for backward compatibility
             
         Returns:
-            Cached mutation result or None if not found/expired
+            Cached result (dict with metadata or string based on return_dict) or None if not found/expired
         """
         # Try exact match first
         exact_key = self._get_cache_key(content, operation_type)
@@ -286,7 +287,15 @@ class SemanticOperatorCache:
             
             if current_time - timestamp < effective_ttl:
                 logger.debug(f"Cache exact hit for {operation_type} hash {exact_key[:8]}")
-                return value
+                # Return based on requested format
+                if return_dict:
+                    return value
+                else:
+                    # Backward compatibility - return just content string
+                    if isinstance(value, dict):
+                        return str(value.get("content", ""))
+                    else:
+                        return str(value)
             else:
                 # Remove expired entry
                 del self._cache[exact_key]
@@ -303,21 +312,35 @@ class SemanticOperatorCache:
                         cached_value, timestamp = self._cache[cache_key]
                         if current_time - timestamp < effective_ttl:  # Reuse calculated TTL
                             logger.debug(f"Cache similarity hit for {operation_type} hash {cache_key[:8]}")
-                            return cached_value
+                            # Return based on requested format
+                            if return_dict:
+                                return cached_value
+                            else:
+                                if isinstance(cached_value, dict):
+                                    return str(cached_value.get("content", ""))
+                                else:
+                                    return str(cached_value)
                 
         return None
         
-    def put(self, content: str, result: str, operation_type: str = "default") -> None:
+    def put(self, content: str, result: Union[str, Dict[str, Any]], operation_type: str = "default") -> None:
         """
         Store result in enhanced cache with operation type clustering.
         
         Args:
             content: Original content
-            result: Mutation/crossover result to cache
+            result: Result data (string for backward compatibility or dict with metadata)
             operation_type: Operation type for cache clustering
         """
         key = self._get_cache_key(content, operation_type)
-        self._cache[key] = (result, time.time())
+        
+        # Convert string to dict format for consistency
+        if isinstance(result, str):
+            result_data = {"content": result, "mutation_type": operation_type}
+        else:
+            result_data = result
+            
+        self._cache[key] = (result_data, time.time())
         logger.debug(f"Cached {operation_type} result for hash {key[:8]}")
         
         # Update similarity index for mutation operations
@@ -374,11 +397,26 @@ class BatchSemanticMutationOperator(MutationInterface):
     mutation strategies like perspective shifts and mechanism changes.
     """
     
+    # Constants for breakthrough mutations and temperature settings
+    BREAKTHROUGH_TEMPERATURE = 0.95
+    REGULAR_MUTATION_TEMPERATURE = 0.8
+    BREAKTHROUGH_TOKEN_MULTIPLIER = 2
+    BREAKTHROUGH_CONFIDENCE_PROXY_THRESHOLD = 0.85
+    BREAKTHROUGH_CONFIDENCE_MULTIPLIER = 1.05
+    REGULAR_CONFIDENCE_MULTIPLIER = 0.95
+    
     # Mutation prompt templates
     MUTATION_SYSTEM_PROMPT = """You are a genetic mutation operator for idea evolution.
 Your role is to create meaningful variations of ideas while preserving the core goal.
 
 IMPORTANT: Generate comprehensive, detailed implementations with specific steps, technologies, and methodologies.
+When returning results, follow the exact format requested in the prompt (JSON or plain text)."""
+
+    BREAKTHROUGH_SYSTEM_PROMPT = """You are an advanced breakthrough mutation operator for high-performing ideas.
+Your role is to create REVOLUTIONARY variations that push beyond conventional boundaries while maintaining feasibility.
+
+BREAKTHROUGH MODE: Push creative limits, explore cutting-edge technologies, and create game-changing innovations.
+Generate comprehensive, detailed implementations with specific steps, technologies, and methodologies.
 When returning results, follow the exact format requested in the prompt (JSON or plain text)."""
 
     SINGLE_MUTATION_PROMPT = """Original idea: {idea}
@@ -409,6 +447,37 @@ Generate a complete, detailed solution that includes:
 - Improvements to target criteria (if specified)
 
 Return the mutated idea as JSON with the field "mutated_content" containing the detailed solution (minimum 150 words)."""
+
+    BREAKTHROUGH_MUTATION_PROMPT = """BREAKTHROUGH MUTATION - High-Performance Idea Enhancement
+
+Original high-scoring idea: {idea}
+Problem context: {context}
+
+{evaluation_context}
+
+🚀 BREAKTHROUGH MODE: Create a REVOLUTIONARY variation that:
+1. Leverages cutting-edge technologies and methodologies
+2. Explores unconventional approaches beyond traditional solutions  
+3. Maintains core feasibility while pushing creative boundaries
+4. Integrates multiple advanced systems for maximum impact
+5. Provides COMPREHENSIVE implementation (200+ words)
+6. MAXIMALLY IMPROVES target criteria through innovative approaches
+
+BREAKTHROUGH mutation type: {mutation_type}
+- paradigm_shift: Fundamentally new approach using emerging technologies
+- system_integration: Combine multiple advanced systems for synergy  
+- scale_amplification: Dramatically increase scope and impact
+- future_forward: Incorporate predictive and adaptive capabilities
+
+Generate a REVOLUTIONARY, detailed solution that includes:
+- Advanced technologies and cutting-edge methodologies
+- Innovative integration of multiple systems
+- Scalable architecture for maximum impact
+- Future-proof design with adaptive capabilities
+- Expected transformational outcomes
+- How it REVOLUTIONIZES the target criteria improvement
+
+Return the breakthrough mutation as JSON with "mutated_content" containing the revolutionary solution (minimum 200 words)."""
 
     BATCH_MUTATION_PROMPT = """Generate diverse variations for these ideas. Each variation should use a different approach.
 
@@ -455,6 +524,48 @@ Return JSON with mutations array containing idea_id and mutated_content for each
             "constraint_variation",
             "abstraction_shift"
         ]
+        
+        # Breakthrough mutation types for high-performing ideas
+        self.breakthrough_mutation_types = [
+            "paradigm_shift",
+            "system_integration",
+            "scale_amplification", 
+            "future_forward"
+        ]
+        
+        # Threshold for determining if an idea qualifies for breakthrough mutation
+        self.breakthrough_threshold = 0.8  # Ideas with fitness >= 0.8 get breakthrough mutations
+        
+    def _is_high_scoring_idea(self, idea: GeneratedIdea) -> bool:
+        """
+        Determine if an idea qualifies for breakthrough mutation based on fitness score.
+        
+        Args:
+            idea: GeneratedIdea to evaluate
+            
+        Returns:
+            True if idea qualifies for breakthrough mutation
+        """
+        # Check multiple sources for fitness indicators
+        
+        # 1 & 2. Check metadata for fitness scores (DRY approach)
+        for key in ("fitness_score", "avg_fitness"):
+            if key in idea.metadata:
+                fitness = idea.metadata[key]
+                if isinstance(fitness, (int, float)) and fitness >= self.breakthrough_threshold:
+                    return True
+                    
+        # 3. Check confidence score as proxy (high confidence + later generation)
+        if idea.confidence_score and idea.confidence_score >= self.BREAKTHROUGH_CONFIDENCE_PROXY_THRESHOLD:
+            generation = idea.metadata.get("generation", 0)
+            if generation >= 1:  # Must be from evolution, not initial generation
+                return True
+                
+        # 4. Check for explicit high-performance indicators
+        if "high_performance" in idea.metadata:
+            return bool(idea.metadata["high_performance"])
+            
+        return False
         
     @property
     def name(self) -> str:
@@ -504,16 +615,62 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         Returns:
             Mutated idea
         """
-        # Create cache key that includes EvaluationContext to ensure context-aware caching
-        cache_key = _prepare_cache_key_with_context(idea.content, context)
+        # Determine if this is a high-scoring idea that qualifies for breakthrough mutation
+        is_breakthrough = self._is_high_scoring_idea(idea)
+        
+        # Create cache key that includes EvaluationContext AND breakthrough status
+        base_cache_key = _prepare_cache_key_with_context(idea.content, context)
+        cache_key = f"{base_cache_key}||breakthrough:{is_breakthrough}"
             
         # Check cache first
         cached_result = self.cache.get(cache_key)
+        cached_content = None
+        cached_mutation_type = None
+        
         if cached_result:
-            return self._create_mutated_idea(idea, cached_result, 0.0)
+            # Extract content and original mutation type from cached data
+            if isinstance(cached_result, dict):
+                cached_content = cached_result.get("content")
+                if not isinstance(cached_content, str):
+                    # If content is missing or not a string, skip cache
+                    cached_result = None
+                else:
+                    cached_mutation_type = cached_result.get("mutation_type")
+            else:
+                # For backward compatibility with string cache entries
+                cached_content = cached_result
+                cached_mutation_type = None
+        
+        if cached_result and cached_content is not None:
             
-        # Generate mutation using LLM
-        mutation_type = random.choice(self.mutation_types)
+            # Use cached mutation type if available, otherwise select appropriate type
+            if cached_mutation_type:
+                mutation_type = cached_mutation_type
+            else:
+                mutation_type = random.choice(self.breakthrough_mutation_types if is_breakthrough else self.mutation_types)
+                
+            return self._create_mutated_idea(
+                idea, 
+                cached_content, 
+                0.0,
+                mutation_type,
+                is_breakthrough
+            )
+        
+        if is_breakthrough:
+            # Use breakthrough mutation for high-scoring ideas
+            mutation_type = random.choice(self.breakthrough_mutation_types)
+            system_prompt = self.BREAKTHROUGH_SYSTEM_PROMPT
+            user_prompt_template = self.BREAKTHROUGH_MUTATION_PROMPT
+            temperature = self.BREAKTHROUGH_TEMPERATURE  # Higher temperature for breakthrough creativity
+            max_tokens = SEMANTIC_MUTATION_MAX_TOKENS * self.BREAKTHROUGH_TOKEN_MULTIPLIER  # More tokens for detailed breakthrough solutions
+        else:
+            # Use regular mutation
+            mutation_type = random.choice(self.mutation_types)
+            system_prompt = self.MUTATION_SYSTEM_PROMPT
+            user_prompt_template = self.SINGLE_MUTATION_PROMPT
+            temperature = 0.8  # Standard temperature for creativity
+            max_tokens = SEMANTIC_MUTATION_MAX_TOKENS
         
         # Create single mutation schema
         single_schema = {
@@ -530,15 +687,15 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         )
         
         request = LLMRequest(
-            system_prompt=self.MUTATION_SYSTEM_PROMPT,
-            user_prompt=self.SINGLE_MUTATION_PROMPT.format(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt_template.format(
                 idea=idea.content,
                 context=context_str,
                 evaluation_context=evaluation_context_str,
                 mutation_type=mutation_type
             ),
-            max_tokens=SEMANTIC_MUTATION_MAX_TOKENS,
-            temperature=0.8,  # Higher temperature for creativity
+            max_tokens=max_tokens,
+            temperature=temperature,
             response_schema=single_schema,
             response_mime_type="application/json"
         )
@@ -564,14 +721,19 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         if is_likely_truncated(mutated_content):
             logger.warning("Mutation response appears truncated, may need higher token limit")
         
-        # Cache the result using the same key structure
-        self.cache.put(cache_key, mutated_content)
+        # Cache the result with metadata using the same key structure
+        cache_data = {
+            "content": mutated_content,
+            "mutation_type": mutation_type
+        }
+        self.cache.put(cache_key, cache_data)
         
         return self._create_mutated_idea(
             idea, 
             mutated_content,
             response.cost,
-            mutation_type
+            mutation_type,
+            is_breakthrough
         )
         
     async def mutate_batch(
@@ -595,8 +757,12 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         cache_keys = {}
         
         for idea in ideas:
-            cache_key = _prepare_cache_key_with_context(idea.content, context)
+            # Include breakthrough status in cache key
+            is_breakthrough = self._is_high_scoring_idea(idea)
+            base_cache_key = _prepare_cache_key_with_context(idea.content, context)
+            cache_key = f"{base_cache_key}||breakthrough:{is_breakthrough}"
             cache_keys[idea.content] = cache_key
+            
             cached_result = self.cache.get(cache_key)
             if cached_result:
                 cached_results[idea.content] = cached_result
@@ -605,12 +771,39 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 
         # If all are cached, return immediately
         if not uncached_ideas:
-            return [
-                self._create_mutated_idea(idea, cached_results[idea.content], 0.0)
-                for idea in ideas
-            ]
+            results = []
+            for idea in ideas:
+                cached_data = cached_results[idea.content]
+                is_breakthrough = self._is_high_scoring_idea(idea)
+                
+                # Extract content and mutation type from cached data
+                if isinstance(cached_data, dict):
+                    cached_content = cached_data.get("content")
+                    if not isinstance(cached_content, str):
+                        # Fallback to original content if cache is invalid
+                        cached_content = idea.content
+                        logger.debug(f"Invalid cache entry for '{idea.content[:50]}...', using original content")
+                    cached_mutation_type = cached_data.get("mutation_type", "batch_mutation")
+                else:
+                    # Backward compatibility
+                    cached_content = cached_data
+                    cached_mutation_type = "batch_mutation"
+                    
+                results.append(
+                    self._create_mutated_idea(
+                        idea, 
+                        cached_content, 
+                        0.0,
+                        cached_mutation_type,
+                        is_breakthrough
+                    )
+                )
+            return results
             
         # Batch process uncached ideas
+        # TODO: Currently batch mutations don't use breakthrough prompts/parameters for high-scoring ideas.
+        # Future improvement: Separate ideas into breakthrough and regular batches for proper handling.
+        # For now, breakthrough metadata is correctly set but mutations use regular parameters.
         # Create batch prompt
         ideas_list = "\n".join([
             f"IDEA_{i+1}: {idea.content}"
@@ -632,7 +825,7 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 ideas_list=ideas_list
             ),
             max_tokens=min(SEMANTIC_BATCH_MUTATION_BASE_TOKENS * len(uncached_ideas), SEMANTIC_BATCH_MUTATION_MAX_TOKENS),
-            temperature=0.8,
+            temperature=self.REGULAR_MUTATION_TEMPERATURE,
             response_schema=schema,
             response_mime_type="application/json"
         )
@@ -676,7 +869,12 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 logger.warning("Batch mutation appears truncated for idea: %s...", idea.content[:50])
             # Use the context-aware cache key for this idea
             cache_key = cache_keys[idea.content]
-            self.cache.put(cache_key, mutation)
+            # TODO: Batch mutations don't have individual mutation types, so we use generic "batch_mutation"
+            cache_data = {
+                "content": mutation,
+                "mutation_type": "batch_mutation"
+            }
+            self.cache.put(cache_key, cache_data)
             
         # Distribute cost across mutations
         cost_per_mutation = response.cost / len(mutations) if mutations else 0
@@ -686,16 +884,41 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         uncached_index = 0
         
         for idea in ideas:
+            # Check if this idea qualifies for breakthrough
+            is_breakthrough = self._is_high_scoring_idea(idea)
+            
             if idea.content in cached_results:
+                cached_data = cached_results[idea.content]
+                
+                # Extract content and mutation type from cached data
+                if isinstance(cached_data, dict):
+                    cached_content = cached_data.get("content")
+                    if not isinstance(cached_content, str):
+                        # Use original content if cache is invalid
+                        cached_content = idea.content
+                    cached_mutation_type = cached_data.get("mutation_type", "batch_mutation")
+                else:
+                    # Backward compatibility
+                    cached_content = cached_data
+                    cached_mutation_type = "batch_mutation"
+                    
                 results.append(
-                    self._create_mutated_idea(idea, cached_results[idea.content], 0.0)
+                    self._create_mutated_idea(
+                        idea, 
+                        cached_content, 
+                        0.0,
+                        cached_mutation_type,
+                        is_breakthrough
+                    )
                 )
             else:
                 results.append(
                     self._create_mutated_idea(
                         idea,
                         mutations[uncached_index],
-                        cost_per_mutation
+                        cost_per_mutation,
+                        "batch_mutation",
+                        is_breakthrough
                     )
                 )
                 uncached_index += 1
@@ -743,23 +966,41 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         original: GeneratedIdea,
         mutated_content: str,
         llm_cost: float,
-        mutation_type: Optional[str] = None
+        mutation_type: Optional[str] = None,
+        is_breakthrough: bool = False
     ) -> GeneratedIdea:
         """Create a mutated idea object."""
+        # Adjust confidence based on mutation type
+        confidence_multiplier = self.BREAKTHROUGH_CONFIDENCE_MULTIPLIER if is_breakthrough else self.REGULAR_CONFIDENCE_MULTIPLIER
+        base_confidence = original.confidence_score or 0.5
+        new_confidence = min(1.0, base_confidence * confidence_multiplier)
+        
+        # Create enhanced metadata
+        metadata = {
+            "operator": "breakthrough_semantic_mutation" if is_breakthrough else "semantic_mutation",
+            "mutation_type": mutation_type or "semantic_variation",
+            "is_breakthrough": is_breakthrough,
+            "llm_cost": llm_cost,
+            "generation": original.metadata.get("generation", 0) + 1,
+        }
+        
+        # Include original fitness information if available
+        if "fitness_score" in original.metadata:
+            metadata["parent_fitness"] = original.metadata["fitness_score"]
+        if "avg_fitness" in original.metadata:
+            metadata["parent_avg_fitness"] = original.metadata["avg_fitness"]
+            
+        generation_description = "BREAKTHROUGH mutation" if is_breakthrough else "Semantic mutation"
+        
         return GeneratedIdea(
             content=mutated_content,
             thinking_method=original.thinking_method,
             agent_name="BatchSemanticMutationOperator",
-            generation_prompt=f"Semantic mutation of: '{original.content[:50]}...'",
-            confidence_score=(original.confidence_score or 0.5) * 0.95,
-            reasoning=f"Applied semantic mutation to create variation",
+            generation_prompt=f"{generation_description} of: '{original.content[:50]}...'",
+            confidence_score=new_confidence,
+            reasoning=f"Applied {generation_description.lower()} to create {'revolutionary' if is_breakthrough else 'semantic'} variation",
             parent_ideas=[original.content],
-            metadata={
-                "operator": "semantic_mutation",
-                "mutation_type": mutation_type or "semantic_variation",
-                "llm_cost": llm_cost,
-                "generation": original.metadata.get("generation", 0) + 1,
-            },
+            metadata=metadata,
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
@@ -859,11 +1100,11 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
         base_cache_key = f"{sorted_contents[0]}||{sorted_contents[1]}"
         cache_key = _prepare_cache_key_with_context(base_cache_key, context)
             
-        cached_result = self.cache.get(cache_key)
+        cached_result = self.cache.get(cache_key, operation_type="crossover", return_dict=False)
         
         if cached_result:
             # Parse cached result
-            offspring_contents = cached_result.split("||")
+            offspring_contents = cached_result.split("||") if isinstance(cached_result, str) else []
             if len(offspring_contents) >= 2:
                 return (
                     self._create_offspring(parent1, parent2, offspring_contents[0], 0.0),
@@ -926,8 +1167,8 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
             offspring1_content = self._generate_crossover_fallback(parent1, parent2, is_first=True)
             offspring2_content = self._generate_crossover_fallback(parent1, parent2, is_first=False)
         
-        # Cache the result
-        self.cache.put(cache_key, f"{offspring1_content}||{offspring2_content}")
+        # Cache the result (as string for backward compatibility)
+        self.cache.put(cache_key, f"{offspring1_content}||{offspring2_content}", operation_type="crossover")
         
         # Distribute cost
         cost_per_offspring = response.cost / 2

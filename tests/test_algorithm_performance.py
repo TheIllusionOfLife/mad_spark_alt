@@ -118,7 +118,7 @@ class TestAlgorithmPerformance:
         
         # Test cache hit performance
         with PerformanceBenchmark("cache-hit") as benchmark:
-            retrieved = cache.get(test_content)
+            retrieved = cache.get(test_content, return_dict=False)
         
         assert retrieved == cached_result
         assert benchmark.duration < 0.001  # Cache hit should be very fast (<1ms)
@@ -134,7 +134,7 @@ class TestAlgorithmPerformance:
         with PerformanceBenchmark("cache-bulk-operations") as benchmark:
             for i in range(total_requests):
                 content_key = f"content_{i % 20}"  # Will create cache hits
-                result = cache.get(content_key)
+                result = cache.get(content_key, return_dict=False)
                 if result is not None:
                     hit_count += 1
         
