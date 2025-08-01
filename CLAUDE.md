@@ -302,6 +302,19 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Relative Imports**: Use `from ...core import X` pattern
 - **Type Imports**: Use `from typing import TYPE_CHECKING` for circular deps
 
+### Logging Level Best Practices (PR #74)
+- **User-Visible Messages**: Use `logger.warning()` or higher only for issues users need to know about
+- **Internal Debug Info**: Use `logger.debug()` for fallback messages, parsing failures, internal state
+- **Evolution System**: Configure logging to suppress DEBUG messages during evolution runs
+- **Example**:
+  ```python
+  # Bad: Shows internal details to users
+  logger.warning("Using fallback text for offspring 1 - LLM parsing failed")
+  
+  # Good: Internal debugging only
+  logger.debug("Using fallback text for offspring 1 - LLM parsing failed")
+  ```
+
 ### Deprecation Best Practices
 - **Module-Level Warnings**: Issue deprecation warnings at module import time
 - **Clear Migration Path**: Always specify what to use instead
