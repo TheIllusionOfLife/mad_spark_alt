@@ -169,11 +169,11 @@ Score each criterion:
 - Scalability: How well can this grow/expand? (0=doesn't scale, 1=scales excellently)
 
 Format your response EXACTLY as:
-Novelty: [score] - [one line explanation]
 Impact: [score] - [one line explanation]
-Cost: [score] - [one line explanation]
 Feasibility: [score] - [one line explanation]
-Risks: [score] - [one line explanation]
+Accessibility: [score] - [one line explanation]
+Sustainability: [score] - [one line explanation]
+Scalability: [score] - [one line explanation]
 """
 
     def _parse_evaluation_response(

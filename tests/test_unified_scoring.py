@@ -6,7 +6,6 @@ import pytest
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.evolution.interfaces import IndividualFitness
-from mad_spark_alt.evolution.fitness import FitnessEvaluator
 from mad_spark_alt.core.simple_qadi_orchestrator import HypothesisScore
 
 
@@ -80,8 +79,6 @@ class TestUnifiedScoring:
     @pytest.mark.asyncio
     async def test_fitness_evaluator_returns_qadi_scores(self):
         """Test that FitnessEvaluator returns QADI scores in metadata."""
-        from mad_spark_alt.evolution.interfaces import EvolutionConfig
-        
         # Create mock ideas
         ideas = [
             GeneratedIdea(

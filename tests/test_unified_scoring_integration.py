@@ -7,13 +7,10 @@ from unittest.mock import Mock, AsyncMock, patch
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.evolution.interfaces import (
-    IndividualFitness, EvolutionConfig, EvolutionRequest
+    IndividualFitness, EvolutionConfig
 )
 from mad_spark_alt.evolution.fitness import FitnessEvaluator
-from mad_spark_alt.evolution.genetic_algorithm import GeneticAlgorithm
-from mad_spark_alt.core.simple_qadi_orchestrator import (
-    SimpleQADIOrchestrator, HypothesisScore
-)
+from mad_spark_alt.core.simple_qadi_orchestrator import HypothesisScore
 from mad_spark_alt.core.llm_provider import GoogleProvider, LLMResponse
 
 
@@ -190,9 +187,6 @@ class TestUnifiedScoringIntegration:
     @pytest.mark.asyncio
     async def test_evolution_collects_all_generations(self):
         """Test that evolution results include all generations for selection."""
-        # Mock LLM provider
-        mock_provider = Mock(spec=GoogleProvider)
-        
         # Create initial ideas
         initial_ideas = [
             GeneratedIdea(
