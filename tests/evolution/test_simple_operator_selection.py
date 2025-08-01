@@ -89,11 +89,8 @@ class TestSimpleOperatorSelection:
         )
         
         # Test mutation selection logic - should use semantic when available and enabled
-        mutated_idea, mutation_stats = await ga._apply_mutation_with_smart_selection(
+        mutated_idea, mutation_stats = await ga._apply_mutation_with_operator_selection(
             sample_individual.idea,
-            avg_parent_fitness=0.7,
-            population_diversity=0.5,
-            generation=1,
             config=config_with_semantic_operators
         )
         
@@ -121,11 +118,8 @@ class TestSimpleOperatorSelection:
         ga.mutation_operator.mutate = AsyncMock(return_value=modified_idea)
         
         # Test mutation selection logic - should use traditional when disabled
-        mutated_idea, mutation_stats = await ga._apply_mutation_with_smart_selection(
+        mutated_idea, mutation_stats = await ga._apply_mutation_with_operator_selection(
             sample_individual.idea,
-            avg_parent_fitness=0.7,
-            population_diversity=0.5,
-            generation=1,
             config=config_without_semantic_operators
         )
         
@@ -157,11 +151,8 @@ class TestSimpleOperatorSelection:
         ga.mutation_operator.mutate = AsyncMock(return_value=modified_idea)
         
         # Test mutation selection logic - should use traditional when unavailable
-        mutated_idea, mutation_stats = await ga._apply_mutation_with_smart_selection(
+        mutated_idea, mutation_stats = await ga._apply_mutation_with_operator_selection(
             sample_individual.idea,
-            avg_parent_fitness=0.7,
-            population_diversity=0.5,
-            generation=1,
             config=config_with_semantic_operators
         )
         
