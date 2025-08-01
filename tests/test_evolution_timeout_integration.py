@@ -9,6 +9,11 @@ import os
 import time
 import pytest
 from pathlib import Path
+import sys
+
+# Import the timeout calculation function
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from qadi_simple import calculate_evolution_timeout
 
 # Load environment variables
 try:
@@ -70,13 +75,6 @@ async def test_evolution_completes_with_new_timeout():
     ga = GeneticAlgorithm(llm_provider=google_provider)
     
     # Calculate expected timeout
-    def calculate_evolution_timeout(gens: int, pop: int) -> float:
-        base_timeout = 120.0
-        time_per_eval = 8.0
-        total_evaluations = gens * pop + pop
-        estimated_time = base_timeout + (total_evaluations * time_per_eval)
-        return min(estimated_time, 900.0)
-    
     expected_timeout = calculate_evolution_timeout(3, 10)
     assert expected_timeout == 440.0, "Timeout calculation should match expected value"
     

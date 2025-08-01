@@ -8,6 +8,12 @@ evolution from timing out with larger populations and generations.
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 import asyncio
+import sys
+from pathlib import Path
+
+# Import the function from qadi_simple
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from qadi_simple import calculate_evolution_timeout
 
 
 class TestEvolutionTimeoutFix:
@@ -15,19 +21,6 @@ class TestEvolutionTimeoutFix:
     
     def test_updated_timeout_calculation(self):
         """Test that timeout calculation uses updated values."""
-        # This tests the new timeout calculation logic
-        def calculate_evolution_timeout(gens: int, pop: int) -> float:
-            """Calculate timeout in seconds based on generations and population."""
-            base_timeout = 120.0  # Increased from 90s for better reliability
-            time_per_eval = 8.0  # Increased from 5s for semantic operators
-            
-            # Estimate total evaluations (including initial population)
-            total_evaluations = gens * pop + pop  # Initial eval + each generation
-            estimated_time = base_timeout + (total_evaluations * time_per_eval)
-            
-            # Cap at 15 minutes for very large evolutions
-            return min(estimated_time, 900.0)
-        
         # Test small evolution (2 generations, 3 population)
         timeout = calculate_evolution_timeout(2, 3)
         expected = 120.0 + (2 * 3 + 3) * 8.0  # 120 + 9*8 = 192
