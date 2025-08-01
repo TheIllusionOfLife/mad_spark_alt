@@ -94,42 +94,21 @@ class TestEvolutionTimeoutFix:
 class TestSemanticOperatorTokenLimit:
     """Test token limit improvements for semantic operators."""
     
-    def test_mutation_token_limit_in_code(self):
-        """Test that mutation operations have updated token limits in code."""
-        # Read semantic_operators.py to check token limits
-        import os
-        semantic_ops_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "src", "mad_spark_alt", "evolution", "semantic_operators.py"
+    def test_mutation_token_limits(self):
+        """Test that mutation operations have updated token limits."""
+        # Import the actual constants from semantic_operators
+        from mad_spark_alt.evolution.semantic_operators import (
+            SEMANTIC_MUTATION_MAX_TOKENS,
+            SEMANTIC_BATCH_MUTATION_BASE_TOKENS,
+            SEMANTIC_BATCH_MUTATION_MAX_TOKENS,
+            SEMANTIC_CROSSOVER_MAX_TOKENS
         )
         
-        with open(semantic_ops_path, 'r') as f:
-            content = f.read()
-            
-        # Check for increased token limits
-        # Single mutation should be at least 1000 (up from 500)
-        assert "max_tokens=1000," in content or "max_tokens=1500," in content, \
-            "Single mutation should have at least 1000 tokens"
-            
-        # Batch mutation should allow more
-        assert "min(1000 * len(uncached_ideas), 4000)" in content or \
-               "min(800 * len(uncached_ideas), 3000)" in content, \
-            "Batch mutation should scale properly with increased base"
-            
-    def test_crossover_token_limit_in_code(self):
-        """Test that crossover operations have sufficient token limit."""
-        import os
-        semantic_ops_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "src", "mad_spark_alt", "evolution", "semantic_operators.py"
-        )
-        
-        with open(semantic_ops_path, 'r') as f:
-            content = f.read()
-            
-        # Crossover should have at least 1500 tokens (up from 1000)
-        assert "max_tokens=1500," in content or "max_tokens=2000," in content, \
-            "Crossover should have at least 1500 tokens"
+        # Test the actual values
+        assert SEMANTIC_MUTATION_MAX_TOKENS == 1000, "Single mutation should have 1000 tokens"
+        assert SEMANTIC_BATCH_MUTATION_BASE_TOKENS == 1000, "Batch mutation base should be 1000 tokens per idea"
+        assert SEMANTIC_BATCH_MUTATION_MAX_TOKENS == 4000, "Batch mutation max should be 4000 tokens"
+        assert SEMANTIC_CROSSOVER_MAX_TOKENS == 1500, "Crossover should have 1500 tokens"
 
 
 class TestIntegrationScenarios:
