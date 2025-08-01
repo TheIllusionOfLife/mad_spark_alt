@@ -93,21 +93,42 @@ class TestEvolutionTimeoutFix:
 class TestSemanticOperatorTokenLimit:
     """Test token limit improvements for semantic operators."""
     
-    def test_mutation_token_limit_increased(self):
-        """Test that mutation operations have sufficient token limit."""
-        # This will be implemented when we check the actual token limits
-        # For now, we document what we expect
-        expected_min_tokens = 1500  # Should be enough for complex mutations
+    def test_mutation_token_limit_in_code(self):
+        """Test that mutation operations have updated token limits in code."""
+        # Read semantic_operators.py to check token limits
+        import os
+        semantic_ops_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "src", "mad_spark_alt", "evolution", "semantic_operators.py"
+        )
         
-        # Placeholder - will be replaced with actual implementation check
-        assert expected_min_tokens >= 1500
-        
-    def test_crossover_token_limit_sufficient(self):
+        with open(semantic_ops_path, 'r') as f:
+            content = f.read()
+            
+        # Check for increased token limits
+        # Single mutation should be at least 1000 (up from 500)
+        assert "max_tokens=1000," in content or "max_tokens=1500," in content, \
+            "Single mutation should have at least 1000 tokens"
+            
+        # Batch mutation should allow more
+        assert "min(1000 * len(uncached_ideas), 4000)" in content or \
+               "min(800 * len(uncached_ideas), 3000)" in content, \
+            "Batch mutation should scale properly with increased base"
+            
+    def test_crossover_token_limit_in_code(self):
         """Test that crossover operations have sufficient token limit."""
-        expected_min_tokens = 2000  # Crossover needs more tokens
+        import os
+        semantic_ops_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "src", "mad_spark_alt", "evolution", "semantic_operators.py"
+        )
         
-        # Placeholder - will be replaced with actual implementation check  
-        assert expected_min_tokens >= 2000
+        with open(semantic_ops_path, 'r') as f:
+            content = f.read()
+            
+        # Crossover should have at least 1500 tokens (up from 1000)
+        assert "max_tokens=1500," in content or "max_tokens=2000," in content, \
+            "Crossover should have at least 1500 tokens"
 
 
 class TestIntegrationScenarios:

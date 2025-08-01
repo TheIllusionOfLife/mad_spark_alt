@@ -531,7 +531,7 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 evaluation_context=evaluation_context_str,
                 mutation_type=mutation_type
             ),
-            max_tokens=500,
+            max_tokens=1000,
             temperature=0.8,  # Higher temperature for creativity
             response_schema=single_schema,
             response_mime_type="application/json"
@@ -625,7 +625,7 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 evaluation_context=evaluation_context_str,
                 ideas_list=ideas_list
             ),
-            max_tokens=min(500 * len(uncached_ideas), 2000),
+            max_tokens=min(1000 * len(uncached_ideas), 4000),
             temperature=0.8,
             response_schema=schema,
             response_mime_type="application/json"
@@ -879,7 +879,7 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
                 context=context_str,
                 evaluation_context=evaluation_context_str
             ),
-            max_tokens=1000,
+            max_tokens=1500,
             temperature=0.7,  # Moderate temperature for balanced creativity
             response_schema=schema,
             response_mime_type="application/json"

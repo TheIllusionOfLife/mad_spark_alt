@@ -412,8 +412,8 @@ async def run_qadi_analysis(
                 # Calculate adaptive timeout based on evolution complexity
                 def calculate_evolution_timeout(gens: int, pop: int) -> float:
                     """Calculate timeout in seconds based on generations and population."""
-                    base_timeout = 90.0  # Base 1.5 minutes
-                    time_per_eval = 5.0  # 5 seconds per idea evaluation (more realistic for LLM calls)
+                    base_timeout = 120.0  # Increased from 90s for better reliability
+                    time_per_eval = 8.0  # Increased from 5s for semantic operators
                     
                     # Estimate total evaluations (including initial population)
                     total_evaluations = gens * pop + pop  # Initial eval + each generation
