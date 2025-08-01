@@ -11,9 +11,14 @@ import asyncio
 import sys
 from pathlib import Path
 
-# Import the function from qadi_simple
+# Import the function and constants from qadi_simple
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from qadi_simple import calculate_evolution_timeout
+from qadi_simple import (
+    calculate_evolution_timeout,
+    EVOLUTION_BASE_TIMEOUT,
+    EVOLUTION_TIME_PER_EVAL,
+    EVOLUTION_MAX_TIMEOUT
+)
 
 
 class TestEvolutionTimeoutFix:
@@ -23,19 +28,21 @@ class TestEvolutionTimeoutFix:
         """Test that timeout calculation uses updated values."""
         # Test small evolution (2 generations, 3 population)
         timeout = calculate_evolution_timeout(2, 3)
-        expected = 120.0 + (2 * 3 + 3) * 8.0  # 120 + 9*8 = 192
+        expected = EVOLUTION_BASE_TIMEOUT + (2 * 3 + 3) * EVOLUTION_TIME_PER_EVAL
         assert timeout == expected
+        assert timeout == 192.0
         
         # Test medium evolution (3 generations, 10 population)
         timeout = calculate_evolution_timeout(3, 10)
-        expected = 120.0 + (3 * 10 + 10) * 8.0  # 120 + 40*8 = 440
+        expected = EVOLUTION_BASE_TIMEOUT + (3 * 10 + 10) * EVOLUTION_TIME_PER_EVAL
         assert timeout == expected
         assert timeout == 440.0  # This should now be enough time
         
         # Test large evolution that hits cap
         timeout = calculate_evolution_timeout(10, 50)
-        expected = 120.0 + (10 * 50 + 50) * 8.0  # 120 + 550*8 = 4520
-        assert timeout == 900.0  # Should be capped at 15 minutes
+        expected = EVOLUTION_BASE_TIMEOUT + (10 * 50 + 50) * EVOLUTION_TIME_PER_EVAL
+        assert timeout == EVOLUTION_MAX_TIMEOUT  # Should be capped
+        assert timeout == 900.0
         
     def test_old_timeout_was_insufficient(self):
         """Verify the old timeout was indeed too short."""
@@ -66,8 +73,9 @@ class TestEvolutionTimeoutFix:
             return {"status": "completed", "generations": 3}
         
         # Test with new timeout (440s for 3x10)
+        new_timeout = calculate_evolution_timeout(3, 10)
         try:
-            result = await asyncio.wait_for(mock_evolution(), timeout=440.0)
+            result = await asyncio.wait_for(mock_evolution(), timeout=new_timeout)
             assert result["status"] == "completed"
         except asyncio.TimeoutError:
             pytest.fail("Evolution should not timeout with new limit")
