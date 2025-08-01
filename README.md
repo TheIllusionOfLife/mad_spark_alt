@@ -273,6 +273,46 @@ This implementation significantly reduces "Failed to extract enough hypotheses" 
   - Apply special "enhancement" mutations only to elite individuals
   - Use different temperature/creativity settings for elite vs general population
 
+## Session Handover
+
+### Last Updated: August 01, 2025 06:06 PM JST
+
+#### Recently Completed
+- ✅ [PR #76]: Complete comprehensive QADI evolution fixes - Address all 5 user-identified issues
+  - Fixed missing line breaks in hypothesis display
+  - Removed H-prefix from deduction analysis  
+  - Implemented unified QADI 5-criteria scoring system
+  - Fixed evolution result collection from all generations
+  - Enhanced display with "High Score Approaches" and detailed scoring
+- ✅ [PR #74]: Remove H+number prefix, suppress evolution logs, and improve structured output
+- ✅ [PR #71]: Implement Gemini structured output for reliable parsing
+
+#### Next Priority Tasks
+1. **Remove Smart Selector**: Simplify evolution system
+   - Source: README.md TODO
+   - Context: Current threshold (0.9) means we always use semantic operators anyway
+   - Approach: Replace probabilistic selection with simple if-available logic
+
+2. **Evaluation Context Enhancement**: Pass scoring context to evolution
+   - Source: README.md TODO #6
+   - Context: Evolution operators need to know what scores to beat
+   - Approach: Pass original question + current best score to operators
+
+3. **Evolution Timeout Handling**: Improve timeout management
+   - Source: User test output shows evolution timing out at 290s
+   - Context: Population 10 + 3 generations exceeds timeout
+   - Approach: Better progress tracking, earlier termination, or adaptive timeouts
+
+#### Known Issues / Blockers
+- Evolution with large populations (10+) and multiple generations (3+) times out
+- Mutation responses occasionally appear truncated (token limit issue)
+
+#### Session Learnings
+- **Prompt-Response Consistency**: Critical to ensure LLM prompts match expected response format
+- **Comprehensive Testing**: Always test the exact output format, not just functionality
+- **Review Bot Thoroughness**: Modern PRs have multiple bot reviewers checking different aspects
+- **Evolution Display**: Users expect to see results from all generations, not just final
+
 ## License
 
 MIT
