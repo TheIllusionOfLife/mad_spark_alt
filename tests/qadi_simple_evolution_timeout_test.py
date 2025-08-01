@@ -114,6 +114,11 @@ def mock_fast_genetic_algorithm():
                             generation_prompt="evolved",
                             confidence_score=0.9,
                         ),
+                        impact=0.85,
+                        feasibility=0.85,
+                        accessibility=0.85,
+                        sustainability=0.85,
+                        scalability=0.85,
                         overall_fitness=0.85,
                     )
                 ],

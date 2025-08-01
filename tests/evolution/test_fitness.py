@@ -78,15 +78,15 @@ class TestFitnessEvaluator:
     @pytest.mark.asyncio
     async def test_evaluate_individual_success(self) -> None:
         """Test successful individual fitness evaluation."""
-        # Mock evaluation result
+        # Mock evaluation result with QADI scores
         mock_evaluation = HypothesisEvaluation(
             content="Test idea 0: Solution for sustainability",
             scores={
-                "novelty": 0.8,
                 "impact": 0.85,
-                "cost": 0.3,  # Low cost is good
                 "feasibility": 0.9,
-                "risks": 0.2,  # Low risk is good
+                "accessibility": 0.82,
+                "sustainability": 0.82,
+                "scalability": 0.82,
             },
             overall_score=0.82,
             explanations={"reasoning": "Test evaluation reasoning"},
@@ -104,16 +104,17 @@ class TestFitnessEvaluator:
         # Verify results
         assert isinstance(fitness, IndividualFitness)
         assert fitness.idea == idea
-        # creativity_score maps to novelty
-        assert fitness.creativity_score == 0.8
-        # diversity_score is average of novelty and impact
-        assert fitness.diversity_score == pytest.approx((0.8 + 0.85) / 2, rel=1e-3)
-        # quality_score maps to feasibility
-        assert fitness.quality_score == 0.9
+        # Check unified scoring criteria
+        assert fitness.impact == pytest.approx(0.85, rel=1e-3)
+        assert fitness.feasibility == pytest.approx(0.9, rel=1e-3)
+        # Since we don't have direct scores for these, they should be from overall
+        assert fitness.accessibility == pytest.approx(0.82, rel=1e-3)
+        assert fitness.sustainability == pytest.approx(0.82, rel=1e-3)
+        assert fitness.scalability == pytest.approx(0.82, rel=1e-3)
         assert fitness.overall_fitness == pytest.approx(0.82, rel=1e-3)
         # Check metadata contains all scores
         assert "unified_scores" in fitness.evaluation_metadata
-        assert fitness.evaluation_metadata["unified_scores"]["novelty"] == 0.8
+        assert fitness.evaluation_metadata["unified_scores"]["impact"] == 0.85
 
         # Verify evaluation was called correctly
         self.mock_unified_evaluator.evaluate_hypothesis.assert_called_once()
@@ -136,9 +137,11 @@ class TestFitnessEvaluator:
         # Verify failure handling
         assert isinstance(fitness, IndividualFitness)
         assert fitness.idea == idea
-        assert fitness.creativity_score == 0.0
-        assert fitness.diversity_score == 0.0
-        assert fitness.quality_score == 0.0
+        assert fitness.impact == 0.0
+        assert fitness.feasibility == 0.0
+        assert fitness.accessibility == 0.0
+        assert fitness.sustainability == 0.0
+        assert fitness.scalability == 0.0
         assert fitness.overall_fitness == 0.0
         assert "error" in fitness.evaluation_metadata
         assert fitness.evaluation_metadata["error"] == "Evaluation failed"
@@ -146,16 +149,16 @@ class TestFitnessEvaluator:
     @pytest.mark.asyncio
     async def test_evaluate_population_parallel(self) -> None:
         """Test parallel population evaluation."""
-        # Mock batch evaluations from unified evaluator
+        # Mock batch evaluations from unified evaluator with QADI scores
         mock_evaluations = [
             HypothesisEvaluation(
                 content=idea.content,
                 scores={
-                    "novelty": 0.8 + i * 0.05,
                     "impact": 0.7 + i * 0.05,
-                    "cost": 0.3,
                     "feasibility": 0.75 + i * 0.05,
-                    "risks": 0.2,
+                    "accessibility": 0.8 + i * 0.05,
+                    "sustainability": 0.7 + i * 0.05,
+                    "scalability": 0.75 + i * 0.05,
                 },
                 overall_score=0.75 + i * 0.05,
                 explanations={"reasoning": f"Test evaluation {i}"},
@@ -177,7 +180,8 @@ class TestFitnessEvaluator:
         assert len(results) == len(self.test_ideas)
         for i, fitness in enumerate(results):
             assert fitness.idea == self.test_ideas[i]
-            assert fitness.creativity_score == 0.8 + i * 0.05
+            # Check at least one of the unified criteria
+            assert fitness.overall_fitness == pytest.approx(0.75 + i * 0.05, rel=1e-3)
 
     @pytest.mark.asyncio
     async def test_evaluate_population_sequential(self) -> None:
@@ -187,11 +191,11 @@ class TestFitnessEvaluator:
             HypothesisEvaluation(
                 content=idea.content,
                 scores={
-                    "novelty": 0.8,
                     "impact": 0.7,
-                    "cost": 0.3,
                     "feasibility": 0.75,
-                    "risks": 0.2,
+                    "accessibility": 0.8,
+                    "sustainability": 0.7,
+                    "scalability": 0.75,
                 },
                 overall_score=0.75,
                 explanations={"reasoning": "Test evaluation"},
@@ -212,7 +216,7 @@ class TestFitnessEvaluator:
         # Verify results
         assert len(results) == len(self.test_ideas)
         for fitness in results:
-            assert fitness.creativity_score == 0.8
+            assert fitness.overall_fitness == pytest.approx(0.75, rel=1e-3)
 
     @pytest.mark.asyncio
     async def test_evaluate_population_with_exception(self) -> None:
@@ -237,11 +241,11 @@ class TestFitnessEvaluator:
                     HypothesisEvaluation(
                         content=idea.content,
                         scores={
-                            "novelty": 0.8,
                             "impact": 0.7,
-                            "cost": 0.3,
                             "feasibility": 0.75,
-                            "risks": 0.2,
+                            "accessibility": 0.8,
+                            "sustainability": 0.7,
+                            "scalability": 0.75,
                         },
                         overall_score=0.75,
                         explanations={"reasoning": "Test evaluation"},
@@ -261,10 +265,10 @@ class TestFitnessEvaluator:
         # Verify results
         assert len(results) == len(self.test_ideas)
         # First and third should succeed
-        assert results[0].creativity_score == 0.8
-        assert results[2].creativity_score == 0.8
+        assert results[0].overall_fitness == pytest.approx(0.75, rel=1e-3)
+        assert results[2].overall_fitness == pytest.approx(0.75, rel=1e-3)
         # Second may succeed with empty scores (gets 0.0 values)
-        assert results[1].creativity_score == 0.0
+        assert results[1].impact == 0.0
         assert results[1].overall_fitness == 0.0
 
     @pytest.mark.asyncio
@@ -280,9 +284,11 @@ class TestFitnessEvaluator:
                     generation_prompt="Test",
                     timestamp=datetime.now(timezone.utc).isoformat(),
                 ),
-                creativity_score=0.8,
-                diversity_score=0.7,
-                quality_score=0.75,
+                impact=0.8,
+                feasibility=0.75,
+                accessibility=0.7,
+                sustainability=0.7,
+                scalability=0.7,
                 overall_fitness=0.75,
                 evaluation_metadata={
                     "unified_scores": {
@@ -310,9 +316,11 @@ class TestFitnessEvaluator:
                     generation_prompt="Test",
                     timestamp=datetime.now(timezone.utc).isoformat(),
                 ),
-                creativity_score=0.8,
-                diversity_score=0.7,
-                quality_score=0.75,
+                impact=0.8,
+                feasibility=0.75,
+                accessibility=0.7,
+                sustainability=0.7,
+                scalability=0.7,
                 overall_fitness=0.75,
                 evaluation_metadata={
                     "unified_scores": {
@@ -380,9 +388,11 @@ class TestFitnessEvaluator:
             concurrent_count -= 1
             return IndividualFitness(
                 idea=idea,
-                creativity_score=0.8,
-                diversity_score=0.7,
-                quality_score=0.75,
+                impact=0.8,
+                feasibility=0.75,
+                accessibility=0.7,
+                sustainability=0.7,
+                scalability=0.7,
                 overall_fitness=0.75,
             )
 

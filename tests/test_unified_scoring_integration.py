@@ -130,7 +130,7 @@ class TestUnifiedScoringIntegration:
         )
         
         # Test QADI scoring
-        qadi_orchestrator = SimpleQADIOrchestrator(llm_provider=mock_provider)
+        qadi_orchestrator = SimpleQADIOrchestrator()
         
         # Create mock hypothesis
         hypothesis_score = HypothesisScore(

@@ -59,9 +59,11 @@ class TestGeneticAlgorithm:
         mock_individuals = [
             IndividualFitness(
                 idea=idea,
-                creativity_score=0.7,
-                diversity_score=0.8,
-                quality_score=0.6,
+                impact=0.7,
+                feasibility=0.6,
+                accessibility=0.8,
+                sustainability=0.7,
+                scalability=0.7,
                 overall_fitness=0.7,
             )
             for idea in self.test_ideas
@@ -103,9 +105,11 @@ class TestGeneticAlgorithm:
         for i, idea in enumerate(self.test_ideas):
             fitness = IndividualFitness(
                 idea=idea,
-                creativity_score=0.7,
-                diversity_score=0.8,
-                quality_score=0.6,
+                impact=0.7,
+                feasibility=0.6,
+                accessibility=0.8,
+                sustainability=0.7,
+                scalability=0.7,
                 overall_fitness=0.9 - (i * 0.1),  # Decreasing fitness
             )
             mock_individuals.append(fitness)
@@ -137,9 +141,11 @@ class TestGeneticAlgorithm:
         mock_individuals = [
             IndividualFitness(
                 idea=idea,
-                creativity_score=0.9,
-                diversity_score=0.9,
-                quality_score=0.9,
+                impact=0.9,
+                feasibility=0.9,
+                accessibility=0.9,
+                sustainability=0.9,
+                scalability=0.9,
                 overall_fitness=0.9,
             )
             for idea in self.test_ideas
@@ -173,9 +179,11 @@ class TestGeneticAlgorithm:
         mock_individuals = [
             IndividualFitness(
                 idea=idea,
-                creativity_score=0.7,
-                diversity_score=0.8,
-                quality_score=0.6,
+                impact=0.7,
+                feasibility=0.6,
+                accessibility=0.8,
+                sustainability=0.7,
+                scalability=0.7,
                 overall_fitness=0.7,
             )
             for idea in self.test_ideas
