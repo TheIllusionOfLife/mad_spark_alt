@@ -42,6 +42,22 @@ except ImportError:
     from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
 
 
+# Evolution timeout constants
+EVOLUTION_BASE_TIMEOUT = 120.0  # Base timeout in seconds for evolution setup
+EVOLUTION_TIME_PER_EVAL = 8.0   # Time per evaluation in seconds (accounts for semantic operators)
+EVOLUTION_MAX_TIMEOUT = 900.0   # Maximum timeout cap (15 minutes)
+
+
+def calculate_evolution_timeout(gens: int, pop: int) -> float:
+    """Calculate timeout in seconds based on generations and population."""
+    # Estimate total evaluations (including initial population)
+    total_evaluations = gens * pop + pop  # Initial eval + each generation
+    estimated_time = EVOLUTION_BASE_TIMEOUT + (total_evaluations * EVOLUTION_TIME_PER_EVAL)
+    
+    # Cap at maximum timeout
+    return min(estimated_time, EVOLUTION_MAX_TIMEOUT)
+
+
 # Create custom prompts with simpler Phase 1
 class SimplerQADIPrompts(QADIPrompts):
     """QADI prompts with simplified Phase 1."""
@@ -410,18 +426,6 @@ async def run_qadi_analysis(
                 )
                 
                 # Calculate adaptive timeout based on evolution complexity
-                def calculate_evolution_timeout(gens: int, pop: int) -> float:
-                    """Calculate timeout in seconds based on generations and population."""
-                    base_timeout = 90.0  # Base 1.5 minutes
-                    time_per_eval = 5.0  # 5 seconds per idea evaluation (more realistic for LLM calls)
-                    
-                    # Estimate total evaluations (including initial population)
-                    total_evaluations = gens * pop + pop  # Initial eval + each generation
-                    estimated_time = base_timeout + (total_evaluations * time_per_eval)
-                    
-                    # Cap at 15 minutes for very large evolutions
-                    return min(estimated_time, 900.0)
-                
                 evolution_timeout = calculate_evolution_timeout(generations, actual_population)
                 print(f"⏱️  Evolution timeout: {evolution_timeout:.0f}s (adjust --generations or --population if needed)")
                 
