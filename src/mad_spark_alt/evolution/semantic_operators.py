@@ -20,6 +20,56 @@ from mad_spark_alt.evolution.interfaces import CrossoverInterface, MutationInter
 logger = logging.getLogger(__name__)
 
 
+def _prepare_operator_contexts(
+    context: Union[Optional[str], EvaluationContext],
+    idea_prompt: str,
+    default_context: str
+) -> Tuple[str, str]:
+    """
+    Prepare string and evaluation contexts for semantic operators.
+    
+    Args:
+        context: Either string context or EvaluationContext object
+        idea_prompt: The idea's generation prompt as fallback
+        default_context: Default context if all else fails
+        
+    Returns:
+        Tuple of (context_str, evaluation_context_str)
+    """
+    if isinstance(context, EvaluationContext):
+        context_str = context.original_question or idea_prompt or default_context
+        evaluation_context_str = format_evaluation_context(context)
+    else:
+        context_str = context or idea_prompt or default_context
+        evaluation_context_str = "No specific evaluation context provided."
+    
+    return context_str, evaluation_context_str
+
+
+def _prepare_cache_key_with_context(
+    base_key: str,
+    context: Union[Optional[str], EvaluationContext]
+) -> str:
+    """
+    Prepare cache key that includes EvaluationContext for context-aware caching.
+    
+    Args:
+        base_key: Base cache key (e.g., idea content or parent combination)
+        context: Either string context or EvaluationContext object
+        
+    Returns:
+        Cache key that includes context information if applicable
+    """
+    if isinstance(context, EvaluationContext):
+        # Include target improvements and current scores in cache key
+        context_hash = hash(frozenset([
+            (k, v) for k, v in context.current_best_scores.items()
+        ] + [tuple(context.target_improvements)]))
+        return f"{base_key}||ctx:{context_hash}"
+    else:
+        return base_key
+
+
 def format_evaluation_context(context: EvaluationContext) -> str:
     """
     Format evaluation context for inclusion in prompts.
@@ -448,8 +498,11 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         Returns:
             Mutated idea
         """
+        # Create cache key that includes EvaluationContext to ensure context-aware caching
+        cache_key = _prepare_cache_key_with_context(idea.content, context)
+            
         # Check cache first
-        cached_result = self.cache.get(idea.content)
+        cached_result = self.cache.get(cache_key)
         if cached_result:
             return self._create_mutated_idea(idea, cached_result, 0.0)
             
@@ -466,15 +519,9 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         }
         
         # Prepare context and evaluation context
-        context_str = ""
-        evaluation_context_str = ""
-        
-        if isinstance(context, EvaluationContext):
-            context_str = context.original_question or idea.generation_prompt
-            evaluation_context_str = format_evaluation_context(context)
-        else:
-            context_str = context or idea.generation_prompt
-            evaluation_context_str = "No specific evaluation context provided."
+        context_str, evaluation_context_str = _prepare_operator_contexts(
+            context, idea.generation_prompt, "general improvement"
+        )
         
         request = LLMRequest(
             system_prompt=self.MUTATION_SYSTEM_PROMPT,
@@ -511,8 +558,8 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         if is_likely_truncated(mutated_content):
             logger.warning("Mutation response appears truncated, may need higher token limit")
         
-        # Cache the result
-        self.cache.put(idea.content, mutated_content)
+        # Cache the result using the same key structure
+        self.cache.put(cache_key, mutated_content)
         
         return self._create_mutated_idea(
             idea, 
@@ -562,15 +609,9 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         ])
         
         # Prepare context and evaluation context for batch
-        context_str = ""
-        evaluation_context_str = ""
-        
-        if isinstance(context, EvaluationContext):
-            context_str = context.original_question or "general improvement"
-            evaluation_context_str = format_evaluation_context(context)
-        else:
-            context_str = context or "general improvement"
-            evaluation_context_str = "No specific evaluation context provided."
+        context_str, evaluation_context_str = _prepare_operator_contexts(
+            context, "", "general improvement"
+        )
         
         # Create request with structured output
         schema = get_mutation_schema()
@@ -802,8 +843,11 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
             Tuple of two offspring ideas
         """
         # Create a canonical, order-independent cache key from sorted parent content
+        # Create cache key that includes EvaluationContext for context-aware caching
         sorted_contents = sorted([parent1.content, parent2.content])
-        cache_key = f"{sorted_contents[0]}||{sorted_contents[1]}"
+        base_cache_key = f"{sorted_contents[0]}||{sorted_contents[1]}"
+        cache_key = _prepare_cache_key_with_context(base_cache_key, context)
+            
         cached_result = self.cache.get(cache_key)
         
         if cached_result:
@@ -816,15 +860,9 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
                 )
                 
         # Prepare context and evaluation context for crossover
-        context_str = ""
-        evaluation_context_str = ""
-        
-        if isinstance(context, EvaluationContext):
-            context_str = context.original_question or "general optimization"
-            evaluation_context_str = format_evaluation_context(context)
-        else:
-            context_str = context or "general optimization"
-            evaluation_context_str = "No specific evaluation context provided."
+        context_str, evaluation_context_str = _prepare_operator_contexts(
+            context, "", "general optimization"
+        )
         
         # Generate crossover using LLM with structured output
         schema = get_crossover_schema()

@@ -135,3 +135,12 @@ DEFAULT_EVOLUTION_TIMEOUT = 300.0  # Default evolution timeout (5 minutes)
 # Chart and Visualization Constants
 CHART_ALPHA_LIGHT = 0.3  # Light alpha for chart elements
 CHART_ALPHA_MEDIUM = 0.2  # Medium alpha for chart elements
+
+# Standard QADI evaluation criteria used throughout the evolution system
+EVALUATION_CRITERIA = [
+    "impact", 
+    "feasibility", 
+    "accessibility", 
+    "sustainability", 
+    "scalability"
+]

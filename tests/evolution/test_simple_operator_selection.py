@@ -176,7 +176,7 @@ class TestSimpleOperatorSelection:
         ga = GeneticAlgorithm(llm_provider=mock_llm_provider)
         
         # Verify smart selector is not used in the simplified approach
-        # Note: We'll remove the smart_selector attribute entirely in implementation
+        # Note: SmartOperatorSelector has been completely removed from implementation
         # This test verifies the absence of complex selection logic
         
         # Semantic operators should be available

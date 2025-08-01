@@ -13,7 +13,7 @@ from mad_spark_alt.evolution.interfaces import (
     EvolutionRequest, EvolutionConfig, IndividualFitness, EvaluationContext
 )
 from mad_spark_alt.evolution.genetic_algorithm import GeneticAlgorithm
-from mad_spark_alt.evolution.semantic_operators import BatchSemanticMutationOperator, SemanticCrossoverOperator
+from mad_spark_alt.evolution.semantic_operators import BatchSemanticMutationOperator, SemanticCrossoverOperator, format_evaluation_context
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.core.llm_provider import GoogleProvider, LLMResponse
 
@@ -174,14 +174,14 @@ class TestEvaluationContext:
         ]
         
         # This tests the format we'll implement in semantic operators
-        context_string = self._format_evaluation_context(evaluation_context)
+        context_string = format_evaluation_context(evaluation_context)
         
         for part in expected_context_parts:
             assert part in context_string
 
     def test_context_prompt_enhancement_crossover(self, evaluation_context):
         """Test that crossover prompts are enhanced with context information."""
-        context_string = self._format_evaluation_context(evaluation_context)
+        context_string = format_evaluation_context(evaluation_context)
         
         # Should include scoring guidance
         assert "Current Best Scores" in context_string
@@ -244,22 +244,3 @@ class TestEvaluationContext:
         assert "accessibility" not in targets
         assert len(targets) == 2
 
-    def _format_evaluation_context(self, context: "EvaluationContext") -> str:
-        """Helper method to format evaluation context for prompts."""
-        context_parts = [
-            f"Original Question: {context.original_question}",
-            "",
-            "Current Best Scores:"
-        ]
-        
-        for criterion, score in context.current_best_scores.items():
-            context_parts.append(f"  {criterion.title()}: {score:.1f}")
-        
-        if context.target_improvements:
-            context_parts.append("")
-            context_parts.append(f"Target Improvements: {', '.join(context.target_improvements)}")
-        
-        context_parts.append("")
-        context_parts.append("FOCUS: Create variations that improve the target criteria while maintaining strengths.")
-        
-        return "\n".join(context_parts)

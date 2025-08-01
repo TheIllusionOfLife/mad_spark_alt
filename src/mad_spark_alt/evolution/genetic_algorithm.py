@@ -271,26 +271,21 @@ class GeneticAlgorithm:
             error_message=None,
         )
 
-    async def _apply_mutation_with_smart_selection(
+    async def _apply_mutation_with_operator_selection(
         self,
         offspring: GeneratedIdea,
-        avg_parent_fitness: float,
-        population_diversity: float,
-        generation: int,
         config: EvolutionConfig,
         context: Optional[str] = None,
         evaluation_context: Optional[EvaluationContext] = None,
     ) -> Tuple[GeneratedIdea, Dict[str, int]]:
         """
-        Apply mutation to an offspring with smart semantic selection.
+        Apply mutation to an offspring with semantic operator selection.
 
         Args:
             offspring: The offspring idea to mutate
-            avg_parent_fitness: Average fitness of the parents
-            population_diversity: Current population diversity
-            generation: Current generation number
             config: Evolution configuration
             context: Optional context for mutation
+            evaluation_context: Optional evaluation context for targeted evolution
 
         Returns:
             Tuple of (mutated offspring, mutation statistics)
@@ -300,19 +295,6 @@ class GeneticAlgorithm:
             'traditional_mutations': 0,
             'semantic_llm_calls': 0,
         }
-
-        # Create a temporary IndividualFitness for smart selection
-        # Use a conservative estimate for unevaluated offspring:
-        # - If parents have high fitness (>0.6), use 80% of parent average
-        # - Otherwise, use 50% of parent average to be conservative
-        estimated_fitness = (
-            avg_parent_fitness * 0.8 if avg_parent_fitness > 0.6 
-            else avg_parent_fitness * 0.5
-        )
-        temp_individual = IndividualFitness(
-            idea=offspring,
-            overall_fitness=estimated_fitness
-        )
 
         # Determine whether to use semantic mutation (simplified logic)
         use_semantic = (
@@ -630,19 +612,16 @@ class GeneticAlgorithm:
                 # If no crossover, just copy parents
                 offspring1, offspring2 = parents[0].idea, parents[1].idea
 
-            # Use average fitness from parents as initial estimate for offspring
-            avg_parent_fitness = (parents[0].overall_fitness + parents[1].overall_fitness) / 2
-
             # Apply mutation to both offspring
-            offspring1, mutation_stats1 = await self._apply_mutation_with_smart_selection(
-                offspring1, avg_parent_fitness, population_diversity, generation, config, context, evaluation_context
+            offspring1, mutation_stats1 = await self._apply_mutation_with_operator_selection(
+                offspring1, config, context, evaluation_context
             )
             semantic_mutations += mutation_stats1['semantic_mutations']
             traditional_mutations += mutation_stats1['traditional_mutations']
             semantic_llm_calls += mutation_stats1['semantic_llm_calls']
 
-            offspring2, mutation_stats2 = await self._apply_mutation_with_smart_selection(
-                offspring2, avg_parent_fitness, population_diversity, generation, config, context, evaluation_context
+            offspring2, mutation_stats2 = await self._apply_mutation_with_operator_selection(
+                offspring2, config, context, evaluation_context
             )
             semantic_mutations += mutation_stats2['semantic_mutations']
             traditional_mutations += mutation_stats2['traditional_mutations']

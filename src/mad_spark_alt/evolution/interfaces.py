@@ -22,6 +22,7 @@ from mad_spark_alt.evolution.constants import (
     EQUAL_WEIGHT_CREATIVITY,
     EQUAL_WEIGHT_DIVERSITY,
     EQUAL_WEIGHT_QUALITY,
+    EVALUATION_CRITERIA,
     ZERO_SCORE,
 )
 
@@ -36,9 +37,7 @@ class EvaluationContext:
     original_question: str
     current_best_scores: Dict[str, float] = field(default_factory=dict)
     target_improvements: List[str] = field(default_factory=list)
-    evaluation_criteria: List[str] = field(default_factory=lambda: [
-        "impact", "feasibility", "accessibility", "sustainability", "scalability"
-    ])
+    evaluation_criteria: List[str] = field(default_factory=lambda: EVALUATION_CRITERIA.copy())
 
 
 class SelectionStrategy(Enum):
