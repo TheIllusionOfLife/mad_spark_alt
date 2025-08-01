@@ -565,7 +565,7 @@ class SimpleQADIOrchestrator:
                                 hypotheses.append(cleaned.strip())
                 
                 if len(hypotheses) >= self.num_hypotheses:
-                    logger.info("Fallback parsing extracted %d hypotheses", len(hypotheses))
+                    logger.info("Fallback parsing extracted %d hypotheses, returning %d as requested", len(hypotheses), self.num_hypotheses)
                     return hypotheses[:self.num_hypotheses], total_cost  # Return requested number
                     
                 logger.warning(
@@ -605,8 +605,8 @@ class SimpleQADIOrchestrator:
             )
         
         # Original implementation for small hypothesis sets
-        # Format hypotheses for the prompt
-        hypotheses_text = "\n".join([f"H{i+1}: {h}" for i, h in enumerate(hypotheses)])
+        # Format hypotheses for the prompt (using new format without H prefix)
+        hypotheses_text = "\n".join([f"{i+1}. {h}" for i, h in enumerate(hypotheses)])
 
         prompt = self.prompts.get_deduction_prompt(
             user_input,
@@ -718,8 +718,8 @@ class SimpleQADIOrchestrator:
 
                     # Last resort: if still no answer, extract text between scores and action plan
                     if not answer:
-                        # Find the end of H3 scores and start of action plan
-                        h3_end = re.search(r"H3:.*?Overall:.*?\n\n", content, re.DOTALL)
+                        # Find the end of H3/Approach 3 scores and start of action plan
+                        h3_end = re.search(r"(?:H3:|Approach 3:).*?Overall:.*?\n\n", content, re.DOTALL | re.IGNORECASE)
                         action_start = re.search(
                             r"Action Plan:", content, re.IGNORECASE
                         )
@@ -803,7 +803,7 @@ class SimpleQADIOrchestrator:
                 continue
 
             # Check if this is the start of our hypothesis section
-            # Handle various formats: "H1:", "- H1:", "- **H1:**", etc.
+            # Handle various formats: "H1:", "- H1:", "- **H1:**", "Approach 1:", etc.
             hypothesis_match = re.match(
                 rf"^(?:-\s*)?(?:\*\*)?H{hypothesis_num}[:.](.*?)(?:\*\*)?$", line
             )
@@ -814,6 +814,13 @@ class SimpleQADIOrchestrator:
                     line,
                     re.IGNORECASE,
                 )
+            # Also check for "Approach 1:" format
+            if not hypothesis_match:
+                hypothesis_match = re.match(
+                    rf"^(?:-\s*)?(?:\*\*)?Approach\s+{hypothesis_num}[:.](.*?)(?:\*\*)?$",
+                    line,
+                    re.IGNORECASE,
+                )
             if hypothesis_match:
                 in_section = True
                 section_lines.append(hypothesis_match.group(1).strip())
@@ -821,10 +828,10 @@ class SimpleQADIOrchestrator:
 
             # Check if we've reached the next hypothesis or end section
             if in_section:
-                if re.match(
-                    rf"^(?:-\s*)?(?:\*\*)?H{hypothesis_num + 1}[:.]",
-                    line,
-                ) or line.startswith((ANSWER_PREFIX, ACTION_PLAN_PREFIX)):
+                if (re.match(rf"^(?:-\s*)?(?:\*\*)?H{hypothesis_num + 1}[:.]", line) or 
+                    re.match(rf"^(?:-\s*)?(?:\*\*)?Approach\s+{hypothesis_num + 1}[:.]", line, re.IGNORECASE) or
+                    re.match(rf"^(?:-\s*)?(?:\*\*)?Hypothesis\s+{hypothesis_num + 1}[:.]", line, re.IGNORECASE) or
+                    line.startswith((ANSWER_PREFIX, ACTION_PLAN_PREFIX))):
                     break
                 section_lines.append(line)
 
@@ -1095,8 +1102,8 @@ class SimpleQADIOrchestrator:
         # Evaluate batches in parallel
         async def evaluate_batch(batch_hypotheses: List[str], indices: List[int]) -> List[Tuple[int, HypothesisScore, float]]:
             """Evaluate a single batch of hypotheses."""
-            # Format batch for prompt
-            batch_text = "\n".join([f"H{indices[j]+1}: {h}" for j, h in enumerate(batch_hypotheses)])
+            # Format batch for prompt (using new format without H prefix)
+            batch_text = "\n".join([f"{indices[j]+1}. {h}" for j, h in enumerate(batch_hypotheses)])
             
             # Create batch-specific prompt
             batch_prompt = self.prompts.get_deduction_prompt(

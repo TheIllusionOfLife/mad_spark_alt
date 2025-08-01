@@ -17,7 +17,7 @@ class TestPromptParserValidation:
         sample_prompt = prompts.get_deduction_prompt(
             "Test input",
             "Test question", 
-            "H1: First hypothesis\nH2: Second hypothesis\nH3: Third hypothesis"
+            "1. First hypothesis\n2. Second hypothesis\n3. Third hypothesis"
         )
         
         # Extract the expected format from the prompt - it's in the IMPORTANT section
@@ -27,9 +27,9 @@ class TestPromptParserValidation:
         format_text = format_section.group(1).strip()
         
         # Check that the format specifies the structures our parser looks for
-        assert "H1:" in format_text, "Format should specify H1: structure"
-        assert "H2:" in format_text, "Format should specify H2: structure" 
-        assert "H3:" in format_text, "Format should specify H3: structure"
+        assert "Approach 1:" in format_text, "Format should specify Approach 1: structure"
+        assert "Approach 2:" in format_text, "Format should specify Approach 2: structure" 
+        assert "Approach 3:" in format_text, "Format should specify Approach 3: structure"
         assert "Impact:" in format_text, "Format should specify Impact: scoring"
         assert "Feasibility:" in format_text, "Format should specify Feasibility: scoring"
         assert "Accessibility:" in format_text, "Format should specify Accessibility: scoring"
@@ -39,7 +39,7 @@ class TestPromptParserValidation:
         # Test that our parser can handle the format specified in the prompt
         # Create a mock response that follows the exact format from the prompt
         mock_response = """Analysis:
-- H1: 
+Approach 1: 
   * Impact: 0.8 - significant change expected
   * Feasibility: 0.9 - very practical
   * Accessibility: 0.7 - widely available
@@ -47,7 +47,7 @@ class TestPromptParserValidation:
   * Scalability: 0.8 - good growth potential
   * Overall: 0.76
 
-- H2: 
+Approach 2: 
   * Impact: 0.6 - moderate impact
   * Feasibility: 0.7 - reasonably practical
   * Accessibility: 0.8 - easily accessible
@@ -55,7 +55,7 @@ class TestPromptParserValidation:
   * Scalability: 0.6 - limited scaling potential
   * Overall: 0.68
 
-ANSWER: Based on analysis, H1 is recommended."""
+ANSWER: Based on analysis, Approach 1 is recommended."""
         
         # Test that parser can extract scores from this format
         score1 = orchestrator._parse_hypothesis_scores(mock_response, 1)

@@ -64,7 +64,7 @@ These offspring effectively combine the parent concepts."""
         offspring1, offspring2 = operator._parse_crossover_response(response)
         
         assert "Valid first offspring" in offspring1
-        assert "Alternative fusion emphasizing innovation" in offspring2  # Fallback
+        assert "[FALLBACK TEXT] Alternative fusion emphasizing innovation" in offspring2  # Fallback
         assert len(offspring2) > 150  # Should be detailed fallback
     
     def test_parse_empty_response_uses_both_fallbacks(self):
@@ -75,8 +75,8 @@ These offspring effectively combine the parent concepts."""
         
         offspring1, offspring2 = operator._parse_crossover_response(response)
         
-        assert "Integrated solution combining complementary strengths" in offspring1
-        assert "Alternative fusion emphasizing innovation" in offspring2
+        assert "[FALLBACK TEXT] Integrated solution combining complementary strengths" in offspring1
+        assert "[FALLBACK TEXT] Alternative fusion emphasizing innovation" in offspring2
         assert len(offspring1) > 150  # Should be detailed fallback
         assert len(offspring2) > 150  # Should be detailed fallback
 
@@ -157,9 +157,11 @@ class TestSemanticOperatorIntegration:
         # Run crossover
         offspring1, offspring2 = await operator.crossover(parent1, parent2)
         
-        # Should get detailed fallback content
-        assert "Integrated solution combining complementary strengths" in offspring1.content
-        assert "Alternative fusion emphasizing innovation" in offspring2.content
+        # Should get detailed fallback content with parent references
+        assert "[FALLBACK TEXT] Hybrid approach combining elements from both parent ideas" in offspring1.content
+        assert "Parent 1 content" in offspring1.content
+        assert "[FALLBACK TEXT] Alternative integration emphasizing synergy" in offspring2.content
+        assert "Parent 2 content" in offspring2.content
         assert len(offspring1.content) > 150
         assert len(offspring2.content) > 150
         

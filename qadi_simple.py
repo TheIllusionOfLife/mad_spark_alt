@@ -253,7 +253,7 @@ async def run_qadi_analysis(
                 elif "Systemic" in label_text:
                     label = "Systemic"
                 else:
-                    label = f"H{i+1}"
+                    label = f"Approach {i+1}"
                 render_markdown(f"**{label} Approach:** {hypothesis_clean}")
 
             print("\n## 🔍 Phase 3: Logical Analysis (Deduction)\n")
@@ -348,6 +348,11 @@ async def run_qadi_analysis(
             if actual_population < population:
                 print(f"   (Note: Generated {len(result.synthesized_ideas)} hypotheses, but {population} were requested)")
                 print(f"   (Using all {actual_population} available ideas for evolution)")
+            
+            # Configure logging to suppress debug messages during evolution
+            evolution_logger = logging.getLogger('mad_spark_alt.evolution')
+            original_level = evolution_logger.level
+            evolution_logger.setLevel(logging.INFO)  # Hide DEBUG messages
             
             try:
                 from mad_spark_alt.evolution import (
@@ -605,6 +610,9 @@ async def run_qadi_analysis(
                 if verbose:
                     import traceback
                     traceback.print_exc()
+            finally:
+                # Restore original logging level
+                evolution_logger.setLevel(original_level)
 
     except Exception as e:
         print(f"\n❌ Error: {e}")

@@ -19,6 +19,59 @@ from mad_spark_alt.evolution.interfaces import CrossoverInterface, MutationInter
 
 logger = logging.getLogger(__name__)
 
+
+def is_likely_truncated(text: str) -> bool:
+    """
+    Detect if text appears to be truncated.
+    
+    Args:
+        text: Text to check for truncation
+        
+    Returns:
+        True if text appears truncated
+    """
+    if not text:
+        return False
+        
+    # Check for common truncation indicators
+    text = text.strip()
+    
+    if not text:
+        return False
+    
+    # Check if ends with ellipsis
+    if text.endswith('...'):
+        return True
+    
+    # Check for incomplete JSON
+    if text.startswith('{') and text.count('{') != text.count('}'):
+        return True
+    if text.startswith('[') and text.count('[') != text.count(']'):
+        return True
+    
+    # Check if ends mid-sentence (no proper ending punctuation)
+    if text[-1] not in '.!?"\'':
+        words = text.split()
+        if words:
+            last_word = words[-1]
+            # Check for comma or colon at end (likely truncated)
+            if last_word.endswith(',') or last_word.endswith(':'):
+                return True
+            # Check if last word is very short (likely a determiner or preposition)
+            # Common truncation patterns: "the", "a", "an", "and", "or", "with", etc.
+            if len(last_word) <= 3 and last_word.lower() in {'a', 'an', 'the', 'and', 'or', 
+                                                              'but', 'for', 'with', 'to', 'of', 
+                                                              'in', 'on', 'at', 'by', 'is', 'was'}:
+                return True
+            # Check for other common incomplete endings
+            if last_word.lower() in {'without', 'within', 'through', 'before', 'after', 'during'}:
+                return True
+            # Check if it appears to be mid-word (e.g., "previous" without context)
+            if len(words) >= 3 and last_word == "previous":
+                return True
+        
+    return False
+
 # Cache configuration constants
 _CACHE_MAX_SIZE = 500  # Maximum number of cache entries
 _SIMILARITY_KEY_LENGTH = 16  # Length of similarity hash key
@@ -240,7 +293,7 @@ class BatchSemanticMutationOperator(MutationInterface):
 Your role is to create meaningful variations of ideas while preserving the core goal.
 
 IMPORTANT: Generate comprehensive, detailed implementations with specific steps, technologies, and methodologies.
-Return ONLY the mutated idea text, no explanations or metadata."""
+When returning results, follow the exact format requested in the prompt (JSON or plain text)."""
 
     SINGLE_MUTATION_PROMPT = """Original idea: {idea}
 Problem context: {context}
@@ -265,7 +318,7 @@ Generate a complete, detailed solution that includes:
 - Expected outcomes and benefits
 - How it addresses the core problem
 
-Output only the detailed mutated idea (minimum 150 words):"""
+Return the mutated idea as JSON with the field "mutated_content" containing the detailed solution (minimum 150 words)."""
 
     BATCH_MUTATION_PROMPT = """Generate diverse variations for these ideas. Each variation should use a different approach.
 
@@ -286,12 +339,7 @@ Generate complete, detailed solutions that include:
 - Resources required
 - Expected outcomes and benefits
 
-Format your response EXACTLY as:
-IDEA_1_MUTATION: [detailed mutation text - minimum 150 words]
-IDEA_2_MUTATION: [detailed mutation text - minimum 150 words]
-...
-
-No other text or formatting."""
+Return JSON with mutations array containing idea_id and mutated_content for each idea."""
     
     def __init__(
         self, 
@@ -370,6 +418,15 @@ No other text or formatting."""
         # Generate mutation using LLM
         mutation_type = random.choice(self.mutation_types)
         
+        # Create single mutation schema
+        single_schema = {
+            "type": "OBJECT",
+            "properties": {
+                "mutated_content": {"type": "STRING"}
+            },
+            "required": ["mutated_content"]
+        }
+        
         request = LLMRequest(
             system_prompt=self.MUTATION_SYSTEM_PROMPT,
             user_prompt=self.SINGLE_MUTATION_PROMPT.format(
@@ -377,18 +434,39 @@ No other text or formatting."""
                 context=context or idea.generation_prompt,
                 mutation_type=mutation_type
             ),
-            max_tokens=200,
-            temperature=0.8  # Higher temperature for creativity
+            max_tokens=500,
+            temperature=0.8,  # Higher temperature for creativity
+            response_schema=single_schema,
+            response_mime_type="application/json"
         )
         
         response = await self.llm_provider.generate(request)
         
+        # Try to parse as JSON first (structured output)
+        mutated_content: Optional[str] = None
+        try:
+            data = json.loads(response.content)
+            if "mutated_content" in data:
+                mutated_content = data["mutated_content"]
+                logger.debug("Successfully parsed single mutation from structured output")
+        except (json.JSONDecodeError, KeyError, TypeError) as e:
+            logger.debug("Structured output parsing failed for single mutation, using raw content: %s", e)
+            mutated_content = response.content
+        
+        # Ensure we have content (fallback to response.content if needed)
+        if mutated_content is None:
+            mutated_content = response.content
+        
+        # Check for truncation
+        if is_likely_truncated(mutated_content):
+            logger.warning("Mutation response appears truncated, may need higher token limit")
+        
         # Cache the result
-        self.cache.put(idea.content, response.content)
+        self.cache.put(idea.content, mutated_content)
         
         return self._create_mutated_idea(
             idea, 
-            response.content,
+            mutated_content,
             response.cost,
             mutation_type
         )
@@ -441,7 +519,7 @@ No other text or formatting."""
                 context=context or "general improvement",
                 ideas_list=ideas_list
             ),
-            max_tokens=min(200 * len(uncached_ideas), 1000),
+            max_tokens=min(500 * len(uncached_ideas), 2000),
             temperature=0.8,
             response_schema=schema,
             response_mime_type="application/json"
@@ -478,10 +556,12 @@ No other text or formatting."""
         except (json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("Structured output parsing failed, falling back to text parsing: %s", e)
             # Fall back to text parsing
-            mutations = self._parse_batch_response(response.content, len(uncached_ideas))
+            mutations = self._parse_batch_response(response.content, len(uncached_ideas), uncached_ideas)
         
-        # Cache results
+        # Check for truncation and cache results
         for idea, mutation in zip(uncached_ideas, mutations):
+            if is_likely_truncated(mutation):
+                logger.warning("Batch mutation appears truncated for idea: %s...", idea.content[:50])
             self.cache.put(idea.content, mutation)
             
         # Distribute cost across mutations
@@ -508,13 +588,14 @@ No other text or formatting."""
                 
         return results
             
-    def _parse_batch_response(self, response: str, expected_count: int) -> List[str]:
+    def _parse_batch_response(self, response: str, expected_count: int, original_ideas: Optional[List[GeneratedIdea]] = None) -> List[str]:
         """
         Parse batch mutation response from LLM.
         
         Args:
             response: LLM response text
             expected_count: Expected number of mutations
+            original_ideas: Original ideas for context-aware fallback
             
         Returns:
             List of mutation texts
@@ -533,9 +614,13 @@ No other text or formatting."""
                     mutations.append(mutation)
                     break
             else:
-                # Fallback if pattern not found
-                logger.warning(f"Could not find mutation for IDEA_{i+1}")
-                mutations.append(f"Enhanced version of idea {i+1}")
+                # Fallback if pattern not found - create meaningful variation
+                logger.debug(f"Could not find mutation for IDEA_{i+1}, using fallback")
+                if original_ideas and i < len(original_ideas):
+                    original_content = original_ideas[i].content
+                    mutations.append(f"[FALLBACK TEXT] Enhanced variation of original concept: Building upon '{original_content[:50]}...', this mutation explores alternative implementation strategies while maintaining the core objective. The approach introduces different methodologies, tools, and frameworks to achieve similar outcomes through a varied pathway. By shifting perspectives on scale, audience, or technological approach, this variation demonstrates how the fundamental concept can be realized through innovative alternatives.")
+                else:
+                    mutations.append("[FALLBACK TEXT] Enhanced variation exploring alternative approaches: This mutation investigates different implementation strategies while maintaining the core objective of the original idea. The approach introduces alternative methodologies, tools, and frameworks to achieve similar outcomes through a different pathway. By exploring varied perspectives such as changing the scale of implementation, shifting target audience, or adopting different technological foundations, this variation demonstrates how the same fundamental problem can be addressed through multiple viable and innovative solutions.")
                 
         return mutations
         
@@ -577,7 +662,7 @@ class SemanticCrossoverOperator(CrossoverInterface):
 Your role is to meaningfully combine concepts from two parent ideas into offspring.
 
 IMPORTANT: Generate comprehensive, detailed implementations with specific steps, technologies, and methodologies.
-Return ONLY the offspring idea texts, no explanations."""
+When returning results, follow the exact format requested in the prompt (JSON or plain text)."""
 
     CROSSOVER_PROMPT = """Parent Idea 1: {parent1}
 Parent Idea 2: {parent2}
@@ -598,11 +683,7 @@ Generate complete, detailed solutions that include:
 - Expected outcomes showing synergy
 - How it leverages strengths of both parent ideas
 
-Format your response EXACTLY as:
-OFFSPRING_1: [detailed first offspring idea - minimum 150 words]
-OFFSPRING_2: [detailed second offspring idea - minimum 150 words]
-
-No other text or formatting."""
+Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fields."""
     
     def __init__(
         self,
@@ -667,7 +748,7 @@ No other text or formatting."""
                 parent2=parent2.content,
                 context=context or "general optimization"
             ),
-            max_tokens=400,
+            max_tokens=1000,
             temperature=0.7,  # Moderate temperature for balanced creativity
             response_schema=schema,
             response_mime_type="application/json"
@@ -691,8 +772,14 @@ No other text or formatting."""
         # Fall back to text parsing if needed
         if not offspring1_content or not offspring2_content:
             offspring1_content, offspring2_content = self._parse_crossover_response(
-                response.content
+                response.content, parent1, parent2
             )
+        
+        # Check for truncation
+        if is_likely_truncated(offspring1_content):
+            logger.warning("Offspring 1 appears truncated, may need higher token limit")
+        if is_likely_truncated(offspring2_content):
+            logger.warning("Offspring 2 appears truncated, may need higher token limit")
         
         # Cache the result
         self.cache.put(cache_key, f"{offspring1_content}||{offspring2_content}")
@@ -705,12 +792,14 @@ No other text or formatting."""
             self._create_offspring(parent2, parent1, offspring2_content, cost_per_offspring)
         )
         
-    def _parse_crossover_response(self, response: str) -> Tuple[str, str]:
+    def _parse_crossover_response(self, response: str, parent1: Optional[GeneratedIdea] = None, parent2: Optional[GeneratedIdea] = None) -> Tuple[str, str]:
         """
         Parse crossover response from LLM.
         
         Args:
             response: LLM response text
+            parent1: First parent idea (for fallback)
+            parent2: Second parent idea (for fallback)
             
         Returns:
             Tuple of two offspring contents
@@ -725,13 +814,43 @@ No other text or formatting."""
             elif "OFFSPRING_2:" in line:
                 offspring2 = line.split("OFFSPRING_2:", 1)[1].strip()
                 
-        # Fallback if parsing fails - create more meaningful generic combinations
+        # Fallback if parsing fails - create meaningful combinations based on parent content
         if not offspring1:
-            offspring1 = "Integrated solution combining complementary strengths: This approach synthesizes the core methodologies from both parent concepts, creating a hybrid solution that leverages their respective advantages. By merging the foundational elements with enhanced scalability features, this combination addresses limitations present in either approach alone. The integration focuses on creating synergy between different implementation strategies while maintaining practical feasibility."
+            logger.debug("Using fallback text for offspring 1 - LLM parsing failed")
+            offspring1 = self._generate_crossover_fallback(parent1, parent2, is_first=True)
         if not offspring2:
-            offspring2 = "Alternative fusion emphasizing innovation: This variation explores a different integration pattern by prioritizing the innovative aspects of one approach while using the structural framework of the other. The result is a solution that pushes boundaries while remaining grounded in proven methodologies. This alternative path demonstrates how the same parent concepts can yield distinctly different yet equally valuable outcomes through creative recombination."
+            logger.debug("Using fallback text for offspring 2 - LLM parsing failed")
+            offspring2 = self._generate_crossover_fallback(parent1, parent2, is_first=False)
             
         return offspring1, offspring2
+    
+    def _generate_crossover_fallback(
+        self, 
+        parent1: Optional[GeneratedIdea], 
+        parent2: Optional[GeneratedIdea], 
+        is_first: bool
+    ) -> str:
+        """
+        Generate fallback text for crossover offspring.
+        
+        Args:
+            parent1: First parent idea
+            parent2: Second parent idea
+            is_first: Whether this is the first offspring
+            
+        Returns:
+            Fallback text for offspring
+        """
+        if parent1 and parent2:
+            if is_first:
+                return f"[FALLBACK TEXT] Hybrid approach combining elements from both parent ideas: This solution integrates key aspects from '{parent1.content[:50]}...' and '{parent2.content[:50]}...'. The approach combines the structural framework of the first concept with the innovative mechanisms of the second, creating a comprehensive solution that addresses the same core problem through multiple complementary strategies. Implementation would involve adapting the proven methodologies from both approaches while ensuring seamless integration and enhanced effectiveness."
+            else:
+                return f"[FALLBACK TEXT] Alternative integration emphasizing synergy: This variation explores a different combination pattern by merging the core principles from '{parent1.content[:50]}...' with the practical implementation strategies from '{parent2.content[:50]}...'. The resulting solution maintains the strengths of both parent approaches while introducing novel elements that emerge from their interaction. This alternative demonstrates how the same foundational concepts can yield distinctly different yet equally valuable outcomes through strategic recombination."
+        else:
+            if is_first:
+                return "[FALLBACK TEXT] Integrated solution combining complementary strengths: This approach synthesizes the core methodologies from both parent concepts, creating a hybrid solution that leverages their respective advantages. By merging the foundational elements with enhanced scalability features, this combination addresses limitations present in either approach alone. The integration focuses on creating synergy between different implementation strategies while maintaining practical feasibility."
+            else:
+                return "[FALLBACK TEXT] Alternative fusion emphasizing innovation: This variation explores a different integration pattern by prioritizing the innovative aspects of one approach while using the structural framework of the other. The result is a solution that pushes boundaries while remaining grounded in proven methodologies. This alternative path demonstrates how the same parent concepts can yield distinctly different yet equally valuable outcomes through creative recombination."
         
     def _create_offspring(
         self,
