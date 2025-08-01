@@ -583,12 +583,15 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         Returns:
             List of mutated ideas
         """
-        # Separate cached and uncached ideas
+        # Separate cached and uncached ideas using context-aware cache keys
         cached_results = {}
         uncached_ideas = []
+        cache_keys = {}
         
         for idea in ideas:
-            cached_result = self.cache.get(idea.content)
+            cache_key = _prepare_cache_key_with_context(idea.content, context)
+            cache_keys[idea.content] = cache_key
+            cached_result = self.cache.get(cache_key)
             if cached_result:
                 cached_results[idea.content] = cached_result
             else:
@@ -661,11 +664,13 @@ Return JSON with mutations array containing idea_id and mutated_content for each
             # Fall back to text parsing
             mutations = self._parse_batch_response(response.content, len(uncached_ideas), uncached_ideas)
         
-        # Check for truncation and cache results
+        # Check for truncation and cache results using context-aware keys
         for idea, mutation in zip(uncached_ideas, mutations):
             if is_likely_truncated(mutation):
                 logger.warning("Batch mutation appears truncated for idea: %s...", idea.content[:50])
-            self.cache.put(idea.content, mutation)
+            # Use the context-aware cache key for this idea
+            cache_key = cache_keys[idea.content]
+            self.cache.put(cache_key, mutation)
             
         # Distribute cost across mutations
         cost_per_mutation = response.cost / len(mutations) if mutations else 0
