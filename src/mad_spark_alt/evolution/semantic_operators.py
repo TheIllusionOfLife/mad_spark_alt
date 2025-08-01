@@ -374,6 +374,14 @@ class BatchSemanticMutationOperator(MutationInterface):
     mutation strategies like perspective shifts and mechanism changes.
     """
     
+    # Constants for breakthrough mutations and temperature settings
+    BREAKTHROUGH_TEMPERATURE = 0.95
+    REGULAR_MUTATION_TEMPERATURE = 0.8
+    BREAKTHROUGH_TOKEN_MULTIPLIER = 2
+    BREAKTHROUGH_CONFIDENCE_PROXY_THRESHOLD = 0.85
+    BREAKTHROUGH_CONFIDENCE_MULTIPLIER = 1.05
+    REGULAR_CONFIDENCE_MULTIPLIER = 0.95
+    
     # Mutation prompt templates
     MUTATION_SYSTEM_PROMPT = """You are a genetic mutation operator for idea evolution.
 Your role is to create meaningful variations of ideas while preserving the core goal.
@@ -517,20 +525,15 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         """
         # Check multiple sources for fitness indicators
         
-        # 1. Check metadata for fitness score
-        if "fitness_score" in idea.metadata:
-            fitness = idea.metadata["fitness_score"]
-            if isinstance(fitness, (int, float)) and fitness >= self.breakthrough_threshold:
-                return True
-                
-        # 2. Check metadata for avg_fitness
-        if "avg_fitness" in idea.metadata:
-            fitness = idea.metadata["avg_fitness"]
-            if isinstance(fitness, (int, float)) and fitness >= self.breakthrough_threshold:
-                return True
-                
+        # 1 & 2. Check metadata for fitness scores (DRY approach)
+        for key in ("fitness_score", "avg_fitness"):
+            if key in idea.metadata:
+                fitness = idea.metadata[key]
+                if isinstance(fitness, (int, float)) and fitness >= self.breakthrough_threshold:
+                    return True
+                    
         # 3. Check confidence score as proxy (high confidence + later generation)
-        if idea.confidence_score and idea.confidence_score >= 0.85:
+        if idea.confidence_score and idea.confidence_score >= self.BREAKTHROUGH_CONFIDENCE_PROXY_THRESHOLD:
             generation = idea.metadata.get("generation", 0)
             if generation >= 1:  # Must be from evolution, not initial generation
                 return True
@@ -605,8 +608,8 @@ Return JSON with mutations array containing idea_id and mutated_content for each
             mutation_type = random.choice(self.breakthrough_mutation_types)
             system_prompt = self.BREAKTHROUGH_SYSTEM_PROMPT
             user_prompt_template = self.BREAKTHROUGH_MUTATION_PROMPT
-            temperature = 0.95  # Higher temperature for breakthrough creativity
-            max_tokens = SEMANTIC_MUTATION_MAX_TOKENS * 2  # More tokens for detailed breakthrough solutions
+            temperature = self.BREAKTHROUGH_TEMPERATURE  # Higher temperature for breakthrough creativity
+            max_tokens = SEMANTIC_MUTATION_MAX_TOKENS * self.BREAKTHROUGH_TOKEN_MULTIPLIER  # More tokens for detailed breakthrough solutions
         else:
             # Use regular mutation
             mutation_type = random.choice(self.mutation_types)
@@ -733,7 +736,7 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 ideas_list=ideas_list
             ),
             max_tokens=min(SEMANTIC_BATCH_MUTATION_BASE_TOKENS * len(uncached_ideas), SEMANTIC_BATCH_MUTATION_MAX_TOKENS),
-            temperature=0.8,
+            temperature=self.REGULAR_MUTATION_TEMPERATURE,
             response_schema=schema,
             response_mime_type="application/json"
         )
@@ -853,7 +856,7 @@ Return JSON with mutations array containing idea_id and mutated_content for each
     ) -> GeneratedIdea:
         """Create a mutated idea object."""
         # Adjust confidence based on mutation type
-        confidence_multiplier = 1.05 if is_breakthrough else 0.95
+        confidence_multiplier = self.BREAKTHROUGH_CONFIDENCE_MULTIPLIER if is_breakthrough else self.REGULAR_CONFIDENCE_MULTIPLIER
         base_confidence = original.confidence_score or 0.5
         new_confidence = min(1.0, base_confidence * confidence_multiplier)
         
