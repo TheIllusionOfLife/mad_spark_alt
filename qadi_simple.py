@@ -395,6 +395,9 @@ async def run_qadi_analysis(
                     selection_strategy=SelectionStrategy.TOURNAMENT,
                     parallel_evaluation=True,
                     max_parallel_evaluations=min(8, actual_population),
+                    # Make semantic operators more aggressive for small populations
+                    use_semantic_operators=True,
+                    semantic_operator_threshold=0.9,  # Increased to allow semantic ops with higher diversity
                 )
                 
                 # Create evolution request
