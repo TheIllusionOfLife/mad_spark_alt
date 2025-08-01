@@ -227,7 +227,7 @@ class SemanticOperatorCache:
             ttl_seconds: Time-to-live for cache entries in seconds (default: 2 hours)
         """
         self.ttl_seconds = ttl_seconds
-        self._cache: Dict[str, Tuple[str, float]] = {}  # key -> (value, timestamp)
+        self._cache: Dict[str, Tuple[Dict[str, Any], float]] = {}  # key -> (result_data, timestamp)
         self._similarity_index: Dict[str, List[str]] = {}  # Map similarity keys to cache keys
         self._session_start = time.time()  # Track session for extended caching
         
@@ -263,16 +263,17 @@ class SemanticOperatorCache:
             _MAX_SESSION_TTL_EXTENSION
         )
     
-    def get(self, content: str, operation_type: str = "default") -> Optional[str]:
+    def get(self, content: str, operation_type: str = "default", return_dict: bool = True) -> Optional[Union[str, Dict[str, Any]]]:
         """
         Get cached result with enhanced lookup including similarity matching.
         
         Args:
             content: Original content to look up
             operation_type: Operation type for cache clustering
+            return_dict: If False, return just content string for backward compatibility
             
         Returns:
-            Cached mutation result or None if not found/expired
+            Cached result (dict with metadata or string based on return_dict) or None if not found/expired
         """
         # Try exact match first
         exact_key = self._get_cache_key(content, operation_type)
@@ -286,7 +287,15 @@ class SemanticOperatorCache:
             
             if current_time - timestamp < effective_ttl:
                 logger.debug(f"Cache exact hit for {operation_type} hash {exact_key[:8]}")
-                return value
+                # Return based on requested format
+                if return_dict:
+                    return value
+                else:
+                    # Backward compatibility - return just content string
+                    if isinstance(value, dict):
+                        return str(value.get("content", ""))
+                    else:
+                        return str(value)
             else:
                 # Remove expired entry
                 del self._cache[exact_key]
@@ -303,21 +312,35 @@ class SemanticOperatorCache:
                         cached_value, timestamp = self._cache[cache_key]
                         if current_time - timestamp < effective_ttl:  # Reuse calculated TTL
                             logger.debug(f"Cache similarity hit for {operation_type} hash {cache_key[:8]}")
-                            return cached_value
+                            # Return based on requested format
+                            if return_dict:
+                                return cached_value
+                            else:
+                                if isinstance(cached_value, dict):
+                                    return str(cached_value.get("content", ""))
+                                else:
+                                    return str(cached_value)
                 
         return None
         
-    def put(self, content: str, result: str, operation_type: str = "default") -> None:
+    def put(self, content: str, result: Union[str, Dict[str, Any]], operation_type: str = "default") -> None:
         """
         Store result in enhanced cache with operation type clustering.
         
         Args:
             content: Original content
-            result: Mutation/crossover result to cache
+            result: Result data (string for backward compatibility or dict with metadata)
             operation_type: Operation type for cache clustering
         """
         key = self._get_cache_key(content, operation_type)
-        self._cache[key] = (result, time.time())
+        
+        # Convert string to dict format for consistency
+        if isinstance(result, str):
+            result_data = {"content": result, "mutation_type": operation_type}
+        else:
+            result_data = result
+            
+        self._cache[key] = (result_data, time.time())
         logger.debug(f"Cached {operation_type} result for hash {key[:8]}")
         
         # Update similarity index for mutation operations
@@ -602,10 +625,19 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         # Check cache first
         cached_result = self.cache.get(cache_key)
         if cached_result:
-            mutation_type = random.choice(self.breakthrough_mutation_types if is_breakthrough else self.mutation_types)
+            # Extract content and original mutation type from cached data
+            cached_content = cached_result.get("content", cached_result) if isinstance(cached_result, dict) else cached_result
+            cached_mutation_type = cached_result.get("mutation_type") if isinstance(cached_result, dict) else None
+            
+            # Use cached mutation type if available, otherwise select appropriate type
+            if cached_mutation_type:
+                mutation_type = cached_mutation_type
+            else:
+                mutation_type = random.choice(self.breakthrough_mutation_types if is_breakthrough else self.mutation_types)
+                
             return self._create_mutated_idea(
                 idea, 
-                cached_result, 
+                cached_content, 
                 0.0,
                 mutation_type,
                 is_breakthrough
@@ -675,8 +707,12 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         if is_likely_truncated(mutated_content):
             logger.warning("Mutation response appears truncated, may need higher token limit")
         
-        # Cache the result using the same key structure
-        self.cache.put(cache_key, mutated_content)
+        # Cache the result with metadata using the same key structure
+        cache_data = {
+            "content": mutated_content,
+            "mutation_type": mutation_type
+        }
+        self.cache.put(cache_key, cache_data)
         
         return self._create_mutated_idea(
             idea, 
@@ -721,16 +757,30 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 
         # If all are cached, return immediately
         if not uncached_ideas:
-            return [
-                self._create_mutated_idea(
-                    idea, 
-                    cached_results[idea.content], 
-                    0.0,
-                    "batch_mutation",
-                    self._is_high_scoring_idea(idea)
+            results = []
+            for idea in ideas:
+                cached_data = cached_results[idea.content]
+                is_breakthrough = self._is_high_scoring_idea(idea)
+                
+                # Extract content and mutation type from cached data
+                if isinstance(cached_data, dict):
+                    cached_content = cached_data.get("content", "")
+                    cached_mutation_type = cached_data.get("mutation_type", "batch_mutation")
+                else:
+                    # Backward compatibility
+                    cached_content = cached_data
+                    cached_mutation_type = "batch_mutation"
+                    
+                results.append(
+                    self._create_mutated_idea(
+                        idea, 
+                        cached_content, 
+                        0.0,
+                        cached_mutation_type,
+                        is_breakthrough
+                    )
                 )
-                for idea in ideas
-            ]
+            return results
             
         # Batch process uncached ideas
         # TODO: Currently batch mutations don't use breakthrough prompts/parameters for high-scoring ideas.
@@ -801,7 +851,12 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 logger.warning("Batch mutation appears truncated for idea: %s...", idea.content[:50])
             # Use the context-aware cache key for this idea
             cache_key = cache_keys[idea.content]
-            self.cache.put(cache_key, mutation)
+            # TODO: Batch mutations don't have individual mutation types, so we use generic "batch_mutation"
+            cache_data = {
+                "content": mutation,
+                "mutation_type": "batch_mutation"
+            }
+            self.cache.put(cache_key, cache_data)
             
         # Distribute cost across mutations
         cost_per_mutation = response.cost / len(mutations) if mutations else 0
@@ -815,12 +870,23 @@ Return JSON with mutations array containing idea_id and mutated_content for each
             is_breakthrough = self._is_high_scoring_idea(idea)
             
             if idea.content in cached_results:
+                cached_data = cached_results[idea.content]
+                
+                # Extract content and mutation type from cached data
+                if isinstance(cached_data, dict):
+                    cached_content = cached_data.get("content", "")
+                    cached_mutation_type = cached_data.get("mutation_type", "batch_mutation")
+                else:
+                    # Backward compatibility
+                    cached_content = cached_data
+                    cached_mutation_type = "batch_mutation"
+                    
                 results.append(
                     self._create_mutated_idea(
                         idea, 
-                        cached_results[idea.content], 
+                        cached_content, 
                         0.0,
-                        "batch_mutation",
+                        cached_mutation_type,
                         is_breakthrough
                     )
                 )
@@ -1013,11 +1079,11 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
         base_cache_key = f"{sorted_contents[0]}||{sorted_contents[1]}"
         cache_key = _prepare_cache_key_with_context(base_cache_key, context)
             
-        cached_result = self.cache.get(cache_key)
+        cached_result = self.cache.get(cache_key, operation_type="crossover", return_dict=False)
         
         if cached_result:
             # Parse cached result
-            offspring_contents = cached_result.split("||")
+            offspring_contents = cached_result.split("||") if isinstance(cached_result, str) else []
             if len(offspring_contents) >= 2:
                 return (
                     self._create_offspring(parent1, parent2, offspring_contents[0], 0.0),
@@ -1080,8 +1146,8 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
             offspring1_content = self._generate_crossover_fallback(parent1, parent2, is_first=True)
             offspring2_content = self._generate_crossover_fallback(parent1, parent2, is_first=False)
         
-        # Cache the result
-        self.cache.put(cache_key, f"{offspring1_content}||{offspring2_content}")
+        # Cache the result (as string for backward compatibility)
+        self.cache.put(cache_key, f"{offspring1_content}||{offspring2_content}", operation_type="crossover")
         
         # Distribute cost
         cost_per_offspring = response.cost / 2

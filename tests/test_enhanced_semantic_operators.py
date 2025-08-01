@@ -560,6 +560,47 @@ class TestIntegrationWithEvolutionContext:
         assert mock_llm_provider.generate.call_count == 0  # Used cache
     
     @pytest.mark.asyncio
+    async def test_mutation_type_preserved_in_cache(self, mock_llm_provider, evaluation_context):
+        """Test that mutation types are preserved when results are cached."""
+        idea = GeneratedIdea(
+            content="Test idea for mutation type caching",
+            thinking_method=ThinkingMethod.ABDUCTION,
+            agent_name="TestAgent",
+            generation_prompt="Test",
+            metadata={"generation": 0}
+        )
+        
+        # Mock response
+        mock_response = LLMResponse(
+            content='{"mutated_content": "Mutated test idea"}',
+            cost=0.01,
+            provider="google",
+            model="gemini-pro"
+        )
+        mock_llm_provider.generate = AsyncMock(return_value=mock_response)
+        
+        operator = BatchSemanticMutationOperator(mock_llm_provider)
+        
+        # First call - should generate and cache
+        result1 = await operator.mutate_single(idea, evaluation_context)
+        original_mutation_type = result1.metadata.get('mutation_type')
+        
+        # Verify a specific mutation type was used (not None)
+        assert original_mutation_type in operator.mutation_types
+        assert mock_llm_provider.generate.call_count == 1
+        
+        # Second call - should use cache and preserve mutation type
+        mock_llm_provider.generate.reset_mock()
+        result2 = await operator.mutate_single(idea, evaluation_context)
+        
+        # Verify same mutation type is preserved
+        assert result2.metadata.get('mutation_type') == original_mutation_type
+        assert mock_llm_provider.generate.call_count == 0  # Used cache
+        
+        # Verify content is the same
+        assert result1.content == result2.content
+    
+    @pytest.mark.asyncio
     async def test_context_aware_prompt_generation(self, mock_llm_provider, sample_idea):
         """Test that prompts adapt based on evaluation context."""
         mock_response = LLMResponse(
