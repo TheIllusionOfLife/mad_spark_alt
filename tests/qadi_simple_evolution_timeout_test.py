@@ -104,26 +104,40 @@ def mock_fast_genetic_algorithm():
             """Simulate a fast evolution process."""
             await asyncio.sleep(0.1)  # Very quick
             
+            # Create mock generation snapshots with evolved ideas
+            from mad_spark_alt.evolution.interfaces import GenerationSnapshot
+            
+            enhanced_individual = IndividualFitness(
+                idea=GeneratedIdea(
+                    content="Enhanced idea 1",
+                    thinking_method=ThinkingMethod.ABDUCTION,
+                    agent_name="evolution",
+                    generation_prompt="evolved",
+                    confidence_score=0.9,
+                ),
+                impact=0.85,
+                feasibility=0.85,
+                accessibility=0.85,
+                sustainability=0.85,
+                scalability=0.85,
+                overall_fitness=0.85,
+            )
+            
+            generation_snapshots = [
+                GenerationSnapshot(
+                    generation=i,
+                    population=[enhanced_individual],
+                    best_fitness=0.85,
+                    average_fitness=0.85,
+                    diversity=0.8
+                )
+                for i in range(request.config.generations)
+            ]
+            
             return EvolutionResult(
-                final_population=[
-                    IndividualFitness(
-                        idea=GeneratedIdea(
-                            content="Enhanced idea 1",
-                            thinking_method=ThinkingMethod.ABDUCTION,
-                            agent_name="evolution",
-                            generation_prompt="evolved",
-                            confidence_score=0.9,
-                        ),
-                        impact=0.85,
-                        feasibility=0.85,
-                        accessibility=0.85,
-                        sustainability=0.85,
-                        scalability=0.85,
-                        overall_fitness=0.85,
-                    )
-                ],
+                final_population=[enhanced_individual],
                 best_ideas=[],
-                generation_snapshots=[],
+                generation_snapshots=generation_snapshots,
                 total_generations=request.config.generations,
                 execution_time=0.1,
                 evolution_metrics={
