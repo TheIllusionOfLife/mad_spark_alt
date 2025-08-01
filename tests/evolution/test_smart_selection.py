@@ -26,9 +26,11 @@ class TestSmartOperatorSelector:
         )
         return IndividualFitness(
             idea=idea,
-            creativity_score=0.7,
-            diversity_score=0.6,
-            quality_score=0.8,
+            impact=0.7,
+            feasibility=0.8,
+            accessibility=0.6,
+            sustainability=0.7,
+            scalability=0.7,
             overall_fitness=0.7
         )
 

@@ -367,9 +367,11 @@ class EvolutionCheckpointer:
             # Serialize fitness
             fitness_data = {
                 "idea": idea_data,
-                "creativity_score": individual.creativity_score,
-                "diversity_score": individual.diversity_score,
-                "quality_score": individual.quality_score,
+                "impact": individual.impact,
+                "feasibility": individual.feasibility,
+                "accessibility": individual.accessibility,
+                "sustainability": individual.sustainability,
+                "scalability": individual.scalability,
                 "overall_fitness": individual.overall_fitness,
                 "evaluation_metadata": individual.evaluation_metadata,
                 "evaluated_at": (
@@ -407,9 +409,11 @@ class EvolutionCheckpointer:
             # Deserialize fitness
             individual = IndividualFitness(
                 idea=idea,
-                creativity_score=fitness_data.get("creativity_score", 0.0),
-                diversity_score=fitness_data.get("diversity_score", 0.0),
-                quality_score=fitness_data.get("quality_score", 0.0),
+                impact=fitness_data.get("impact", 0.0),
+                feasibility=fitness_data.get("feasibility", 0.0),
+                accessibility=fitness_data.get("accessibility", 0.0),
+                sustainability=fitness_data.get("sustainability", 0.0),
+                scalability=fitness_data.get("scalability", 0.0),
                 overall_fitness=fitness_data.get("overall_fitness", 0.0),
                 evaluation_metadata=fitness_data.get("evaluation_metadata", {}),
                 evaluated_at=(

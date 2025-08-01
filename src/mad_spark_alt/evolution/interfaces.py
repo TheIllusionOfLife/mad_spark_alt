@@ -25,6 +25,9 @@ from mad_spark_alt.evolution.constants import (
     ZERO_SCORE,
 )
 
+# Default weight for each QADI criterion when calculating overall fitness
+DEFAULT_QADI_CRITERION_WEIGHT = 0.2
+
 
 class SelectionStrategy(Enum):
     """Selection strategies for genetic algorithms."""
@@ -128,12 +131,15 @@ class EvolutionConfig:
 
 @dataclass
 class IndividualFitness:
-    """Fitness scores for an individual idea."""
+    """Fitness scores for an individual idea using QADI criteria."""
 
     idea: GeneratedIdea
-    creativity_score: float = ZERO_SCORE
-    diversity_score: float = ZERO_SCORE
-    quality_score: float = ZERO_SCORE
+    # QADI scoring criteria
+    impact: float = ZERO_SCORE
+    feasibility: float = ZERO_SCORE
+    accessibility: float = ZERO_SCORE
+    sustainability: float = ZERO_SCORE
+    scalability: float = ZERO_SCORE
     overall_fitness: float = ZERO_SCORE
     evaluation_metadata: Dict[str, Any] = field(default_factory=dict)
     evaluated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -141,15 +147,33 @@ class IndividualFitness:
     def __post_init__(self) -> None:
         """Set timestamp after initialization."""
         # evaluated_at is now automatically set via default_factory
+        
+    def get_scores_dict(self) -> Dict[str, float]:
+        """Get scores as a dictionary."""
+        return {
+            "impact": self.impact,
+            "feasibility": self.feasibility,
+            "accessibility": self.accessibility,
+            "sustainability": self.sustainability,
+            "scalability": self.scalability,
+            "overall": self.overall_fitness
+        }
 
     def calculate_overall_fitness(self, weights: Dict[str, float]) -> float:
-        """Calculate weighted overall fitness score."""
+        """Calculate weighted overall fitness score using QADI criteria."""
+        # Default equal weights for QADI criteria
+        impact_weight = weights.get("impact", DEFAULT_QADI_CRITERION_WEIGHT)
+        feasibility_weight = weights.get("feasibility", DEFAULT_QADI_CRITERION_WEIGHT)
+        accessibility_weight = weights.get("accessibility", DEFAULT_QADI_CRITERION_WEIGHT)
+        sustainability_weight = weights.get("sustainability", DEFAULT_QADI_CRITERION_WEIGHT)
+        scalability_weight = weights.get("scalability", DEFAULT_QADI_CRITERION_WEIGHT)
+        
         self.overall_fitness = (
-            weights.get("creativity_score", EQUAL_WEIGHT_CREATIVITY)
-            * self.creativity_score
-            + weights.get("diversity_score", EQUAL_WEIGHT_DIVERSITY)
-            * self.diversity_score
-            + weights.get("quality_score", EQUAL_WEIGHT_QUALITY) * self.quality_score
+            impact_weight * self.impact
+            + feasibility_weight * self.feasibility
+            + accessibility_weight * self.accessibility
+            + sustainability_weight * self.sustainability
+            + scalability_weight * self.scalability
         )
         return self.overall_fitness
 
@@ -225,6 +249,13 @@ class EvolutionResult:
     def success(self) -> bool:
         """Check if evolution completed successfully."""
         return self.error_message is None and len(self.final_population) > 0
+        
+    def get_all_individuals(self) -> List[IndividualFitness]:
+        """Get all individuals from all generations."""
+        all_individuals = []
+        for snapshot in self.generation_snapshots:
+            all_individuals.extend(snapshot.population)
+        return all_individuals
 
     def get_top_ideas(self, n: int = 5) -> List[GeneratedIdea]:
         """Get top N ideas by fitness."""

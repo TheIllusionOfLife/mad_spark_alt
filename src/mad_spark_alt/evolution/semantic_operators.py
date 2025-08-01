@@ -658,6 +658,9 @@ class SemanticCrossoverOperator(CrossoverInterface):
     offspring that integrate these concepts synergistically.
     """
     
+    # Similarity threshold for detecting duplicate offspring
+    SIMILARITY_THRESHOLD = 0.7
+    
     CROSSOVER_SYSTEM_PROMPT = """You are a genetic crossover operator for idea evolution.
 Your role is to meaningfully combine concepts from two parent ideas into offspring.
 
@@ -675,10 +678,17 @@ Analyze the key concepts in each parent and create TWO offspring ideas that:
 4. Maintain coherence and feasibility
 5. Provide DETAILED implementation (minimum 150 words per offspring)
 6. Include specific steps, technologies, methodologies, and resources
+7. CRITICAL: Each offspring must be SUBSTANTIALLY DIFFERENT from the other
+
+IMPORTANT: The two offspring MUST take different approaches to combining the parent concepts:
+- Offspring 1: Focus on how Parent 1's strengths can enhance Parent 2's approach
+- Offspring 2: Focus on how Parent 2's strengths can enhance Parent 1's approach
+- Ensure NO shared sentences or paragraphs between offspring
+- Use different implementation strategies, technologies, and methodologies
 
 Generate complete, detailed solutions that include:
 - Specific implementation steps combining elements from both parents
-- Technologies or tools from both approaches
+- Technologies or tools from both approaches  
 - Resources required for the hybrid solution
 - Expected outcomes showing synergy
 - How it leverages strengths of both parent ideas
@@ -781,6 +791,14 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
         if is_likely_truncated(offspring2_content):
             logger.warning("Offspring 2 appears truncated, may need higher token limit")
         
+        # Check for excessive duplication between offspring
+        similarity = self._calculate_similarity(offspring1_content, offspring2_content)
+        if similarity > self.SIMILARITY_THRESHOLD:  # More than 70% similar
+            logger.warning(f"High similarity detected between offspring: {similarity:.2f}")
+            # Use fallback generation for more diverse offspring
+            offspring1_content = self._generate_crossover_fallback(parent1, parent2, is_first=True)
+            offspring2_content = self._generate_crossover_fallback(parent1, parent2, is_first=False)
+        
         # Cache the result
         self.cache.put(cache_key, f"{offspring1_content}||{offspring2_content}")
         
@@ -823,6 +841,26 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
             offspring2 = self._generate_crossover_fallback(parent1, parent2, is_first=False)
             
         return offspring1, offspring2
+    
+    def _calculate_similarity(self, content1: str, content2: str) -> float:
+        """
+        Calculate similarity ratio between two content strings.
+        
+        Args:
+            content1: First content string
+            content2: Second content string
+            
+        Returns:
+            Similarity ratio between 0.0 and 1.0
+        """
+        from difflib import SequenceMatcher
+        
+        # Normalize content for comparison
+        norm1 = content1.strip().lower()
+        norm2 = content2.strip().lower()
+        
+        # Calculate similarity ratio
+        return SequenceMatcher(None, norm1, norm2).ratio()
     
     def _generate_crossover_fallback(
         self, 

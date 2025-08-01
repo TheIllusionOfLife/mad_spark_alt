@@ -159,9 +159,11 @@ class RetryableEvaluator:
                     # Fallback for simple evaluators - return basic fitness
                     return IndividualFitness(
                         idea=idea,
-                        creativity_score=0.5,
-                        diversity_score=0.5,
-                        quality_score=0.5,
+                        impact=0.5,
+                        feasibility=0.5,
+                        accessibility=0.5,
+                        sustainability=0.5,
+                        scalability=0.5,
                         overall_fitness=0.5,
                     )
 
@@ -209,9 +211,11 @@ class RetryableEvaluator:
                 )
                 return IndividualFitness(
                     idea=idea,
-                    creativity_score=0.1,
-                    diversity_score=0.1,
-                    quality_score=0.1,
+                    impact=0.1,
+                    feasibility=0.1,
+                    accessibility=0.1,
+                    sustainability=0.1,
+                    scalability=0.1,
                     overall_fitness=0.1,
                     evaluation_metadata={
                         "error": str(e),
@@ -253,9 +257,11 @@ class RetryableEvaluator:
                 results.append(
                     IndividualFitness(
                         idea=idea,
-                        creativity_score=0.1,
-                        diversity_score=0.1,
-                        quality_score=0.1,
+                        impact=0.1,
+                        feasibility=0.1,
+                        accessibility=0.1,
+                        sustainability=0.1,
+                        scalability=0.1,
                         overall_fitness=0.1,
                         evaluation_metadata={"error": str(e)},
                     )

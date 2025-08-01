@@ -112,9 +112,11 @@ class TestGeneticAlgorithmSemanticIntegration:
                 return [
                     IndividualFitness(
                         idea=idea,
-                        creativity_score=0.7,
-                        diversity_score=0.7,
-                        quality_score=0.7,
+                        impact=0.7,
+                        feasibility=0.7,
+                        accessibility=0.7,
+                        sustainability=0.7,
+                        scalability=0.7,
                         overall_fitness=0.7
                     )
                     for idea in population
@@ -164,9 +166,11 @@ class TestGeneticAlgorithmSemanticIntegration:
                     return [
                         IndividualFitness(
                             idea=idea,
-                            creativity_score=0.7,
-                            diversity_score=0.8,
-                            quality_score=0.7,
+                            impact=0.7,
+                            feasibility=0.7,
+                            accessibility=0.8,
+                            sustainability=0.7,
+                            scalability=0.7,
                             overall_fitness=0.7
                         )
                         for idea in ideas
@@ -215,9 +219,11 @@ class TestGeneticAlgorithmSemanticIntegration:
                     return [
                         IndividualFitness(
                             idea=idea,
-                            creativity_score=0.7,
-                            diversity_score=0.6,
-                            quality_score=0.7,
+                            impact=0.7,
+                            feasibility=0.7,
+                            accessibility=0.6,
+                            sustainability=0.7,
+                            scalability=0.7,
                             overall_fitness=0.7
                         )
                         for idea in ideas
