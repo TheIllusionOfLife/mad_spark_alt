@@ -777,8 +777,9 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 if isinstance(cached_data, dict):
                     cached_content = cached_data.get("content")
                     if not isinstance(cached_content, str):
-                        # Skip this cached entry if content is invalid
-                        continue
+                        # Fallback to original content if cache is invalid
+                        cached_content = idea.content
+                        logger.debug(f"Invalid cache entry for '{idea.content[:50]}...', using original content")
                     cached_mutation_type = cached_data.get("mutation_type", "batch_mutation")
                 else:
                     # Backward compatibility

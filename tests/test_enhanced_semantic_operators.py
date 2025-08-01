@@ -629,6 +629,68 @@ class TestIntegrationWithEvolutionContext:
         assert result.metadata.get("mutation_type") in operator.mutation_types
     
     @pytest.mark.asyncio
+    async def test_batch_invalid_cache_maintains_count(self, mock_llm_provider, evaluation_context):
+        """Test that batch mutations with invalid cache entries maintain 1:1 correspondence."""
+        ideas = [
+            GeneratedIdea(
+                content="Idea 1: Solar panels on buildings",
+                thinking_method=ThinkingMethod.ABDUCTION,
+                agent_name="TestAgent",
+                generation_prompt="Test",
+                metadata={"generation": 0}
+            ),
+            GeneratedIdea(
+                content="Idea 2: Wind turbines in parks",
+                thinking_method=ThinkingMethod.ABDUCTION,
+                agent_name="TestAgent",
+                generation_prompt="Test",
+                metadata={"generation": 0}
+            ),
+            GeneratedIdea(
+                content="Idea 3: Geothermal energy systems",
+                thinking_method=ThinkingMethod.ABDUCTION,
+                agent_name="TestAgent",
+                generation_prompt="Test",
+                metadata={"generation": 0}
+            )
+        ]
+        
+        operator = BatchSemanticMutationOperator(mock_llm_provider)
+        
+        # Inject cache entries - one valid, one invalid, one missing
+        from mad_spark_alt.evolution.semantic_operators import _prepare_cache_key_with_context
+        
+        # Valid cache entry for idea 1
+        cache_key1 = f"{_prepare_cache_key_with_context(ideas[0].content, evaluation_context)}||breakthrough:False"
+        operator.cache.put(cache_key1, {"content": "Cached mutation 1", "mutation_type": "test"})
+        
+        # Invalid cache entry for idea 2 (no content key)
+        cache_key2 = f"{_prepare_cache_key_with_context(ideas[1].content, evaluation_context)}||breakthrough:False"
+        operator.cache.put(cache_key2, {"mutation_type": "test", "invalid": "data"})
+        
+        # No cache entry for idea 3 (will be uncached)
+        
+        # Mock response for uncached idea
+        mock_response = LLMResponse(
+            content='{"mutations": [{"idea_id": 1, "mutated_content": "New mutation for idea 3"}]}',
+            cost=0.01,
+            provider="google",
+            model="gemini-pro"
+        )
+        mock_llm_provider.generate = AsyncMock(return_value=mock_response)
+        
+        # Run batch mutation
+        results = await operator.mutate_batch(ideas, evaluation_context)
+        
+        # Verify we get exactly 3 results (1:1 correspondence)
+        assert len(results) == len(ideas), f"Expected {len(ideas)} results but got {len(results)}"
+        
+        # Verify each result
+        assert results[0].content == "Cached mutation 1"  # Valid cache
+        assert results[1].content == ideas[1].content  # Invalid cache, uses original
+        assert results[2].content == "New mutation for idea 3"  # Uncached, from LLM
+    
+    @pytest.mark.asyncio
     async def test_context_aware_prompt_generation(self, mock_llm_provider, sample_idea):
         """Test that prompts adapt based on evaluation context."""
         mock_response = LLMResponse(
