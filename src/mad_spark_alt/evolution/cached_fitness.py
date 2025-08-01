@@ -422,9 +422,11 @@ class CachedFitnessEvaluator:
                 # Use default fitness to maintain position
                 final_results.append(IndividualFitness(
                     idea=population[i],
-                    creativity_score=0.0,
-                    diversity_score=0.0,
-                    quality_score=0.0,
+                    impact=0.0,
+                    feasibility=0.0,
+                    accessibility=0.0,
+                    sustainability=0.0,
+                    scalability=0.0,
                     overall_fitness=0.0,
                     evaluation_metadata={"error": "Evaluation failed for this idea"}
                 ))

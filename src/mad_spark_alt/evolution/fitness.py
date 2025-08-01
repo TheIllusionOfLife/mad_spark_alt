@@ -220,28 +220,26 @@ class FitnessEvaluator:
                 temperature=0.3,  # Low temperature for consistent evaluation
             )
 
-            # Create fitness object with 5-criteria scores
+            # Create fitness object with QADI scoring criteria
             fitness = IndividualFitness(
                 idea=idea,
-                # Map unified scores to evolution fitness fields
-                creativity_score=evaluation.scores.get("novelty", 0.0),
-                diversity_score=(
-                    evaluation.scores.get("novelty", 0.0)
-                    + evaluation.scores.get("impact", 0.0)
-                )
-                / 2,  # Combined metric
-                quality_score=evaluation.scores.get("feasibility", 0.0),
-                overall_fitness=evaluation.overall_score,  # Already calculated by unified system
+                # Use QADI scoring criteria directly
+                impact=evaluation.scores.get("impact", 0.0),
+                feasibility=evaluation.scores.get("feasibility", 0.0),
+                accessibility=evaluation.scores.get("accessibility", 0.0),
+                sustainability=evaluation.scores.get("sustainability", 0.0),
+                scalability=evaluation.scores.get("scalability", 0.0),
+                overall_fitness=evaluation.overall_score,
                 evaluation_metadata={
                     "unified_scores": evaluation.scores,
                     "unified_explanations": evaluation.explanations,
                     "llm_cost": evaluation.metadata.get("llm_cost", 0.0),
                     "evaluation_criteria": {
-                        "novelty": evaluation.scores.get("novelty", 0.0),
                         "impact": evaluation.scores.get("impact", 0.0),
-                        "cost": evaluation.scores.get("cost", 0.0),
                         "feasibility": evaluation.scores.get("feasibility", 0.0),
-                        "risks": evaluation.scores.get("risks", 0.0),
+                        "accessibility": evaluation.scores.get("accessibility", 0.0),
+                        "sustainability": evaluation.scores.get("sustainability", 0.0),
+                        "scalability": evaluation.scores.get("scalability", 0.0),
                     },
                 },
             )
@@ -252,9 +250,11 @@ class FitnessEvaluator:
             logger.error(f"Failed to evaluate idea: {e}")
             return IndividualFitness(
                 idea=idea,
-                creativity_score=0.0,
-                diversity_score=0.0,
-                quality_score=0.0,
+                impact=0.0,
+                feasibility=0.0,
+                accessibility=0.0,
+                sustainability=0.0,
+                scalability=0.0,
                 overall_fitness=0.0,
                 evaluation_metadata={"error": str(e)},
             )

@@ -157,13 +157,20 @@ class IndividualFitness:
         }
 
     def calculate_overall_fitness(self, weights: Dict[str, float]) -> float:
-        """Calculate weighted overall fitness score."""
+        """Calculate weighted overall fitness score using QADI criteria."""
+        # Default equal weights for QADI criteria
+        impact_weight = weights.get("impact", 0.2)
+        feasibility_weight = weights.get("feasibility", 0.2)
+        accessibility_weight = weights.get("accessibility", 0.2)
+        sustainability_weight = weights.get("sustainability", 0.2)
+        scalability_weight = weights.get("scalability", 0.2)
+        
         self.overall_fitness = (
-            weights.get("creativity_score", EQUAL_WEIGHT_CREATIVITY)
-            * self.creativity_score
-            + weights.get("diversity_score", EQUAL_WEIGHT_DIVERSITY)
-            * self.diversity_score
-            + weights.get("quality_score", EQUAL_WEIGHT_QUALITY) * self.quality_score
+            impact_weight * self.impact
+            + feasibility_weight * self.feasibility
+            + accessibility_weight * self.accessibility
+            + sustainability_weight * self.sustainability
+            + scalability_weight * self.scalability
         )
         return self.overall_fitness
 

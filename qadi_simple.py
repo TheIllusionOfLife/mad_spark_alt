@@ -27,6 +27,8 @@ try:
     from mad_spark_alt.core.qadi_prompts import QADIPrompts
     from mad_spark_alt.core.llm_provider import LLMProvider, llm_manager, get_google_provider
     from mad_spark_alt.utils.text_cleaning import clean_ansi_codes
+    from mad_spark_alt.evolution.interfaces import IndividualFitness
+    from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
 except ImportError:
     # Fallback if package is not installed
     sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -466,13 +468,38 @@ async def run_qadi_analysis(
                         """Check if two strings are similar above threshold."""
                         return SequenceMatcher(None, a.lower(), b.lower()).ratio() > threshold
                     
-                    # Get total population size
-                    total_population = len(evolution_result.final_population)
+                    # Get ALL individuals from all generations + initial QADI hypotheses
+                    all_individuals = []
                     
-                    # Collect unique ideas with fuzzy matching
+                    # Add individuals from all evolution generations
+                    all_individuals.extend(evolution_result.get_all_individuals())
+                    
+                    # Add initial QADI hypotheses as IndividualFitness objects
+                    if result.hypotheses and result.hypothesis_scores:
+                        for hypothesis, score in zip(result.hypotheses, result.hypothesis_scores):
+                            qadi_individual = IndividualFitness(
+                                idea=GeneratedIdea(
+                                    content=hypothesis,
+                                    thinking_method=ThinkingMethod.ABDUCTION,
+                                    agent_name="qadi",
+                                    generation_prompt="initial analysis"
+                                ),
+                                impact=score.impact,
+                                feasibility=score.feasibility,
+                                accessibility=score.accessibility,
+                                sustainability=score.sustainability,
+                                scalability=score.scalability,
+                                overall_fitness=score.overall
+                            )
+                            all_individuals.append(qadi_individual)
+                    
+                    # Get total population size
+                    total_population = len(all_individuals)
+                    
+                    # Collect unique ideas with fuzzy matching from ALL sources
                     unique_individuals: List[Any] = []
                     for ind in sorted(
-                        evolution_result.final_population,
+                        all_individuals,
                         key=lambda x: x.overall_fitness,
                         reverse=True,
                     ):
@@ -496,7 +523,7 @@ async def run_qadi_analysis(
                     if len(unique_individuals) < 3:
                         unique_individuals = []
                         for ind in sorted(
-                            evolution_result.final_population,
+                            all_individuals,
                             key=lambda x: x.overall_fitness,
                             reverse=True,
                         ):
@@ -519,7 +546,7 @@ async def run_qadi_analysis(
                     if len(unique_individuals) < 2:
                         # Sort by fitness but also try to get diverse thinking methods
                         all_sorted = sorted(
-                            evolution_result.final_population,
+                            all_individuals,
                             key=lambda x: x.overall_fitness,
                             reverse=True,
                         )
@@ -543,6 +570,9 @@ async def run_qadi_analysis(
                             unique_individuals = all_sorted[:min(3, len(all_sorted))]
                     
                     # Display evolved ideas clearly as the new best solutions
+                    print("## 🏆 High Score Approaches\n")
+                    print("*Top-rated approaches from comprehensive analysis:*\n")
+                    
                     displayed_contents: Set[str] = set()
                     display_count = 0
                     
@@ -565,7 +595,11 @@ async def run_qadi_analysis(
                         displayed_contents.add(content_normalized)
                         display_count += 1
                         
-                        print(f"**{display_count}. Enhanced Approach**")
+                        # Create score display
+                        scores = individual.get_scores_dict()
+                        score_display = f"[Overall: {scores['overall']:.2f} | Impact: {scores['impact']:.2f} | Feasibility: {scores['feasibility']:.2f} | Accessibility: {scores['accessibility']:.2f} | Sustainability: {scores['sustainability']:.2f} | Scalability: {scores['scalability']:.2f}]"
+                        
+                        print(f"**{display_count}. High Score Approach** {score_display}")
                         render_markdown(idea.content)
                         print()
                         
