@@ -173,18 +173,21 @@ See [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md) for detailed informatio
 - ✅ [PR #74]: Remove H+number prefix, suppress evolution logs, and improve structured output
 - ✅ [PR #71]: Implement Gemini structured output for reliable parsing
 
+#### Completed Priority Tasks
+✅ **Remove Smart Selector**: Simplified evolution system
+   - Removed SmartOperatorSelector class completely  
+   - Replaced probabilistic selection with simple if-available logic
+   - Evolution uses semantic operators when available and enabled via `use_semantic_operators`
+   - Result: Cleaner codebase, better predictability, same functionality
+
+✅ **Evaluation Context Enhancement**: Added scoring context to evolution
+   - Created EvaluationContext dataclass with original question and target improvements
+   - Semantic operators now receive evaluation context for targeted mutations/crossovers  
+   - Enhanced prompts guide evolution toward specific fitness improvements
+   - Result: More targeted evolution that improves weak scores
+
 #### Next Priority Tasks
-1. **Remove Smart Selector**: Simplify evolution system
-   - Source: README.md TODO
-   - Context: Current threshold (0.9) means we always use semantic operators anyway
-   - Approach: Replace probabilistic selection with simple if-available logic
-
-2. **Evaluation Context Enhancement**: Pass scoring context to evolution
-   - Source: README.md TODO #6
-   - Context: Evolution operators need to know what scores to beat
-   - Approach: Pass original question + current best score to operators
-
-3. **Evolution Timeout Handling**: Improve timeout management
+1. **Evolution Timeout Handling**: Improve timeout management
    - Source: User test output shows evolution timing out at 290s
    - Context: Population 10 + 3 generations exceeds timeout
    - Approach: Better progress tracking, earlier termination, or adaptive timeouts
@@ -239,15 +242,16 @@ This implementation significantly reduces "Failed to extract enough hypotheses" 
 - [ ] Add troubleshooting guide for common issues
 
 ### Evolution System Enhancements
-- [ ] **Remove Smart Selector** - Simplify by removing SmartOperatorSelector class entirely
-  - Replace probabilistic decisions with simple: if semantic operators available → use them
-  - Keep `use_semantic_operators` as simple on/off switch
-  - Rationale: Current threshold (0.9) means we essentially always want semantic operators
+- ✅ **Remove Smart Selector** - COMPLETED: Simplified by removing SmartOperatorSelector class entirely
+  - ✅ Replaced probabilistic decisions with simple: if semantic operators available → use them
+  - ✅ Kept `use_semantic_operators` as simple on/off switch
+  - ✅ Result: Cleaner codebase, better predictability, same functionality
   
-- [ ] **Evaluation Context** (#6) - Pass scoring context to evolution
-  - Pass original user question + current best score to evolution operators
-  - Let semantic operators know what scores they need to beat
-  - Enable targeted improvements based on current performance
+- ✅ **Evaluation Context** (#6) - COMPLETED: Pass scoring context to evolution
+  - ✅ Added EvaluationContext dataclass with original question and target improvements
+  - ✅ Semantic operators now receive evaluation context for targeted mutations/crossovers
+  - ✅ Enhanced prompts guide evolution toward specific fitness improvements
+  - ✅ Result: More targeted evolution that improves weak scores
   
 - [ ] **Enhanced Semantic Operators** (#2) - Improve prompts for higher scores
   - Modify mutation prompts to explicitly target evaluation criteria

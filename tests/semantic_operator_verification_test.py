@@ -85,17 +85,10 @@ class TestSemanticOperatorVerification:
                     context="Test context"
                 )
                 
-                # Reset the smart_selector to ensure clean state
-                ga.smart_selector = None
+                # With simplified logic, semantic operators are used when available and enabled
+                # No need to mock SmartOperatorSelector since it was removed
                 
-                # Mock SmartOperatorSelector to always use semantic operators
-                with patch('mad_spark_alt.evolution.genetic_algorithm.SmartOperatorSelector') as mock_selector_class:
-                    mock_selector = MagicMock()
-                    mock_selector.should_use_semantic_mutation.return_value = True
-                    mock_selector.should_use_semantic_crossover.return_value = True
-                    mock_selector_class.return_value = mock_selector
-                    
-                    result = await ga.evolve(request)
+                result = await ga.evolve(request)
                 
                 # Check metrics include semantic operator usage
                 metrics = result.evolution_metrics
@@ -159,7 +152,7 @@ class TestSemanticOperatorVerification:
         # Check that semantic operators are None
         assert ga.semantic_mutation_operator is None
         assert ga.semantic_crossover_operator is None
-        assert ga.smart_selector is None
+        # smart_selector removed - no longer exists
 
     @pytest.mark.asyncio
     async def test_cli_displays_semantic_operator_status(self):
@@ -222,14 +215,8 @@ class TestSemanticOperatorVerification:
                     context="Test"
                 )
                 
-                # Mock SmartOperatorSelector to use semantic operators
-                with patch('mad_spark_alt.evolution.genetic_algorithm.SmartOperatorSelector') as mock_selector_class:
-                    mock_selector = MagicMock()
-                    mock_selector.should_use_semantic_mutation.return_value = True
-                    mock_selector.should_use_semantic_crossover.return_value = True  
-                    mock_selector_class.return_value = mock_selector
-                    
-                    result = await ga.evolve(request)
+                # With simplified logic, semantic operators are automatically used when available
+                result = await ga.evolve(request)
                 
                 # Check that LLM was called
                 assert llm_call_count > 0

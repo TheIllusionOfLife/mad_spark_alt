@@ -30,6 +30,7 @@ from mad_spark_alt.evolution.constants import (
 )
 from mad_spark_alt.evolution.fitness import FitnessEvaluator
 from mad_spark_alt.evolution.interfaces import (
+    EvaluationContext,
     EvolutionConfig,
     EvolutionRequest,
     EvolutionResult,
@@ -50,7 +51,7 @@ from mad_spark_alt.evolution.semantic_operators import (
     BatchSemanticMutationOperator,
     SemanticCrossoverOperator,
 )
-from mad_spark_alt.evolution.smart_selection import SmartOperatorSelector
+# SmartOperatorSelector removed - using simplified semantic operator selection
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +103,7 @@ class GeneticAlgorithm:
         self.llm_provider = llm_provider
         self.semantic_mutation_operator: Optional[BatchSemanticMutationOperator] = None
         self.semantic_crossover_operator: Optional[SemanticCrossoverOperator] = None
-        self.smart_selector: Optional[SmartOperatorSelector] = None  # Will be initialized when needed with config
+        # SmartOperatorSelector removed - using simplified semantic operator selection
         
         if llm_provider is not None:
             self.semantic_mutation_operator = BatchSemanticMutationOperator(
@@ -171,7 +172,7 @@ class GeneticAlgorithm:
 
             # Evolve to next generation
             current_population = await self._evolve_generation(
-                current_population, request.config, request.context, generation
+                current_population, request.config, request.context, generation, request.evaluation_context
             )
 
             # Create snapshot of current generation (after evolution)
@@ -270,25 +271,21 @@ class GeneticAlgorithm:
             error_message=None,
         )
 
-    async def _apply_mutation_with_smart_selection(
+    async def _apply_mutation_with_operator_selection(
         self,
         offspring: GeneratedIdea,
-        avg_parent_fitness: float,
-        population_diversity: float,
-        generation: int,
         config: EvolutionConfig,
         context: Optional[str] = None,
+        evaluation_context: Optional[EvaluationContext] = None,
     ) -> Tuple[GeneratedIdea, Dict[str, int]]:
         """
-        Apply mutation to an offspring with smart semantic selection.
+        Apply mutation to an offspring with semantic operator selection.
 
         Args:
             offspring: The offspring idea to mutate
-            avg_parent_fitness: Average fitness of the parents
-            population_diversity: Current population diversity
-            generation: Current generation number
             config: Evolution configuration
             context: Optional context for mutation
+            evaluation_context: Optional evaluation context for targeted evolution
 
         Returns:
             Tuple of (mutated offspring, mutation statistics)
@@ -299,33 +296,19 @@ class GeneticAlgorithm:
             'semantic_llm_calls': 0,
         }
 
-        # Create a temporary IndividualFitness for smart selection
-        # Use a conservative estimate for unevaluated offspring:
-        # - If parents have high fitness (>0.6), use 80% of parent average
-        # - Otherwise, use 50% of parent average to be conservative
-        estimated_fitness = (
-            avg_parent_fitness * 0.8 if avg_parent_fitness > 0.6 
-            else avg_parent_fitness * 0.5
-        )
-        temp_individual = IndividualFitness(
-            idea=offspring,
-            overall_fitness=estimated_fitness
-        )
-
-        # Determine whether to use semantic mutation
+        # Determine whether to use semantic mutation (simplified logic)
         use_semantic = (
             self.semantic_mutation_operator is not None and
-            self.smart_selector is not None and
-            self.smart_selector.should_use_semantic_mutation(
-                temp_individual, population_diversity, generation
-            )
+            config.use_semantic_operators
         )
 
         # Apply appropriate mutation type
         if use_semantic:
             assert self.semantic_mutation_operator is not None
+            # Use evaluation context if available, otherwise fall back to string context
+            operator_context = evaluation_context if evaluation_context else context
             mutated_offspring = await self.semantic_mutation_operator.mutate(
-                offspring, config.mutation_rate, context
+                offspring, config.mutation_rate, operator_context
             )
             # Only count if mutation actually occurred (content changed)
             if mutated_offspring.content != offspring.content:
@@ -569,6 +552,7 @@ class GeneticAlgorithm:
         config: EvolutionConfig,
         context: Optional[str],
         generation: int,
+        evaluation_context: Optional["EvaluationContext"] = None,
     ) -> List[IndividualFitness]:
         """Evolve one generation to the next."""
         new_population = []
@@ -580,9 +564,7 @@ class GeneticAlgorithm:
         traditional_crossovers = 0
         semantic_llm_calls = 0
 
-        # Initialize smart selector with config if not already done
-        if self.smart_selector is None:
-            self.smart_selector = SmartOperatorSelector(config)
+        # SmartOperatorSelector removed - using simplified semantic operator selection
 
         # Elite preservation
         if config.elite_size > 0:
@@ -603,19 +585,18 @@ class GeneticAlgorithm:
 
             # Crossover (with smart semantic selection)
             if random.random() < config.crossover_rate:
-                # Use smart selector to decide between semantic and traditional crossover
+                # Use simplified logic to decide between semantic and traditional crossover
                 use_semantic = (
                     self.semantic_crossover_operator is not None and
-                    self.smart_selector is not None and
-                    self.smart_selector.should_use_semantic_crossover(
-                        parents[0], parents[1], population_diversity
-                    )
+                    config.use_semantic_operators
                 )
                 
                 if use_semantic:
                     assert self.semantic_crossover_operator is not None
+                    # Use evaluation context if available, otherwise fall back to string context
+                    operator_context = evaluation_context if evaluation_context else context
                     offspring1, offspring2 = await self.semantic_crossover_operator.crossover(
-                        parents[0].idea, parents[1].idea, context
+                        parents[0].idea, parents[1].idea, operator_context
                     )
                     semantic_crossovers += 1
                     semantic_llm_calls += 1  # Each crossover makes 1 LLM call
@@ -631,19 +612,16 @@ class GeneticAlgorithm:
                 # If no crossover, just copy parents
                 offspring1, offspring2 = parents[0].idea, parents[1].idea
 
-            # Use average fitness from parents as initial estimate for offspring
-            avg_parent_fitness = (parents[0].overall_fitness + parents[1].overall_fitness) / 2
-
             # Apply mutation to both offspring
-            offspring1, mutation_stats1 = await self._apply_mutation_with_smart_selection(
-                offspring1, avg_parent_fitness, population_diversity, generation, config, context
+            offspring1, mutation_stats1 = await self._apply_mutation_with_operator_selection(
+                offspring1, config, context, evaluation_context
             )
             semantic_mutations += mutation_stats1['semantic_mutations']
             traditional_mutations += mutation_stats1['traditional_mutations']
             semantic_llm_calls += mutation_stats1['semantic_llm_calls']
 
-            offspring2, mutation_stats2 = await self._apply_mutation_with_smart_selection(
-                offspring2, avg_parent_fitness, population_diversity, generation, config, context
+            offspring2, mutation_stats2 = await self._apply_mutation_with_operator_selection(
+                offspring2, config, context, evaluation_context
             )
             semantic_mutations += mutation_stats2['semantic_mutations']
             traditional_mutations += mutation_stats2['traditional_mutations']

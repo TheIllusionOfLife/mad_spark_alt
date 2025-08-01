@@ -11,13 +11,93 @@ import logging
 import random
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
-from mad_spark_alt.core.llm_provider import GoogleProvider, LLMRequest, LLMResponse
-from mad_spark_alt.evolution.interfaces import CrossoverInterface, MutationInterface
+from mad_spark_alt.core.llm_provider import GoogleProvider, LLMRequest
+from mad_spark_alt.evolution.interfaces import CrossoverInterface, MutationInterface, EvaluationContext
 
 logger = logging.getLogger(__name__)
+
+
+def _prepare_operator_contexts(
+    context: Union[Optional[str], EvaluationContext],
+    idea_prompt: str,
+    default_context: str
+) -> Tuple[str, str]:
+    """
+    Prepare string and evaluation contexts for semantic operators.
+    
+    Args:
+        context: Either string context or EvaluationContext object
+        idea_prompt: The idea's generation prompt as fallback
+        default_context: Default context if all else fails
+        
+    Returns:
+        Tuple of (context_str, evaluation_context_str)
+    """
+    if isinstance(context, EvaluationContext):
+        context_str = context.original_question or idea_prompt or default_context
+        evaluation_context_str = format_evaluation_context(context)
+    else:
+        context_str = context or idea_prompt or default_context
+        evaluation_context_str = "No specific evaluation context provided."
+    
+    return context_str, evaluation_context_str
+
+
+def _prepare_cache_key_with_context(
+    base_key: str,
+    context: Union[Optional[str], EvaluationContext]
+) -> str:
+    """
+    Prepare cache key that includes EvaluationContext for context-aware caching.
+    
+    Args:
+        base_key: Base cache key (e.g., idea content or parent combination)
+        context: Either string context or EvaluationContext object
+        
+    Returns:
+        Cache key that includes context information if applicable
+    """
+    if isinstance(context, EvaluationContext):
+        # Include target improvements and current scores in cache key
+        context_hash = hash(frozenset([
+            (k, v) for k, v in context.current_best_scores.items()
+        ] + [tuple(context.target_improvements)]))
+        return f"{base_key}||ctx:{context_hash}"
+    else:
+        return base_key
+
+
+def format_evaluation_context(context: EvaluationContext) -> str:
+    """
+    Format evaluation context for inclusion in prompts.
+    
+    Args:
+        context: EvaluationContext with scoring information
+        
+    Returns:
+        Formatted context string for prompts
+    """
+    context_parts = [
+        f"Original Question: {context.original_question}",
+        ""
+    ]
+    
+    if context.current_best_scores:
+        context_parts.append("Current Best Scores:")
+        for criterion, score in context.current_best_scores.items():
+            context_parts.append(f"  {criterion.title()}: {score:.1f}")
+        context_parts.append("")
+    
+    if context.target_improvements:
+        context_parts.append(f"Target Improvements: {', '.join(context.target_improvements)}")
+        context_parts.append("")
+    
+    context_parts.append("FOCUS: Create variations that improve the target criteria while maintaining strengths.")
+    
+    return "\n".join(context_parts)
 
 
 def is_likely_truncated(text: str) -> bool:
@@ -298,12 +378,15 @@ When returning results, follow the exact format requested in the prompt (JSON or
     SINGLE_MUTATION_PROMPT = """Original idea: {idea}
 Problem context: {context}
 
+{evaluation_context}
+
 Create a semantically different variation that:
 1. Addresses the same core problem
 2. Uses a fundamentally different approach or mechanism
 3. Maintains feasibility but explores new solution space
 4. Provides DETAILED implementation with specific steps, technologies, and methodologies
 5. Includes at least 150-200 words of comprehensive explanation
+6. PRIORITIZES improvements to any target criteria mentioned above
 
 Mutation type: {mutation_type}
 - perspective_shift: Change viewpoint (individual→community, local→global, etc.)
@@ -317,12 +400,15 @@ Generate a complete, detailed solution that includes:
 - Resources required
 - Expected outcomes and benefits
 - How it addresses the core problem
+- Improvements to target criteria (if specified)
 
 Return the mutated idea as JSON with the field "mutated_content" containing the detailed solution (minimum 150 words)."""
 
     BATCH_MUTATION_PROMPT = """Generate diverse variations for these ideas. Each variation should use a different approach.
 
 Context: {context}
+
+{evaluation_context}
 
 Ideas to mutate:
 {ideas_list}
@@ -332,12 +418,14 @@ For each idea, provide ONE variation that:
 - Uses different mutation strategies: perspective shift, mechanism change, or abstraction level
 - Provides DETAILED implementation (minimum 150 words per variation)
 - Includes specific steps, technologies, methodologies, and resources
+- PRIORITIZES improvements to any target criteria mentioned above
 
 Generate complete, detailed solutions that include:
 - Specific implementation steps
 - Technologies or tools to be used
 - Resources required
 - Expected outcomes and benefits
+- Improvements to target criteria (if specified)
 
 Return JSON with mutations array containing idea_id and mutated_content for each idea."""
     
@@ -374,14 +462,14 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         self,
         idea: GeneratedIdea,
         mutation_rate: float,
-        context: Optional[str] = None
+        context: Union[Optional[str], EvaluationContext] = None
     ) -> GeneratedIdea:
         """
         Mutate a single idea using LLM.
         
-        Note: When used as a semantic operator selected by SmartOperatorSelector,
-        this method always applies mutation (ignores mutation_rate) since the
-        selector has already decided to use semantic mutation.
+        Note: When semantic operators are enabled, this method always applies 
+        mutation (ignores mutation_rate) since the decision to use semantic 
+        operators has already been made.
         
         Args:
             idea: Idea to mutate
@@ -391,14 +479,14 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         Returns:
             Mutated idea
         """
-        # Always apply mutation - the SmartOperatorSelector has already
-        # decided to use semantic mutation based on diversity and fitness
+        # Always apply mutation - semantic operators are used when available
+        # and enabled, ignoring mutation_rate probability
         return await self.mutate_single(idea, context)
         
     async def mutate_single(
         self,
         idea: GeneratedIdea,
-        context: Optional[str] = None
+        context: Optional[Union[str, "EvaluationContext"]] = None
     ) -> GeneratedIdea:
         """
         Mutate a single idea with caching.
@@ -410,8 +498,11 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         Returns:
             Mutated idea
         """
+        # Create cache key that includes EvaluationContext to ensure context-aware caching
+        cache_key = _prepare_cache_key_with_context(idea.content, context)
+            
         # Check cache first
-        cached_result = self.cache.get(idea.content)
+        cached_result = self.cache.get(cache_key)
         if cached_result:
             return self._create_mutated_idea(idea, cached_result, 0.0)
             
@@ -427,11 +518,17 @@ Return JSON with mutations array containing idea_id and mutated_content for each
             "required": ["mutated_content"]
         }
         
+        # Prepare context and evaluation context
+        context_str, evaluation_context_str = _prepare_operator_contexts(
+            context, idea.generation_prompt, "general improvement"
+        )
+        
         request = LLMRequest(
             system_prompt=self.MUTATION_SYSTEM_PROMPT,
             user_prompt=self.SINGLE_MUTATION_PROMPT.format(
                 idea=idea.content,
-                context=context or idea.generation_prompt,
+                context=context_str,
+                evaluation_context=evaluation_context_str,
                 mutation_type=mutation_type
             ),
             max_tokens=500,
@@ -461,8 +558,8 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         if is_likely_truncated(mutated_content):
             logger.warning("Mutation response appears truncated, may need higher token limit")
         
-        # Cache the result
-        self.cache.put(idea.content, mutated_content)
+        # Cache the result using the same key structure
+        self.cache.put(cache_key, mutated_content)
         
         return self._create_mutated_idea(
             idea, 
@@ -474,7 +571,7 @@ Return JSON with mutations array containing idea_id and mutated_content for each
     async def mutate_batch(
         self,
         ideas: List[GeneratedIdea],
-        context: Optional[str] = None
+        context: Union[Optional[str], EvaluationContext] = None
     ) -> List[GeneratedIdea]:
         """
         Mutate multiple ideas in a single LLM call.
@@ -486,12 +583,15 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         Returns:
             List of mutated ideas
         """
-        # Separate cached and uncached ideas
+        # Separate cached and uncached ideas using context-aware cache keys
         cached_results = {}
         uncached_ideas = []
+        cache_keys = {}
         
         for idea in ideas:
-            cached_result = self.cache.get(idea.content)
+            cache_key = _prepare_cache_key_with_context(idea.content, context)
+            cache_keys[idea.content] = cache_key
+            cached_result = self.cache.get(cache_key)
             if cached_result:
                 cached_results[idea.content] = cached_result
             else:
@@ -511,12 +611,18 @@ Return JSON with mutations array containing idea_id and mutated_content for each
             for i, idea in enumerate(uncached_ideas)
         ])
         
+        # Prepare context and evaluation context for batch
+        context_str, evaluation_context_str = _prepare_operator_contexts(
+            context, "", "general improvement"
+        )
+        
         # Create request with structured output
         schema = get_mutation_schema()
         request = LLMRequest(
             system_prompt=self.MUTATION_SYSTEM_PROMPT,
             user_prompt=self.BATCH_MUTATION_PROMPT.format(
-                context=context or "general improvement",
+                context=context_str,
+                evaluation_context=evaluation_context_str,
                 ideas_list=ideas_list
             ),
             max_tokens=min(500 * len(uncached_ideas), 2000),
@@ -558,11 +664,13 @@ Return JSON with mutations array containing idea_id and mutated_content for each
             # Fall back to text parsing
             mutations = self._parse_batch_response(response.content, len(uncached_ideas), uncached_ideas)
         
-        # Check for truncation and cache results
+        # Check for truncation and cache results using context-aware keys
         for idea, mutation in zip(uncached_ideas, mutations):
             if is_likely_truncated(mutation):
                 logger.warning("Batch mutation appears truncated for idea: %s...", idea.content[:50])
-            self.cache.put(idea.content, mutation)
+            # Use the context-aware cache key for this idea
+            cache_key = cache_keys[idea.content]
+            self.cache.put(cache_key, mutation)
             
         # Distribute cost across mutations
         cost_per_mutation = response.cost / len(mutations) if mutations else 0
@@ -671,6 +779,8 @@ When returning results, follow the exact format requested in the prompt (JSON or
 Parent Idea 2: {parent2}
 Context: {context}
 
+{evaluation_context}
+
 Analyze the key concepts in each parent and create TWO offspring ideas that:
 1. Meaningfully integrate concepts from BOTH parents
 2. Are not just concatenations or word swaps
@@ -679,6 +789,7 @@ Analyze the key concepts in each parent and create TWO offspring ideas that:
 5. Provide DETAILED implementation (minimum 150 words per offspring)
 6. Include specific steps, technologies, methodologies, and resources
 7. CRITICAL: Each offspring must be SUBSTANTIALLY DIFFERENT from the other
+8. PRIORITIZES improvements to any target criteria mentioned above
 
 IMPORTANT: The two offspring MUST take different approaches to combining the parent concepts:
 - Offspring 1: Focus on how Parent 1's strengths can enhance Parent 2's approach
@@ -692,6 +803,7 @@ Generate complete, detailed solutions that include:
 - Resources required for the hybrid solution
 - Expected outcomes showing synergy
 - How it leverages strengths of both parent ideas
+- Improvements to target criteria (if specified)
 
 Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fields."""
     
@@ -722,7 +834,7 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
         self,
         parent1: GeneratedIdea,
         parent2: GeneratedIdea,
-        context: Optional[str] = None
+        context: Optional[Union[str, EvaluationContext]] = None
     ) -> Tuple[GeneratedIdea, GeneratedIdea]:
         """
         Perform semantic crossover between two parent ideas.
@@ -736,8 +848,11 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
             Tuple of two offspring ideas
         """
         # Create a canonical, order-independent cache key from sorted parent content
+        # Create cache key that includes EvaluationContext for context-aware caching
         sorted_contents = sorted([parent1.content, parent2.content])
-        cache_key = f"{sorted_contents[0]}||{sorted_contents[1]}"
+        base_cache_key = f"{sorted_contents[0]}||{sorted_contents[1]}"
+        cache_key = _prepare_cache_key_with_context(base_cache_key, context)
+            
         cached_result = self.cache.get(cache_key)
         
         if cached_result:
@@ -749,6 +864,11 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
                     self._create_offspring(parent2, parent1, offspring_contents[1], 0.0)
                 )
                 
+        # Prepare context and evaluation context for crossover
+        context_str, evaluation_context_str = _prepare_operator_contexts(
+            context, "", "general optimization"
+        )
+        
         # Generate crossover using LLM with structured output
         schema = get_crossover_schema()
         request = LLMRequest(
@@ -756,7 +876,8 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
             user_prompt=self.CROSSOVER_PROMPT.format(
                 parent1=parent1.content,
                 parent2=parent2.content,
-                context=context or "general optimization"
+                context=context_str,
+                evaluation_context=evaluation_context_str
             ),
             max_tokens=1000,
             temperature=0.7,  # Moderate temperature for balanced creativity
