@@ -263,6 +263,19 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Example**: Prompt lists "Impact, Feasibility, Accessibility" but format shows "Novelty, Impact, Cost"
 - **Fix**: Ensure prompt criteria and response format examples are EXACTLY aligned
 - **Testing**: Always test full prompt-to-response cycle with real LLM to catch mismatches
+- **Code Example**:
+  ```python
+  # CORRECT: Prompt and format match exactly
+  prompt = """Score each criterion:
+  - Impact: What level of positive change will this create?
+  - Feasibility: How practical is implementation?
+  - Accessibility: How easily can people adopt this?
+  
+  Format your response EXACTLY as:
+  Impact: [score] - [explanation]
+  Feasibility: [score] - [explanation]
+  Accessibility: [score] - [explanation]"""
+  ```
 
 ### Dynamic Hypothesis Generation (PR #67)
 - **Pattern**: Pass population size as `num_hypotheses` parameter through orchestrator hierarchy
