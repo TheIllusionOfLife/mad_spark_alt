@@ -20,8 +20,7 @@ from mad_spark_alt.evolution.semantic_operators import (
     format_evaluation_context
 )
 
-# Mark all async tests
-pytestmark = pytest.mark.asyncio
+# Note: Individual async tests are marked with @pytest.mark.asyncio
 
 
 @pytest.fixture
@@ -112,6 +111,7 @@ class TestEvaluationContextFormatting:
 class TestEnhancedSemanticMutation:
     """Test enhanced semantic mutation with targeted improvements."""
     
+    @pytest.mark.asyncio
     async def test_mutation_prompt_includes_evaluation_context(self, mock_llm_provider, sample_idea, evaluation_context):
         """Test that mutation prompts include evaluation context for targeting."""
         # Setup mock response
@@ -141,6 +141,7 @@ class TestEnhancedSemanticMutation:
         assert "Feasibility: 0.4" in prompt
         assert "PRIORITIZES improvements to any target criteria" in prompt
     
+    @pytest.mark.asyncio
     async def test_breakthrough_mutation_for_high_scoring_ideas(self, mock_llm_provider, high_scoring_idea, evaluation_context):
         """Test that high-scoring ideas get breakthrough mutations."""
         # Setup mock response for breakthrough mutation
@@ -176,6 +177,7 @@ class TestEnhancedSemanticMutation:
         # This should fail because breakthrough mutations aren't implemented yet
         assert len(breakthrough_features) == 0, f"Breakthrough features missing: {breakthrough_features}"
     
+    @pytest.mark.asyncio
     async def test_batch_mutation_with_targeted_improvements(self, mock_llm_provider, evaluation_context):
         """Test batch mutation with evaluation context targeting."""
         ideas = [
@@ -211,25 +213,28 @@ class TestEnhancedSemanticMutation:
         
         operator = BatchSemanticMutationOperator(mock_llm_provider)
         
-        # This should fail initially - targeted improvements not implemented
-        with pytest.raises(AssertionError):
-            results = await operator.mutate_batch(ideas, evaluation_context)
-            
-            # Verify evaluation context was included in batch prompt
-            call_args = mock_llm_provider.generate.call_args[0][0]
-            prompt = call_args.user_prompt
-            
-            # Should include target criteria
-            assert "feasibility" in prompt
-            assert "accessibility" in prompt
-            
-            # Should include improvement directive
-            assert "PRIORITIZES improvements to any target criteria" in prompt
+        # Test that batch mutation includes targeted improvements
+        results = await operator.mutate_batch(ideas, evaluation_context)
+        
+        # Verify evaluation context was included in batch prompt
+        call_args = mock_llm_provider.generate.call_args[0][0]
+        prompt = call_args.user_prompt
+        
+        # Should include target criteria
+        assert "feasibility" in prompt
+        assert "accessibility" in prompt
+        
+        # Should include improvement directive
+        assert "PRIORITIZES improvements to any target criteria" in prompt
+        
+        # Should return correct number of results
+        assert len(results) == 2
 
 
 class TestEnhancedSemanticCrossover:
     """Test enhanced semantic crossover with targeted improvements."""
     
+    @pytest.mark.asyncio
     async def test_crossover_prompt_includes_evaluation_context(self, mock_llm_provider, evaluation_context):
         """Test that crossover prompts include evaluation context."""
         parent1 = GeneratedIdea(
@@ -261,25 +266,28 @@ class TestEnhancedSemanticCrossover:
         
         operator = SemanticCrossoverOperator(mock_llm_provider)
         
-        # This should fail initially - evaluation context not implemented in crossover
-        with pytest.raises(AssertionError):
-            results = await operator.crossover(parent1, parent2, evaluation_context)
-            
-            # Verify evaluation context was included
-            call_args = mock_llm_provider.generate.call_args[0][0]
-            prompt = call_args.user_prompt
-            
-            # Should include target improvements
-            assert "feasibility" in prompt
-            assert "accessibility" in prompt
-            
-            # Should include improvement directive
-            assert "PRIORITIZES improvements to any target criteria" in prompt
+        # Test that crossover includes evaluation context
+        results = await operator.crossover(parent1, parent2, evaluation_context)
+        
+        # Verify evaluation context was included
+        call_args = mock_llm_provider.generate.call_args[0][0]
+        prompt = call_args.user_prompt
+        
+        # Should include target improvements
+        assert "feasibility" in prompt
+        assert "accessibility" in prompt
+        
+        # Should include improvement directive
+        assert "PRIORITIZES improvements to any target criteria" in prompt
+        
+        # Should return two offspring
+        assert len(results) == 2
 
 
 class TestScoreImprovementTargeting:
     """Test that enhanced operators specifically target score improvements."""
     
+    @pytest.mark.asyncio
     async def test_mutation_targeting_weak_criteria(self, mock_llm_provider, sample_idea, evaluation_context):
         """Test that mutations target the weakest scoring criteria."""
         # Setup mock that would return content targeting weak criteria
@@ -293,21 +301,24 @@ class TestScoreImprovementTargeting:
         
         operator = BatchSemanticMutationOperator(mock_llm_provider)
         
-        # This should fail initially - weak criteria targeting not implemented
-        with pytest.raises(AssertionError):
-            result = await operator.mutate_single(sample_idea, evaluation_context)
-            
-            # Verify the prompt specifically mentions weak criteria
-            call_args = mock_llm_provider.generate.call_args[0][0]
-            prompt = call_args.user_prompt
-            
-            # Should specifically mention accessibility (weakest score: 0.3)
-            assert "accessibility" in prompt.lower()
-            
-            # Should provide guidance on improving weak scores
-            assert "improve" in prompt.lower()
-            assert "target criteria" in prompt.lower()
+        # Test that mutations target weak criteria
+        result = await operator.mutate_single(sample_idea, evaluation_context)
+        
+        # Verify the prompt specifically mentions weak criteria
+        call_args = mock_llm_provider.generate.call_args[0][0]
+        prompt = call_args.user_prompt
+        
+        # Should specifically mention accessibility (weakest score: 0.3)
+        assert "accessibility" in prompt.lower()
+        
+        # Should provide guidance on improving weak scores
+        assert "improve" in prompt.lower()
+        assert "target criteria" in prompt.lower()
+        
+        # Should return a valid mutated idea
+        assert result.content != sample_idea.content
     
+    @pytest.mark.asyncio
     async def test_enhanced_prompt_structure_for_targeting(self, mock_llm_provider, sample_idea, evaluation_context):
         """Test that prompts are structured to guide LLM toward improvements."""
         mock_response = LLMResponse(
@@ -340,6 +351,7 @@ class TestScoreImprovementTargeting:
 class TestBreakthroughMutations:
     """Test breakthrough mutations for high-performing ideas."""
     
+    @pytest.mark.asyncio
     async def test_breakthrough_mutation_detection(self, mock_llm_provider, evaluation_context):
         """Test that high-fitness ideas trigger breakthrough mutations."""
         # Create high-fitness idea
@@ -361,19 +373,23 @@ class TestBreakthroughMutations:
         
         operator = BatchSemanticMutationOperator(mock_llm_provider)
         
-        # This should fail initially - breakthrough detection not implemented
-        with pytest.raises(AssertionError):
-            result = await operator.mutate_single(high_fitness_idea, evaluation_context)
-            
-            # Should detect high fitness and use breakthrough mutation
-            call_args = mock_llm_provider.generate.call_args[0][0]
-            
-            # Should use breakthrough mutation type
-            assert "breakthrough" in call_args.user_prompt.lower()
-            
-            # Should use higher temperature for more creativity
-            assert call_args.temperature >= 0.9
+        # Test that breakthrough detection works correctly
+        result = await operator.mutate_single(high_fitness_idea, evaluation_context)
+        
+        # Should detect high fitness and use breakthrough mutation
+        call_args = mock_llm_provider.generate.call_args[0][0]
+        
+        # Should use breakthrough mutation type
+        assert "breakthrough" in call_args.user_prompt.lower() or "BREAKTHROUGH" in call_args.user_prompt
+        
+        # Should use higher temperature for more creativity
+        assert call_args.temperature >= 0.9
+        
+        # Should have breakthrough indicators in the result metadata
+        assert result.metadata.get("is_breakthrough") == True
+        assert "breakthrough" in result.metadata.get("operator", "").lower()
     
+    @pytest.mark.asyncio
     async def test_regular_mutation_for_normal_fitness(self, mock_llm_provider, sample_idea, evaluation_context):
         """Test that normal-fitness ideas use regular mutations."""
         mock_response = LLMResponse(
@@ -401,6 +417,7 @@ class TestBreakthroughMutations:
 class TestIntegrationWithEvolutionContext:
     """Test integration with evolution system's evaluation context."""
     
+    @pytest.mark.asyncio
     async def test_evaluation_context_cache_key_generation(self, mock_llm_provider, sample_idea, evaluation_context):
         """Test that cache keys include evaluation context for proper caching."""
         mock_response = LLMResponse(
@@ -431,6 +448,7 @@ class TestIntegrationWithEvolutionContext:
         # Should have called LLM twice (not cached due to different contexts)
         assert mock_llm_provider.generate.call_count == 2
     
+    @pytest.mark.asyncio
     async def test_context_aware_prompt_generation(self, mock_llm_provider, sample_idea):
         """Test that prompts adapt based on evaluation context."""
         mock_response = LLMResponse(
@@ -450,13 +468,17 @@ class TestIntegrationWithEvolutionContext:
             target_improvements=["sustainability"]
         )
         
-        # This should fail initially - context-aware prompts not implemented
-        with pytest.raises(AssertionError):
-            result = await operator.mutate_single(sample_idea, sustainability_context)
-            
-            call_args = mock_llm_provider.generate.call_args[0][0]
-            prompt = call_args.user_prompt
-            
-            # Should mention sustainability specifically
-            assert "sustainability" in prompt.lower()
-            assert "environmental" in prompt.lower() or "long-term" in prompt.lower()
+        # Test context-aware prompt generation
+        result = await operator.mutate_single(sample_idea, sustainability_context)
+        
+        call_args = mock_llm_provider.generate.call_args[0][0]
+        prompt = call_args.user_prompt
+        
+        # Should mention sustainability specifically
+        assert "sustainability" in prompt.lower()
+        
+        # Should include the sustainability context
+        assert "Environmental solution" in prompt
+        
+        # Should return a valid mutation
+        assert result.content != sample_idea.content

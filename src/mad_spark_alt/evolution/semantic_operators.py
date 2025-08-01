@@ -381,6 +381,13 @@ Your role is to create meaningful variations of ideas while preserving the core 
 IMPORTANT: Generate comprehensive, detailed implementations with specific steps, technologies, and methodologies.
 When returning results, follow the exact format requested in the prompt (JSON or plain text)."""
 
+    BREAKTHROUGH_SYSTEM_PROMPT = """You are an advanced breakthrough mutation operator for high-performing ideas.
+Your role is to create REVOLUTIONARY variations that push beyond conventional boundaries while maintaining feasibility.
+
+BREAKTHROUGH MODE: Push creative limits, explore cutting-edge technologies, and create game-changing innovations.
+Generate comprehensive, detailed implementations with specific steps, technologies, and methodologies.
+When returning results, follow the exact format requested in the prompt (JSON or plain text)."""
+
     SINGLE_MUTATION_PROMPT = """Original idea: {idea}
 Problem context: {context}
 
@@ -409,6 +416,37 @@ Generate a complete, detailed solution that includes:
 - Improvements to target criteria (if specified)
 
 Return the mutated idea as JSON with the field "mutated_content" containing the detailed solution (minimum 150 words)."""
+
+    BREAKTHROUGH_MUTATION_PROMPT = """BREAKTHROUGH MUTATION - High-Performance Idea Enhancement
+
+Original high-scoring idea: {idea}
+Problem context: {context}
+
+{evaluation_context}
+
+🚀 BREAKTHROUGH MODE: Create a REVOLUTIONARY variation that:
+1. Leverages cutting-edge technologies and methodologies
+2. Explores unconventional approaches beyond traditional solutions  
+3. Maintains core feasibility while pushing creative boundaries
+4. Integrates multiple advanced systems for maximum impact
+5. Provides COMPREHENSIVE implementation (200+ words)
+6. MAXIMALLY IMPROVES target criteria through innovative approaches
+
+BREAKTHROUGH mutation type: {mutation_type}
+- paradigm_shift: Fundamentally new approach using emerging technologies
+- system_integration: Combine multiple advanced systems for synergy  
+- scale_amplification: Dramatically increase scope and impact
+- future_forward: Incorporate predictive and adaptive capabilities
+
+Generate a REVOLUTIONARY, detailed solution that includes:
+- Advanced technologies and cutting-edge methodologies
+- Innovative integration of multiple systems
+- Scalable architecture for maximum impact
+- Future-proof design with adaptive capabilities
+- Expected transformational outcomes
+- How it REVOLUTIONIZES the target criteria improvement
+
+Return the breakthrough mutation as JSON with "mutated_content" containing the revolutionary solution (minimum 200 words)."""
 
     BATCH_MUTATION_PROMPT = """Generate diverse variations for these ideas. Each variation should use a different approach.
 
@@ -455,6 +493,53 @@ Return JSON with mutations array containing idea_id and mutated_content for each
             "constraint_variation",
             "abstraction_shift"
         ]
+        
+        # Breakthrough mutation types for high-performing ideas
+        self.breakthrough_mutation_types = [
+            "paradigm_shift",
+            "system_integration",
+            "scale_amplification", 
+            "future_forward"
+        ]
+        
+        # Threshold for determining if an idea qualifies for breakthrough mutation
+        self.breakthrough_threshold = 0.8  # Ideas with fitness >= 0.8 get breakthrough mutations
+        
+    def _is_high_scoring_idea(self, idea: GeneratedIdea) -> bool:
+        """
+        Determine if an idea qualifies for breakthrough mutation based on fitness score.
+        
+        Args:
+            idea: GeneratedIdea to evaluate
+            
+        Returns:
+            True if idea qualifies for breakthrough mutation
+        """
+        # Check multiple sources for fitness indicators
+        
+        # 1. Check metadata for fitness score
+        if "fitness_score" in idea.metadata:
+            fitness = idea.metadata["fitness_score"]
+            if isinstance(fitness, (int, float)) and fitness >= self.breakthrough_threshold:
+                return True
+                
+        # 2. Check metadata for avg_fitness
+        if "avg_fitness" in idea.metadata:
+            fitness = idea.metadata["avg_fitness"]
+            if isinstance(fitness, (int, float)) and fitness >= self.breakthrough_threshold:
+                return True
+                
+        # 3. Check confidence score as proxy (high confidence + later generation)
+        if idea.confidence_score and idea.confidence_score >= 0.85:
+            generation = idea.metadata.get("generation", 0)
+            if generation >= 1:  # Must be from evolution, not initial generation
+                return True
+                
+        # 4. Check for explicit high-performance indicators
+        if "high_performance" in idea.metadata:
+            return bool(idea.metadata["high_performance"])
+            
+        return False
         
     @property
     def name(self) -> str:
@@ -512,8 +597,23 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         if cached_result:
             return self._create_mutated_idea(idea, cached_result, 0.0)
             
-        # Generate mutation using LLM
-        mutation_type = random.choice(self.mutation_types)
+        # Determine if this is a high-scoring idea that qualifies for breakthrough mutation
+        is_breakthrough = self._is_high_scoring_idea(idea)
+        
+        if is_breakthrough:
+            # Use breakthrough mutation for high-scoring ideas
+            mutation_type = random.choice(self.breakthrough_mutation_types)
+            system_prompt = self.BREAKTHROUGH_SYSTEM_PROMPT
+            user_prompt_template = self.BREAKTHROUGH_MUTATION_PROMPT
+            temperature = 0.95  # Higher temperature for breakthrough creativity
+            max_tokens = SEMANTIC_MUTATION_MAX_TOKENS * 2  # More tokens for detailed breakthrough solutions
+        else:
+            # Use regular mutation
+            mutation_type = random.choice(self.mutation_types)
+            system_prompt = self.MUTATION_SYSTEM_PROMPT
+            user_prompt_template = self.SINGLE_MUTATION_PROMPT
+            temperature = 0.8  # Standard temperature for creativity
+            max_tokens = SEMANTIC_MUTATION_MAX_TOKENS
         
         # Create single mutation schema
         single_schema = {
@@ -530,15 +630,15 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         )
         
         request = LLMRequest(
-            system_prompt=self.MUTATION_SYSTEM_PROMPT,
-            user_prompt=self.SINGLE_MUTATION_PROMPT.format(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt_template.format(
                 idea=idea.content,
                 context=context_str,
                 evaluation_context=evaluation_context_str,
                 mutation_type=mutation_type
             ),
-            max_tokens=SEMANTIC_MUTATION_MAX_TOKENS,
-            temperature=0.8,  # Higher temperature for creativity
+            max_tokens=max_tokens,
+            temperature=temperature,
             response_schema=single_schema,
             response_mime_type="application/json"
         )
@@ -571,7 +671,8 @@ Return JSON with mutations array containing idea_id and mutated_content for each
             idea, 
             mutated_content,
             response.cost,
-            mutation_type
+            mutation_type,
+            is_breakthrough
         )
         
     async def mutate_batch(
@@ -691,11 +792,15 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                     self._create_mutated_idea(idea, cached_results[idea.content], 0.0)
                 )
             else:
+                # Check if this idea qualifies for breakthrough (for metadata tracking)
+                is_breakthrough = self._is_high_scoring_idea(idea)
                 results.append(
                     self._create_mutated_idea(
                         idea,
                         mutations[uncached_index],
-                        cost_per_mutation
+                        cost_per_mutation,
+                        "batch_mutation",
+                        is_breakthrough
                     )
                 )
                 uncached_index += 1
@@ -743,23 +848,41 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         original: GeneratedIdea,
         mutated_content: str,
         llm_cost: float,
-        mutation_type: Optional[str] = None
+        mutation_type: Optional[str] = None,
+        is_breakthrough: bool = False
     ) -> GeneratedIdea:
         """Create a mutated idea object."""
+        # Adjust confidence based on mutation type
+        confidence_multiplier = 1.05 if is_breakthrough else 0.95
+        base_confidence = original.confidence_score or 0.5
+        new_confidence = min(1.0, base_confidence * confidence_multiplier)
+        
+        # Create enhanced metadata
+        metadata = {
+            "operator": "breakthrough_semantic_mutation" if is_breakthrough else "semantic_mutation",
+            "mutation_type": mutation_type or "semantic_variation",
+            "is_breakthrough": is_breakthrough,
+            "llm_cost": llm_cost,
+            "generation": original.metadata.get("generation", 0) + 1,
+        }
+        
+        # Include original fitness information if available
+        if "fitness_score" in original.metadata:
+            metadata["parent_fitness"] = original.metadata["fitness_score"]
+        if "avg_fitness" in original.metadata:
+            metadata["parent_avg_fitness"] = original.metadata["avg_fitness"]
+            
+        generation_description = "BREAKTHROUGH mutation" if is_breakthrough else "Semantic mutation"
+        
         return GeneratedIdea(
             content=mutated_content,
             thinking_method=original.thinking_method,
             agent_name="BatchSemanticMutationOperator",
-            generation_prompt=f"Semantic mutation of: '{original.content[:50]}...'",
-            confidence_score=(original.confidence_score or 0.5) * 0.95,
-            reasoning=f"Applied semantic mutation to create variation",
+            generation_prompt=f"{generation_description} of: '{original.content[:50]}...'",
+            confidence_score=new_confidence,
+            reasoning=f"Applied {generation_description.lower()} to create {'revolutionary' if is_breakthrough else 'semantic'} variation",
             parent_ideas=[original.content],
-            metadata={
-                "operator": "semantic_mutation",
-                "mutation_type": mutation_type or "semantic_variation",
-                "llm_cost": llm_cost,
-                "generation": original.metadata.get("generation", 0) + 1,
-            },
+            metadata=metadata,
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
