@@ -257,6 +257,26 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Token Limits**: Deduction phase needs 1500+ tokens for complete analysis with scores and explanations
 - **Testing Pattern**: Use `tests/test_integration_real_llm.py` and `tests/test_prompt_parser_validation.py`
 
+### Prompt-Response Format Consistency (CRITICAL)
+- **Issue**: Evaluation prompt describes criteria but response format example shows different criteria
+- **Symptom**: LLM returns responses in old format, causing parsing failures and default scores
+- **Example**: Prompt lists "Impact, Feasibility, Accessibility" but format shows "Novelty, Impact, Cost"
+- **Fix**: Ensure prompt criteria and response format examples are EXACTLY aligned
+- **Testing**: Always test full prompt-to-response cycle with real LLM to catch mismatches
+- **Code Example**:
+  ```python
+  # CORRECT: Prompt and format match exactly
+  prompt = """Score each criterion:
+  - Impact: What level of positive change will this create?
+  - Feasibility: How practical is implementation?
+  - Accessibility: How easily can people adopt this?
+  
+  Format your response EXACTLY as:
+  Impact: [score] - [explanation]
+  Feasibility: [score] - [explanation]
+  Accessibility: [score] - [explanation]"""
+  ```
+
 ### Dynamic Hypothesis Generation (PR #67)
 - **Pattern**: Pass population size as `num_hypotheses` parameter through orchestrator hierarchy
 - **Implementation**: `SimplerQADIOrchestrator(num_hypotheses=population if evolve else 3)`
@@ -270,6 +290,13 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Gotcha**: Perfect thinking method balance isn't guaranteed in evolution
 - **Evaluation Metrics**: Count only new evaluations, excluding preserved elite individuals
 - **Checkpoint Resume**: Be clear about state vs transition numbers to avoid off-by-one errors
+
+### Evolution Result Collection (PR #76)
+- **Pattern**: Collect individuals from ALL generations plus initial QADI hypotheses
+- **Implementation**: `evolution_result.get_all_individuals()` returns complete history
+- **Deduplication**: Use fuzzy matching (85% similarity threshold) to avoid duplicates
+- **Display**: Show "High Score Approaches" with detailed QADI score breakdown
+- **Integration**: Convert QADI hypotheses to IndividualFitness objects for unified handling
 
 ### Type Safety Requirements
 - **Critical Pattern**: Always handle Optional fields defensively
