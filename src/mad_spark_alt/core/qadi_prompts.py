@@ -64,13 +64,13 @@ IMPORTANT OUTPUT FORMAT - You MUST follow this exact format without any modifica
 [Detailed explanation of the second approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]
 
 3. [Third approach title]
-[Detailed explanation of the third approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]""" + (f"""
+[Detailed explanation of the third approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]""" + ("""
 
 4. [Fourth approach title]
 [Detailed explanation of the fourth approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]
 
 5. [Fifth approach title]
-[Detailed explanation of the fifth approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]""" if num_hypotheses > 3 else "") + (f"""
+[Detailed explanation of the fifth approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]""" if num_hypotheses > 3 else "") + ("""
 
 6. [Sixth approach title]
 [Detailed explanation of the sixth approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]

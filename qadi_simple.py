@@ -350,7 +350,6 @@ async def run_qadi_analysis(
                 print(f"   (Using all {actual_population} available ideas for evolution)")
             
             # Configure logging to suppress debug messages during evolution
-            import logging
             evolution_logger = logging.getLogger('mad_spark_alt.evolution')
             original_level = evolution_logger.level
             evolution_logger.setLevel(logging.INFO)  # Hide DEBUG messages

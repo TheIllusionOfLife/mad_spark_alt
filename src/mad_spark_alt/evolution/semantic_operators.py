@@ -59,12 +59,12 @@ def is_likely_truncated(text: str) -> bool:
                 return True
             # Check if last word is very short (likely a determiner or preposition)
             # Common truncation patterns: "the", "a", "an", "and", "or", "with", etc.
-            if len(last_word) <= 3 and last_word.lower() in ['a', 'an', 'the', 'and', 'or', 
+            if len(last_word) <= 3 and last_word.lower() in {'a', 'an', 'the', 'and', 'or', 
                                                               'but', 'for', 'with', 'to', 'of', 
-                                                              'in', 'on', 'at', 'by', 'is', 'was']:
+                                                              'in', 'on', 'at', 'by', 'is', 'was'}:
                 return True
             # Check for other common incomplete endings
-            if last_word.lower() in ['without', 'within', 'through', 'before', 'after', 'during']:
+            if last_word.lower() in {'without', 'within', 'through', 'before', 'after', 'during'}:
                 return True
             # Check if it appears to be mid-word (e.g., "previous" without context)
             if len(words) >= 3 and last_word == "previous":
@@ -615,12 +615,12 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                     break
             else:
                 # Fallback if pattern not found - create meaningful variation
-                logger.warning(f"Could not find mutation for IDEA_{i+1}, using fallback")
+                logger.debug(f"Could not find mutation for IDEA_{i+1}, using fallback")
                 if original_ideas and i < len(original_ideas):
                     original_content = original_ideas[i].content
                     mutations.append(f"[FALLBACK TEXT] Enhanced variation of original concept: Building upon '{original_content[:50]}...', this mutation explores alternative implementation strategies while maintaining the core objective. The approach introduces different methodologies, tools, and frameworks to achieve similar outcomes through a varied pathway. By shifting perspectives on scale, audience, or technological approach, this variation demonstrates how the fundamental concept can be realized through innovative alternatives.")
                 else:
-                    mutations.append(f"[FALLBACK TEXT] Enhanced variation exploring alternative approaches: This mutation investigates different implementation strategies while maintaining the core objective of the original idea. The approach introduces alternative methodologies, tools, and frameworks to achieve similar outcomes through a different pathway. By exploring varied perspectives such as changing the scale of implementation, shifting target audience, or adopting different technological foundations, this variation demonstrates how the same fundamental problem can be addressed through multiple viable and innovative solutions.")
+                    mutations.append("[FALLBACK TEXT] Enhanced variation exploring alternative approaches: This mutation investigates different implementation strategies while maintaining the core objective of the original idea. The approach introduces alternative methodologies, tools, and frameworks to achieve similar outcomes through a different pathway. By exploring varied perspectives such as changing the scale of implementation, shifting target audience, or adopting different technological foundations, this variation demonstrates how the same fundamental problem can be addressed through multiple viable and innovative solutions.")
                 
         return mutations
         
