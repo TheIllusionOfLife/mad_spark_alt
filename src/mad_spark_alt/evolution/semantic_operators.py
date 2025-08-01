@@ -443,7 +443,7 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         response = await self.llm_provider.generate(request)
         
         # Try to parse as JSON first (structured output)
-        mutated_content = None
+        mutated_content: Optional[str] = None
         try:
             data = json.loads(response.content)
             if "mutated_content" in data:
@@ -451,6 +451,10 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 logger.debug("Successfully parsed single mutation from structured output")
         except (json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("Structured output parsing failed for single mutation, using raw content: %s", e)
+            mutated_content = response.content
+        
+        # Ensure we have content (fallback to response.content if needed)
+        if mutated_content is None:
             mutated_content = response.content
         
         # Check for truncation
