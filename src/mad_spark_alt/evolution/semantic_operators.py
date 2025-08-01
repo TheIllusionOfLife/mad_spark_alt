@@ -624,6 +624,9 @@ Return JSON with mutations array containing idea_id and mutated_content for each
             
         # Check cache first
         cached_result = self.cache.get(cache_key)
+        cached_content = None
+        cached_mutation_type = None
+        
         if cached_result:
             # Extract content and original mutation type from cached data
             if isinstance(cached_result, dict):
@@ -638,7 +641,7 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 cached_content = cached_result
                 cached_mutation_type = None
         
-        if cached_result:
+        if cached_result and cached_content is not None:
             
             # Use cached mutation type if available, otherwise select appropriate type
             if cached_mutation_type:
