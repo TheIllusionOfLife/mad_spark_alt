@@ -29,6 +29,18 @@ from mad_spark_alt.evolution.constants import (
 DEFAULT_QADI_CRITERION_WEIGHT = 0.2
 
 
+@dataclass
+class EvaluationContext:
+    """Context information for guiding evolution towards specific improvements."""
+    
+    original_question: str
+    current_best_scores: Dict[str, float] = field(default_factory=dict)
+    target_improvements: List[str] = field(default_factory=list)
+    evaluation_criteria: List[str] = field(default_factory=lambda: [
+        "impact", "feasibility", "accessibility", "sustainability", "scalability"
+    ])
+
+
 class SelectionStrategy(Enum):
     """Selection strategies for genetic algorithms."""
 
@@ -223,6 +235,7 @@ class EvolutionRequest:
     context: Optional[str] = None
     constraints: Optional[List[str]] = None
     target_metrics: Optional[Dict[str, float]] = None
+    evaluation_context: Optional[EvaluationContext] = None
 
     def validate(self) -> bool:
         """Validate the evolution request."""

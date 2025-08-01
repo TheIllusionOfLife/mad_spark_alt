@@ -50,7 +50,7 @@ from mad_spark_alt.evolution.semantic_operators import (
     BatchSemanticMutationOperator,
     SemanticCrossoverOperator,
 )
-from mad_spark_alt.evolution.smart_selection import SmartOperatorSelector
+# SmartOperatorSelector removed - using simplified semantic operator selection
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ class GeneticAlgorithm:
         self.llm_provider = llm_provider
         self.semantic_mutation_operator: Optional[BatchSemanticMutationOperator] = None
         self.semantic_crossover_operator: Optional[SemanticCrossoverOperator] = None
-        self.smart_selector: Optional[SmartOperatorSelector] = None  # Will be initialized when needed with config
+        # SmartOperatorSelector removed - using simplified semantic operator selection
         
         if llm_provider is not None:
             self.semantic_mutation_operator = BatchSemanticMutationOperator(
@@ -312,13 +312,10 @@ class GeneticAlgorithm:
             overall_fitness=estimated_fitness
         )
 
-        # Determine whether to use semantic mutation
+        # Determine whether to use semantic mutation (simplified logic)
         use_semantic = (
             self.semantic_mutation_operator is not None and
-            self.smart_selector is not None and
-            self.smart_selector.should_use_semantic_mutation(
-                temp_individual, population_diversity, generation
-            )
+            config.use_semantic_operators
         )
 
         # Apply appropriate mutation type
@@ -580,9 +577,7 @@ class GeneticAlgorithm:
         traditional_crossovers = 0
         semantic_llm_calls = 0
 
-        # Initialize smart selector with config if not already done
-        if self.smart_selector is None:
-            self.smart_selector = SmartOperatorSelector(config)
+        # SmartOperatorSelector removed - using simplified semantic operator selection
 
         # Elite preservation
         if config.elite_size > 0:
@@ -603,13 +598,10 @@ class GeneticAlgorithm:
 
             # Crossover (with smart semantic selection)
             if random.random() < config.crossover_rate:
-                # Use smart selector to decide between semantic and traditional crossover
+                # Use simplified logic to decide between semantic and traditional crossover
                 use_semantic = (
                     self.semantic_crossover_operator is not None and
-                    self.smart_selector is not None and
-                    self.smart_selector.should_use_semantic_crossover(
-                        parents[0], parents[1], population_diversity
-                    )
+                    config.use_semantic_operators
                 )
                 
                 if use_semantic:
