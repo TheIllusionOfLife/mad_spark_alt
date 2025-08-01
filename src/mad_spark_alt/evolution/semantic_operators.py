@@ -417,9 +417,9 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         """
         Mutate a single idea using LLM.
         
-        Note: When used as a semantic operator selected by SmartOperatorSelector,
-        this method always applies mutation (ignores mutation_rate) since the
-        selector has already decided to use semantic mutation.
+        Note: When semantic operators are enabled, this method always applies 
+        mutation (ignores mutation_rate) since the decision to use semantic 
+        operators has already been made.
         
         Args:
             idea: Idea to mutate
@@ -429,8 +429,8 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         Returns:
             Mutated idea
         """
-        # Always apply mutation - the SmartOperatorSelector has already
-        # decided to use semantic mutation based on diversity and fitness
+        # Always apply mutation - semantic operators are used when available
+        # and enabled, ignoring mutation_rate probability
         return await self.mutate_single(idea, context)
         
     async def mutate_single(

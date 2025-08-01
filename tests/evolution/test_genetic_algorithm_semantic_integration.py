@@ -79,7 +79,7 @@ class TestGeneticAlgorithmSemanticIntegration:
         assert ga.llm_provider is None
         assert ga.semantic_mutation_operator is None
         assert ga.semantic_crossover_operator is None
-        assert ga.smart_selector is None
+        # smart_selector has been removed - no longer needed
 
     def test_ga_initialization_with_llm(self, mock_llm_provider):
         """Test that GA initializes correctly with LLM provider."""
@@ -88,7 +88,7 @@ class TestGeneticAlgorithmSemanticIntegration:
         assert ga.llm_provider is mock_llm_provider
         assert ga.semantic_mutation_operator is not None
         assert ga.semantic_crossover_operator is not None
-        assert ga.smart_selector is None  # Initialized lazily
+        # smart_selector has been removed - no longer needed  # Initialized lazily
 
     @pytest.mark.asyncio
     async def test_semantic_operators_integration_basic(
@@ -152,13 +152,13 @@ class TestGeneticAlgorithmSemanticIntegration:
         assert ga.semantic_crossover_operator is not None
 
     @pytest.mark.asyncio  
-    async def test_traditional_operators_used_with_high_diversity(
+    async def test_semantic_operators_always_used_when_available(
         self, mock_llm_provider, sample_ideas, config_with_semantic_operators
     ):
-        """Test that traditional operators are used when diversity is high."""
+        """Test that semantic operators are always used when available and enabled (simplified logic)."""
         ga = GeneticAlgorithm(llm_provider=mock_llm_provider)
 
-        # Mock fitness evaluator to return high diversity  
+        # Mock fitness evaluator (diversity doesn't matter anymore with simplified logic)
         with patch.object(ga.fitness_evaluator, 'calculate_population_diversity', new=AsyncMock(return_value=0.8)):
             with patch.object(ga.fitness_evaluator, 'evaluate_population') as mock_eval:
                 # Mock fitness evaluation
@@ -192,8 +192,8 @@ class TestGeneticAlgorithmSemanticIntegration:
                 assert result.error_message is None
                 assert len(result.final_population) == config_with_semantic_operators.population_size
 
-                # Verify that LLM was NOT called (traditional operators used)
-                assert mock_llm_provider.generate.call_count == 0
+                # Verify that LLM WAS called (semantic operators used when available)
+                assert mock_llm_provider.generate.call_count > 0
 
     @pytest.mark.asyncio
     async def test_semantic_operators_disabled_in_config(
@@ -248,37 +248,5 @@ class TestGeneticAlgorithmSemanticIntegration:
                 # Verify that LLM was NOT called (semantic operators disabled)
                 assert mock_llm_provider.generate.call_count == 0
 
-    @pytest.mark.asyncio
-    async def test_smart_selector_initialization(
-        self, mock_llm_provider, sample_ideas, config_with_semantic_operators
-    ):
-        """Test that smart selector is properly initialized with config."""
-        ga = GeneticAlgorithm(llm_provider=mock_llm_provider)
-
-        with patch.object(ga.fitness_evaluator, 'calculate_population_diversity', new=AsyncMock(return_value=0.5)):
-            with patch.object(ga.fitness_evaluator, 'evaluate_population') as mock_eval:
-                # Mock fitness evaluation
-                async def mock_evaluate(ideas, config, context=None):
-                    return [
-                        IndividualFitness(
-                            idea=idea,
-                            overall_fitness=0.7
-                        )
-                        for idea in ideas
-                    ]
-                
-                mock_eval.side_effect = mock_evaluate
-
-                # Create evolution request
-                request = EvolutionRequest(
-                    initial_population=sample_ideas,
-                    config=config_with_semantic_operators,
-                    context="test"
-                )
-
-                # Run evolution
-                result = await ga.evolve(request)
-
-                # Verify smart selector was initialized
-                assert ga.smart_selector is not None
-                assert ga.smart_selector.config == config_with_semantic_operators
+    # test_smart_selector_initialization removed - SmartOperatorSelector no longer exists
+    # Semantic operator selection is now simplified: use when available and enabled
