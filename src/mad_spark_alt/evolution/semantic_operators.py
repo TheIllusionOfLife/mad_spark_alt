@@ -592,16 +592,24 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         Returns:
             Mutated idea
         """
-        # Create cache key that includes EvaluationContext to ensure context-aware caching
-        cache_key = _prepare_cache_key_with_context(idea.content, context)
+        # Determine if this is a high-scoring idea that qualifies for breakthrough mutation
+        is_breakthrough = self._is_high_scoring_idea(idea)
+        
+        # Create cache key that includes EvaluationContext AND breakthrough status
+        base_cache_key = _prepare_cache_key_with_context(idea.content, context)
+        cache_key = f"{base_cache_key}||breakthrough:{is_breakthrough}"
             
         # Check cache first
         cached_result = self.cache.get(cache_key)
         if cached_result:
-            return self._create_mutated_idea(idea, cached_result, 0.0)
-            
-        # Determine if this is a high-scoring idea that qualifies for breakthrough mutation
-        is_breakthrough = self._is_high_scoring_idea(idea)
+            mutation_type = random.choice(self.breakthrough_mutation_types if is_breakthrough else self.mutation_types)
+            return self._create_mutated_idea(
+                idea, 
+                cached_result, 
+                0.0,
+                mutation_type,
+                is_breakthrough
+            )
         
         if is_breakthrough:
             # Use breakthrough mutation for high-scoring ideas
@@ -699,8 +707,12 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         cache_keys = {}
         
         for idea in ideas:
-            cache_key = _prepare_cache_key_with_context(idea.content, context)
+            # Include breakthrough status in cache key
+            is_breakthrough = self._is_high_scoring_idea(idea)
+            base_cache_key = _prepare_cache_key_with_context(idea.content, context)
+            cache_key = f"{base_cache_key}||breakthrough:{is_breakthrough}"
             cache_keys[idea.content] = cache_key
+            
             cached_result = self.cache.get(cache_key)
             if cached_result:
                 cached_results[idea.content] = cached_result

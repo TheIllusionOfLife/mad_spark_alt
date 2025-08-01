@@ -498,6 +498,68 @@ class TestIntegrationWithEvolutionContext:
         assert 'breakthrough' in results[1].metadata.get('operator', '').lower()
     
     @pytest.mark.asyncio
+    async def test_breakthrough_cache_separation(self, mock_llm_provider, evaluation_context):
+        """Test that breakthrough and regular mutations are cached separately."""
+        # Create an idea that can be either regular or high-scoring
+        idea_content = "AI-powered recycling system"
+        
+        # First call: regular idea (low fitness)
+        regular_idea = GeneratedIdea(
+            content=idea_content,
+            thinking_method=ThinkingMethod.ABDUCTION,
+            agent_name="TestAgent",
+            generation_prompt="Test",
+            metadata={"generation": 0, "fitness_score": 0.6}
+        )
+        
+        regular_response = LLMResponse(
+            content='{"mutated_content": "Regular mutation result"}',
+            cost=0.01,
+            provider="google",
+            model="gemini-pro"
+        )
+        
+        # Second call: same content but high-scoring
+        high_scoring_idea = GeneratedIdea(
+            content=idea_content,  # Same content
+            thinking_method=ThinkingMethod.ABDUCTION,
+            agent_name="TestAgent",
+            generation_prompt="Test",
+            metadata={"generation": 2, "fitness_score": 0.88}
+        )
+        
+        breakthrough_response = LLMResponse(
+            content='{"mutated_content": "Revolutionary breakthrough result"}',
+            cost=0.02,
+            provider="google",
+            model="gemini-pro"
+        )
+        
+        # Set up mock to return different responses
+        mock_llm_provider.generate = AsyncMock(side_effect=[regular_response, breakthrough_response])
+        
+        operator = BatchSemanticMutationOperator(mock_llm_provider)
+        
+        # First mutation (regular)
+        result1 = await operator.mutate_single(regular_idea, evaluation_context)
+        assert "Regular mutation result" in result1.content
+        assert result1.metadata.get('is_breakthrough') == False
+        
+        # Second mutation (breakthrough) - should NOT use cached regular result
+        result2 = await operator.mutate_single(high_scoring_idea, evaluation_context)
+        assert "Revolutionary breakthrough result" in result2.content
+        assert result2.metadata.get('is_breakthrough') == True
+        
+        # Verify LLM was called twice (not cached despite same content)
+        assert mock_llm_provider.generate.call_count == 2
+        
+        # Third call with regular idea again - should use cache
+        mock_llm_provider.generate.reset_mock()
+        result3 = await operator.mutate_single(regular_idea, evaluation_context)
+        assert "Regular mutation result" in result3.content
+        assert mock_llm_provider.generate.call_count == 0  # Used cache
+    
+    @pytest.mark.asyncio
     async def test_context_aware_prompt_generation(self, mock_llm_provider, sample_idea):
         """Test that prompts adapt based on evaluation context."""
         mock_response = LLMResponse(
