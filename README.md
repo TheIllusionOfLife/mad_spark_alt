@@ -161,36 +161,22 @@ See [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md) for detailed informatio
 
 ## Session Handover
 
-### Last Updated: August 01, 2025 09:39 PM JST
+### Last Updated: August 01, 2025 10:45 PM JST
 
 #### Recently Completed
+- ✅ [PR #79]: Fix evolution timeout and token limits for better reliability
+  - Increased base timeout from 90s to 120s, time per eval from 5s to 8s
+  - Doubled token limits to reduce truncation warnings
+  - Refactored code to follow DRY principle (extracted shared functions)
+  - Replaced magic numbers with named constants
+  - Improved test robustness by avoiding string parsing
+- ✅ [PR #78]: Complete evolution system improvements - remove Smart Selector and add Evaluation Context
 - ✅ [PR #76]: Complete comprehensive QADI evolution fixes - Address all 5 user-identified issues
   - Fixed missing line breaks in hypothesis display
   - Removed H-prefix from deduction analysis  
   - Implemented unified QADI 5-criteria scoring system
   - Fixed evolution result collection from all generations
   - Enhanced display with "High Score Approaches" and detailed scoring
-- ✅ [PR #74]: Remove H+number prefix, suppress evolution logs, and improve structured output
-- ✅ [PR #71]: Implement Gemini structured output for reliable parsing
-
-#### Completed Priority Tasks
-✅ **Remove Smart Selector**: Simplified evolution system
-   - Removed SmartOperatorSelector class completely  
-   - Replaced probabilistic selection with simple if-available logic
-   - Evolution uses semantic operators when available and enabled via `use_semantic_operators`
-   - Result: Cleaner codebase, better predictability, same functionality
-
-✅ **Evaluation Context Enhancement**: Added scoring context to evolution
-   - Created EvaluationContext dataclass with original question and target improvements
-   - Semantic operators now receive evaluation context for targeted mutations/crossovers  
-   - Enhanced prompts guide evolution toward specific fitness improvements
-   - Result: More targeted evolution that improves weak scores
-
-✅ **Evolution Timeout Quick Fix**: Applied immediate timeout improvements
-   - Increased base timeout from 90s to 120s
-   - Increased time per evaluation from 5s to 8s for semantic operators
-   - Increased token limits: mutation 500→1000, crossover 1000→1500
-   - Result: Evolution with population=10, generations=3 now has 440s timeout (was 290s)
 
 #### Next Priority Tasks
 1. **Enhanced Semantic Operators**: Improve mutation and crossover quality
@@ -212,10 +198,11 @@ See [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md) for detailed informatio
 - None currently blocking development
 
 #### Session Learnings
-- **Prompt-Response Consistency**: Critical to ensure LLM prompts match expected response format
-- **Comprehensive Testing**: Always test the exact output format, not just functionality
-- **Review Bot Thoroughness**: Modern PRs have multiple bot reviewers checking different aspects
-- **Evolution Display**: Users expect to see results from all generations, not just final
+- **DRY in Test Code**: Tests shouldn't duplicate implementation functions - extract to module level
+- **Magic Numbers**: Always use named constants for configurable values (timeouts, token limits)
+- **Test Robustness**: Import actual values instead of parsing source files - more maintainable
+- **Code Review Depth**: Multiple bot reviewers focus on different aspects (DRY, constants, test quality)
+- **Systematic PR Reviews**: Address all feedback systematically: HIGH → MEDIUM → LOW priority
 
 ## Technical Notes
 
