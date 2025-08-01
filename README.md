@@ -250,6 +250,29 @@ This implementation significantly reduces "Failed to extract enough hypotheses" 
 - [ ] Document best practices for population/generation sizing
 - [ ] Add troubleshooting guide for common issues
 
+### Evolution System Enhancements
+- [ ] **Remove Smart Selector** - Simplify by removing SmartOperatorSelector class entirely
+  - Replace probabilistic decisions with simple: if semantic operators available → use them
+  - Keep `use_semantic_operators` as simple on/off switch
+  - Rationale: Current threshold (0.9) means we essentially always want semantic operators
+  
+- [ ] **Evaluation Context** (#6) - Pass scoring context to evolution
+  - Pass original user question + current best score to evolution operators
+  - Let semantic operators know what scores they need to beat
+  - Enable targeted improvements based on current performance
+  
+- [ ] **Enhanced Semantic Operators** (#2) - Improve prompts for higher scores
+  - Modify mutation prompts to explicitly target evaluation criteria
+  - Add "score improvement" directive to semantic operators
+  - Include evaluation criteria (impact, feasibility, etc.) in mutation/crossover context
+  - Create "breakthrough" mutation type that explicitly aims for higher scores
+  
+- [ ] **Directed Evolution Mode** (#4) - Add targeted evolution strategies
+  - Add "directed evolution" where mutations target specific weaknesses
+  - Implement different evolution stages: diversification → intensification → synthesis
+  - Apply special "enhancement" mutations only to elite individuals
+  - Use different temperature/creativity settings for elite vs general population
+
 ## License
 
 MIT
