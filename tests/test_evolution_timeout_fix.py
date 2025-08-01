@@ -24,6 +24,21 @@ from qadi_simple import (
 class TestEvolutionTimeoutFix:
     """Test the quick fix for evolution timeout issues."""
     
+    def test_qadi_simple_exports_constants(self):
+        """Test that qadi_simple.py exports the correct constants."""
+        # Verify that qadi_simple exports the expected constants
+        assert EVOLUTION_BASE_TIMEOUT == 120.0, "Base timeout should be 120s"
+        assert EVOLUTION_TIME_PER_EVAL == 8.0, "Time per eval should be 8s for semantic operators"
+        assert EVOLUTION_MAX_TIMEOUT == 900.0, "Max timeout should be 900s (15 minutes)"
+        
+    def test_qadi_simple_exports_function(self):
+        """Test that qadi_simple.py exports calculate_evolution_timeout function."""
+        assert callable(calculate_evolution_timeout), "calculate_evolution_timeout should be callable"
+        
+        # Test that it returns expected values
+        timeout = calculate_evolution_timeout(3, 10)
+        assert timeout == 440.0, "Should calculate correct timeout for 3 generations, 10 population"
+    
     def test_updated_timeout_calculation(self):
         """Test that timeout calculation uses updated values."""
         # Test small evolution (2 generations, 3 population)
