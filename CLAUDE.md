@@ -526,3 +526,13 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Targeted ANSI Removal**: Use multiple specific regex patterns for ANSI code removal to avoid stripping legitimate bracketed content
 - **Meaningful Fallbacks**: Semantic operators need 150+ char fallback text, not generic placeholders
 - **Clear User Messaging**: When system uses fewer resources than requested, explain why clearly
+
+### Enhanced Semantic Operators (PR #81)
+- **Breakthrough Threshold**: Ideas with fitness >= 0.8 qualify for breakthrough mutations
+- **Mutation Types**: 4 breakthrough types - paradigm_shift, system_integration, scale_amplification, future_forward
+- **Temperature Scaling**: Use 0.95 for breakthrough vs 0.8 for regular mutations
+- **Token Doubling**: Breakthrough mutations get 2x token limit for more creative space
+- **Cache Structure**: Store dict with "content" and "mutation_type" keys for consistency
+- **Invalid Cache Recovery**: Fallback to original content instead of skipping to maintain 1:1 correspondence
+- **Type Initialization**: Always initialize optional variables before conditional blocks to prevent mypy errors
+- **Test Pattern**: Use `return_dict=False` for backward compatibility in cache tests
