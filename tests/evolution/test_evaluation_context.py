@@ -12,7 +12,6 @@ from dataclasses import asdict
 from mad_spark_alt.evolution.interfaces import (
     EvolutionRequest, EvolutionConfig, IndividualFitness, EvaluationContext
 )
-from mad_spark_alt.evolution.genetic_algorithm import GeneticAlgorithm
 from mad_spark_alt.evolution.semantic_operators import BatchSemanticMutationOperator, SemanticCrossoverOperator, format_evaluation_context
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.core.llm_provider import GoogleProvider, LLMResponse

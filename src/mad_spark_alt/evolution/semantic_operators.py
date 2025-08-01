@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
-from mad_spark_alt.core.llm_provider import GoogleProvider, LLMRequest, LLMResponse
+from mad_spark_alt.core.llm_provider import GoogleProvider, LLMRequest
 from mad_spark_alt.evolution.interfaces import CrossoverInterface, MutationInterface, EvaluationContext
 
 logger = logging.getLogger(__name__)
