@@ -308,11 +308,20 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Evolution System**: Configure logging to suppress DEBUG messages during evolution runs
 - **Example**:
   ```python
-  # Bad: Shows internal details to users
-  logger.warning("Using fallback text for offspring 1 - LLM parsing failed")
-  
-  # Good: Internal debugging only
+  # In semantic_operators.py:
+  # Good: Use logger.debug for internal details
   logger.debug("Using fallback text for offspring 1 - LLM parsing failed")
+
+  # In the evolution runner (e.g., qadi_simple.py):
+  # Good: Temporarily suppress DEBUG messages during evolution runs
+  evolution_logger = logging.getLogger('mad_spark_alt.evolution')
+  original_level = evolution_logger.level
+  evolution_logger.setLevel(logging.INFO)  # Suppress DEBUG messages
+  try:
+      # ... run evolution process ...
+  finally:
+      # Restore original logging level
+      evolution_logger.setLevel(original_level)
   ```
 
 ### Deprecation Best Practices
