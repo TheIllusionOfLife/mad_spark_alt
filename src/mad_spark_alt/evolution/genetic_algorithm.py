@@ -30,6 +30,7 @@ from mad_spark_alt.evolution.constants import (
 )
 from mad_spark_alt.evolution.fitness import FitnessEvaluator
 from mad_spark_alt.evolution.interfaces import (
+    EvaluationContext,
     EvolutionConfig,
     EvolutionRequest,
     EvolutionResult,
@@ -171,7 +172,7 @@ class GeneticAlgorithm:
 
             # Evolve to next generation
             current_population = await self._evolve_generation(
-                current_population, request.config, request.context, generation
+                current_population, request.config, request.context, generation, request.evaluation_context
             )
 
             # Create snapshot of current generation (after evolution)
@@ -278,6 +279,7 @@ class GeneticAlgorithm:
         generation: int,
         config: EvolutionConfig,
         context: Optional[str] = None,
+        evaluation_context: Optional[EvaluationContext] = None,
     ) -> Tuple[GeneratedIdea, Dict[str, int]]:
         """
         Apply mutation to an offspring with smart semantic selection.
@@ -321,8 +323,10 @@ class GeneticAlgorithm:
         # Apply appropriate mutation type
         if use_semantic:
             assert self.semantic_mutation_operator is not None
+            # Use evaluation context if available, otherwise fall back to string context
+            operator_context = evaluation_context if evaluation_context else context
             mutated_offspring = await self.semantic_mutation_operator.mutate(
-                offspring, config.mutation_rate, context
+                offspring, config.mutation_rate, operator_context
             )
             # Only count if mutation actually occurred (content changed)
             if mutated_offspring.content != offspring.content:
@@ -566,6 +570,7 @@ class GeneticAlgorithm:
         config: EvolutionConfig,
         context: Optional[str],
         generation: int,
+        evaluation_context: Optional["EvaluationContext"] = None,
     ) -> List[IndividualFitness]:
         """Evolve one generation to the next."""
         new_population = []
@@ -606,8 +611,10 @@ class GeneticAlgorithm:
                 
                 if use_semantic:
                     assert self.semantic_crossover_operator is not None
+                    # Use evaluation context if available, otherwise fall back to string context
+                    operator_context = evaluation_context if evaluation_context else context
                     offspring1, offspring2 = await self.semantic_crossover_operator.crossover(
-                        parents[0].idea, parents[1].idea, context
+                        parents[0].idea, parents[1].idea, operator_context
                     )
                     semantic_crossovers += 1
                     semantic_llm_calls += 1  # Each crossover makes 1 LLM call
@@ -628,14 +635,14 @@ class GeneticAlgorithm:
 
             # Apply mutation to both offspring
             offspring1, mutation_stats1 = await self._apply_mutation_with_smart_selection(
-                offspring1, avg_parent_fitness, population_diversity, generation, config, context
+                offspring1, avg_parent_fitness, population_diversity, generation, config, context, evaluation_context
             )
             semantic_mutations += mutation_stats1['semantic_mutations']
             traditional_mutations += mutation_stats1['traditional_mutations']
             semantic_llm_calls += mutation_stats1['semantic_llm_calls']
 
             offspring2, mutation_stats2 = await self._apply_mutation_with_smart_selection(
-                offspring2, avg_parent_fitness, population_diversity, generation, config, context
+                offspring2, avg_parent_fitness, population_diversity, generation, config, context, evaluation_context
             )
             semantic_mutations += mutation_stats2['semantic_mutations']
             traditional_mutations += mutation_stats2['traditional_mutations']

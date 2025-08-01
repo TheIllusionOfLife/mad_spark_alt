@@ -11,13 +11,43 @@ import logging
 import random
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.core.llm_provider import GoogleProvider, LLMRequest, LLMResponse
-from mad_spark_alt.evolution.interfaces import CrossoverInterface, MutationInterface
+from mad_spark_alt.evolution.interfaces import CrossoverInterface, MutationInterface, EvaluationContext
 
 logger = logging.getLogger(__name__)
+
+
+def format_evaluation_context(context: EvaluationContext) -> str:
+    """
+    Format evaluation context for inclusion in prompts.
+    
+    Args:
+        context: EvaluationContext with scoring information
+        
+    Returns:
+        Formatted context string for prompts
+    """
+    context_parts = [
+        f"Original Question: {context.original_question}",
+        ""
+    ]
+    
+    if context.current_best_scores:
+        context_parts.append("Current Best Scores:")
+        for criterion, score in context.current_best_scores.items():
+            context_parts.append(f"  {criterion.title()}: {score:.1f}")
+        context_parts.append("")
+    
+    if context.target_improvements:
+        context_parts.append(f"Target Improvements: {', '.join(context.target_improvements)}")
+        context_parts.append("")
+    
+    context_parts.append("FOCUS: Create variations that improve the target criteria while maintaining strengths.")
+    
+    return "\n".join(context_parts)
 
 
 def is_likely_truncated(text: str) -> bool:
@@ -298,12 +328,15 @@ When returning results, follow the exact format requested in the prompt (JSON or
     SINGLE_MUTATION_PROMPT = """Original idea: {idea}
 Problem context: {context}
 
+{evaluation_context}
+
 Create a semantically different variation that:
 1. Addresses the same core problem
 2. Uses a fundamentally different approach or mechanism
 3. Maintains feasibility but explores new solution space
 4. Provides DETAILED implementation with specific steps, technologies, and methodologies
 5. Includes at least 150-200 words of comprehensive explanation
+6. PRIORITIZES improvements to any target criteria mentioned above
 
 Mutation type: {mutation_type}
 - perspective_shift: Change viewpoint (individual→community, local→global, etc.)
@@ -317,12 +350,15 @@ Generate a complete, detailed solution that includes:
 - Resources required
 - Expected outcomes and benefits
 - How it addresses the core problem
+- Improvements to target criteria (if specified)
 
 Return the mutated idea as JSON with the field "mutated_content" containing the detailed solution (minimum 150 words)."""
 
     BATCH_MUTATION_PROMPT = """Generate diverse variations for these ideas. Each variation should use a different approach.
 
 Context: {context}
+
+{evaluation_context}
 
 Ideas to mutate:
 {ideas_list}
@@ -332,12 +368,14 @@ For each idea, provide ONE variation that:
 - Uses different mutation strategies: perspective shift, mechanism change, or abstraction level
 - Provides DETAILED implementation (minimum 150 words per variation)
 - Includes specific steps, technologies, methodologies, and resources
+- PRIORITIZES improvements to any target criteria mentioned above
 
 Generate complete, detailed solutions that include:
 - Specific implementation steps
 - Technologies or tools to be used
 - Resources required
 - Expected outcomes and benefits
+- Improvements to target criteria (if specified)
 
 Return JSON with mutations array containing idea_id and mutated_content for each idea."""
     
@@ -398,7 +436,7 @@ Return JSON with mutations array containing idea_id and mutated_content for each
     async def mutate_single(
         self,
         idea: GeneratedIdea,
-        context: Optional[str] = None
+        context: Optional[Union[str, "EvaluationContext"]] = None
     ) -> GeneratedIdea:
         """
         Mutate a single idea with caching.
@@ -427,11 +465,23 @@ Return JSON with mutations array containing idea_id and mutated_content for each
             "required": ["mutated_content"]
         }
         
+        # Prepare context and evaluation context
+        context_str = ""
+        evaluation_context_str = ""
+        
+        if isinstance(context, EvaluationContext):
+            context_str = context.original_question or idea.generation_prompt
+            evaluation_context_str = format_evaluation_context(context)
+        else:
+            context_str = context or idea.generation_prompt
+            evaluation_context_str = "No specific evaluation context provided."
+        
         request = LLMRequest(
             system_prompt=self.MUTATION_SYSTEM_PROMPT,
             user_prompt=self.SINGLE_MUTATION_PROMPT.format(
                 idea=idea.content,
-                context=context or idea.generation_prompt,
+                context=context_str,
+                evaluation_context=evaluation_context_str,
                 mutation_type=mutation_type
             ),
             max_tokens=500,
@@ -511,12 +561,24 @@ Return JSON with mutations array containing idea_id and mutated_content for each
             for i, idea in enumerate(uncached_ideas)
         ])
         
+        # Prepare context and evaluation context for batch
+        context_str = ""
+        evaluation_context_str = ""
+        
+        if isinstance(context, EvaluationContext):
+            context_str = context.original_question or "general improvement"
+            evaluation_context_str = format_evaluation_context(context)
+        else:
+            context_str = context or "general improvement"
+            evaluation_context_str = "No specific evaluation context provided."
+        
         # Create request with structured output
         schema = get_mutation_schema()
         request = LLMRequest(
             system_prompt=self.MUTATION_SYSTEM_PROMPT,
             user_prompt=self.BATCH_MUTATION_PROMPT.format(
-                context=context or "general improvement",
+                context=context_str,
+                evaluation_context=evaluation_context_str,
                 ideas_list=ideas_list
             ),
             max_tokens=min(500 * len(uncached_ideas), 2000),
@@ -671,6 +733,8 @@ When returning results, follow the exact format requested in the prompt (JSON or
 Parent Idea 2: {parent2}
 Context: {context}
 
+{evaluation_context}
+
 Analyze the key concepts in each parent and create TWO offspring ideas that:
 1. Meaningfully integrate concepts from BOTH parents
 2. Are not just concatenations or word swaps
@@ -679,6 +743,7 @@ Analyze the key concepts in each parent and create TWO offspring ideas that:
 5. Provide DETAILED implementation (minimum 150 words per offspring)
 6. Include specific steps, technologies, methodologies, and resources
 7. CRITICAL: Each offspring must be SUBSTANTIALLY DIFFERENT from the other
+8. PRIORITIZES improvements to any target criteria mentioned above
 
 IMPORTANT: The two offspring MUST take different approaches to combining the parent concepts:
 - Offspring 1: Focus on how Parent 1's strengths can enhance Parent 2's approach
@@ -692,6 +757,7 @@ Generate complete, detailed solutions that include:
 - Resources required for the hybrid solution
 - Expected outcomes showing synergy
 - How it leverages strengths of both parent ideas
+- Improvements to target criteria (if specified)
 
 Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fields."""
     
@@ -722,7 +788,7 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
         self,
         parent1: GeneratedIdea,
         parent2: GeneratedIdea,
-        context: Optional[str] = None
+        context: Optional[Union[str, EvaluationContext]] = None
     ) -> Tuple[GeneratedIdea, GeneratedIdea]:
         """
         Perform semantic crossover between two parent ideas.
@@ -749,6 +815,17 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
                     self._create_offspring(parent2, parent1, offspring_contents[1], 0.0)
                 )
                 
+        # Prepare context and evaluation context for crossover
+        context_str = ""
+        evaluation_context_str = ""
+        
+        if isinstance(context, EvaluationContext):
+            context_str = context.original_question or "general optimization"
+            evaluation_context_str = format_evaluation_context(context)
+        else:
+            context_str = context or "general optimization"
+            evaluation_context_str = "No specific evaluation context provided."
+        
         # Generate crossover using LLM with structured output
         schema = get_crossover_schema()
         request = LLMRequest(
@@ -756,7 +833,8 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
             user_prompt=self.CROSSOVER_PROMPT.format(
                 parent1=parent1.content,
                 parent2=parent2.content,
-                context=context or "general optimization"
+                context=context_str,
+                evaluation_context=evaluation_context_str
             ),
             max_tokens=1000,
             temperature=0.7,  # Moderate temperature for balanced creativity
