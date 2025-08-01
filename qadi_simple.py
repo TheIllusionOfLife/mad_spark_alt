@@ -224,7 +224,7 @@ async def run_qadi_analysis(
                 # Extract approach type (Personal, Collective, Systemic) if present
                 approach_label = get_approach_label(solution_clean, i)
                 
-                render_markdown(f"{approach_label}{solution_clean}")
+                render_markdown(f"{approach_label}\n{solution_clean}")
             
             if evolve:
                 print("\n*Note: These initial ideas will be refined through AI evolution...*")

@@ -1221,7 +1221,7 @@ class SimpleQADIOrchestrator:
         best_score = scores[best_idx]
         
         # Generate a concise answer based on the best hypothesis
-        answer = f"Based on the evaluation, the most effective approach is H{best_idx + 1}: {best_hypothesis}\n\n"
+        answer = f"Based on the evaluation, the most effective approach is {best_idx + 1}: {best_hypothesis}\n\n"
         answer += f"This approach scores highest with an overall score of {best_score.overall:.2f}, "
         answer += f"offering strong impact ({best_score.impact:.2f}) and feasibility ({best_score.feasibility:.2f})."
         
