@@ -185,6 +185,8 @@ See [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md) for detailed informatio
 
 #### Next Priority Tasks
 
+*Note: This section is the primary source of truth for upcoming development work. Tasks listed here have been verified against the current codebase.*
+
 1. **Performance Optimization: Diversity Calculation**
    - **Status**: Active Development Needed
    - **Issue**: O(n²) complexity in `calculate_population_diversity()` (fitness.py:244-264)
@@ -245,7 +247,6 @@ This implementation significantly reduces "Failed to extract enough hypotheses" 
 ### Performance Optimizations
 - [x] **Parallel Evolution Processing**: Implemented batch LLM processing for genetic operations (dramatically reduces heavy workload execution time)
 - [x] **Batch Semantic Operators**: Single LLM call processes multiple mutations simultaneously instead of sequential processing
-- [ ] Add performance benchmarks for diversity calculation (O(n²) complexity)
 - [ ] Implement cache warming strategies for semantic operators
 - [ ] Optimize string similarity calculations with better algorithms
 
