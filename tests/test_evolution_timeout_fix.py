@@ -26,18 +26,18 @@ class TestEvolutionTimeoutFix:
     
     def test_qadi_simple_exports_constants(self):
         """Test that qadi_simple.py exports the correct constants."""
-        # Verify that qadi_simple exports the expected constants
-        assert EVOLUTION_BASE_TIMEOUT == 120.0, "Base timeout should be 120s"
-        assert EVOLUTION_TIME_PER_EVAL == 8.0, "Time per eval should be 8s for semantic operators"
-        assert EVOLUTION_MAX_TIMEOUT == 900.0, "Max timeout should be 900s (15 minutes)"
+        # Verify that qadi_simple exports the expected constants (updated after optimization)
+        assert EVOLUTION_BASE_TIMEOUT == 60.0, "Base timeout should be 60s (optimized)"
+        assert EVOLUTION_TIME_PER_EVAL == 12.0, "Time per eval should be 12s for semantic operators (optimized)"
+        assert EVOLUTION_MAX_TIMEOUT == 1200.0, "Max timeout should be 1200s (20 minutes, optimized)"
         
     def test_qadi_simple_exports_function(self):
         """Test that qadi_simple.py exports calculate_evolution_timeout function."""
         assert callable(calculate_evolution_timeout), "calculate_evolution_timeout should be callable"
         
-        # Test that it returns expected values
+        # Test that it returns expected values (updated after optimization)
         timeout = calculate_evolution_timeout(3, 10)
-        assert timeout == 440.0, "Should calculate correct timeout for 3 generations, 10 population"
+        assert timeout == 540.0, "Should calculate correct timeout for 3 generations, 10 population after optimization"
     
     def test_updated_timeout_calculation(self):
         """Test that timeout calculation uses updated values."""
@@ -45,19 +45,19 @@ class TestEvolutionTimeoutFix:
         timeout = calculate_evolution_timeout(2, 3)
         expected = EVOLUTION_BASE_TIMEOUT + (2 * 3 + 3) * EVOLUTION_TIME_PER_EVAL
         assert timeout == expected
-        assert timeout == 192.0
+        assert timeout == 168.0  # Updated: 60 + (9 * 12) = 168
         
         # Test medium evolution (3 generations, 10 population)
         timeout = calculate_evolution_timeout(3, 10)
         expected = EVOLUTION_BASE_TIMEOUT + (3 * 10 + 10) * EVOLUTION_TIME_PER_EVAL
         assert timeout == expected
-        assert timeout == 440.0  # This should now be enough time
+        assert timeout == 540.0  # Updated: 60 + (40 * 12) = 540
         
-        # Test large evolution that hits cap
+        # Test large evolution that hits cap  
         timeout = calculate_evolution_timeout(10, 50)
         expected = EVOLUTION_BASE_TIMEOUT + (10 * 50 + 50) * EVOLUTION_TIME_PER_EVAL
         assert timeout == EVOLUTION_MAX_TIMEOUT  # Should be capped
-        assert timeout == 900.0
+        assert timeout == 1200.0  # Updated: max timeout increased to 20 minutes
         
     def test_old_timeout_was_insufficient(self):
         """Verify the old timeout was indeed too short."""
@@ -119,11 +119,11 @@ class TestSemanticOperatorTokenLimit:
             SEMANTIC_CROSSOVER_MAX_TOKENS
         )
         
-        # Test the actual values
-        assert SEMANTIC_MUTATION_MAX_TOKENS == 1000, "Single mutation should have 1000 tokens"
-        assert SEMANTIC_BATCH_MUTATION_BASE_TOKENS == 1000, "Batch mutation base should be 1000 tokens per idea"
-        assert SEMANTIC_BATCH_MUTATION_MAX_TOKENS == 4000, "Batch mutation max should be 4000 tokens"
-        assert SEMANTIC_CROSSOVER_MAX_TOKENS == 1500, "Crossover should have 1500 tokens"
+        # Test the actual values (updated after optimization)
+        assert SEMANTIC_MUTATION_MAX_TOKENS == 1500, "Single mutation should have 1500 tokens (optimized)"
+        assert SEMANTIC_BATCH_MUTATION_BASE_TOKENS == 1500, "Batch mutation base should be 1500 tokens per idea (optimized)"
+        assert SEMANTIC_BATCH_MUTATION_MAX_TOKENS == 6000, "Batch mutation max should be 6000 tokens (optimized)"
+        assert SEMANTIC_CROSSOVER_MAX_TOKENS == 2000, "Crossover should have 2000 tokens (optimized)"
 
 
 class TestIntegrationScenarios:

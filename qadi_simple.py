@@ -42,10 +42,10 @@ except ImportError:
     from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
 
 
-# Evolution timeout constants
-EVOLUTION_BASE_TIMEOUT = 120.0  # Base timeout in seconds for evolution setup
-EVOLUTION_TIME_PER_EVAL = 8.0   # Time per evaluation in seconds (accounts for semantic operators)
-EVOLUTION_MAX_TIMEOUT = 900.0   # Maximum timeout cap (15 minutes)
+# Evolution timeout constants (optimized based on testing)
+EVOLUTION_BASE_TIMEOUT = 60.0   # Reduced base timeout - setup is faster than expected
+EVOLUTION_TIME_PER_EVAL = 12.0   # Increased to be more realistic for semantic operators (was underestimated)
+EVOLUTION_MAX_TIMEOUT = 1200.0   # Increased to 20 minutes for heavy loads
 
 
 def calculate_evolution_timeout(gens: int, pop: int) -> float:
