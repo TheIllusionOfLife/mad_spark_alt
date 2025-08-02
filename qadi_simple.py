@@ -441,23 +441,27 @@ async def run_qadi_analysis(
                 # Clean ANSI codes from hypothesis
                 hypothesis_clean = clean_ansi_codes(hypothesis)
                 
-                # Remove existing "Approach X:" prefix from the hypothesis content
-                # This prevents duplication when we add our own label
+                # Remove existing "Approach X:" prefix and duplicate numbering
                 approach_prefix_pattern = r'^Approach\s+\d+:\s*'
                 hypothesis_clean = re.sub(approach_prefix_pattern, '', hypothesis_clean, flags=re.IGNORECASE)
                 
-                # Try to identify approach type
-                label_text = get_approach_label(hypothesis_clean, i+1)
-                # Extract just the label part - get_approach_label already includes "Approach:" 
-                if "Personal Approach:" in label_text:
-                    label = "Personal Approach"
-                elif "Collaborative Approach:" in label_text:
-                    label = "Collaborative Approach"
-                elif "Systemic Approach:" in label_text:
-                    label = "Systemic Approach"
+                # Remove duplicate numbering like "1. " at the start
+                duplicate_number_pattern = r'^\d+\.\s*'
+                hypothesis_clean = re.sub(duplicate_number_pattern, '', hypothesis_clean, flags=re.MULTILINE)
+                
+                # Split the hypothesis to separate title from description
+                # Look for the first period followed by a space or newline
+                title_match = re.match(r'^([^.]+\.)', hypothesis_clean)
+                if title_match:
+                    title = title_match.group(1).strip()
+                    description = hypothesis_clean[len(title):].strip()
+                    # Format as numbered list with title on first line
+                    render_markdown(f"{i+1}. {title}")
+                    if description:
+                        render_markdown(description)
                 else:
-                    label = f"Approach {i+1}"
-                render_markdown(f"**{label}:** {hypothesis_clean}")
+                    # Fallback if no clear title/description split
+                    render_markdown(f"{i+1}. {hypothesis_clean}")
                 
                 # Add extra line break between approaches for better readability
                 if i < len(result.hypotheses) - 1:
