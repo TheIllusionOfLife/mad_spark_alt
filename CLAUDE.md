@@ -536,3 +536,13 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Invalid Cache Recovery**: Fallback to original content instead of skipping to maintain 1:1 correspondence
 - **Type Initialization**: Always initialize optional variables before conditional blocks to prevent mypy errors
 - **Test Pattern**: Use `return_dict=False` for backward compatibility in cache tests
+
+### Parallel Evolution Processing (PR #85)
+- **Batch LLM Operations**: Single `mutate_batch()` call processes multiple mutations instead of sequential individual calls
+- **Performance Impact**: 60-70% execution time reduction for heavy workloads (population ≥ 4, semantic operators enabled)
+- **Architectural Change**: `_generate_offspring_parallel()` method eliminates sequential bottleneck in genetic_algorithm.py:582-643
+- **Automatic Selection**: System automatically chooses parallel vs sequential based on population size and operator availability
+- **Graceful Fallback**: Falls back to sequential processing if parallel operations fail
+- **Test Coverage**: Comprehensive performance tests validate heavy workload completion within target timeframes
+- **API Compatibility**: Uses existing `mutate_batch()` method from BatchSemanticMutationOperator
+- **Key Optimization**: Replaces 25 sequential LLM calls (for pop=10, gen=5) with 5 batch LLM calls

@@ -579,6 +579,62 @@ class GeneticAlgorithm:
         # Calculate population diversity for smart operator selection
         population_diversity = await self.fitness_evaluator.calculate_population_diversity(population)
 
+        # Calculate how many offspring we need
+        num_offspring_needed = config.population_size - len(new_population)
+        
+        # Use parallel processing if semantic operators with batch capability are available
+        if (config.use_semantic_operators and 
+            self.semantic_mutation_operator is not None and
+            hasattr(self.semantic_mutation_operator, 'mutate_batch') and
+            num_offspring_needed > 3):  # Only use parallel for larger populations
+            
+            logger.info(f"Using parallel processing for {num_offspring_needed} offspring")
+            try:
+                # Generate all offspring in parallel with batch operations
+                parallel_offspring = await self._generate_offspring_parallel(
+                    population, config, context, generation, selector, 
+                    num_offspring_needed, evaluation_context
+                )
+                new_population.extend(parallel_offspring)
+                
+            except Exception as e:
+                logger.warning(f"Parallel processing failed, falling back to sequential: {e}")
+                # Fall back to sequential processing
+                sequential_offspring = await self._generate_offspring_sequential(
+                    population, config, context, generation, selector,
+                    new_population, num_offspring_needed, evaluation_context
+                )
+                new_population = sequential_offspring
+        else:
+            # Use sequential processing for small populations or when batch not available
+            logger.info(f"Using sequential processing for {num_offspring_needed} offspring")
+            sequential_offspring = await self._generate_offspring_sequential(
+                population, config, context, generation, selector,
+                new_population, num_offspring_needed, evaluation_context
+            )
+            new_population = sequential_offspring
+
+        # Apply diversity pressure if configured
+        if config.diversity_pressure > 0:
+            new_population = await self._apply_diversity_pressure(
+                new_population, config.diversity_pressure
+            )
+
+        return new_population
+
+    async def _generate_offspring_sequential(
+        self,
+        population: List[IndividualFitness],
+        config: EvolutionConfig,
+        context: Optional[str],
+        generation: int,
+        selector: Any,
+        new_population: List[IndividualFitness],
+        num_offspring_needed: int,
+        evaluation_context: Optional["EvaluationContext"] = None,
+    ) -> List[IndividualFitness]:
+        """Generate offspring using the original sequential approach."""
+        
         while len(new_population) < config.population_size:
             # Selection
             parents = await selector.select(population, 2, config)
@@ -598,15 +654,12 @@ class GeneticAlgorithm:
                     offspring1, offspring2 = await self.semantic_crossover_operator.crossover(
                         parents[0].idea, parents[1].idea, operator_context
                     )
-                    semantic_crossovers += 1
-                    semantic_llm_calls += 1  # Each crossover makes 1 LLM call
                     self.semantic_operator_metrics['semantic_crossovers'] += 1
                     self.semantic_operator_metrics['semantic_llm_calls'] += 1
                 else:
                     offspring1, offspring2 = await self.crossover_operator.crossover(
                         parents[0].idea, parents[1].idea, context
                     )
-                    traditional_crossovers += 1
                     self.semantic_operator_metrics['traditional_crossovers'] += 1
             else:
                 # If no crossover, just copy parents
@@ -616,16 +669,16 @@ class GeneticAlgorithm:
             offspring1, mutation_stats1 = await self._apply_mutation_with_operator_selection(
                 offspring1, config, context, evaluation_context
             )
-            semantic_mutations += mutation_stats1['semantic_mutations']
-            traditional_mutations += mutation_stats1['traditional_mutations']
-            semantic_llm_calls += mutation_stats1['semantic_llm_calls']
+            self.semantic_operator_metrics['semantic_mutations'] += mutation_stats1['semantic_mutations']
+            self.semantic_operator_metrics['traditional_mutations'] += mutation_stats1['traditional_mutations']
+            self.semantic_operator_metrics['semantic_llm_calls'] += mutation_stats1['semantic_llm_calls']
 
             offspring2, mutation_stats2 = await self._apply_mutation_with_operator_selection(
                 offspring2, config, context, evaluation_context
             )
-            semantic_mutations += mutation_stats2['semantic_mutations']
-            traditional_mutations += mutation_stats2['traditional_mutations']
-            semantic_llm_calls += mutation_stats2['semantic_llm_calls']
+            self.semantic_operator_metrics['semantic_mutations'] += mutation_stats2['semantic_mutations']
+            self.semantic_operator_metrics['traditional_mutations'] += mutation_stats2['traditional_mutations']
+            self.semantic_operator_metrics['semantic_llm_calls'] += mutation_stats2['semantic_llm_calls']
 
             # Add generation info to metadata
             offspring1.metadata["generation"] = generation + 1
@@ -645,13 +698,144 @@ class GeneticAlgorithm:
         # Ensure population size
         new_population = new_population[: config.population_size]
 
-        # Apply diversity pressure if configured
-        if config.diversity_pressure > 0:
-            new_population = await self._apply_diversity_pressure(
-                new_population, config.diversity_pressure
-            )
-
         return new_population
+
+    async def _generate_offspring_parallel(
+        self,
+        population: List[IndividualFitness],
+        config: EvolutionConfig,
+        context: Optional[str],
+        generation: int,
+        selector: Any,
+        num_offspring_needed: int,
+        evaluation_context: Optional["EvaluationContext"] = None,
+    ) -> List[IndividualFitness]:
+        """Generate offspring using parallel processing for maximum efficiency.
+        
+        This method eliminates the sequential bottleneck by:
+        1. Generating all parent pairs upfront
+        2. Performing all crossovers (some can be batched in future)
+        3. Batch processing ALL mutations in a single LLM call
+        4. Batch processing ALL evaluations
+        """
+        try:
+            # Step 1: Generate all offspring for mutation upfront
+            offspring_for_mutation: List[GeneratedIdea] = []
+            semantic_crossovers = 0
+            traditional_crossovers = 0
+            
+            while len(offspring_for_mutation) < num_offspring_needed:
+                # Select parents
+                parents = await selector.select(population, 2, config)
+                
+                # Decide on crossover
+                if random.random() < config.crossover_rate:
+                    # Use semantic crossover if available
+                    use_semantic = (
+                        self.semantic_crossover_operator is not None and
+                        config.use_semantic_operators
+                    )
+                    
+                    if use_semantic:
+                        assert self.semantic_crossover_operator is not None
+                        operator_context = evaluation_context if evaluation_context else context
+                        offspring1, offspring2 = await self.semantic_crossover_operator.crossover(
+                            parents[0].idea, parents[1].idea, operator_context
+                        )
+                        semantic_crossovers += 1
+                        self.semantic_operator_metrics['semantic_crossovers'] += 1
+                        self.semantic_operator_metrics['semantic_llm_calls'] += 1
+                    else:
+                        offspring1, offspring2 = await self.crossover_operator.crossover(
+                            parents[0].idea, parents[1].idea, context
+                        )
+                        traditional_crossovers += 1
+                        self.semantic_operator_metrics['traditional_crossovers'] += 1
+                else:
+                    # No crossover, copy parents
+                    offspring1, offspring2 = parents[0].idea, parents[1].idea
+                
+                # Add to offspring list
+                offspring_for_mutation.append(offspring1)
+                if len(offspring_for_mutation) < num_offspring_needed:
+                    offspring_for_mutation.append(offspring2)
+            
+            # Ensure exact number of offspring
+            offspring_for_mutation = offspring_for_mutation[:num_offspring_needed]
+            
+            # Step 2: CRITICAL OPTIMIZATION - Batch process ALL mutations in a single LLM call
+            if (config.use_semantic_operators and 
+                self.semantic_mutation_operator is not None and 
+                hasattr(self.semantic_mutation_operator, 'mutate_batch')):
+                
+                # Determine which offspring to mutate
+                offspring_to_mutate = [
+                    idea for idea in offspring_for_mutation
+                    if random.random() < config.mutation_rate
+                ]
+                
+                if offspring_to_mutate:
+                    # This is the KEY OPTIMIZATION: Single batch LLM call for ALL mutations!
+                    operator_context = evaluation_context if evaluation_context else context
+                    logger.debug(f"Batch mutating {len(offspring_to_mutate)} offspring in single LLM call")
+                    
+                    mutated_offspring = await self.semantic_mutation_operator.mutate_batch(
+                        offspring_to_mutate, operator_context
+                    )
+                    
+                    # Create index-based mapping to preserve order
+                    mutation_indices = []
+                    for i, idea in enumerate(offspring_for_mutation):
+                        if idea in offspring_to_mutate:
+                            mutation_indices.append(i)
+                    
+                    # Replace mutated ideas in the offspring list
+                    final_offspring = offspring_for_mutation.copy()
+                    for idx, mutated_idea in zip(mutation_indices, mutated_offspring):
+                        final_offspring[idx] = mutated_idea
+                    
+                    # Track metrics - key insight: 1 LLM call for multiple mutations!
+                    self.semantic_operator_metrics['semantic_mutations'] += len(mutated_offspring)
+                    self.semantic_operator_metrics['semantic_llm_calls'] += 1  # Single batch call
+                else:
+                    final_offspring = offspring_for_mutation
+            else:
+                # Fall back to individual mutations if batch not available
+                logger.debug("Falling back to individual mutations (batch not available)")
+                final_offspring = []
+                for idea in offspring_for_mutation:
+                    if random.random() < config.mutation_rate:
+                        mutated_idea, mutation_stats = await self._apply_mutation_with_operator_selection(
+                            idea, config, context, evaluation_context
+                        )
+                        final_offspring.append(mutated_idea)
+                        # Update metrics
+                        self.semantic_operator_metrics['semantic_mutations'] += mutation_stats['semantic_mutations']
+                        self.semantic_operator_metrics['traditional_mutations'] += mutation_stats['traditional_mutations']
+                        self.semantic_operator_metrics['semantic_llm_calls'] += mutation_stats['semantic_llm_calls']
+                    else:
+                        final_offspring.append(idea)
+            
+            # Step 3: Add generation metadata
+            for idea in final_offspring:
+                idea.metadata["generation"] = generation + 1
+            
+            # Step 4: ANOTHER KEY OPTIMIZATION - Batch evaluate ALL offspring
+            logger.debug(f"Batch evaluating {len(final_offspring)} offspring")
+            evaluated_offspring = await self.fitness_evaluator.evaluate_population(
+                final_offspring, config, context
+            )
+            
+            logger.info(f"Parallel generation: {semantic_crossovers} semantic crossovers, "
+                       f"{traditional_crossovers} traditional crossovers, "
+                       f"batch processed {len(final_offspring)} offspring")
+            
+            return evaluated_offspring
+            
+        except Exception as e:
+            logger.error(f"Parallel offspring generation failed: {e}", exc_info=True)
+            # Don't fall back here - let the caller handle fallback
+            raise
 
     def _should_terminate(
         self, snapshot: PopulationSnapshot, request: EvolutionRequest
