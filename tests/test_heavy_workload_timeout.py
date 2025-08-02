@@ -49,7 +49,14 @@ class TestHeavyWorkloadTimeout:
         mock_crossover = AsyncMock()
         
         # Simulate realistic LLM call timing (5.6s average from PR #83)
-        async def mock_evaluate(ideas, config, context):
+        # Handle both 2-arg and 3-arg calls (some calls don't pass context)
+        async def mock_evaluate(*args):
+            # Extract arguments based on count
+            if len(args) == 2:
+                ideas, config = args
+            else:
+                ideas, config, context = args
+            
             await asyncio.sleep(0.1)  # Simulate 5.6s per evaluation (scaled down for testing)
             return [
                 IndividualFitness(
@@ -351,10 +358,11 @@ class TestParallelArchitectureRequirements:
     async def test_parallel_evaluation_requirements(self):
         """Test requirements for parallel evaluation processing."""
         
-        from mad_spark_alt.evolution.fitness import UnifiedFitnessEvaluator
+        # Test fitness evaluator architecture rather than specific implementation class
+        from mad_spark_alt.evolution.fitness import FitnessEvaluator
         
-        # Create mock evaluator
-        evaluator = UnifiedFitnessEvaluator()
+        # Create standard fitness evaluator
+        evaluator = FitnessEvaluator()
         
         # Verify it can handle batch evaluation
         assert hasattr(evaluator, 'evaluate_population')
