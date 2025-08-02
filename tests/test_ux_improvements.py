@@ -8,8 +8,7 @@ Tests cover:
 """
 
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
-import asyncio
+from unittest.mock import Mock, AsyncMock
 import sys
 from io import StringIO
 

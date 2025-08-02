@@ -220,8 +220,10 @@ def format_evaluation_scores(hypotheses: List[str], scores: List) -> str:
     
     
     for i, (hypothesis, score) in enumerate(zip(hypotheses, scores)):
-        # Extract title from hypothesis
-        title = extract_main_title(hypothesis)
+        # Clean ANSI codes before extracting title
+        cleaned_hypothesis = clean_ansi_codes(hypothesis)
+        # Extract title from cleaned hypothesis
+        title = extract_main_title(cleaned_hypothesis)
         
         # Format with title
         output += f"**Approach {i+1} Scores: {title}**\n"
