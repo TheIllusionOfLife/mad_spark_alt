@@ -408,7 +408,7 @@ print(f'Available methods: {list(registry._agents.keys())}')
   This goes beyond mere control of biological systems ~~~
   ```
 - **Cleaning Required**: Remove duplicate numbering and approach prefixes from LLM responses
-- **Title Extraction**: Use regex to find first sentence ending with period
+- **Title Extraction**: Use regex to find first sentence ending with standard punctuation (`.`, `?`, `!`)
 - **Fallback**: If no clear sentence boundary, display entire hypothesis with number
 
 ### Terminal Timeout Workarounds (PR #69)

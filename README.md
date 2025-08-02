@@ -167,16 +167,10 @@ See [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md) for detailed informatio
 ### Last Updated: August 03, 2025 12:33 AM JST
 
 #### Recently Completed
-- ✅ **[PR #89] Structured Output Implementation**: Comprehensive testing and documentation (Aug 3, 2025)
-  - **Documentation**: Created STRUCTURED_OUTPUT.md with complete implementation guide
-  - **Testing**: Added 453 lines of integration tests with real LLM validation
-  - **Schema Fixes**: Fixed INTEGER vs STRING type mismatch in mutation schema
+- ✅ **[PR #89] Structured Output & Display Format**: Comprehensive testing and documentation (Aug 3, 2025)
+  - **Structured Output**: Created STRUCTURED_OUTPUT.md, added 453 lines of integration tests, fixed schema types, and verified Gemini API integration
+  - **Display Format**: Improved hypothesis presentation by extracting first sentence as title and using simple numbered list, per user request
   - **Code Quality**: Addressed all feedback from claude[bot], coderabbitai[bot], gemini-code-assist[bot]
-  - **Integration**: Verified structured output works reliably with Gemini API
-- ✅ **Phase 2 Display Format**: Improved hypothesis presentation in verbose mode (Aug 3, 2025)
-  - **User Request**: Changed from "**Approach X:**" labels to simple numbered list (1., 2., 3.)
-  - **Smart Formatting**: Extract first sentence as title, display description on next line
-  - **Clean Output**: Remove duplicate numbering and approach prefixes from LLM responses
 - ✅ **[PR #87] UX Improvements**: Fixed output truncation, evaluation scores, and evolution display (Aug 2, 2025)
   - **Smart Truncation**: Implemented regex-based sentence boundary detection
   - **Evaluation Scores**: Added approach titles and consistent metric ordering
