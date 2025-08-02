@@ -35,9 +35,9 @@ class TestEvolutionTimeoutFix:
         """Test that qadi_simple.py exports calculate_evolution_timeout function."""
         assert callable(calculate_evolution_timeout), "calculate_evolution_timeout should be callable"
         
-        # Test that it returns expected values
+        # Test that it returns expected values (updated after optimization)
         timeout = calculate_evolution_timeout(3, 10)
-        assert timeout == 440.0, "Should calculate correct timeout for 3 generations, 10 population"
+        assert timeout == 540.0, "Should calculate correct timeout for 3 generations, 10 population after optimization"
     
     def test_updated_timeout_calculation(self):
         """Test that timeout calculation uses updated values."""

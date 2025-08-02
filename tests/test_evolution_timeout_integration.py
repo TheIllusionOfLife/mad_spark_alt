@@ -76,7 +76,7 @@ async def test_evolution_completes_with_new_timeout():
     
     # Calculate expected timeout
     expected_timeout = calculate_evolution_timeout(3, 10)
-    assert expected_timeout == 440.0, "Timeout calculation should match expected value"
+    assert expected_timeout == 540.0, "Timeout calculation should match expected value after optimization"
     
     # Run evolution with new timeout
     start_time = time.time()
@@ -123,5 +123,5 @@ def test_cli_output_shows_new_timeout():
         cwd=Path(__file__).parent.parent  # Run from project root
     )
     
-    # The help output should show the command would use 440s timeout
+    # The help output should show the command would use 540s timeout (after optimization)
     # Note: We can't easily test the actual timeout message without running evolution
