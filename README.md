@@ -160,6 +160,7 @@ See [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md) for detailed informatio
 - [SESSIONS.md](SESSIONS.md): Development history
 - [SEMANTIC_OPERATORS_IMPLEMENTATION.md](SEMANTIC_OPERATORS_IMPLEMENTATION.md): Semantic evolution operators guide
 - [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md): Timeout issue workaround
+- [STRUCTURED_OUTPUT.md](docs/STRUCTURED_OUTPUT.md): Gemini structured output implementation
 
 ## Session Handover
 
