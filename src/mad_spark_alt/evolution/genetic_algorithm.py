@@ -726,7 +726,7 @@ class GeneticAlgorithm:
         """
         try:
             # Step 1: Generate all offspring for mutation upfront
-            offspring_for_mutation = []
+            offspring_for_mutation: List[GeneratedIdea] = []
             semantic_crossovers = 0
             traditional_crossovers = 0
             
