@@ -188,20 +188,28 @@ See [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md) for detailed informatio
 - ✅ [PR #78]: Complete evolution system improvements - remove Smart Selector and add Evaluation Context
 
 #### Next Priority Tasks
-1. **Performance Benchmarking Suite**: Create comprehensive benchmark tests
+1. **Fix Output Truncation**: Real-world examples section gets cut off
+   - Source: User testing with `--population 10 --generations 5` (Aug 2, 2025)
+   - Context: Examples show "Context: A primary school student, Maya, living in an urban area, is increasingly aware of environmental issues through media but lacks practical knowledge about soluti..."
+   - Approach: Increase character limits for example sections or implement smart truncation that completes sentences
+
+2. **Improve Evaluation Score Display**: Make scores user-friendly and consistent
+   - Source: User feedback on evaluation scores section
+   - Context: Missing approach titles and inconsistent metric ordering vs High Score display
+   - Approach: 
+     - Add approach titles to each score block (e.g., "Approach 1: Promoting Zero-Waste Lifestyle...")
+     - Reorder metrics to match High Score format: Overall first, then other metrics
+     - Ensure consistent formatting throughout
+
+3. **Clean Evolution Output**: Remove internal algorithm references from user-facing text
+   - Source: High Score Approach #2 references "Parent 1" and "Parent 2" 
+   - Context: Users see genetic algorithm internals instead of clean idea descriptions
+   - Approach: Post-process evolved ideas to remove parent references and present standalone descriptions
+
+4. **Performance Benchmarking Suite**: Create comprehensive benchmark tests
    - Source: PR #85 + PR #83 combined achieve 60-70% + 46% improvements
    - Context: Need to ensure performance gains are consistent across all scenarios
    - Approach: Automated benchmark suite testing various population/generation/operator combinations
-
-2. **Integration Testing**: Add more real-world scenario tests
-   - Source: Heavy reliance on mocks during development
-   - Context: Need to validate system behavior with actual LLM calls
-   - Approach: Create integration test suite with real API calls for critical paths
-
-3. **Directed Evolution Mode**: Implement different evolution stages  
-   - Source: README.md Future improvements #4
-   - Context: With performance fully optimized, can now focus on advanced evolution strategies
-   - Approach: Stage-based evolution with varying parameters per stage (exploration → exploitation)
 
 #### Known Issues / Blockers
 - None currently blocking development
@@ -218,6 +226,10 @@ See [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md) for detailed informatio
   - claude[bot]: Code quality, nested conditions
 - **Helper Method Extraction**: Reduce DRY violations by extracting common logic into well-named helpers
 - **Dynamic Path Resolution**: Use `os.path.dirname(os.path.abspath(__file__))` instead of hardcoded paths
+- **User Experience Testing**: Real usage reveals UX issues not caught by unit tests:
+  - Output truncation affects readability
+  - Consistency in formatting matters for comprehension
+  - Internal algorithm details should be hidden from end users
 
 ## Technical Notes
 
