@@ -795,9 +795,9 @@ async def run_qadi_analysis(
                             print(f"   • Hit rate: {cache_stats.get('hit_rate', 0):.1%}")
                             print(f"   • LLM calls saved: {cache_stats.get('hits', 0)}")
                         else:
-                            print(f"\n💾 Cache Performance:")
-                            print(f"   • Hit rate: 0.0%")
-                            print(f"   • LLM calls saved: 0")
+                            print("\n💾 Cache Performance:")
+                            print("   • Hit rate: 0.0%")
+                            print("   • LLM calls saved: 0")
                     
                     # Final summary with total time and cost
                     total_time = elapsed_time + evolution_time

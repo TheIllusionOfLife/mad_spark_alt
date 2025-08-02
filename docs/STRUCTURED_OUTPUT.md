@@ -104,7 +104,7 @@ For evolution operations:
             "items": {
                 "type": "OBJECT",
                 "properties": {
-                    "idea_id": {"type": "STRING"},
+                    "idea_id": {"type": "INTEGER"},
                     "mutated_content": {"type": "STRING"}
                 },
                 "required": ["idea_id", "mutated_content"]

@@ -10,7 +10,7 @@ import os
 import json
 from unittest.mock import Mock, AsyncMock, patch
 
-from mad_spark_alt.core.llm_provider import LLMRequest, LLMResponse, GoogleProvider
+from mad_spark_alt.core.llm_provider import LLMResponse
 from mad_spark_alt.core.simple_qadi_orchestrator import (
     SimpleQADIOrchestrator,
     get_hypothesis_generation_schema,
@@ -82,6 +82,7 @@ class TestStructuredOutputSchemas:
         
         item_schema = mutations_schema["items"]
         assert "idea_id" in item_schema["properties"]
+        assert item_schema["properties"]["idea_id"]["type"] == "INTEGER"
         assert "mutated_content" in item_schema["properties"]
     
     def test_crossover_schema_structure(self):
