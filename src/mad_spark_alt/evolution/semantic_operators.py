@@ -19,11 +19,11 @@ from mad_spark_alt.evolution.interfaces import CrossoverInterface, MutationInter
 
 logger = logging.getLogger(__name__)
 
-# Token limits for semantic operators
-SEMANTIC_MUTATION_MAX_TOKENS = 1000  # Increased from 500 for less truncation
-SEMANTIC_BATCH_MUTATION_BASE_TOKENS = 1000  # Base tokens per idea in batch
-SEMANTIC_BATCH_MUTATION_MAX_TOKENS = 4000  # Maximum tokens for batch mutation
-SEMANTIC_CROSSOVER_MAX_TOKENS = 1500  # Increased from 1000 for better synthesis
+# Token limits for semantic operators (optimized for performance)
+SEMANTIC_MUTATION_MAX_TOKENS = 1500  # Increased to reduce truncation warnings
+SEMANTIC_BATCH_MUTATION_BASE_TOKENS = 1500  # Base tokens per idea in batch
+SEMANTIC_BATCH_MUTATION_MAX_TOKENS = 6000  # Maximum tokens for batch mutation
+SEMANTIC_CROSSOVER_MAX_TOKENS = 2000  # Increased for better synthesis
 
 
 def _prepare_operator_contexts(
@@ -158,8 +158,8 @@ def is_likely_truncated(text: str) -> bool:
         
     return False
 
-# Cache configuration constants
-_CACHE_MAX_SIZE = 500  # Maximum number of cache entries
+# Cache configuration constants  
+_CACHE_MAX_SIZE = 1000  # Increased maximum number of cache entries for better performance
 _SIMILARITY_KEY_LENGTH = 16  # Length of similarity hash key
 _SIMILARITY_CONTENT_PREFIX_LENGTH = 50  # Characters to use for similarity matching
 _SIMILARITY_WORDS_COUNT = 10  # Number of meaningful words for similarity key
@@ -219,7 +219,7 @@ class SemanticOperatorCache:
     intelligent cache key clustering and extended session-based TTL.
     """
     
-    def __init__(self, ttl_seconds: int = 7200):  # Extended to 2 hours for longer sessions
+    def __init__(self, ttl_seconds: int = 10800):  # Extended to 3 hours for longer evolution sessions
         """
         Initialize cache with enhanced session-based time-to-live.
         
