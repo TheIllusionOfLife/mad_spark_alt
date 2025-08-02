@@ -119,20 +119,41 @@ def extract_main_title(hypothesis: str) -> str:
         title = approach_match.group(1).strip()
         # Clean up the title - remove trailing punctuation and shorten if needed
         title = re.sub(r'[\.!?]+$', '', title)
-        if len(title) > 60:
-            title = title[:57] + "..."
+        if len(title) > 150:
+            # Find a good sentence boundary for truncation
+            boundary_pos = title.rfind('.', 0, 147)
+            if boundary_pos > 100:  # If we found a sentence ending reasonably close
+                title = title[:boundary_pos + 1]
+            else:
+                # Find word boundary
+                word_boundary = title.rfind(' ', 0, 147)
+                if word_boundary > 120:
+                    title = title[:word_boundary] + "..."
+                else:
+                    title = title[:147] + "..."
         return title
     
     # Fallback: Take first sentence or meaningful chunk
     sentences = re.split(r'[\.!?]\s+', cleaned)
     if sentences and sentences[0]:
         title = sentences[0].strip()
-        if len(title) > 60:
-            title = title[:57] + "..."
+        if len(title) > 150:
+            # Find word boundary for truncation
+            word_boundary = title.rfind(' ', 0, 147)
+            if word_boundary > 120:
+                title = title[:word_boundary] + "..."
+            else:
+                title = title[:147] + "..."
         return title
     
-    # Last resort: first 60 chars
-    return cleaned[:60].strip() + "..." if len(cleaned) > 60 else cleaned
+    # Last resort: first 150 chars with word boundary
+    if len(cleaned) > 150:
+        word_boundary = cleaned.rfind(' ', 0, 147)
+        if word_boundary > 120:
+            return cleaned[:word_boundary] + "..."
+        else:
+            return cleaned[:147] + "..."
+    return cleaned
 
 
 def get_approach_label(text: str, index: int) -> str:
@@ -177,35 +198,72 @@ def format_example_output(example: str, example_num: int) -> str:
     """Format example output with smart truncation."""
     lines = example.split('\n')
     
-    # Extract structured parts
-    context_line = None
-    application_line = None
-    result_line = None
+    # Extract structured parts - look for various markdown patterns
+    context_content = None
+    application_content = None
+    result_content = None
+    level_indicator = None
     
     for line in lines:
-        line = line.strip()
-        if line.startswith('- Context:') or line.startswith('Context:'):
-            context_line = line.replace('- Context:', '').replace('Context:', '').strip()
-        elif line.startswith('- Application:') or line.startswith('Application:'):
-            application_line = line.replace('- Application:', '').replace('Application:', '').strip()
-        elif line.startswith('- Result:') or line.startswith('Result:'):
-            result_line = line.replace('- Result:', '').replace('Result:', '').strip()
+        line_clean = line.strip()
+        
+        # Look for level indicators like [Individual/Personal Level]
+        if re.match(r'\[.*?Level\]', line_clean):
+            level_indicator = line_clean.replace('[', '').replace(']', '')
+        # Look for context patterns and extract just the content
+        elif re.search(r'(^|[-*]\s*)(Context:|コンテキスト:|背景:)', line_clean):
+            # Remove all label variations and markdown
+            context_content = re.sub(r'^[-*]+\s*', '', line_clean)
+            context_content = re.sub(r'(Context:|コンテキスト:|背景:)\s*', '', context_content)
+            context_content = re.sub(r'\*{2,}', '', context_content).strip()
+        # Look for application patterns and extract just the content
+        elif re.search(r'(^|[-*]\s*)(Application:|アプリケーション:|応用:|適用:)', line_clean):
+            # Remove all label variations and markdown
+            application_content = re.sub(r'^[-*]+\s*', '', line_clean)
+            application_content = re.sub(r'(Application:|アプリケーション:|応用:|適用:)\s*', '', application_content)
+            application_content = re.sub(r'\*{2,}', '', application_content).strip()
+        # Look for result patterns and extract just the content
+        elif re.search(r'(^|[-*]\s*)(Result:|結果:|成果:)', line_clean):
+            # Remove all label variations and markdown
+            result_content = re.sub(r'^[-*]+\s*', '', line_clean)
+            result_content = re.sub(r'(Result:|結果:|成果:)\s*', '', result_content)
+            result_content = re.sub(r'\*{2,}', '', result_content).strip()
     
     output = f"**Example {example_num}**\n"
     
-    if context_line and application_line:
-        # Use larger limits for better readability
-        context_truncated = truncate_at_sentence_boundary(context_line, 350)
-        application_truncated = truncate_at_sentence_boundary(application_line, 350)
+    # Add level indicator if found
+    if level_indicator:
+        output += f"*{level_indicator}*\n\n"
+    
+    if context_content and application_content:
+        # Present clean content without redundant labels
+        context_truncated = truncate_at_sentence_boundary(context_content, 350)
+        application_truncated = truncate_at_sentence_boundary(application_content, 350)
         
-        output += f"• {context_truncated}\n"
-        output += f"• {application_truncated}\n"
+        output += f"{context_truncated}\n\n"
+        output += f"→ {application_truncated}\n"
         
-        if result_line and len(result_line) < 300:
-            output += f"• **Result:** {result_line}\n"
+        if result_content and len(result_content) < 300:
+            output += f"\n**Result:** {result_content}\n"
     else:
-        # Fallback for unstructured examples
-        truncated = truncate_at_sentence_boundary(example, 400)
+        # Fallback for unstructured examples - clean up more aggressively
+        cleaned_example = example
+        # Remove all instances of label text in various forms
+        label_patterns = [
+            r'[-*]*\s*\*?\*?(Context|コンテキスト|背景):?\*?\*?\s*',
+            r'[-*]*\s*\*?\*?(Application|アプリケーション|応用|適用):?\*?\*?\s*',
+            r'[-*]*\s*\*?\*?(Result|結果|成果):?\*?\*?\s*',
+        ]
+        for pattern in label_patterns:
+            cleaned_example = re.sub(pattern, '', cleaned_example, flags=re.IGNORECASE)
+        
+        # Clean up formatting artifacts
+        cleaned_example = re.sub(r'\*{2,}', '', cleaned_example)  # Remove multiple asterisks
+        cleaned_example = re.sub(r'\[.*?Level\]\*{2,}', '', cleaned_example)  # Remove level indicators with trailing asterisks
+        cleaned_example = re.sub(r'\n\s*\*\s*\*\s*', '\n', cleaned_example)  # Fix bullet points
+        cleaned_example = re.sub(r'\n{3,}', '\n\n', cleaned_example)  # Fix excessive newlines
+        
+        truncated = truncate_at_sentence_boundary(cleaned_example.strip(), 400)
         output += truncated + "\n"
     
     return output
@@ -222,10 +280,39 @@ def format_evaluation_scores(hypotheses: List[str], scores: List) -> str:
     for i, (hypothesis, score) in enumerate(zip(hypotheses, scores)):
         # Clean ANSI codes before extracting title
         cleaned_hypothesis = clean_ansi_codes(hypothesis)
-        # Extract title from cleaned hypothesis
-        title = extract_main_title(cleaned_hypothesis)
         
-        # Format with title
+        # Remove "Approach X:" prefix to avoid duplication in title extraction
+        approach_prefix_pattern = r'^Approach\s+\d+:\s*'
+        cleaned_hypothesis = re.sub(approach_prefix_pattern, '', cleaned_hypothesis, flags=re.IGNORECASE)
+        
+        # Try to extract a clean, meaningful title
+        # Look for patterns that indicate approach types in any language
+        if any(keyword in cleaned_hypothesis for keyword in ["個人", "Personal", "Individual"]):
+            title = "Individual/Personal Approach"
+        elif any(keyword in cleaned_hypothesis for keyword in ["チーム", "Team", "Collaborative", "集団", "協力"]):
+            title = "Team/Collaborative Approach"
+        elif any(keyword in cleaned_hypothesis for keyword in ["システム", "System", "Organizational", "組織", "構造"]):
+            title = "System/Organizational Approach"
+        else:
+            # Extract first meaningful phrase as title
+            # Remove markdown formatting for cleaner extraction
+            clean_text = clean_markdown_text(cleaned_hypothesis)
+            # Take first sentence or phrase up to 80 characters
+            sentences = re.split(r'[。.!?！？]\s*', clean_text)
+            if sentences and sentences[0]:
+                title = sentences[0].strip()
+                if len(title) > 80:
+                    # Find word boundary
+                    word_boundary = title.rfind(' ', 0, 77)
+                    if word_boundary > 40:
+                        title = title[:word_boundary] + "..."
+                    else:
+                        title = title[:77] + "..."
+            else:
+                # Fallback to simple truncation
+                title = clean_text[:80].strip() + "..." if len(clean_text) > 80 else clean_text
+        
+        # Format with clean title
         output += f"**Approach {i+1} Scores: {title}**\n"
         
         # Consistent ordering: Overall first, then other metrics
@@ -335,34 +422,14 @@ async def run_qadi_analysis(
             result.action_plan or [],
         )
         
-        # Show summary first (we'll update this later if evolution provides better solutions)
-        initial_solutions = key_solutions.copy() if key_solutions else []
-        if initial_solutions:
-            print("\n## 💡 Initial Solutions (Hypothesis Generation)\n")
-            for i, solution in enumerate(initial_solutions, 1):
-                # Clean up solution text but don't truncate - show full solution
-                solution_clean = clean_ansi_codes(solution.strip())
-                # Only truncate if extremely long (over 400 characters)
-                if len(solution_clean) > 400:
-                    # Find a good breaking point (sentence or clause)
-                    truncate_at = solution_clean.find('. ', 300)
-                    if truncate_at > 0:
-                        solution_clean = solution_clean[:truncate_at + 1] + "..."
-                    else:
-                        solution_clean = solution_clean[:397] + "..."
-                
-                # Extract approach type (Personal, Collective, Systemic) if present
-                approach_label = get_approach_label(solution_clean, i)
-                
-                render_markdown(f"{approach_label}\n{solution_clean}")
-            
-            if evolve:
-                print("\n*Note: These initial ideas will be refined through AI evolution...*")
-                # Debug: Check if synthesized ideas have full content
-                logger.info("Synthesized ideas for evolution:")
-                for idx, idea in enumerate(result.synthesized_ideas[:3]):
-                    logger.info(f"Idea {idx+1} length: {len(idea.content)} chars")
-            print()
+        # Remove the entire "Initial Solutions" section - go directly to phases or main output
+        if evolve and key_solutions:
+            # When evolving, just show a brief note that evolution is coming
+            print("\n*Generating initial hypotheses for evolution...*")
+            # Debug: Check if synthesized ideas have full content
+            logger.info("Synthesized ideas for evolution:")
+            for idx, idea in enumerate(result.synthesized_ideas[:3]):
+                logger.info(f"Idea {idx+1} length: {len(idea.content)} chars")
         
         # Show phases in verbose mode
         if verbose:
@@ -373,18 +440,28 @@ async def run_qadi_analysis(
             for i, hypothesis in enumerate(result.hypotheses):
                 # Clean ANSI codes from hypothesis
                 hypothesis_clean = clean_ansi_codes(hypothesis)
+                
+                # Remove existing "Approach X:" prefix from the hypothesis content
+                # This prevents duplication when we add our own label
+                approach_prefix_pattern = r'^Approach\s+\d+:\s*'
+                hypothesis_clean = re.sub(approach_prefix_pattern, '', hypothesis_clean, flags=re.IGNORECASE)
+                
                 # Try to identify approach type
                 label_text = get_approach_label(hypothesis_clean, i+1)
-                # Extract just the label part without markdown
-                if "Personal" in label_text:
-                    label = "Personal"
-                elif "Collaborative" in label_text:
-                    label = "Collaborative"
-                elif "Systemic" in label_text:
-                    label = "Systemic"
+                # Extract just the label part - get_approach_label already includes "Approach:" 
+                if "Personal Approach:" in label_text:
+                    label = "Personal Approach"
+                elif "Collaborative Approach:" in label_text:
+                    label = "Collaborative Approach"
+                elif "Systemic Approach:" in label_text:
+                    label = "Systemic Approach"
                 else:
                     label = f"Approach {i+1}"
-                render_markdown(f"**{label} Approach:** {hypothesis_clean}")
+                render_markdown(f"**{label}:** {hypothesis_clean}")
+                
+                # Add extra line break between approaches for better readability
+                if i < len(result.hypotheses) - 1:
+                    print()
 
             print("\n## 🔍 Phase 3: Logical Analysis (Deduction)\n")
 
@@ -416,10 +493,16 @@ async def run_qadi_analysis(
                 formatted = format_example_output(example, i)
                 print(formatted)
 
-        # Show conclusion only in verbose mode
-        if verbose and result.verification_conclusion:
+        # Show conclusion only in verbose mode - language agnostic
+        if verbose and result.verification_conclusion and result.verification_conclusion.strip():
             print("\n### Conclusion\n")
-            render_markdown(result.verification_conclusion)
+            # Clean up any malformed markdown in conclusion
+            cleaned_conclusion = result.verification_conclusion.strip()
+            # Remove stray asterisks at the beginning
+            cleaned_conclusion = re.sub(r'^\*{1,2}\s*', '', cleaned_conclusion)
+            # Fix incomplete bold formatting
+            cleaned_conclusion = re.sub(r'\*{3,}', '**', cleaned_conclusion)
+            render_markdown(cleaned_conclusion)
 
         # Compact summary at the end
         elapsed_time = time.time() - start_time
@@ -704,13 +787,17 @@ async def run_qadi_analysis(
                     print(f"• **Improvement:** {metrics.get('fitness_improvement_percent', 0):.1f}% fitness increase")
                     print(f"• **Evaluation:** {metrics.get('total_ideas_evaluated', 0)} total ideas tested")
                     
-                    # Show cache stats only in verbose mode
+                    # Show cache stats always in verbose mode
                     if verbose:
                         cache_stats = metrics.get("cache_stats")
-                        if cache_stats and cache_stats.get("hits", 0) > 0:
+                        if cache_stats:
                             print(f"\n💾 Cache Performance:")
                             print(f"   • Hit rate: {cache_stats.get('hit_rate', 0):.1%}")
                             print(f"   • LLM calls saved: {cache_stats.get('hits', 0)}")
+                        else:
+                            print(f"\n💾 Cache Performance:")
+                            print(f"   • Hit rate: 0.0%")
+                            print(f"   • LLM calls saved: 0")
                     
                     # Final summary with total time and cost
                     total_time = elapsed_time + evolution_time
