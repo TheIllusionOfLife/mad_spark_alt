@@ -394,6 +394,23 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Testing**: Comprehensive integration tests confirm structured output reliability
 - **Documentation**: See [STRUCTURED_OUTPUT.md](docs/STRUCTURED_OUTPUT.md) for details
 
+### Phase 2 Hypothesis Display Format (PR #89)
+- **User Preference**: Simple numbered list format without "**Approach X:**" labels
+- **Implementation**: Extract first sentence as title, display description on subsequent lines
+- **Format Example**:
+  ```
+  ## 💡 Phase 2: Hypothesis Generation (Abduction)
+  
+  1. Simulated Biochemistry for Emergent Artificial Life.
+  This approach focuses on ~~~
+  
+  2. Hybrid Bio-Digital Symbiosis.
+  This goes beyond mere control of biological systems ~~~
+  ```
+- **Cleaning Required**: Remove duplicate numbering and approach prefixes from LLM responses
+- **Title Extraction**: Use regex to find first sentence ending with period
+- **Fallback**: If no clear sentence boundary, display entire hypothesis with number
+
 ### Terminal Timeout Workarounds (PR #69)
 - **Problem**: Some environments kill processes after exactly 2 minutes regardless of Python timeout settings
 - **Root Cause**: Terminal/shell/IDE environment timeout, not Python or uv
