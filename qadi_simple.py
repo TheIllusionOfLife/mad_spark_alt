@@ -85,6 +85,56 @@ class SimplerQADIOrchestrator(SimpleQADIOrchestrator):
         self.prompts = SimplerQADIPrompts()
 
 
+def clean_markdown_text(text: str) -> str:
+    """Remove all markdown formatting and clean up text."""
+    if not text:
+        return ""
+    
+    # Remove all markdown formatting
+    cleaned = text.replace('**', '').replace('*', '').replace('__', '').replace('_', '')
+    cleaned = cleaned.replace('##', '').replace('#', '')
+    cleaned = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', cleaned)  # Links
+    cleaned = re.sub(r'`([^`]+)`', r'\1', cleaned)  # Inline code
+    cleaned = re.sub(r'```[^`]*```', '', cleaned, flags=re.DOTALL)  # Code blocks
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)  # Multiple newlines
+    cleaned = re.sub(r'^[-*+]\s+', '', cleaned, flags=re.MULTILINE)  # Bullets
+    cleaned = re.sub(r'^\d+\.\s+', '', cleaned, flags=re.MULTILINE)  # Numbered lists
+    cleaned = re.sub(r'^>\s+', '', cleaned, flags=re.MULTILINE)  # Blockquotes
+    cleaned = re.sub(r'^\|.*\|$', '', cleaned, flags=re.MULTILINE)  # Tables
+    cleaned = re.sub(r'^[-\s]+$', '', cleaned, flags=re.MULTILINE)  # Table separators
+    
+    # Clean up whitespace
+    cleaned = ' '.join(cleaned.split())
+    
+    return cleaned.strip()
+
+
+def extract_main_title(hypothesis: str) -> str:
+    """Extract the main title/approach from a hypothesis."""
+    cleaned = clean_markdown_text(hypothesis)
+    
+    # Look for "Approach X:" pattern
+    approach_match = re.search(r'Approach \d+:\s*(.+?)(?:\s+This approach|$)', cleaned, re.IGNORECASE)
+    if approach_match:
+        title = approach_match.group(1).strip()
+        # Clean up the title - remove trailing punctuation and shorten if needed
+        title = re.sub(r'[\.!?]+$', '', title)
+        if len(title) > 60:
+            title = title[:57] + "..."
+        return title
+    
+    # Fallback: Take first sentence or meaningful chunk
+    sentences = re.split(r'[\.!?]\s+', cleaned)
+    if sentences and sentences[0]:
+        title = sentences[0].strip()
+        if len(title) > 60:
+            title = title[:57] + "..."
+        return title
+    
+    # Last resort: first 60 chars
+    return cleaned[:60].strip() + "..." if len(cleaned) > 60 else cleaned
+
+
 def get_approach_label(text: str, index: int) -> str:
     """Determine the approach type label based on content."""
     if "Individual" in text or "Personal" in text:
@@ -101,33 +151,26 @@ def truncate_at_sentence_boundary(text: str, max_length: int) -> str:
     """Truncate text at sentence boundary to preserve readability."""
     if len(text) <= max_length:
         return text
+
+    # We'll work with the text up to the max_length to find a boundary
+    boundary_search_text = text[:max_length]
+
+    # Find all potential sentence endings in the truncated text.
+    # This regex looks for sentence-ending punctuation (.!?)
+    # optionally followed by quotes, followed by whitespace or end of string.
+    matches = list(re.finditer(r'[.!?]["\']?(?=\s|$)', boundary_search_text))
+
+    if matches:
+        # The end position of the last match is the best place to cut
+        last_break_pos = matches[-1].end()
+        return text[:last_break_pos].strip()
     
-    # Look for sentence endings within the limit
-    sentence_endings = ['. ', '! ', '? ']
-    best_break = -1
+    # Fallback: no sentence boundary found, truncate at word boundary
+    last_space = boundary_search_text.rfind(' ')
+    if last_space > max_length * 0.8:  # If we found a space reasonably close
+        return text[:last_space].strip() + "..."
     
-    for ending in sentence_endings:
-        # Find all occurrences of this ending
-        pos = 0
-        while True:
-            pos = text.find(ending, pos)
-            if pos == -1 or pos >= max_length:
-                break
-            if pos > best_break and pos < max_length:
-                best_break = pos
-            pos += len(ending)
-    
-    if best_break > 0:
-        # Found a good sentence boundary
-        return text[:best_break + 1].strip()
-    else:
-        # No sentence boundary found, truncate at word boundary
-        if max_length < len(text):
-            truncated = text[:max_length]
-            last_space = truncated.rfind(' ')
-            if last_space > max_length * 0.8:  # If we found a space reasonably close
-                return truncated[:last_space].strip() + "..."
-        return text[:max_length].strip() + "..."
+    return boundary_search_text.strip() + "..."
 
 
 def format_example_output(example: str, example_num: int) -> str:
@@ -175,54 +218,6 @@ def format_evaluation_scores(hypotheses: List[str], scores: List) -> str:
     # Import clean_ansi_codes and clean_markdown_text functions from extract_key_solutions
     from mad_spark_alt.utils.text_cleaning import clean_ansi_codes
     
-    def clean_markdown_text(text: str) -> str:
-        """Remove all markdown formatting and clean up text."""
-        if not text:
-            return ""
-        
-        # Remove all markdown formatting
-        cleaned = text.strip()
-        
-        # Remove **bold** markers
-        cleaned = re.sub(r'\*\*([^*]+)\*\*', r'\1', cleaned)
-        
-        # Remove *italic* markers
-        cleaned = re.sub(r'\*([^*]+)\*', r'\1', cleaned)
-        
-        # Remove any remaining asterisks
-        cleaned = cleaned.replace('*', '')
-        
-        # Remove markdown links [text](url)
-        cleaned = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', cleaned)
-        
-        # Clean up extra whitespace
-        cleaned = ' '.join(cleaned.split())
-        
-        return cleaned.strip()
-    
-    def extract_main_title(hypothesis: str) -> str:
-        """Extract the main title/approach from a hypothesis."""
-        cleaned = clean_markdown_text(hypothesis)
-        
-        # Look for "Approach X:" pattern
-        approach_match = re.search(r'Approach \d+:\s*(.+?)(?:\s+This approach|$)', cleaned, re.IGNORECASE)
-        if approach_match:
-            title = approach_match.group(1).strip()
-            # Take only the first sentence if it's very long
-            if len(title) > 150:
-                first_sentence = title.split('.')[0]
-                return first_sentence.strip() if len(first_sentence) > 20 else title[:150]
-            return title
-        
-        # Fallback: take first substantial sentence
-        sentences = cleaned.split('.')
-        for sentence in sentences:
-            sentence = sentence.strip()
-            if len(sentence) > 30:  # Must be substantial
-                return sentence
-        
-        # Last resort: take first 100 characters
-        return cleaned[:100].strip() if cleaned else ""
     
     for i, (hypothesis, score) in enumerate(zip(hypotheses, scores)):
         # Extract title from hypothesis
@@ -264,54 +259,6 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
     # Import here to avoid circular import
     from mad_spark_alt.utils.text_cleaning import clean_ansi_codes
     
-    def clean_markdown_text(text: str) -> str:
-        """Remove all markdown formatting and clean up text."""
-        if not text:
-            return ""
-        
-        # Remove all markdown formatting
-        cleaned = text.strip()
-        
-        # Remove **bold** markers
-        cleaned = re.sub(r'\*\*([^*]+)\*\*', r'\1', cleaned)
-        
-        # Remove *italic* markers
-        cleaned = re.sub(r'\*([^*]+)\*', r'\1', cleaned)
-        
-        # Remove any remaining asterisks
-        cleaned = cleaned.replace('*', '')
-        
-        # Remove markdown links [text](url)
-        cleaned = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', cleaned)
-        
-        # Clean up extra whitespace
-        cleaned = ' '.join(cleaned.split())
-        
-        return cleaned.strip()
-    
-    def extract_main_title(hypothesis: str) -> str:
-        """Extract the main title/approach from a hypothesis."""
-        cleaned = clean_markdown_text(hypothesis)
-        
-        # Look for "Approach X:" pattern
-        approach_match = re.search(r'Approach \d+:\s*(.+?)(?:\s+This approach|$)', cleaned, re.IGNORECASE)
-        if approach_match:
-            title = approach_match.group(1).strip()
-            # Take only the first sentence if it's very long
-            if len(title) > 150:
-                first_sentence = title.split('.')[0]
-                return first_sentence.strip() if len(first_sentence) > 20 else title[:150]
-            return title
-        
-        # Fallback: take first substantial sentence
-        sentences = cleaned.split('.')
-        for sentence in sentences:
-            sentence = sentence.strip()
-            if len(sentence) > 30:  # Must be substantial
-                return sentence
-        
-        # Last resort: take first 100 characters
-        return cleaned[:100].strip() if cleaned else ""
     
     solutions = []
     

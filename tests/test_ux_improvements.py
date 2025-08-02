@@ -154,7 +154,7 @@ class TestEvolutionOutputCleanup:
         # Mock LLM provider
         mock_llm = Mock()
         mock_llm.generate = AsyncMock(return_value=Mock(
-            content='{"offspring": [{"id": 1, "content": "Combined approach"}, {"id": 2, "content": "Integrated solution"}]}',
+            content='{"offspring_1": "Combined approach using zero-waste and technology", "offspring_2": "Integrated solution for sustainable recycling"}',
             cost=0.001
         ))
         
