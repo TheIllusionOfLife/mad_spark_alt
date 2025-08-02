@@ -9,7 +9,7 @@ import asyncio
 import pytest
 import time
 import os
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from mad_spark_alt.evolution.interfaces import EvolutionConfig
 from mad_spark_alt.evolution.genetic_algorithm import GeneticAlgorithm
@@ -286,8 +286,6 @@ class TestHeavyWorkloadTimeout:
         
         # Test the exact CLI command that currently times out
         import subprocess
-        import tempfile
-        import signal
         
         test_command = [
             "uv", "run", "python", "qadi_simple.py",
@@ -304,7 +302,7 @@ class TestHeavyWorkloadTimeout:
             # Run with timeout to prevent hanging in CI
             result = subprocess.run(
                 test_command,
-                cwd="/Users/yuyamukai/dev/mad_spark_alt",
+                cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 capture_output=True,
                 text=True,
                 timeout=600  # 10 minute timeout for heavy workload

@@ -698,12 +698,6 @@ class GeneticAlgorithm:
         # Ensure population size
         new_population = new_population[: config.population_size]
 
-        # Apply diversity pressure if configured
-        if config.diversity_pressure > 0:
-            new_population = await self._apply_diversity_pressure(
-                new_population, config.diversity_pressure
-            )
-
         return new_population
 
     async def _generate_offspring_parallel(
@@ -789,12 +783,16 @@ class GeneticAlgorithm:
                         offspring_to_mutate, operator_context
                     )
                     
-                    # Replace mutated ideas in the offspring list
-                    mutation_map = {id(orig): mutated for orig, mutated in zip(offspring_to_mutate, mutated_offspring)}
+                    # Create index-based mapping to preserve order
+                    mutation_indices = []
+                    for i, idea in enumerate(offspring_for_mutation):
+                        if idea in offspring_to_mutate:
+                            mutation_indices.append(i)
                     
-                    final_offspring = []
-                    for idea in offspring_for_mutation:
-                        final_offspring.append(mutation_map.get(id(idea), idea))
+                    # Replace mutated ideas in the offspring list
+                    final_offspring = offspring_for_mutation.copy()
+                    for idx, mutated_idea in zip(mutation_indices, mutated_offspring):
+                        final_offspring[idx] = mutated_idea
                     
                     # Track metrics - key insight: 1 LLM call for multiple mutations!
                     self.semantic_operator_metrics['semantic_mutations'] += len(mutated_offspring)
@@ -835,7 +833,7 @@ class GeneticAlgorithm:
             return evaluated_offspring
             
         except Exception as e:
-            logger.error(f"Parallel offspring generation failed: {e}")
+            logger.error(f"Parallel offspring generation failed: {e}", exc_info=True)
             # Don't fall back here - let the caller handle fallback
             raise
 

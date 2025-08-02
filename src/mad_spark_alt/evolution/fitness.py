@@ -39,6 +39,66 @@ class FitnessEvaluator:
         """
         self.unified_evaluator = unified_evaluator or UnifiedEvaluator()
 
+    def _convert_evaluation_to_fitness(
+        self, idea: GeneratedIdea, evaluation: HypothesisEvaluation
+    ) -> IndividualFitness:
+        """Convert unified evaluation to individual fitness.
+        
+        This helper method reduces code duplication between parallel and sequential evaluation.
+        
+        Args:
+            idea: The idea being evaluated
+            evaluation: The evaluation results from unified evaluator
+            
+        Returns:
+            IndividualFitness object with scores and metadata
+        """
+        return IndividualFitness(
+            idea=idea,
+            # Use QADI scoring criteria directly
+            impact=evaluation.scores.get("impact", 0.0),
+            feasibility=evaluation.scores.get("feasibility", 0.0),
+            accessibility=evaluation.scores.get("accessibility", 0.0),
+            sustainability=evaluation.scores.get("sustainability", 0.0),
+            scalability=evaluation.scores.get("scalability", 0.0),
+            overall_fitness=evaluation.overall_score,
+            evaluation_metadata={
+                "unified_scores": evaluation.scores,
+                "unified_explanations": evaluation.explanations,
+                "llm_cost": evaluation.metadata.get("llm_cost", 0.0),
+                "batch_evaluation": evaluation.metadata.get("batch_evaluation", False),
+                "evaluation_criteria": {
+                    "impact": evaluation.scores.get("impact", 0.0),
+                    "feasibility": evaluation.scores.get("feasibility", 0.0),
+                    "accessibility": evaluation.scores.get("accessibility", 0.0),
+                    "sustainability": evaluation.scores.get("sustainability", 0.0),
+                    "scalability": evaluation.scores.get("scalability", 0.0),
+                },
+            },
+        )
+
+    def _create_error_fitness(self, idea: GeneratedIdea, error: Exception) -> IndividualFitness:
+        """Create a fitness object for failed evaluations.
+        
+        Args:
+            idea: The idea that failed evaluation
+            error: The exception that occurred
+            
+        Returns:
+            IndividualFitness with zero scores and error metadata
+        """
+        logger.error(f"Error converting evaluation to fitness: {error}")
+        return IndividualFitness(
+            idea=idea,
+            impact=0.0,
+            feasibility=0.0,
+            accessibility=0.0,
+            sustainability=0.0,
+            scalability=0.0,
+            overall_fitness=0.0,
+            evaluation_metadata={"error": str(error)},
+        )
+
     async def evaluate_population(
         self,
         population: List[GeneratedIdea],
@@ -87,44 +147,10 @@ class FitnessEvaluator:
         fitness_results: List[IndividualFitness] = []
         for idea, evaluation in zip(population, evaluations):
             try:
-                fitness = IndividualFitness(
-                    idea=idea,
-                    # Use QADI scoring criteria directly
-                    impact=evaluation.scores.get("impact", 0.0),
-                    feasibility=evaluation.scores.get("feasibility", 0.0),
-                    accessibility=evaluation.scores.get("accessibility", 0.0),
-                    sustainability=evaluation.scores.get("sustainability", 0.0),
-                    scalability=evaluation.scores.get("scalability", 0.0),
-                    overall_fitness=evaluation.overall_score,
-                    evaluation_metadata={
-                        "unified_scores": evaluation.scores,
-                        "unified_explanations": evaluation.explanations,
-                        "llm_cost": evaluation.metadata.get("llm_cost", 0.0),
-                        "batch_evaluation": evaluation.metadata.get("batch_evaluation", False),
-                        "evaluation_criteria": {
-                            "impact": evaluation.scores.get("impact", 0.0),
-                            "feasibility": evaluation.scores.get("feasibility", 0.0),
-                            "accessibility": evaluation.scores.get("accessibility", 0.0),
-                            "sustainability": evaluation.scores.get("sustainability", 0.0),
-                            "scalability": evaluation.scores.get("scalability", 0.0),
-                        },
-                    },
-                )
+                fitness = self._convert_evaluation_to_fitness(idea, evaluation)
                 fitness_results.append(fitness)
             except Exception as e:
-                logger.error(f"Error converting evaluation to fitness: {e}")
-                fitness_results.append(
-                    IndividualFitness(
-                        idea=idea,
-                        impact=0.0,
-                        feasibility=0.0,
-                        accessibility=0.0,
-                        sustainability=0.0,
-                        scalability=0.0,
-                        overall_fitness=0.0,
-                        evaluation_metadata={"error": str(e)},
-                    )
-                )
+                fitness_results.append(self._create_error_fitness(idea, e))
         
         return fitness_results
 
@@ -154,44 +180,10 @@ class FitnessEvaluator:
         fitness_results: List[IndividualFitness] = []
         for idea, evaluation in zip(population, evaluations):
             try:
-                fitness = IndividualFitness(
-                    idea=idea,
-                    # Use QADI scoring criteria directly
-                    impact=evaluation.scores.get("impact", 0.0),
-                    feasibility=evaluation.scores.get("feasibility", 0.0),
-                    accessibility=evaluation.scores.get("accessibility", 0.0),
-                    sustainability=evaluation.scores.get("sustainability", 0.0),
-                    scalability=evaluation.scores.get("scalability", 0.0),
-                    overall_fitness=evaluation.overall_score,
-                    evaluation_metadata={
-                        "unified_scores": evaluation.scores,
-                        "unified_explanations": evaluation.explanations,
-                        "llm_cost": evaluation.metadata.get("llm_cost", 0.0),
-                        "batch_evaluation": evaluation.metadata.get("batch_evaluation", False),
-                        "evaluation_criteria": {
-                            "impact": evaluation.scores.get("impact", 0.0),
-                            "feasibility": evaluation.scores.get("feasibility", 0.0),
-                            "accessibility": evaluation.scores.get("accessibility", 0.0),
-                            "sustainability": evaluation.scores.get("sustainability", 0.0),
-                            "scalability": evaluation.scores.get("scalability", 0.0),
-                        },
-                    },
-                )
+                fitness = self._convert_evaluation_to_fitness(idea, evaluation)
                 fitness_results.append(fitness)
             except Exception as e:
-                logger.error(f"Error converting evaluation to fitness: {e}")
-                fitness_results.append(
-                    IndividualFitness(
-                        idea=idea,
-                        impact=0.0,
-                        feasibility=0.0,
-                        accessibility=0.0,
-                        sustainability=0.0,
-                        scalability=0.0,
-                        overall_fitness=0.0,
-                        evaluation_metadata={"error": str(e)},
-                    )
-                )
+                fitness_results.append(self._create_error_fitness(idea, e))
         return fitness_results
 
     async def evaluate_individual(
@@ -221,43 +213,10 @@ class FitnessEvaluator:
             )
 
             # Create fitness object with QADI scoring criteria
-            fitness = IndividualFitness(
-                idea=idea,
-                # Use QADI scoring criteria directly
-                impact=evaluation.scores.get("impact", 0.0),
-                feasibility=evaluation.scores.get("feasibility", 0.0),
-                accessibility=evaluation.scores.get("accessibility", 0.0),
-                sustainability=evaluation.scores.get("sustainability", 0.0),
-                scalability=evaluation.scores.get("scalability", 0.0),
-                overall_fitness=evaluation.overall_score,
-                evaluation_metadata={
-                    "unified_scores": evaluation.scores,
-                    "unified_explanations": evaluation.explanations,
-                    "llm_cost": evaluation.metadata.get("llm_cost", 0.0),
-                    "evaluation_criteria": {
-                        "impact": evaluation.scores.get("impact", 0.0),
-                        "feasibility": evaluation.scores.get("feasibility", 0.0),
-                        "accessibility": evaluation.scores.get("accessibility", 0.0),
-                        "sustainability": evaluation.scores.get("sustainability", 0.0),
-                        "scalability": evaluation.scores.get("scalability", 0.0),
-                    },
-                },
-            )
-
-            return fitness
+            return self._convert_evaluation_to_fitness(idea, evaluation)
 
         except Exception as e:
-            logger.error(f"Failed to evaluate idea: {e}")
-            return IndividualFitness(
-                idea=idea,
-                impact=0.0,
-                feasibility=0.0,
-                accessibility=0.0,
-                sustainability=0.0,
-                scalability=0.0,
-                overall_fitness=0.0,
-                evaluation_metadata={"error": str(e)},
-            )
+            return self._create_error_fitness(idea, e)
 
     async def calculate_population_diversity(
         self, population: List[IndividualFitness]
