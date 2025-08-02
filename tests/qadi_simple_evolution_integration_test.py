@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 
+@pytest.mark.integration
 class TestQadiSimpleEvolutionIntegration:
     """Integration tests for qadi_simple.py --evolve improvements."""
     
@@ -47,7 +48,8 @@ class TestQadiSimpleEvolutionIntegration:
         # Should show it's using 2 ideas (once implemented)
         # Currently it would show "Using 2 ideas from available 3"
         # After fix, it should show 2 initial hypotheses generated
-        assert "Initial Solutions" in stdout
+        # Note: Initial Solutions section was removed per user request
+        assert "Phase 2: Hypothesis Generation" in stdout
         
         # Should not timeout
         assert "timed out" not in stderr
@@ -64,7 +66,8 @@ class TestQadiSimpleEvolutionIntegration:
         assert code == 0, f"Command failed: {stderr}"
         
         # After implementation, should generate 5 initial hypotheses
-        assert "Initial Solutions" in stdout
+        # Note: Initial Solutions section was removed per user request
+        assert "Phase 2: Hypothesis Generation" in stdout
         
         # Evolution should complete
         assert "Evolution completed" in stdout or "Evolution Results" in stdout
@@ -103,7 +106,8 @@ class TestQadiSimpleEvolutionIntegration:
         assert stdout.count("Enhanced Approach") >= 1, "No enhanced approaches shown"
         
         # Verify all sections present
-        assert "Initial Solutions" in stdout
+        # Note: Initial Solutions section was removed per user request
+        assert "Phase 2: Hypothesis Generation" in stdout
         assert "Analysis:" in stdout
         assert "Your Recommended Path" in stdout
         assert "Evolution Results" in stdout
@@ -116,13 +120,16 @@ class TestQadiSimpleEvolutionIntegration:
         """Test helpful message when using evolution args without --evolve."""
         stdout, stderr, code = self.run_qadi_simple([
             "Test question",
-            "--population", "5"  # Without --evolve
+            "--population", "8"  # Without --evolve, using non-default value
         ])
         
-        # Should warn about unused argument
+        # Should error with exit code 1 and suggest using --evolve
+        assert code == 1, "Should exit with error code 1 when using evolution args without --evolve"
+        # The error message should mention --evolve
         assert "--evolve" in stdout or "--evolve" in stderr
+        # Specifically should mention it can only be used with --evolve
+        assert "can only be used with --evolve" in stdout or "can only be used with --evolve" in stderr
     
-    @pytest.mark.integration
     def test_evolution_with_real_llm_diverse_questions(self):
         """Test evolution with various question types using real LLM."""
         test_cases = [

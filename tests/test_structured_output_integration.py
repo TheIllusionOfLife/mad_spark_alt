@@ -229,8 +229,8 @@ class TestStructuredOutputParsing:
         """Test crossover with properly structured JSON response."""
         mock_response = LLMResponse(
             content=json.dumps({
-                "offspring_1": "First combined idea",
-                "offspring_2": "Second combined idea"
+                "offspring_1": "First combined idea focusing on technical implementation with advanced algorithms",
+                "offspring_2": "Alternative approach emphasizing social collaboration and community engagement"
             }),
             provider="google",
             model="gemini-2.0-flash",
@@ -256,8 +256,8 @@ class TestStructuredOutputParsing:
         
         offspring = await operator.crossover(parent1, parent2, "reduce waste")
         assert len(offspring) == 2
-        assert offspring[0].content == "First combined idea"
-        assert offspring[1].content == "Second combined idea"
+        assert offspring[0].content == "First combined idea focusing on technical implementation with advanced algorithms"
+        assert offspring[1].content == "Alternative approach emphasizing social collaboration and community engagement"
 
 
 @pytest.mark.integration

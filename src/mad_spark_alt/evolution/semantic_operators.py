@@ -1148,7 +1148,8 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
             logger.debug("Structured output parsing failed, falling back to text parsing: %s", e)
         
         # Fall back to text parsing if needed
-        if not offspring1_content or not offspring2_content:
+        # Note: Check for None explicitly, empty string is valid content
+        if offspring1_content is None or offspring2_content is None:
             offspring1_content, offspring2_content = self._parse_crossover_response(
                 response.content, parent1, parent2
             )
