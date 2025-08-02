@@ -163,9 +163,15 @@ See [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md) for detailed informatio
 
 ## Session Handover
 
-### Last Updated: August 02, 2025 02:36 PM JST
+### Last Updated: August 02, 2025 06:31 PM JST
 
 #### Recently Completed
+- ✅ **[PR #87] UX Improvements**: Fixed output truncation, evaluation scores, and evolution display (Aug 2, 2025)
+  - **Smart Truncation**: Implemented regex-based sentence boundary detection
+  - **Evaluation Scores**: Added approach titles and consistent metric ordering
+  - **Evolution Output**: Cleaned parent references from genetic algorithm output
+  - **Code Quality**: Fixed DRY violations, improved sentence truncation algorithm
+  - **Testing**: Comprehensive test suite with 6 test classes covering all UX improvements
 - ✅ **[PR #85] Parallel Evolution Processing**: Eliminated sequential bottleneck with batch LLM operations (Aug 2, 2025)
   - **Critical Fix**: Heavy workloads (`--generations 5 --population 10`) now complete without timeout
   - **Performance**: 60-70% execution time reduction through parallel processing
@@ -180,56 +186,49 @@ See [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md) for detailed informatio
   - **Timeout Realism**: Updated calculations based on real measurements (base 120→60s, per-eval 8→12s, max 900→1200s)
   - **Test Synchronization**: Updated all test assertions to match optimized constants
   - Zero truncation warnings, cost efficiency improved despite higher per-call cost
-- ✅ **[PR #81] Enhanced Semantic Operators**: Revolutionary breakthrough mutation system
-  - Implemented breakthrough mutations for high-scoring ideas (fitness >= 0.8)
-  - Added revolutionary mutation types: paradigm_shift, system_integration, scale_amplification, future_forward
-  - Enhanced targeting of weak evaluation criteria through improved prompts
-- ✅ [PR #79]: Fix evolution timeout and token limits for better reliability
-- ✅ [PR #78]: Complete evolution system improvements - remove Smart Selector and add Evaluation Context
 
 #### Next Priority Tasks
-1. **Fix Output Truncation**: Real-world examples section gets cut off
-   - Source: User testing with `--population 10 --generations 5` (Aug 2, 2025)
-   - Context: Examples show "Context: A primary school student, Maya, living in an urban area, is increasingly aware of environmental issues through media but lacks practical knowledge about soluti..."
-   - Approach: Increase character limits for example sections or implement smart truncation that completes sentences
-
-2. **Improve Evaluation Score Display**: Make scores user-friendly and consistent
-   - Source: User feedback on evaluation scores section
-   - Context: Missing approach titles and inconsistent metric ordering vs High Score display
+1. **Implement Structured Output for LLM Responses**
+   - Source: Root cause analysis from PR #87 testing
+   - Context: LLMs don't consistently follow formatting instructions in prompts
+   - Problem: Leads to parsing failures, truncated content, missing examples
    - Approach: 
-     - Add approach titles to each score block (e.g., "Approach 1: Promoting Zero-Waste Lifestyle...")
-     - Reorder metrics to match High Score format: Overall first, then other metrics
-     - Ensure consistent formatting throughout
+     - Replace prompt-based formatting with Gemini's `responseSchema` and `responseMimeType`
+     - Update all parsing code to handle structured JSON responses
+     - Add integration tests to validate real LLM responses
 
-3. **Clean Evolution Output**: Remove internal algorithm references from user-facing text
-   - Source: High Score Approach #2 references "Parent 1" and "Parent 2" 
-   - Context: Users see genetic algorithm internals instead of clean idea descriptions
-   - Approach: Post-process evolved ideas to remove parent references and present standalone descriptions
-
-4. **Performance Benchmarking Suite**: Create comprehensive benchmark tests
+2. **Performance Benchmarking Suite**
    - Source: PR #85 + PR #83 combined achieve 60-70% + 46% improvements
    - Context: Need to ensure performance gains are consistent across all scenarios
-   - Approach: Automated benchmark suite testing various population/generation/operator combinations
+   - Approach: 
+     - Create automated benchmark suite testing various population/generation/operator combinations
+     - Track execution time, memory usage, and cost metrics
+     - Establish baseline performance targets
+
+3. **Extend Title Length Limits**
+   - Source: User testing showed 60-character limit too restrictive
+   - Context: Meaningful approach titles need more space
+   - Approach: Increase to 120-150 characters with smart truncation at phrase boundaries
+
+4. **Evolution Progress Visualization**
+   - Source: User feedback on understanding evolution progress
+   - Context: Current text-based progress indicators are minimal
+   - Approach: Add visual progress bars and generation summaries
 
 #### Known Issues / Blockers
 - None currently blocking development
 - **Performance baseline established**: Evolution system now reliably completes without timeouts
 
 #### Session Learnings
-- **Parallel Processing Architecture**: Batch LLM operations eliminate sequential bottlenecks (60-70% improvement)
-- **Index-Based Mapping**: Replace Python id() with index-based tracking to avoid object identity issues
-- **Systematic PR Review Process**: Check all 3 sources (PR comments, reviews, line comments) systematically
-- **Bot Reviewer Strengths**: Each bot focuses on different aspects:
-  - coderabbitai[bot]: Hardcoded values, unused imports, test quality
-  - cursor[bot]: Algorithm bugs, consistency issues
-  - gemini-code-assist[bot]: DRY violations, exception handling
-  - claude[bot]: Code quality, nested conditions
-- **Helper Method Extraction**: Reduce DRY violations by extracting common logic into well-named helpers
-- **Dynamic Path Resolution**: Use `os.path.dirname(os.path.abspath(__file__))` instead of hardcoded paths
-- **User Experience Testing**: Real usage reveals UX issues not caught by unit tests:
-  - Output truncation affects readability
-  - Consistency in formatting matters for comprehension
-  - Internal algorithm details should be hidden from end users
+- **LLM Response Reliability**: Prompt-based formatting is fundamentally unreliable - structured output APIs are essential
+- **Systematic PR Review**: Following 4-phase protocol caught all reviewer feedback across multiple sources
+- **DRY in Practice**: Helper functions at module level prevent duplication and improve maintainability
+- **Regex for Smart Truncation**: Pattern `r'[.!?]["\']?(?=\s|$)'` effectively finds sentence boundaries
+- **UX Testing Insights**: Real user testing revealed issues unit tests missed:
+  - 60-char title limits too restrictive for meaningful content
+  - ANSI codes must be cleaned before any text processing
+  - Evolution output needs post-processing to hide algorithm internals
+- **Integration Test Importance**: Mock tests can hide format divergence - real LLM tests essential
 
 ## Technical Notes
 
