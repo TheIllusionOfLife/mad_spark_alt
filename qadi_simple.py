@@ -85,6 +85,56 @@ class SimplerQADIOrchestrator(SimpleQADIOrchestrator):
         self.prompts = SimplerQADIPrompts()
 
 
+def clean_markdown_text(text: str) -> str:
+    """Remove all markdown formatting and clean up text."""
+    if not text:
+        return ""
+    
+    # Remove all markdown formatting
+    cleaned = text.replace('**', '').replace('*', '').replace('__', '').replace('_', '')
+    cleaned = cleaned.replace('##', '').replace('#', '')
+    cleaned = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', cleaned)  # Links
+    cleaned = re.sub(r'`([^`]+)`', r'\1', cleaned)  # Inline code
+    cleaned = re.sub(r'```[^`]*```', '', cleaned, flags=re.DOTALL)  # Code blocks
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)  # Multiple newlines
+    cleaned = re.sub(r'^[-*+]\s+', '', cleaned, flags=re.MULTILINE)  # Bullets
+    cleaned = re.sub(r'^\d+\.\s+', '', cleaned, flags=re.MULTILINE)  # Numbered lists
+    cleaned = re.sub(r'^>\s+', '', cleaned, flags=re.MULTILINE)  # Blockquotes
+    cleaned = re.sub(r'^\|.*\|$', '', cleaned, flags=re.MULTILINE)  # Tables
+    cleaned = re.sub(r'^[-\s]+$', '', cleaned, flags=re.MULTILINE)  # Table separators
+    
+    # Clean up whitespace
+    cleaned = ' '.join(cleaned.split())
+    
+    return cleaned.strip()
+
+
+def extract_main_title(hypothesis: str) -> str:
+    """Extract the main title/approach from a hypothesis."""
+    cleaned = clean_markdown_text(hypothesis)
+    
+    # Look for "Approach X:" pattern
+    approach_match = re.search(r'Approach \d+:\s*(.+?)(?:\s+This approach|$)', cleaned, re.IGNORECASE)
+    if approach_match:
+        title = approach_match.group(1).strip()
+        # Clean up the title - remove trailing punctuation and shorten if needed
+        title = re.sub(r'[\.!?]+$', '', title)
+        if len(title) > 60:
+            title = title[:57] + "..."
+        return title
+    
+    # Fallback: Take first sentence or meaningful chunk
+    sentences = re.split(r'[\.!?]\s+', cleaned)
+    if sentences and sentences[0]:
+        title = sentences[0].strip()
+        if len(title) > 60:
+            title = title[:57] + "..."
+        return title
+    
+    # Last resort: first 60 chars
+    return cleaned[:60].strip() + "..." if len(cleaned) > 60 else cleaned
+
+
 def get_approach_label(text: str, index: int) -> str:
     """Determine the approach type label based on content."""
     if "Individual" in text or "Personal" in text:
@@ -97,60 +147,120 @@ def get_approach_label(text: str, index: int) -> str:
         return f"Approach {index}: "
 
 
+def truncate_at_sentence_boundary(text: str, max_length: int) -> str:
+    """Truncate text at sentence boundary to preserve readability."""
+    if len(text) <= max_length:
+        return text
+
+    # We'll work with the text up to the max_length to find a boundary
+    boundary_search_text = text[:max_length]
+
+    # Find all potential sentence endings in the truncated text.
+    # This regex looks for sentence-ending punctuation (.!?)
+    # optionally followed by quotes, followed by whitespace or end of string.
+    matches = list(re.finditer(r'[.!?]["\']?(?=\s|$)', boundary_search_text))
+
+    if matches:
+        # The end position of the last match is the best place to cut
+        last_break_pos = matches[-1].end()
+        return text[:last_break_pos].strip()
+    
+    # Fallback: no sentence boundary found, truncate at word boundary
+    last_space = boundary_search_text.rfind(' ')
+    if last_space > max_length * 0.8:  # If we found a space reasonably close
+        return text[:last_space].strip() + "..."
+    
+    return boundary_search_text.strip() + "..."
+
+
+def format_example_output(example: str, example_num: int) -> str:
+    """Format example output with smart truncation."""
+    lines = example.split('\n')
+    
+    # Extract structured parts
+    context_line = None
+    application_line = None
+    result_line = None
+    
+    for line in lines:
+        line = line.strip()
+        if line.startswith('- Context:') or line.startswith('Context:'):
+            context_line = line.replace('- Context:', '').replace('Context:', '').strip()
+        elif line.startswith('- Application:') or line.startswith('Application:'):
+            application_line = line.replace('- Application:', '').replace('Application:', '').strip()
+        elif line.startswith('- Result:') or line.startswith('Result:'):
+            result_line = line.replace('- Result:', '').replace('Result:', '').strip()
+    
+    output = f"**Example {example_num}**\n"
+    
+    if context_line and application_line:
+        # Use larger limits for better readability
+        context_truncated = truncate_at_sentence_boundary(context_line, 350)
+        application_truncated = truncate_at_sentence_boundary(application_line, 350)
+        
+        output += f"• {context_truncated}\n"
+        output += f"• {application_truncated}\n"
+        
+        if result_line and len(result_line) < 300:
+            output += f"• **Result:** {result_line}\n"
+    else:
+        # Fallback for unstructured examples
+        truncated = truncate_at_sentence_boundary(example, 400)
+        output += truncated + "\n"
+    
+    return output
+
+
+def format_evaluation_scores(hypotheses: List[str], scores: List) -> str:
+    """Format evaluation scores with approach titles and consistent ordering."""
+    output = ""
+    
+    # Import clean_ansi_codes and clean_markdown_text functions from extract_key_solutions
+    from mad_spark_alt.utils.text_cleaning import clean_ansi_codes
+    
+    
+    for i, (hypothesis, score) in enumerate(zip(hypotheses, scores)):
+        # Clean ANSI codes before extracting title
+        cleaned_hypothesis = clean_ansi_codes(hypothesis)
+        # Extract title from cleaned hypothesis
+        title = extract_main_title(cleaned_hypothesis)
+        
+        # Format with title
+        output += f"**Approach {i+1} Scores: {title}**\n"
+        
+        # Consistent ordering: Overall first, then other metrics
+        output += f"  - **Overall: {score.overall:.2f}**\n"
+        output += f"  - Impact: {score.impact:.2f}\n"
+        output += f"  - Feasibility: {score.feasibility:.2f}\n"
+        output += f"  - Accessibility: {score.accessibility:.2f}\n"
+        output += f"  - Sustainability: {score.sustainability:.2f}\n"
+        output += f"  - Scalability: {score.scalability:.2f}\n"
+        output += "\n"
+    
+    return output
+
+
+def clean_evolution_output(text: str) -> str:
+    """Remove parent references from evolution output."""
+    result = text
+    
+    # Replace possessive forms first to avoid double replacement
+    result = result.replace("Parent 1's", "the first approach's")
+    result = result.replace("Parent 2's", "the second approach's")
+    
+    # Then replace non-possessive forms
+    result = result.replace("Parent 1", "the first approach")
+    result = result.replace("Parent 2", "the second approach")
+    
+    return result
+
+
 def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List[str]:
     """Extract key solutions from QADI results."""
     
     # Import here to avoid circular import
     from mad_spark_alt.utils.text_cleaning import clean_ansi_codes
     
-    def clean_markdown_text(text: str) -> str:
-        """Remove all markdown formatting and clean up text."""
-        if not text:
-            return ""
-        
-        # Remove all markdown formatting
-        cleaned = text.strip()
-        
-        # Remove **bold** markers
-        cleaned = re.sub(r'\*\*([^*]+)\*\*', r'\1', cleaned)
-        
-        # Remove *italic* markers
-        cleaned = re.sub(r'\*([^*]+)\*', r'\1', cleaned)
-        
-        # Remove any remaining asterisks
-        cleaned = cleaned.replace('*', '')
-        
-        # Remove markdown links [text](url)
-        cleaned = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', cleaned)
-        
-        # Clean up extra whitespace
-        cleaned = ' '.join(cleaned.split())
-        
-        return cleaned.strip()
-    
-    def extract_main_title(hypothesis: str) -> str:
-        """Extract the main title/approach from a hypothesis."""
-        cleaned = clean_markdown_text(hypothesis)
-        
-        # Look for "Approach X:" pattern
-        approach_match = re.search(r'Approach \d+:\s*(.+?)(?:\s+This approach|$)', cleaned, re.IGNORECASE)
-        if approach_match:
-            title = approach_match.group(1).strip()
-            # Take only the first sentence if it's very long
-            if len(title) > 150:
-                first_sentence = title.split('.')[0]
-                return first_sentence.strip() if len(first_sentence) > 20 else title[:150]
-            return title
-        
-        # Fallback: take first substantial sentence
-        sentences = cleaned.split('.')
-        for sentence in sentences:
-            sentence = sentence.strip()
-            if len(sentence) > 30:  # Must be substantial
-                return sentence
-        
-        # Last resort: take first 100 characters
-        return cleaned[:100].strip() if cleaned else ""
     
     solutions = []
     
@@ -281,17 +391,10 @@ async def run_qadi_analysis(
             # Show evaluation scores if verbose
             if result.hypothesis_scores:
                 print("### Evaluation Scores:\n")
-                for i, (_, scores) in enumerate(
-                    zip(result.hypotheses, result.hypothesis_scores)
-                ):
-                    print(f"**Approach {i+1} Scores:**")
-                    print(f"  - Impact: {scores.impact:.2f}")
-                    print(f"  - Feasibility: {scores.feasibility:.2f}")
-                    print(f"  - Accessibility: {scores.accessibility:.2f}")
-                    print(f"  - Sustainability: {scores.sustainability:.2f}")
-                    print(f"  - Scalability: {scores.scalability:.2f}")
-                    print(f"  - **Overall: {scores.overall:.2f}**")
-                    print()
+                formatted_scores = format_evaluation_scores(
+                    result.hypotheses, result.hypothesis_scores
+                )
+                print(formatted_scores)
 
         # Main output - focused on solutions
         print("\n## 🔍 Analysis: Comparing the Approaches\n")
@@ -310,40 +413,8 @@ async def run_qadi_analysis(
             examples_to_show = result.verification_examples if verbose else result.verification_examples[:2]
             
             for i, example in enumerate(examples_to_show, 1):
-                # Parse example structure for better formatting
-                lines = example.split('\n')
-                
-                # Look for structured format markers
-                context_line = None
-                application_line = None
-                result_line = None
-                
-                for line in lines:
-                    line = line.strip()
-                    if line.startswith('- Context:') or line.startswith('Context:'):
-                        context_line = line.replace('- Context:', '').replace('Context:', '').strip()
-                    elif line.startswith('- Application:') or line.startswith('Application:'):
-                        application_line = line.replace('- Application:', '').replace('Application:', '').strip()
-                    elif line.startswith('- Result:') or line.startswith('Result:'):
-                        result_line = line.replace('- Result:', '').replace('Result:', '').strip()
-                
-                # Display concisely
-                print(f"**Example {i}**")
-                if context_line and application_line:
-                    # Shorten if too long
-                    if len(context_line) > 150:
-                        context_line = context_line[:147] + "..."
-                    if len(application_line) > 150:
-                        application_line = application_line[:147] + "..."
-                    render_markdown(f"• {context_line}")
-                    render_markdown(f"• {application_line}")
-                    if result_line and len(result_line) < 150:
-                        render_markdown(f"• **Result:** {result_line}")
-                else:
-                    # Fallback - show first 200 chars
-                    short_example = example[:200] + "..." if len(example) > 200 else example
-                    render_markdown(short_example)
-                print()  # Add spacing between examples
+                formatted = format_example_output(example, i)
+                print(formatted)
 
         # Show conclusion only in verbose mode
         if verbose and result.verification_conclusion:
@@ -609,7 +680,9 @@ async def run_qadi_analysis(
                         score_display = f"[Overall: {score_dict['overall']:.2f} | Impact: {score_dict['impact']:.2f} | Feasibility: {score_dict['feasibility']:.2f} | Accessibility: {score_dict['accessibility']:.2f} | Sustainability: {score_dict['sustainability']:.2f} | Scalability: {score_dict['scalability']:.2f}]"
                         
                         print(f"**{display_count}. High Score Approach** {score_display}")
-                        render_markdown(idea.content)
+                        # Clean evolution output to remove parent references
+                        cleaned_content = clean_evolution_output(idea.content)
+                        render_markdown(cleaned_content)
                         print()
                         
                         if display_count >= 3:  # Limit to 3 displayed ideas
