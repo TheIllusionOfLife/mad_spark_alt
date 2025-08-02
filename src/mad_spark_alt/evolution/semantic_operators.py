@@ -1022,8 +1022,8 @@ Your role is to meaningfully combine concepts from two parent ideas into offspri
 IMPORTANT: Generate comprehensive, detailed implementations with specific steps, technologies, and methodologies.
 When returning results, follow the exact format requested in the prompt (JSON or plain text)."""
 
-    CROSSOVER_PROMPT = """Parent Idea 1: {parent1}
-Parent Idea 2: {parent2}
+    CROSSOVER_PROMPT = """First Approach: {parent1}
+Second Approach: {parent2}
 Context: {context}
 
 {evaluation_context}
@@ -1039,8 +1039,8 @@ Analyze the key concepts in each parent and create TWO offspring ideas that:
 8. PRIORITIZES improvements to any target criteria mentioned above
 
 IMPORTANT: The two offspring MUST take different approaches to combining the parent concepts:
-- Offspring 1: Focus on how Parent 1's strengths can enhance Parent 2's approach
-- Offspring 2: Focus on how Parent 2's strengths can enhance Parent 1's approach
+- Offspring 1: Focus on how the first approach's strengths can enhance the second approach
+- Offspring 2: Focus on how the second approach's strengths can enhance the first approach
 - Ensure NO shared sentences or paragraphs between offspring
 - Use different implementation strategies, technologies, and methodologies
 

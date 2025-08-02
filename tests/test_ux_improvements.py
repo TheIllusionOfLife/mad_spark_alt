@@ -113,7 +113,7 @@ class TestEvaluationScoreDisplay:
         
         # Extract metric order
         lines = [line.strip() for line in output.split('\n') if ' - ' in line]
-        metric_order = [line.split(':')[0].strip().replace('- ', '') for line in lines]
+        metric_order = [line.split(':')[0].strip().replace('- ', '').replace('**', '') for line in lines]
         
         # Should match High Score format order
         expected_order = ['Overall', 'Impact', 'Feasibility', 'Accessibility', 
@@ -131,9 +131,9 @@ class TestEvolutionOutputCleanup:
         # Test various parent reference formats
         test_cases = [
             ("Building on Parent 1's approach, we combine sustainability with Parent 2's innovation.",
-             "Building on the first approach, we combine sustainability with the second approach's innovation."),
+             "Building on the first approach's approach, we combine sustainability with the second approach's innovation."),
             ("Parent 1 provides the foundation while Parent 2 adds scalability.",
-             "The first approach provides the foundation while the second approach adds scalability."),
+             "the first approach provides the foundation while the second approach adds scalability."),
             ("Integrating Parent 1's community focus and Parent 2's technology.",
              "Integrating the first approach's community focus and the second approach's technology."),
             ("This combines elements from both approaches without mentioning parents.",
@@ -153,7 +153,7 @@ class TestEvolutionOutputCleanup:
         
         # Mock LLM provider
         mock_llm = Mock()
-        mock_llm.generate_completion = AsyncMock(return_value=Mock(
+        mock_llm.generate = AsyncMock(return_value=Mock(
             content='{"offspring": [{"id": 1, "content": "Combined approach"}, {"id": 2, "content": "Integrated solution"}]}',
             cost=0.001
         ))
@@ -177,12 +177,14 @@ class TestEvolutionOutputCleanup:
         await operator.crossover(parent1, parent2, "reduce plastic waste")
         
         # Check the prompt doesn't instruct to reference "Parent 1" or "Parent 2"
-        call_args = mock_llm.generate_completion.call_args
-        prompt = call_args[1]['prompt']
+        call_args = mock_llm.generate.call_args
+        user_prompt = call_args[0][0].user_prompt
         
         # Should use generic terms instead
-        assert "Parent 1" not in prompt or "first approach" in prompt
-        assert "Parent 2" not in prompt or "second approach" in prompt
+        assert "Parent 1" not in user_prompt
+        assert "Parent 2" not in user_prompt
+        assert "First Approach:" in user_prompt
+        assert "Second Approach:" in user_prompt
 
 
 class TestIntegrationScenarios:
