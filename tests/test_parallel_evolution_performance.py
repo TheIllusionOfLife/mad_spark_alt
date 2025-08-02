@@ -52,7 +52,7 @@ class TestParallelEvolutionPerformance:
         crossover_op = AsyncMock()
         
         # Mock batch mutation with realistic timing
-        async def mock_batch_mutate(ideas, context, evaluation_context=None):
+        async def mock_batch_mutate(ideas, context=None):
             await asyncio.sleep(0.05 * len(ideas))  # Scale with batch size
             return [
                 GeneratedIdea(
@@ -84,7 +84,7 @@ class TestParallelEvolutionPerformance:
                 )
             )
         
-        mutation_op.batch_mutate = mock_batch_mutate
+        mutation_op.mutate_batch = mock_batch_mutate
         crossover_op.crossover = mock_crossover
         
         return mutation_op, crossover_op

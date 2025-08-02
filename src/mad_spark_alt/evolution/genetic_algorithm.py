@@ -585,7 +585,7 @@ class GeneticAlgorithm:
         # Use parallel processing if semantic operators with batch capability are available
         if (config.use_semantic_operators and 
             self.semantic_mutation_operator is not None and
-            hasattr(self.semantic_mutation_operator, 'batch_mutate') and
+            hasattr(self.semantic_mutation_operator, 'mutate_batch') and
             num_offspring_needed > 3):  # Only use parallel for larger populations
             
             logger.info(f"Using parallel processing for {num_offspring_needed} offspring")
@@ -772,7 +772,7 @@ class GeneticAlgorithm:
             # Step 2: CRITICAL OPTIMIZATION - Batch process ALL mutations in a single LLM call
             if (config.use_semantic_operators and 
                 self.semantic_mutation_operator is not None and 
-                hasattr(self.semantic_mutation_operator, 'batch_mutate')):
+                hasattr(self.semantic_mutation_operator, 'mutate_batch')):
                 
                 # Determine which offspring to mutate
                 offspring_to_mutate = [
@@ -785,8 +785,8 @@ class GeneticAlgorithm:
                     operator_context = evaluation_context if evaluation_context else context
                     logger.debug(f"Batch mutating {len(offspring_to_mutate)} offspring in single LLM call")
                     
-                    mutated_offspring = await self.semantic_mutation_operator.batch_mutate(
-                        offspring_to_mutate, context, operator_context
+                    mutated_offspring = await self.semantic_mutation_operator.mutate_batch(
+                        offspring_to_mutate, operator_context
                     )
                     
                     # Replace mutated ideas in the offspring list

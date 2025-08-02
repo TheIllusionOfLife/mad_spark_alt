@@ -179,7 +179,7 @@ class TestHeavyWorkloadTimeout:
                 ) for idea in population
             ]
         
-        async def mock_batch_mutate(ideas, context, evaluation_context=None):
+        async def mock_batch_mutate(ideas, context=None):
             # Batch mutation should process multiple ideas efficiently
             await asyncio.sleep(0.02 * len(ideas))  # Efficient batch processing
             return [
@@ -194,7 +194,7 @@ class TestHeavyWorkloadTimeout:
         
         mock_evaluator.evaluate_population = mock_batch_evaluate
         mock_evaluator.calculate_population_diversity = AsyncMock(return_value=0.8)
-        mock_batch_mutation.batch_mutate = mock_batch_mutate
+        mock_batch_mutation.mutate_batch = mock_batch_mutate
         mock_crossover.crossover = AsyncMock(return_value=(
             GeneratedIdea(
                 content="Parallel cross1", 
@@ -340,9 +340,9 @@ class TestParallelArchitectureRequirements:
         mock_provider = MagicMock()
         operator = BatchSemanticMutationOperator(mock_provider)
         
-        # Verify it has the required batch_mutate method
-        assert hasattr(operator, 'batch_mutate')
-        assert callable(getattr(operator, 'batch_mutate'))
+        # Verify it has the required mutate_batch method
+        assert hasattr(operator, 'mutate_batch')
+        assert callable(getattr(operator, 'mutate_batch'))
         
         # The batch mutation should support processing multiple ideas at once
         # This is key to the parallel processing optimization
