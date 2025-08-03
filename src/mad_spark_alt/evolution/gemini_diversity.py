@@ -7,7 +7,7 @@ from Google's Gemini API, providing true semantic understanding of ideas.
 
 import hashlib
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity  # type: ignore[import-untyped]
 
@@ -127,6 +127,13 @@ class GeminiDiversityCalculator(DiversityCalculator):
             )
             
             response = await self.llm_provider.get_embeddings(request)
+            
+            # Validate response length
+            if len(response.embeddings) != len(needed_texts):
+                raise ValueError(
+                    f"Mismatched embedding response. "
+                    f"Requested {len(needed_texts)}, got {len(response.embeddings)}"
+                )
             
             # Cache and store results
             for i, (text, embedding) in enumerate(zip(needed_texts, response.embeddings)):

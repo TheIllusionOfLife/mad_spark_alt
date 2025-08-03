@@ -16,7 +16,6 @@ from mad_spark_alt.evolution.interfaces import (
     DiversityMethod,
     EvolutionConfig,
     IndividualFitness,
-    PopulationSnapshot,
 )
 from mad_spark_alt.evolution.diversity_calculator import DiversityCalculator
 from mad_spark_alt.evolution.jaccard_diversity import JaccardDiversityCalculator
@@ -313,5 +312,5 @@ class FitnessEvaluator:
                     logger.error(f"Fallback diversity calculator also failed: {fallback_e}")
             
             # If all fails, return default
-            logger.error(f"All diversity calculators failed, using default score")
+            logger.error("All diversity calculators failed, using default score")
             return DEFAULT_FAILURE_SCORE

@@ -31,6 +31,12 @@ from .cost_utils import calculate_llm_cost_from_config
 
 logger = logging.getLogger(__name__)
 
+# Embedding constants
+# Approximate ratio of tokens to words for estimation when API doesn't provide token count
+TOKEN_ESTIMATION_FACTOR = 1.3
+# Cost per 1K tokens for text-embedding-004 model (as of January 2025)
+EMBEDDING_COST_PER_1K_TOKENS = 0.0002
+
 
 class LLMProvider(Enum):
     """Supported LLM providers."""
@@ -412,7 +418,7 @@ class GoogleProvider(LLMProviderInterface):
         if model_name.startswith("models/"):
             model_name = model_name[7:]  # Remove "models/" prefix
             
-        url = f"{self.base_url}/models/{model_name}:embedContent"
+        url = f"{self.base_url}/models/{model_name}:batchEmbedContents"
         
         # Prepare batch request
         batch_requests = []
@@ -443,10 +449,11 @@ class GoogleProvider(LLMProviderInterface):
         # Use the retry mechanism - it returns JSON data directly
         response_json = await safe_aiohttp_request(
             session=session,
-            method="post",
+            method="POST",
             url=url,
             headers=headers,
-            data=json.dumps(payload),
+            json=payload,
+            timeout=300,
             retry_config=self.retry_config,
             circuit_breaker=self.circuit_breaker,
         )
@@ -464,11 +471,11 @@ class GoogleProvider(LLMProviderInterface):
             total_tokens = usage_metadata["totalTokenCount"]
         else:
             # Estimate tokens based on text length
-            total_tokens = sum(len(text.split()) * 1.3 for text in request.texts)  # Rough estimate
+            total_tokens = sum(len(text.split()) * TOKEN_ESTIMATION_FACTOR for text in request.texts)
         
         # Embedding costs are typically much lower than generation
-        # Using a rough estimate of $0.00002 per 1K tokens for embeddings
-        cost = (total_tokens / 1000) * 0.00002
+        # Using configured cost for text-embedding-004 model
+        cost = (total_tokens / 1000) * EMBEDDING_COST_PER_1K_TOKENS
         
         return EmbeddingResponse(
             embeddings=embeddings,

@@ -6,7 +6,7 @@ calculators based on the EvolutionConfig.diversity_method setting.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 from mad_spark_alt.evolution.fitness import FitnessEvaluator, create_diversity_calculator
 from mad_spark_alt.evolution.interfaces import DiversityMethod
