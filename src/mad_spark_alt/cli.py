@@ -31,6 +31,7 @@ from .core.llm_provider import LLMProvider, llm_manager
 from .core.json_utils import format_llm_cost
 from .core.simple_qadi_orchestrator import SimpleQADIOrchestrator
 from .evolution import (
+    DiversityMethod,
     EvolutionConfig,
     EvolutionRequest,
     GeneticAlgorithm,
@@ -550,6 +551,12 @@ def _summary_to_dict(summary: EvaluationSummary) -> Dict[str, Any]:
     is_flag=True,
     help="Use traditional operators instead of semantic operators"
 )
+@click.option(
+    "--diversity-method",
+    type=click.Choice(["jaccard", "semantic"], case_sensitive=False),
+    default="jaccard",
+    help="Diversity calculation method: jaccard (fast, word-based) or semantic (slower, embedding-based)"
+)
 def evolve(
     problem: str,
     context: Optional[str],
@@ -558,6 +565,7 @@ def evolve(
     temperature: Optional[float],
     output: Optional[str],
     traditional: bool,
+    diversity_method: str,
 ) -> None:
     """Evolve ideas using QADI methodology + Genetic Algorithm.
 
@@ -566,6 +574,7 @@ def evolve(
       mad-spark evolve "Improve remote work" --context "Focus on team collaboration"
       mad-spark evolve "Climate solutions" --generations 2
       mad-spark evolve "New product ideas" --temperature 1.5
+      mad-spark evolve "AI applications" --diversity-method semantic
     """
     import os
 
@@ -611,7 +620,7 @@ def evolve(
     # Run the evolution pipeline
     asyncio.run(
         _run_evolution_pipeline(
-            problem, context, generations, population, temperature, output, traditional
+            problem, context, generations, population, temperature, output, traditional, diversity_method
         )
     )
 
@@ -624,6 +633,7 @@ async def _run_evolution_pipeline(
     temperature: Optional[float],
     output_file: Optional[str],
     traditional: bool,
+    diversity_method: str,
 ) -> None:
     """Run the evolution pipeline with progress tracking."""
 
@@ -695,6 +705,7 @@ async def _run_evolution_pipeline(
                 selection_strategy=SelectionStrategy.TOURNAMENT,
                 parallel_evaluation=True,
                 max_parallel_evaluations=min(8, population, len(initial_ideas)),
+                diversity_method=DiversityMethod.SEMANTIC if diversity_method.lower() == "semantic" else DiversityMethod.JACCARD,
             )
 
             request = EvolutionRequest(

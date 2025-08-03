@@ -16,6 +16,7 @@ from mad_spark_alt.evolution.error_recovery import RetryableEvaluator
 from mad_spark_alt.evolution.fitness import FitnessEvaluator
 from mad_spark_alt.evolution.genetic_algorithm import GeneticAlgorithm
 from mad_spark_alt.evolution.interfaces import (
+    DiversityMethod,
     EvolutionConfig,
     EvolutionRequest,
     EvolutionResult,
@@ -44,6 +45,7 @@ from mad_spark_alt.evolution.strategy_comparison import StrategyComparator
 
 __all__ = [
     # Interfaces
+    "DiversityMethod",
     "EvolutionRequest",
     "EvolutionResult",
     "GeneticOperatorInterface",
