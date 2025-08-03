@@ -812,7 +812,7 @@ async def _run_evolution_pipeline(
                         "best_ideas": [
                             {
                                 "content": individual.idea.content,
-                                "fitness_score": individual.overall_fitness,
+                                "overall_fitness": individual.overall_fitness,
                                 "generation": individual.idea.metadata.get(
                                     "generation", 0
                                 ),

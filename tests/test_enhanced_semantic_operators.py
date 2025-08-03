@@ -70,7 +70,7 @@ def high_scoring_idea():
         generation_prompt="Test prompt",
         confidence_score=0.9,
         reasoning="High-quality solution",
-        metadata={"generation": 0, "avg_fitness": 0.85}
+        metadata={"generation": 0, "overall_fitness": 0.85}
     )
 
 
@@ -359,7 +359,7 @@ class TestBreakthroughMutations:
             thinking_method=ThinkingMethod.ABDUCTION,
             agent_name="TestAgent",
             generation_prompt="Test",
-            metadata={"generation": 2, "fitness_score": 0.88}  # High fitness
+            metadata={"generation": 2, "overall_fitness": 0.88}  # High fitness
         )
         
         mock_response = LLMResponse(
@@ -456,7 +456,7 @@ class TestIntegrationWithEvolutionContext:
             thinking_method=ThinkingMethod.ABDUCTION,
             agent_name="TestAgent",
             generation_prompt="Test",
-            metadata={"generation": 0, "fitness_score": 0.6}
+            metadata={"generation": 0, "overall_fitness": 0.6}
         )
         
         high_scoring_idea = GeneratedIdea(
@@ -464,7 +464,7 @@ class TestIntegrationWithEvolutionContext:
             thinking_method=ThinkingMethod.ABDUCTION,
             agent_name="TestAgent",
             generation_prompt="Test",
-            metadata={"generation": 2, "fitness_score": 0.88}
+            metadata={"generation": 2, "overall_fitness": 0.88}
         )
         
         ideas = [regular_idea, high_scoring_idea]
@@ -509,7 +509,7 @@ class TestIntegrationWithEvolutionContext:
             thinking_method=ThinkingMethod.ABDUCTION,
             agent_name="TestAgent",
             generation_prompt="Test",
-            metadata={"generation": 0, "fitness_score": 0.6}
+            metadata={"generation": 0, "overall_fitness": 0.6}
         )
         
         regular_response = LLMResponse(
@@ -525,7 +525,7 @@ class TestIntegrationWithEvolutionContext:
             thinking_method=ThinkingMethod.ABDUCTION,
             agent_name="TestAgent",
             generation_prompt="Test",
-            metadata={"generation": 2, "fitness_score": 0.88}
+            metadata={"generation": 2, "overall_fitness": 0.88}
         )
         
         breakthrough_response = LLMResponse(

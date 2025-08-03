@@ -151,16 +151,15 @@ This is caused by the execution environment (terminal/shell/IDE), not the applic
 
 Output will be saved to `outputs/mad_spark_alt_output_TIMESTAMP.txt`. 
 
-See [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md) for detailed information.
+See the `run_nohup.sh` script for our solution to terminal timeout issues.
 
 ## Documentation
 
 - [DEVELOPMENT.md](DEVELOPMENT.md): Architecture, API reference, contribution guide
 - [RESEARCH.md](RESEARCH.md): QADI methodology background
 - [SESSIONS.md](SESSIONS.md): Development history
-- [SEMANTIC_OPERATORS_IMPLEMENTATION.md](SEMANTIC_OPERATORS_IMPLEMENTATION.md): Semantic evolution operators guide
-- [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md): Timeout issue workaround
 - [STRUCTURED_OUTPUT.md](docs/STRUCTURED_OUTPUT.md): Gemini structured output implementation
+- [docs/](docs/): Additional documentation including CLI usage, examples, and API reference
 
 ## Session Handover
 
@@ -186,6 +185,8 @@ See [EVOLUTION_TIMEOUT_FIX.md](EVOLUTION_TIMEOUT_FIX.md) for detailed informatio
 #### Next Priority Tasks
 
 *Note: This section is the primary source of truth for upcoming development work. Tasks listed here have been verified against the current codebase.*
+
+**📋 Implementation Plan**: See [IMPLEMENTATION_PLAN_DIVERSITY_BREAKTHROUGH.md](docs/IMPLEMENTATION_PLAN_DIVERSITY_BREAKTHROUGH.md) for detailed implementation roadmap.
 
 1. **Performance Optimization: Diversity Calculation**
    - **Status**: Active Development Needed
