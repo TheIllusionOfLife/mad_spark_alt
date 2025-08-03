@@ -7,6 +7,7 @@ and async request handling.
 """
 
 import asyncio
+import json
 import logging
 import os
 import time
@@ -392,6 +393,97 @@ class GoogleProvider(LLMProviderInterface):
             output_tokens,
             model_config.input_cost_per_1k,
             model_config.output_cost_per_1k,
+        )
+
+    async def get_embeddings(self, request: EmbeddingRequest) -> EmbeddingResponse:
+        """
+        Get embeddings for texts using Google's embedding API.
+        
+        Args:
+            request: Embedding request with texts and configuration
+            
+        Returns:
+            EmbeddingResponse with embedding vectors
+        """
+        session = await self._get_session()
+        
+        # Extract model name without "models/" prefix if present
+        model_name = request.model
+        if model_name.startswith("models/"):
+            model_name = model_name[7:]  # Remove "models/" prefix
+            
+        url = f"{self.base_url}/models/{model_name}:embedContent"
+        
+        # Prepare batch request
+        batch_requests = []
+        for text in request.texts:
+            embed_request = {
+                "model": f"models/{model_name}",
+                "content": {
+                    "parts": [{"text": text}]
+                },
+                "taskType": request.task_type,
+                "outputDimensionality": request.output_dimensionality
+            }
+            if request.title:
+                embed_request["title"] = request.title
+            batch_requests.append(embed_request)
+        
+        payload = {
+            "requests": batch_requests
+        }
+        
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": self.api_key,
+        }
+        
+        start_time = time.time()
+        
+        # Use the retry mechanism - it returns JSON data directly
+        response_json = await safe_aiohttp_request(
+            session=session,
+            method="post",
+            url=url,
+            headers=headers,
+            data=json.dumps(payload),
+            retry_config=self.retry_config,
+            circuit_breaker=self.circuit_breaker,
+        )
+        
+        response_time = time.time() - start_time
+        
+        # Extract embeddings
+        embeddings = []
+        for embedding_obj in response_json.get("embeddings", []):
+            embeddings.append(embedding_obj["values"])
+            
+        # Get token usage from response if available
+        usage_metadata = response_json.get("usageMetadata", {})
+        if usage_metadata.get("totalTokenCount"):
+            total_tokens = usage_metadata["totalTokenCount"]
+        else:
+            # Estimate tokens based on text length
+            total_tokens = sum(len(text.split()) * 1.3 for text in request.texts)  # Rough estimate
+        
+        # Embedding costs are typically much lower than generation
+        # Using a rough estimate of $0.00002 per 1K tokens for embeddings
+        cost = (total_tokens / 1000) * 0.00002
+        
+        return EmbeddingResponse(
+            embeddings=embeddings,
+            model=model_name,
+            usage={
+                "total_tokens": int(total_tokens),
+                "prompt_tokens": int(total_tokens),  # All tokens are input for embeddings
+            },
+            cost=cost,
+            metadata={
+                "response_time": response_time,
+                "num_texts": len(request.texts),
+                "task_type": request.task_type,
+                "dimensions": request.output_dimensionality
+            }
         )
 
     async def close(self) -> None:
