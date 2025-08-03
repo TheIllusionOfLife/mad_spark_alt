@@ -553,6 +553,14 @@ async def run_qadi_analysis(
                     print("🧬 Evolution operators: SEMANTIC (LLM-powered for better creativity)")
                     print("   (Use --traditional for faster traditional operators)")
                 
+                # Display diversity method information
+                if diversity_method.lower() == "semantic":
+                    print("🧬 Diversity calculation: SEMANTIC (embedding-based, more accurate)")
+                    print("   (Use --diversity-method jaccard for faster word-based calculation)")
+                else:
+                    print("🧬 Diversity calculation: JACCARD (word-based, faster)")
+                    print("   (Use --diversity-method semantic for more accurate embedding-based calculation)")
+                
                 # Create genetic algorithm instance with or without LLM provider
                 ga = GeneticAlgorithm(
                     use_cache=True,

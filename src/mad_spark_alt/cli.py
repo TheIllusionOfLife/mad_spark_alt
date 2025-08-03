@@ -608,12 +608,15 @@ def evolve(
 
 
     temp_display = f" | Temperature: {temperature}" if temperature else ""
+    operators_display = "Traditional" if traditional else "Semantic (LLM-powered)"
+    diversity_display = "Semantic (embedding-based)" if diversity_method.lower() == "semantic" else "Jaccard (word-based)"
     console.print(
         Panel(
             f"[bold blue]Evolution Pipeline[/bold blue]\n"
             f"Problem: {problem}\n"
             f"Context: {context}\n"
-            f"Generations: {generations} | Population: {population}{temp_display}"
+            f"Generations: {generations} | Population: {population}{temp_display}\n"
+            f"Operators: {operators_display} | Diversity: {diversity_display}"
         )
     )
 
