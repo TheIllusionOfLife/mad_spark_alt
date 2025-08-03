@@ -395,14 +395,17 @@ class EvolutionCheckpointer:
             # Deserialize idea
             idea_data = fitness_data["idea"]
             # Migrate old field names in metadata if present
-            metadata = idea_data.get("metadata", {})
+            metadata = idea_data.get("metadata", {}).copy()  # Create explicit copy
             if "overall_fitness" not in metadata:
+                # Check both fields independently to handle cases where both exist
                 if "fitness_score" in metadata:
                     metadata["overall_fitness"] = metadata.pop("fitness_score")
                     logger.debug("Migrated fitness_score to overall_fitness in checkpoint")
-                elif "avg_fitness" in metadata:
+                if "avg_fitness" in metadata and "overall_fitness" not in metadata:
                     metadata["overall_fitness"] = metadata.pop("avg_fitness")
                     logger.debug("Migrated avg_fitness to overall_fitness in checkpoint")
+            # Explicitly assign back the modified metadata
+            idea_data["metadata"] = metadata
             
             idea = GeneratedIdea(
                 content=idea_data["content"],
@@ -418,10 +421,11 @@ class EvolutionCheckpointer:
 
             # Migrate old field names in fitness_data if present
             if "overall_fitness" not in fitness_data:
+                # Check both fields independently to handle cases where both exist
                 if "fitness_score" in fitness_data:
                     fitness_data["overall_fitness"] = fitness_data.pop("fitness_score")
                     logger.debug("Migrated fitness_score to overall_fitness in fitness record")
-                elif "avg_fitness" in fitness_data:
+                if "avg_fitness" in fitness_data and "overall_fitness" not in fitness_data:
                     fitness_data["overall_fitness"] = fitness_data.pop("avg_fitness")
                     logger.debug("Migrated avg_fitness to overall_fitness in fitness record")
             
