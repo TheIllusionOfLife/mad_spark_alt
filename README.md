@@ -103,6 +103,44 @@ The evolution system uses diversity calculation to prevent premature convergence
 
 **Recommendation**: Use Jaccard for development and quick testing, Semantic for final production runs where conceptual diversity matters most.
 
+## Cost Information
+
+### LLM API Pricing (Gemini 2.5 Flash)
+Based on official Google Cloud pricing (as of August 2025):
+- **Input**: $0.30 per million tokens
+- **Output**: $2.50 per million tokens  
+- **Embeddings**: $0.20 per million tokens (text-embedding-004)
+
+### Cost Simulation: Evolution Run
+
+For a typical evolution run with `--population 10 --generations 5`:
+
+| Phase | Operation | Cost |
+|-------|-----------|------|
+| **QADI Processing** | 4 LLM calls (Q→A→D→I) | $0.012 |
+| **Evolution** | 5 generations × 5 calls/gen | $0.050 |
+| **Fitness Evaluation** | Initial + 5 generations | $0.050 |
+| **Diversity (Semantic)** | 6 embedding calls | $0.001 |
+| **Total** | ~36 API calls | **$0.11** |
+
+### Cost Optimization
+
+1. **Batch Operations**: Already implemented - saves 10+ LLM calls per run
+2. **Caching**: Fitness evaluations and embeddings are cached by content
+3. **Jaccard Diversity**: Free alternative to semantic embeddings
+4. **Smaller Populations**: Use `--population 5` to halve evolution costs
+
+### Performance vs Cost Trade-offs
+
+| Configuration | Time | Cost | Quality |
+|--------------|------|------|---------|
+| Basic QADI only | ~10s | $0.01 | Good baseline |
+| Evolution (pop=5, gen=3) | ~40s | $0.05 | Better diversity |
+| Evolution (pop=10, gen=5) | ~67s | $0.11 | Best results |
+| With semantic diversity | +5s | +$0.001 | Conceptual diversity |
+
+**Note**: Actual costs may vary based on prompt length and response verbosity.
+
 ## Architecture
 
 - **QADI Orchestrator**: 4-phase implementation
