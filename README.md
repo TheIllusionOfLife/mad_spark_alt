@@ -237,7 +237,21 @@ See the `run_nohup.sh` script for our solution to terminal timeout issues.
      - Target O(n log n) or better complexity
      - Validate diversity metrics remain meaningful after optimization
 
-2. **Batch Semantic Operators Enhancement**
+2. **Batch Semantic Crossover Implementation** 🚀
+   - **Status**: High Priority - Major Performance Win
+   - **Current State**: Crossover operations run sequentially (3 calls per generation)
+   - **Opportunity**: Batch all crossovers into 1 LLM call per generation
+   - **Impact**: 
+     - Save 10 LLM calls across 5 generations (2 calls × 5 gens)
+     - Reduce evolution time by ~20 seconds (30% faster)
+     - No additional cost (same tokens, just batched)
+   - **Implementation**:
+     - Create `BatchSemanticCrossoverOperator` similar to existing batch mutation
+     - Modify `_generate_offspring_parallel()` to collect all crossover pairs
+     - Single LLM call with structured output for multiple offspring pairs
+     - Maintain parent lineage tracking for all batch-generated offspring
+
+3. **Batch Semantic Operators Enhancement**
    - **Status**: Active Development Needed
    - **Issue**: Batch mutations don't support breakthrough mutations for high-scoring ideas
    - **TODOs**: semantic_operators.py lines 802-804, 870
