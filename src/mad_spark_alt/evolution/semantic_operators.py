@@ -549,10 +549,9 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         # Check multiple sources for fitness indicators
         
         # 1. Check metadata for overall fitness score
-        if "overall_fitness" in idea.metadata:
-            fitness = idea.metadata["overall_fitness"]
-            if isinstance(fitness, (int, float)) and fitness >= self.breakthrough_threshold:
-                return True
+        fitness = idea.metadata.get("overall_fitness")
+        if fitness is not None and isinstance(fitness, (int, float)) and fitness >= self.breakthrough_threshold:
+            return True
                     
         # 2. Check confidence score as proxy (high confidence + later generation)
         if idea.confidence_score and idea.confidence_score >= self.BREAKTHROUGH_CONFIDENCE_PROXY_THRESHOLD:
@@ -984,8 +983,9 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         }
         
         # Include original fitness information if available
-        if "overall_fitness" in original.metadata:
-            metadata["parent_fitness"] = original.metadata["overall_fitness"]
+        parent_fitness = original.metadata.get("overall_fitness")
+        if parent_fitness is not None:
+            metadata["parent_fitness"] = parent_fitness
             
         generation_description = "BREAKTHROUGH mutation" if is_breakthrough else "Semantic mutation"
         

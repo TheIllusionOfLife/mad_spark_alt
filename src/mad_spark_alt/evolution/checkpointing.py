@@ -396,12 +396,13 @@ class EvolutionCheckpointer:
             idea_data = fitness_data["idea"]
             # Migrate old field names in metadata if present
             metadata = idea_data.get("metadata", {})
-            if "fitness_score" in metadata and "overall_fitness" not in metadata:
-                metadata["overall_fitness"] = metadata.pop("fitness_score")
-                logger.debug("Migrated fitness_score to overall_fitness in checkpoint")
-            if "avg_fitness" in metadata and "overall_fitness" not in metadata:
-                metadata["overall_fitness"] = metadata.pop("avg_fitness")
-                logger.debug("Migrated avg_fitness to overall_fitness in checkpoint")
+            if "overall_fitness" not in metadata:
+                if "fitness_score" in metadata:
+                    metadata["overall_fitness"] = metadata.pop("fitness_score")
+                    logger.debug("Migrated fitness_score to overall_fitness in checkpoint")
+                elif "avg_fitness" in metadata:
+                    metadata["overall_fitness"] = metadata.pop("avg_fitness")
+                    logger.debug("Migrated avg_fitness to overall_fitness in checkpoint")
             
             idea = GeneratedIdea(
                 content=idea_data["content"],
@@ -415,6 +416,15 @@ class EvolutionCheckpointer:
                 timestamp=idea_data.get("timestamp"),
             )
 
+            # Migrate old field names in fitness_data if present
+            if "overall_fitness" not in fitness_data:
+                if "fitness_score" in fitness_data:
+                    fitness_data["overall_fitness"] = fitness_data.pop("fitness_score")
+                    logger.debug("Migrated fitness_score to overall_fitness in fitness record")
+                elif "avg_fitness" in fitness_data:
+                    fitness_data["overall_fitness"] = fitness_data.pop("avg_fitness")
+                    logger.debug("Migrated avg_fitness to overall_fitness in fitness record")
+            
             # Deserialize fitness
             individual = IndividualFitness(
                 idea=idea,
