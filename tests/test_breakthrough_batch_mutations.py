@@ -62,8 +62,7 @@ def evaluation_context():
     return EvaluationContext(
         original_question="How can we achieve carbon neutrality?",
         target_improvements=["impact", "scalability"],
-        weak_criteria=["feasibility"],
-        generation_number=3
+        current_best_scores={"impact": 8.0, "scalability": 7.0, "feasibility": 5.5}
     )
 
 

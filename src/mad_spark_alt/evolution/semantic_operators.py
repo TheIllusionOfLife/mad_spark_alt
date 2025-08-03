@@ -1285,3 +1285,322 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
             },
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
+
+
+class BatchSemanticCrossoverOperator(CrossoverInterface):
+    """
+    Batch LLM-powered crossover operator that processes multiple parent pairs in a single call.
+    
+    This operator significantly improves performance by batching all crossover operations
+    from a generation into a single LLM request, reducing API calls and improving consistency.
+    """
+    
+    def __init__(
+        self,
+        llm_provider: GoogleProvider,
+        cache_ttl: int = 3600
+    ):
+        """
+        Initialize batch semantic crossover operator.
+        
+        Args:
+            llm_provider: LLM provider for generating crossovers
+            cache_ttl: Cache time-to-live in seconds
+        """
+        self.llm_provider = llm_provider
+        self.cache = SemanticOperatorCache(ttl_seconds=cache_ttl)
+        self._sequential_operator = SemanticCrossoverOperator(llm_provider, cache_ttl)
+        self.structured_output_enabled = True
+        
+    @property
+    def name(self) -> str:
+        return "batch_semantic_crossover"
+        
+    def validate_config(self, config: Dict) -> bool:
+        """Validate crossover configuration."""
+        return True
+        
+    async def crossover(
+        self,
+        parent1: GeneratedIdea,
+        parent2: GeneratedIdea,
+        context: Optional[Union[str, EvaluationContext]] = None
+    ) -> Tuple[GeneratedIdea, GeneratedIdea]:
+        """
+        Perform crossover between two parent ideas.
+        
+        This method implements the abstract method from CrossoverInterface
+        by delegating to the batch processing method for a single pair.
+        
+        Args:
+            parent1: First parent idea
+            parent2: Second parent idea
+            context: Optional context for crossover
+            
+        Returns:
+            Tuple of two offspring ideas
+        """
+        # Use batch processing for single pair
+        results = await self.crossover_batch([(parent1, parent2)], context)
+        return results[0] if results else (parent1, parent2)
+        
+    async def crossover_batch(
+        self,
+        parent_pairs: List[Tuple[GeneratedIdea, GeneratedIdea]],
+        context: Optional[Union[str, EvaluationContext]] = None
+    ) -> List[Tuple[GeneratedIdea, GeneratedIdea]]:
+        """
+        Perform batch semantic crossover on multiple parent pairs.
+        
+        Args:
+            parent_pairs: List of (parent1, parent2) tuples
+            context: Optional context for crossover
+            
+        Returns:
+            List of (offspring1, offspring2) tuples
+        """
+        if not parent_pairs:
+            return []
+            
+        # Check cache for each pair and separate cached/uncached
+        cached_results = []
+        uncached_pairs = []
+        uncached_indices = []
+        
+        for i, (parent1, parent2) in enumerate(parent_pairs):
+            # Create canonical cache key
+            sorted_contents = sorted([parent1.content, parent2.content])
+            base_cache_key = f"{sorted_contents[0]}||{sorted_contents[1]}"
+            cache_key = _prepare_cache_key_with_context(base_cache_key, context)
+            
+            cached_result = self.cache.get(cache_key, operation_type="batch_crossover", return_dict=True)
+            
+            if cached_result and isinstance(cached_result, dict):
+                # Parse cached result
+                offspring1_content = cached_result.get("offspring1", "")
+                offspring2_content = cached_result.get("offspring2", "")
+                if offspring1_content and offspring2_content:
+                    cached_results.append((
+                        self._create_offspring(parent1, parent2, offspring1_content, 0.0, from_cache=True),
+                        self._create_offspring(parent2, parent1, offspring2_content, 0.0, from_cache=True)
+                    ))
+                    continue
+                    
+            # Not cached, add to uncached list
+            uncached_pairs.append((parent1, parent2))
+            uncached_indices.append(i)
+            
+        # If all are cached, return cached results
+        if not uncached_pairs:
+            return cached_results
+            
+        # Prepare context for batch processing
+        context_str, evaluation_context_str = _prepare_operator_contexts(
+            context, "", "general optimization"
+        )
+        
+        # Generate batch crossover prompt
+        batch_prompt = self._create_batch_prompt(uncached_pairs, context_str, evaluation_context_str)
+        
+        try:
+            # Use structured output for batch crossover
+            schema = self._get_batch_crossover_schema()
+            request = LLMRequest(
+                system_prompt=SemanticCrossoverOperator.CROSSOVER_SYSTEM_PROMPT,
+                user_prompt=batch_prompt,
+                max_tokens=SEMANTIC_CROSSOVER_MAX_TOKENS * len(uncached_pairs),
+                temperature=0.8,
+                response_schema=schema,
+                response_mime_type="application/json"
+            )
+            
+            result = await self.llm_provider.generate(request)
+            llm_cost = result.cost if hasattr(result, 'cost') else 0.0
+            
+            # Parse batch results
+            batch_results = []
+            # Parse JSON from response content
+            try:
+                data = json.loads(result.content)
+                if isinstance(data, dict) and "crossovers" in data:
+                    crossovers = data["crossovers"]
+                    
+                    # Validate we got the right number of results
+                    if len(crossovers) != len(uncached_pairs):
+                        logger.warning(f"Expected {len(uncached_pairs)} crossovers but got {len(crossovers)}")
+                    
+                    # Process each crossover result
+                    for i, crossover_data in enumerate(crossovers):
+                        if i >= len(uncached_pairs):
+                            break
+                            
+                        parent1, parent2 = uncached_pairs[i]
+                        offspring1_content = crossover_data.get("offspring1", "")
+                        offspring2_content = crossover_data.get("offspring2", "")
+                        
+                        # Validate offspring content
+                        if not offspring1_content or not offspring2_content:
+                            logger.warning(f"Empty offspring content for pair {i}")
+                            # Use fallback
+                            offspring1_content = self._generate_fallback_offspring(parent1, parent2, True)
+                            offspring2_content = self._generate_fallback_offspring(parent1, parent2, False)
+                        
+                        # Create offspring ideas
+                        offspring1 = self._create_offspring(parent1, parent2, offspring1_content, llm_cost / len(uncached_pairs))
+                        offspring2 = self._create_offspring(parent2, parent1, offspring2_content, llm_cost / len(uncached_pairs))
+                        
+                        batch_results.append((offspring1, offspring2))
+                        
+                        # Cache the result
+                        sorted_contents = sorted([parent1.content, parent2.content])
+                        base_cache_key = f"{sorted_contents[0]}||{sorted_contents[1]}"
+                        cache_key = _prepare_cache_key_with_context(base_cache_key, context)
+                        cache_data = {
+                            "offspring1": offspring1_content,
+                            "offspring2": offspring2_content
+                        }
+                        self.cache.put(cache_key, cache_data, operation_type="batch_crossover")
+                        
+                else:
+                    raise ValueError("Invalid response format - missing crossovers")
+                    
+            except (json.JSONDecodeError, KeyError, ValueError) as e:
+                # Fallback to sequential processing if batch fails
+                logger.warning("Batch crossover failed, falling back to sequential processing")
+                for parent1, parent2 in uncached_pairs:
+                    offspring1, offspring2 = await self._sequential_operator.crossover(parent1, parent2, context)
+                    batch_results.append((offspring1, offspring2))
+                    
+        except Exception as e:
+            logger.error(f"Batch crossover error: {e}")
+            # Fallback to sequential processing
+            batch_results = []
+            for parent1, parent2 in uncached_pairs:
+                try:
+                    offspring1, offspring2 = await self._sequential_operator.crossover(parent1, parent2, context)
+                    batch_results.append((offspring1, offspring2))
+                except Exception as seq_error:
+                    logger.error(f"Sequential crossover also failed: {seq_error}")
+                    # Use fallback content
+                    offspring1_content = self._generate_fallback_offspring(parent1, parent2, True)
+                    offspring2_content = self._generate_fallback_offspring(parent1, parent2, False)
+                    offspring1 = self._create_offspring(parent1, parent2, offspring1_content, 0.0)
+                    offspring2 = self._create_offspring(parent2, parent1, offspring2_content, 0.0)
+                    batch_results.append((offspring1, offspring2))
+        
+        # Combine cached and new results in original order
+        final_results = []
+        cached_idx = 0
+        batch_idx = 0
+        
+        for i in range(len(parent_pairs)):
+            if i in uncached_indices:
+                final_results.append(batch_results[batch_idx])
+                batch_idx += 1
+            else:
+                final_results.append(cached_results[cached_idx])
+                cached_idx += 1
+                
+        return final_results
+        
+    def _create_batch_prompt(
+        self,
+        parent_pairs: List[Tuple[GeneratedIdea, GeneratedIdea]],
+        context_str: str,
+        evaluation_context_str: str
+    ) -> str:
+        """Create batch crossover prompt for multiple parent pairs."""
+        pairs_text = ""
+        for i, (parent1, parent2) in enumerate(parent_pairs):
+            pairs_text += f"\nPair {i + 1}:\nParent 1: {parent1.content}\nParent 2: {parent2.content}\n"
+            
+        return f"""Context: {context_str}
+
+{evaluation_context_str}
+
+Generate crossover offspring for the following {len(parent_pairs)} parent pairs. 
+For each pair, create TWO distinct offspring that meaningfully integrate concepts from BOTH parents.
+
+{pairs_text}
+
+For each pair, the offspring must:
+1. Meaningfully integrate concepts from BOTH parents
+2. Create synergy between parent concepts
+3. Provide DETAILED implementation (minimum 150 words per offspring)
+4. Be SUBSTANTIALLY DIFFERENT from each other
+5. PRIORITIZE improvements to any target criteria mentioned above
+
+Return the results as JSON with a "crossovers" array containing objects with:
+- "pair_id": index of the parent pair (0-based)
+- "offspring1": detailed first offspring (min 150 words)
+- "offspring2": detailed second offspring (min 150 words)"""
+        
+    def _get_batch_crossover_schema(self) -> Dict[str, Any]:
+        """Get JSON schema for batch crossover structured output."""
+        return {
+            "type": "OBJECT",
+            "properties": {
+                "crossovers": {
+                    "type": "ARRAY",
+                    "items": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "pair_id": {"type": "INTEGER"},
+                            "offspring1": {"type": "STRING"},
+                            "offspring2": {"type": "STRING"}
+                        },
+                        "required": ["pair_id", "offspring1", "offspring2"]
+                    }
+                }
+            },
+            "required": ["crossovers"]
+        }
+        
+    def _generate_fallback_offspring(
+        self,
+        parent1: GeneratedIdea,
+        parent2: GeneratedIdea,
+        is_first: bool
+    ) -> str:
+        """Generate fallback text for batch crossover offspring."""
+        if is_first:
+            return f"[FALLBACK TEXT] Hybrid approach combining elements from both parent ideas: This solution integrates key aspects from '{parent1.content[:50]}...' and '{parent2.content[:50]}...'. The approach combines the structural framework of the first concept with the innovative mechanisms of the second, creating a comprehensive solution that addresses the same core problem through multiple complementary strategies. Implementation would involve adapting the proven methodologies from both approaches while ensuring seamless integration and enhanced effectiveness. The hybrid nature allows for greater flexibility and robustness in addressing various scenarios."
+        else:
+            return f"[FALLBACK TEXT] Alternative integration emphasizing synergy: This variation explores a different combination pattern by merging the core principles from '{parent1.content[:50]}...' with the practical implementation strategies from '{parent2.content[:50]}...'. The resulting solution maintains the strengths of both parent approaches while introducing novel elements that emerge from their interaction. This alternative demonstrates how the same foundational concepts can yield distinctly different yet equally valuable outcomes through strategic recombination. The focus is on creating emergent properties that neither parent could achieve alone."
+            
+    def _create_offspring(
+        self,
+        primary_parent: GeneratedIdea,
+        secondary_parent: GeneratedIdea,
+        content: str,
+        llm_cost: float,
+        from_cache: bool = False
+    ) -> GeneratedIdea:
+        """Create an offspring idea object."""
+        return GeneratedIdea(
+            content=content,
+            thinking_method=primary_parent.thinking_method,
+            agent_name="BatchSemanticCrossoverOperator",
+            generation_prompt=f"Batch crossover of: '{primary_parent.content[:30]}...' and '{secondary_parent.content[:30]}...'",
+            confidence_score=(
+                (primary_parent.confidence_score or 0.5) +
+                (secondary_parent.confidence_score or 0.5)
+            ) / 2,
+            reasoning="Batch semantic integration of parent concepts",
+            parent_ideas=[primary_parent.content, secondary_parent.content],
+            metadata={
+                "operator": "semantic_batch_crossover",
+                "crossover_type": "semantic_batch",
+                "llm_cost": llm_cost,
+                "from_cache": from_cache,
+                "parent_ids": [
+                    primary_parent.metadata.get("id", ""),
+                    secondary_parent.metadata.get("id", "")
+                ],
+                "generation": max(
+                    primary_parent.metadata.get("generation", 0),
+                    secondary_parent.metadata.get("generation", 0)
+                ) + 1,
+            },
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
