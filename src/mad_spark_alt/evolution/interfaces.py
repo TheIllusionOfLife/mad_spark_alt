@@ -50,6 +50,13 @@ class SelectionStrategy(Enum):
     RANDOM = "random"
 
 
+class DiversityMethod(Enum):
+    """Diversity calculation methods for population analysis."""
+    
+    JACCARD = "jaccard"  # Word-based similarity (fast, O(n²))
+    SEMANTIC = "semantic"  # Embedding-based similarity (slower, API calls)
+
+
 @dataclass
 class EvolutionConfig:
     """Configuration for genetic evolution process."""
@@ -97,6 +104,9 @@ class EvolutionConfig:
     semantic_operator_threshold: float = 0.8  # Increased from 0.5 to make semantic operators trigger more often
     semantic_batch_size: int = 5
     semantic_cache_ttl: int = 3600
+    
+    # Diversity calculation method
+    diversity_method: DiversityMethod = DiversityMethod.JACCARD  # Default to fast Jaccard method
 
     def validate(self) -> bool:
         """Validate configuration parameters."""

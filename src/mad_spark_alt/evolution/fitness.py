@@ -12,14 +12,46 @@ from typing import Dict, List, Optional
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.core.unified_evaluator import HypothesisEvaluation, UnifiedEvaluator
 from mad_spark_alt.evolution.interfaces import (
+    DiversityMethod,
     EvolutionConfig,
     IndividualFitness,
+    PopulationSnapshot,
 )
+from mad_spark_alt.evolution.diversity_calculator import DiversityCalculator
+from mad_spark_alt.evolution.jaccard_diversity import JaccardDiversityCalculator
+from mad_spark_alt.evolution.gemini_diversity import GeminiDiversityCalculator
 
 logger = logging.getLogger(__name__)
 
 # Default score for failed evaluations or missing metrics
 DEFAULT_FAILURE_SCORE = 0.1  # Penalty score rather than neutral 0.5
+
+
+def create_diversity_calculator(
+    diversity_method: DiversityMethod,
+    llm_provider=None
+) -> DiversityCalculator:
+    """
+    Create appropriate diversity calculator based on method.
+    
+    Args:
+        diversity_method: The diversity calculation method to use
+        llm_provider: LLM provider for semantic method (required for SEMANTIC)
+        
+    Returns:
+        DiversityCalculator instance
+        
+    Raises:
+        ValueError: If SEMANTIC method requested without LLM provider
+    """
+    if diversity_method == DiversityMethod.JACCARD:
+        return JaccardDiversityCalculator()
+    elif diversity_method == DiversityMethod.SEMANTIC:
+        if llm_provider is None:
+            raise ValueError("LLM provider required for semantic diversity calculation")
+        return GeminiDiversityCalculator(llm_provider=llm_provider)
+    else:
+        raise ValueError(f"Unknown diversity method: {diversity_method}")
 
 
 class FitnessEvaluator:
@@ -30,14 +62,44 @@ class FitnessEvaluator:
     novelty, impact, cost, feasibility, and risks.
     """
 
-    def __init__(self, unified_evaluator: Optional[UnifiedEvaluator] = None):
+    def __init__(
+        self, 
+        unified_evaluator: Optional[UnifiedEvaluator] = None,
+        diversity_calculator: Optional[DiversityCalculator] = None,
+        fallback_diversity_calculator: Optional[DiversityCalculator] = None
+    ):
         """
         Initialize fitness evaluator.
 
         Args:
             unified_evaluator: Optional custom evaluator. If None, creates default.
+            diversity_calculator: Optional diversity calculator. If None, uses JaccardDiversityCalculator.
+            fallback_diversity_calculator: Optional fallback calculator if primary fails.
         """
         self.unified_evaluator = unified_evaluator or UnifiedEvaluator()
+        self.diversity_calculator = diversity_calculator or JaccardDiversityCalculator()
+        self.fallback_diversity_calculator = fallback_diversity_calculator
+
+    def configure_diversity_method(
+        self, 
+        diversity_method: DiversityMethod, 
+        llm_provider=None
+    ) -> None:
+        """
+        Configure diversity calculation method.
+        
+        Args:
+            diversity_method: The diversity calculation method to use
+            llm_provider: LLM provider for semantic method (required for SEMANTIC)
+        """
+        # Create primary calculator
+        self.diversity_calculator = create_diversity_calculator(diversity_method, llm_provider)
+        
+        # Create fallback calculator (always Jaccard for reliability)
+        if diversity_method != DiversityMethod.JACCARD:
+            self.fallback_diversity_calculator = JaccardDiversityCalculator()
+        else:
+            self.fallback_diversity_calculator = None
 
     def _convert_evaluation_to_fitness(
         self, idea: GeneratedIdea, evaluation: HypothesisEvaluation
@@ -222,7 +284,7 @@ class FitnessEvaluator:
         self, population: List[IndividualFitness]
     ) -> float:
         """
-        Calculate diversity score for entire population using content similarity.
+        Calculate diversity score for a population using the configured calculator.
 
         This helps maintain genetic diversity and avoid premature convergence.
 
@@ -232,45 +294,23 @@ class FitnessEvaluator:
         Returns:
             Population diversity score (0-1), where 0 = identical, 1 = completely diverse
         """
-        if len(population) < 2:
-            return 1.0
-
         try:
-            # Calculate diversity using content similarity instead of novelty scores
-            # This is more reliable than depending on LLM evaluation metadata
-            total_similarity = 0.0
-            comparisons = 0
+            # Try primary calculator
+            diversity = await self.diversity_calculator.calculate_diversity(population)
+            return max(0.0, min(1.0, diversity))
             
-            for i in range(len(population)):
-                for j in range(i + 1, len(population)):
-                    idea1 = population[i].idea.content.lower().strip()
-                    idea2 = population[j].idea.content.lower().strip()
-                    
-                    # Simple similarity based on shared words
-                    words1 = set(idea1.split())
-                    words2 = set(idea2.split())
-                    
-                    if len(words1) == 0 and len(words2) == 0:
-                        similarity = 1.0  # Both empty
-                    elif len(words1) == 0 or len(words2) == 0:
-                        similarity = 0.0  # One empty
-                    else:
-                        # Jaccard similarity
-                        intersection = len(words1.intersection(words2))
-                        union = len(words1.union(words2))
-                        similarity = intersection / union if union > 0 else 0.0
-                    
-                    total_similarity += similarity
-                    comparisons += 1
-            
-            if comparisons > 0:
-                avg_similarity = total_similarity / comparisons
-                # Diversity is inverse of similarity
-                diversity = 1.0 - avg_similarity
-                return max(0.0, min(1.0, diversity))
-
-            return DEFAULT_FAILURE_SCORE
-
         except Exception as e:
-            logger.error(f"Failed to calculate population diversity: {e}")
+            logger.warning(f"Primary diversity calculator failed: {e}")
+            
+            # Try fallback if available
+            if self.fallback_diversity_calculator:
+                try:
+                    diversity = await self.fallback_diversity_calculator.calculate_diversity(population)
+                    logger.info("Using fallback diversity calculator")
+                    return max(0.0, min(1.0, diversity))
+                except Exception as fallback_e:
+                    logger.error(f"Fallback diversity calculator also failed: {fallback_e}")
+            
+            # If all fails, return default
+            logger.error(f"All diversity calculators failed, using default score")
             return DEFAULT_FAILURE_SCORE
