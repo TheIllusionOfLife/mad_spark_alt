@@ -555,7 +555,7 @@ def _summary_to_dict(summary: EvaluationSummary) -> Dict[str, Any]:
     "--diversity-method",
     type=click.Choice(["jaccard", "semantic"], case_sensitive=False),
     default="jaccard",
-    help="Diversity calculation method: jaccard (fast, word-based) or semantic (slower, embedding-based)"
+    help="Diversity calculation method: jaccard (fast, word-based) or semantic (slower, embedding-based with Gemini API)"
 )
 def evolve(
     problem: str,
