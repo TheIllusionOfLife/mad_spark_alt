@@ -95,14 +95,14 @@ class TestGoogleProviderEmbeddings:
             call_args = mock_request.call_args
             
             # Check URL parameter
-            assert "text-embedding-004:embedContent" in call_args[1]['url']
+            assert "text-embedding-004:batchEmbedContents" in call_args[1]['url']
             
             # Check headers
             headers = call_args[1]['headers']
             assert headers['x-goog-api-key'] == self.api_key
             
-            # Check request body
-            data = json.loads(call_args[1]['data'])
+            # Check request body - json parameter is used now, not data
+            data = call_args[1]['json']
             assert data['requests'][0]['content']['parts'][0]['text'] == "hello world"
             assert data['requests'][0]['taskType'] == "SEMANTIC_SIMILARITY"
             assert data['requests'][0]['outputDimensionality'] == 768
@@ -131,7 +131,7 @@ class TestGoogleProviderEmbeddings:
             response = await self.provider.get_embeddings(request)
             
             # Check request body has all texts
-            data = json.loads(mock_request.call_args[1]['data'])
+            data = mock_request.call_args[1]['json']
             assert len(data['requests']) == 3
             assert data['requests'][0]['content']['parts'][0]['text'] == "text one"
             assert data['requests'][1]['content']['parts'][0]['text'] == "text two"
@@ -160,7 +160,7 @@ class TestGoogleProviderEmbeddings:
             response = await self.provider.get_embeddings(request)
             
             # Check request has correct dimensions
-            data = json.loads(mock_request.call_args[1]['data'])
+            data = mock_request.call_args[1]['json']
             assert data['requests'][0]['outputDimensionality'] == 1536
             
             # Check response
