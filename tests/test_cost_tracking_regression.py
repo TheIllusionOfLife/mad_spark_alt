@@ -231,7 +231,7 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
         
         # Fractional tokens (should handle gracefully)
         cost = cost_utils.calculate_llm_cost(150, 75, "gemini-2.5-flash")
-        assert cost == pytest.approx(0.0000675)  # (150/1000 * 0.00015) + (75/1000 * 0.0006) = 0.0000225 + 0.000045 = 0.0000675
+        assert cost == pytest.approx(0.0002325)  # (150/1000 * 0.00030) + (75/1000 * 0.0025) = 0.000045 + 0.0001875 = 0.0002325
 
     @pytest.mark.asyncio
     async def test_cost_propagation_in_error_scenarios(self, orchestrator, mock_llm_manager):
@@ -315,7 +315,7 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
         )
         assert input_tokens == 150
         assert output_tokens == 250
-        assert cost == pytest.approx(0.0001725)  # (150/1000 * 0.00015) + (250/1000 * 0.0006) = 0.0000225 + 0.00015 = 0.0001725
+        assert cost == pytest.approx(0.00067)  # (150/1000 * 0.00030) + (250/1000 * 0.0025) = 0.000045 + 0.000625 = 0.00067
         
         # Empty usage dict
         cost, input_tokens, output_tokens = cost_utils.calculate_cost_with_usage(
