@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
 from mad_spark_alt.evolution.interfaces import (
+    DiversityMethod,
     EvolutionConfig,
     IndividualFitness,
     PopulationSnapshot,
@@ -499,15 +500,19 @@ class EvolutionCheckpointer:
     def _serialize_config(self, config: EvolutionConfig) -> Dict[str, Any]:
         """Serialize evolution configuration."""
         config_dict = asdict(config)
-        # Convert enum to string
+        # Convert enums to strings
         if "selection_strategy" in config_dict:
             config_dict["selection_strategy"] = config_dict["selection_strategy"].value
+        if "diversity_method" in config_dict:
+            config_dict["diversity_method"] = config_dict["diversity_method"].value
         return config_dict
 
     def _deserialize_config(self, data: Dict[str, Any]) -> EvolutionConfig:
         """Deserialize evolution configuration."""
-        # Handle selection strategy enum
+        # Handle enums
         if "selection_strategy" in data:
             data["selection_strategy"] = SelectionStrategy(data["selection_strategy"])
+        if "diversity_method" in data:
+            data["diversity_method"] = DiversityMethod(data["diversity_method"])
 
         return EvolutionConfig(**data)

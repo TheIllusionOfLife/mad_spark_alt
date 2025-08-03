@@ -386,7 +386,8 @@ async def run_qadi_analysis(
     evolve: bool = False,
     generations: int = 3,
     population: int = 12,
-    traditional: bool = False
+    traditional: bool = False,
+    diversity_method: str = "jaccard"
 ) -> None:
     """Run QADI analysis with simplified Phase 1 and optional evolution."""
 
@@ -534,6 +535,7 @@ async def run_qadi_analysis(
             
             try:
                 from mad_spark_alt.evolution import (
+                    DiversityMethod,
                     EvolutionConfig,
                     EvolutionRequest,
                     GeneticAlgorithm,
@@ -550,6 +552,14 @@ async def run_qadi_analysis(
                     llm_provider = get_google_provider()
                     print("🧬 Evolution operators: SEMANTIC (LLM-powered for better creativity)")
                     print("   (Use --traditional for faster traditional operators)")
+                
+                # Display diversity method information
+                if diversity_method.lower() == "semantic":
+                    print("🧬 Diversity calculation: SEMANTIC (embedding-based, more accurate)")
+                    print("   (Use --diversity-method jaccard for faster word-based calculation)")
+                else:
+                    print("🧬 Diversity calculation: JACCARD (word-based, faster)")
+                    print("   (Use --diversity-method semantic for more accurate embedding-based calculation)")
                 
                 # Create genetic algorithm instance with or without LLM provider
                 ga = GeneticAlgorithm(
@@ -574,6 +584,7 @@ async def run_qadi_analysis(
                     # Make semantic operators more aggressive for small populations
                     use_semantic_operators=True,
                     semantic_operator_threshold=0.9,  # Increased to allow semantic ops with higher diversity
+                    diversity_method=DiversityMethod.SEMANTIC if diversity_method.lower() == "semantic" else DiversityMethod.JACCARD,
                 )
                 
                 # Create evolution request
@@ -859,6 +870,12 @@ def main() -> None:
     parser.add_argument(
         "--traditional", action="store_true", help="Use traditional operators instead of semantic operators (with --evolve)"
     )
+    parser.add_argument(
+        "--diversity-method", 
+        choices=["jaccard", "semantic"], 
+        default="jaccard",
+        help="Diversity calculation method: jaccard (fast, word-based) or semantic (slower, embedding-based) (with --evolve)"
+    )
 
     args = parser.parse_args()
 
@@ -876,6 +893,10 @@ def main() -> None:
             evolution_args_used.append(f"--generations {args.generations}")
         if args.population != parser.get_default("population"):
             evolution_args_used.append(f"--population {args.population}")
+        if args.traditional:
+            evolution_args_used.append("--traditional")
+        if args.diversity_method != parser.get_default("diversity_method"):
+            evolution_args_used.append(f"--diversity-method {args.diversity_method}")
         
         if evolution_args_used:
             print(f"Error: {', '.join(evolution_args_used)} can only be used with --evolve")
@@ -926,7 +947,8 @@ def main() -> None:
             evolve=args.evolve,
             generations=args.generations,
             population=args.population,
-            traditional=args.traditional
+            traditional=args.traditional,
+            diversity_method=args.diversity_method
         )
 
     # Run analysis

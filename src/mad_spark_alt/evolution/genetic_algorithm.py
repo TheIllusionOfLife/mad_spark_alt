@@ -356,6 +356,13 @@ class GeneticAlgorithm:
             import random
 
             random.seed(request.config.random_seed)
+            
+        # Configure diversity calculator based on config
+        if hasattr(self.fitness_evaluator, 'configure_diversity_method'):
+            self.fitness_evaluator.configure_diversity_method(
+                request.config.diversity_method,
+                self.llm_provider
+            )
 
         # Validate request
         if not request.validate():

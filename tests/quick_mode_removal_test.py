@@ -101,7 +101,8 @@ class TestCheckpointFrequency:
                     population=2,
                     temperature=None,
                     output_file=None,
-                    traditional=False
+                    traditional=False,
+                    diversity_method="jaccard"
                 )
                 
                 # Verify GeneticAlgorithm was created with correct checkpoint config

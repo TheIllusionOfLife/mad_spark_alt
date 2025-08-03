@@ -7,6 +7,7 @@ and async request handling.
 """
 
 import asyncio
+import json
 import logging
 import os
 import time
@@ -29,6 +30,12 @@ from .retry import (
 from .cost_utils import calculate_llm_cost_from_config
 
 logger = logging.getLogger(__name__)
+
+# Embedding constants
+# Approximate ratio of tokens to words for estimation when API doesn't provide token count
+TOKEN_ESTIMATION_FACTOR = 1.3
+# Cost per 1K tokens for text-embedding-004 model (as of January 2025)
+EMBEDDING_COST_PER_1K_TOKENS = 0.0002
 
 
 class LLMProvider(Enum):
@@ -116,6 +123,26 @@ class LLMResponse(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
+class EmbeddingRequest(BaseModel):
+    """Request structure for embedding calls."""
+    
+    texts: List[str]
+    model: str = "models/text-embedding-004"
+    task_type: str = "SEMANTIC_SIMILARITY"
+    output_dimensionality: int = 768
+    title: Optional[str] = None  # Optional title for better quality
+
+
+class EmbeddingResponse(BaseModel):
+    """Response structure from embedding calls."""
+    
+    embeddings: List[List[float]]  # List of embedding vectors
+    model: str
+    usage: Dict[str, int] = Field(default_factory=dict)
+    cost: float = 0.0
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
 class LLMProviderInterface(ABC):
     """Abstract base class for LLM providers."""
 
@@ -135,6 +162,21 @@ class LLMProviderInterface(ABC):
     def get_available_models(self) -> List[ModelConfig]:
         """Get list of available models."""
         pass
+    
+    async def get_embeddings(self, request: EmbeddingRequest) -> EmbeddingResponse:
+        """
+        Get embeddings for texts (optional - not all providers support this).
+        
+        Args:
+            request: Embedding request with texts and configuration
+            
+        Returns:
+            EmbeddingResponse with embedding vectors
+            
+        Raises:
+            NotImplementedError: If provider doesn't support embeddings
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} doesn't support embeddings")
 
 
 class RateLimiter:
@@ -357,6 +399,98 @@ class GoogleProvider(LLMProviderInterface):
             output_tokens,
             model_config.input_cost_per_1k,
             model_config.output_cost_per_1k,
+        )
+
+    async def get_embeddings(self, request: EmbeddingRequest) -> EmbeddingResponse:
+        """
+        Get embeddings for texts using Google's embedding API.
+        
+        Args:
+            request: Embedding request with texts and configuration
+            
+        Returns:
+            EmbeddingResponse with embedding vectors
+        """
+        session = await self._get_session()
+        
+        # Extract model name without "models/" prefix if present
+        model_name = request.model
+        if model_name.startswith("models/"):
+            model_name = model_name[7:]  # Remove "models/" prefix
+            
+        url = f"{self.base_url}/models/{model_name}:batchEmbedContents"
+        
+        # Prepare batch request
+        batch_requests = []
+        for text in request.texts:
+            embed_request = {
+                "model": f"models/{model_name}",
+                "content": {
+                    "parts": [{"text": text}]
+                },
+                "taskType": request.task_type,
+                "outputDimensionality": request.output_dimensionality
+            }
+            if request.title:
+                embed_request["title"] = request.title
+            batch_requests.append(embed_request)
+        
+        payload = {
+            "requests": batch_requests
+        }
+        
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": self.api_key,
+        }
+        
+        start_time = time.time()
+        
+        # Use the retry mechanism - it returns JSON data directly
+        response_json = await safe_aiohttp_request(
+            session=session,
+            method="POST",
+            url=url,
+            headers=headers,
+            json=payload,
+            timeout=300,
+            retry_config=self.retry_config,
+            circuit_breaker=self.circuit_breaker,
+        )
+        
+        response_time = time.time() - start_time
+        
+        # Extract embeddings
+        embeddings = []
+        for embedding_obj in response_json.get("embeddings", []):
+            embeddings.append(embedding_obj["values"])
+            
+        # Get token usage from response if available
+        usage_metadata = response_json.get("usageMetadata", {})
+        if usage_metadata.get("totalTokenCount"):
+            total_tokens = usage_metadata["totalTokenCount"]
+        else:
+            # Estimate tokens based on text length
+            total_tokens = sum(len(text.split()) * TOKEN_ESTIMATION_FACTOR for text in request.texts)
+        
+        # Embedding costs are typically much lower than generation
+        # Using configured cost for text-embedding-004 model
+        cost = (total_tokens / 1000) * EMBEDDING_COST_PER_1K_TOKENS
+        
+        return EmbeddingResponse(
+            embeddings=embeddings,
+            model=model_name,
+            usage={
+                "total_tokens": int(total_tokens),
+                "prompt_tokens": int(total_tokens),  # All tokens are input for embeddings
+            },
+            cost=cost,
+            metadata={
+                "response_time": response_time,
+                "num_texts": len(request.texts),
+                "task_type": request.task_type,
+                "dimensions": request.output_dimensionality
+            }
         )
 
     async def close(self) -> None:

@@ -51,6 +51,9 @@ uv run mad_spark_alt "Your question" --evolve --generations 3 --population 8
 
 # Use traditional operators for faster evolution
 uv run mad_spark_alt "Your question" --evolve --traditional
+
+# Use semantic diversity calculation for enhanced idea variety (slower but more accurate)
+uv run mad_spark_alt "Your question" --evolve --diversity-method semantic
 ```
 
 ## Important: Two Different Commands
@@ -76,11 +79,36 @@ This project provides two distinct command-line interfaces:
 3. **D**: Evaluate & determine best answer
 4. **I**: Verify with real examples
 
+## Diversity Calculation Methods
+
+The evolution system uses diversity calculation to prevent premature convergence and maintain idea variety throughout generations. Two methods are available:
+
+### Jaccard Diversity (Default)
+- **Speed**: Fast, word-based similarity calculation
+- **Method**: Compares ideas using Jaccard similarity on word sets
+- **Best for**: Quick evolution runs, development, testing
+- **Usage**: `--diversity-method jaccard` (default)
+
+### Semantic Diversity 
+- **Speed**: Slower, requires Gemini API calls for embeddings
+- **Method**: Uses text-embedding-004 model to create 768-dimensional semantic vectors
+- **Accuracy**: More precise understanding of conceptual similarity vs surface-level word overlap
+- **Best for**: Production runs where idea quality and semantic variety are priorities
+- **Usage**: `--diversity-method semantic`
+- **Requirements**: GOOGLE_API_KEY for embedding generation
+
+**Example Comparison:**
+- Jaccard: "reduce plastic waste" vs "decrease plastic pollution" = different (50% word overlap)
+- Semantic: Same concepts = highly similar (0.85+ cosine similarity)
+
+**Recommendation**: Use Jaccard for development and quick testing, Semantic for final production runs where conceptual diversity matters most.
+
 ## Architecture
 
 - **QADI Orchestrator**: 4-phase implementation
 - **Unified Evaluator**: 5-criteria scoring
 - **Evolution Engine**: AI-powered genetic algorithms with caching
+- **Diversity Calculation**: Multiple methods (Jaccard word-based, Semantic embedding-based)
 - **Phase Optimization**: Optimal hyperparameters per phase
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for details.
