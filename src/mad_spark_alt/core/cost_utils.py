@@ -12,6 +12,9 @@ from typing import Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+# Default model constant
+DEFAULT_MODEL = "gemini-2.5-flash"
+
 
 @dataclass
 class ModelCosts:
@@ -81,7 +84,7 @@ def calculate_llm_cost_from_config(
 def calculate_llm_cost(
     input_tokens: int,
     output_tokens: int,
-    model: str = "gemini-2.5-flash",
+    model: str = DEFAULT_MODEL,
 ) -> float:
     """
     Calculate cost for LLM usage given input and output tokens.
@@ -102,9 +105,9 @@ def calculate_llm_cost(
     if model_costs is None:
         # Fall back to Gemini 2.5 Flash costs if model not found
         logger.warning(
-            "Model '%s' not found, falling back to 'gemini-2.5-flash' costs.", model
+            "Model '%s' not found, falling back to '%s' costs.", model, DEFAULT_MODEL
         )
-        model_costs = DEFAULT_MODEL_COSTS["gemini-2.5-flash"]
+        model_costs = DEFAULT_MODEL_COSTS[DEFAULT_MODEL]
 
     input_cost = (input_tokens / 1000) * model_costs.input_cost_per_1k_tokens
     output_cost = (output_tokens / 1000) * model_costs.output_cost_per_1k_tokens
@@ -114,7 +117,7 @@ def calculate_llm_cost(
 
 def calculate_token_cost(
     total_tokens: int,
-    model: str = "gemini-2.5-flash",
+    model: str = DEFAULT_MODEL,
     input_output_ratio: float = 0.5,
 ) -> float:
     """
@@ -137,7 +140,7 @@ def calculate_token_cost(
 
 def estimate_token_cost(
     tokens: int,
-    model: str = "gemini-2.5-flash",
+    model: str = DEFAULT_MODEL,
     assume_equal_input_output: bool = True,
 ) -> float:
     """
@@ -183,7 +186,7 @@ def get_available_models() -> Dict[str, ModelCosts]:
 
 def calculate_cost_with_usage(
     usage: Dict[str, int],
-    model: str = "gemini-2.5-flash",
+    model: str = DEFAULT_MODEL,
 ) -> Tuple[float, int, int]:
     """
     Calculate cost from a usage dictionary (Google format).
