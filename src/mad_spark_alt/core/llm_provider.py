@@ -116,6 +116,26 @@ class LLMResponse(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
+class EmbeddingRequest(BaseModel):
+    """Request structure for embedding calls."""
+    
+    texts: List[str]
+    model: str = "models/text-embedding-004"
+    task_type: str = "SEMANTIC_SIMILARITY"
+    output_dimensionality: int = 768
+    title: Optional[str] = None  # Optional title for better quality
+
+
+class EmbeddingResponse(BaseModel):
+    """Response structure from embedding calls."""
+    
+    embeddings: List[List[float]]  # List of embedding vectors
+    model: str
+    usage: Dict[str, int] = Field(default_factory=dict)
+    cost: float = 0.0
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
 class LLMProviderInterface(ABC):
     """Abstract base class for LLM providers."""
 
@@ -135,6 +155,21 @@ class LLMProviderInterface(ABC):
     def get_available_models(self) -> List[ModelConfig]:
         """Get list of available models."""
         pass
+    
+    async def get_embeddings(self, request: EmbeddingRequest) -> EmbeddingResponse:
+        """
+        Get embeddings for texts (optional - not all providers support this).
+        
+        Args:
+            request: Embedding request with texts and configuration
+            
+        Returns:
+            EmbeddingResponse with embedding vectors
+            
+        Raises:
+            NotImplementedError: If provider doesn't support embeddings
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} doesn't support embeddings")
 
 
 class RateLimiter:
