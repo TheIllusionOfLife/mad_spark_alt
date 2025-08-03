@@ -376,14 +376,15 @@ class GoogleProvider(LLMProviderInterface):
         Note: Pricing is centralized in cost_utils.py. Update pricing there.
         """
         # Get pricing from centralized cost_utils module
-        model_costs = get_model_costs("gemini-2.5-flash")
+        model_name = "gemini-2.5-flash"
+        model_costs = get_model_costs(model_name)
         if not model_costs:
-            raise ValueError("Gemini 2.5 Flash costs not configured in cost_utils")
+            raise ValueError(f"'{model_name}' costs not configured in cost_utils")
         
         return [
             ModelConfig(
                 provider=LLMProvider.GOOGLE,
-                model_name="gemini-2.5-flash",
+                model_name=model_name,
                 model_size=ModelSize.LARGE,
                 input_cost_per_1k=model_costs.input_cost_per_1k_tokens,
                 output_cost_per_1k=model_costs.output_cost_per_1k_tokens,
