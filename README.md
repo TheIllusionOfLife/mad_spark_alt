@@ -191,9 +191,19 @@ See the `run_nohup.sh` script for our solution to terminal timeout issues.
 
 ## Session Handover
 
-### Last Updated: August 03, 2025 11:56 AM JST
+### Last Updated: August 04, 2025 01:08 AM JST
 
 #### Recently Completed
+- ✅ **[PR #93] Semantic Diversity Calculation**: Implemented Gemini embeddings for true semantic understanding (Aug 4, 2025)
+  - **API Integration**: Added embedding support to LLM provider with proper batch endpoint
+  - **Dual Strategy**: Semantic (embedding-based) and Jaccard (word-based) diversity calculators
+  - **Fallback Design**: Automatic fallback to Jaccard if API fails
+  - **User Feedback**: Clear display of which diversity method is being used
+  - **Cost Optimization**: Caching embeddings by content hash to minimize API calls
+- ✅ **[PR #92] Fitness Score Unification**: Refactored `confidence_score` to `overall_fitness` throughout codebase (Aug 3, 2025)
+  - **Consistency**: Unified naming across all evaluation and evolution systems
+  - **Migration**: Proper dual-field support during transition period
+- ✅ **[PR #91] Documentation Updates**: Verified development plan and organized legacy docs (Aug 3, 2025)
 - ✅ **[PR #90] Documentation & Phase 2 Display**: Fixed reviewer feedback and improved formatting (Aug 3, 2025)
   - **Reviewer Coordination**: Addressed feedback from claude[bot], coderabbitai[bot], gemini-code-assist[bot]
   - **Documentation**: Updated title extraction docs to mention all punctuation marks (.?!)
@@ -247,16 +257,22 @@ See the `run_nohup.sh` script for our solution to terminal timeout issues.
 - **Performance baseline established**: Evolution system now reliably completes without timeouts
 
 #### Session Learnings
-- **Always Verify Code**: Documentation can be outdated - title length was already 150 chars, not 60 as README claimed
-- **Systematic Task Verification**: User's request to "check if tasks are up-to-date" prevented wasted effort on completed work
-- **Performance Benchmarking Exists**: `tests/performance_benchmarks.py` already provides comprehensive benchmarking
-- **O(n²) Complexity Confirmed**: Diversity calculation uses nested loops - legitimate optimization opportunity
-- **TODOs as Truth Source**: Actual TODO comments in code are more reliable than documentation for finding needed work
-- **GitHub Issue Cleanup**: Closing stale/test issues keeps focus on real work
-- **Previous Learnings Still Valid**:
-  - LLM Response Reliability: Structured output APIs essential
-  - Systematic PR Review: 4-phase protocol catches all feedback
-  - Integration Test Importance: Real LLM tests reveal issues mocks hide
+- **Semantic Diversity Implementation**: Successfully added Gemini embeddings for true semantic understanding of idea diversity
+  - Critical API fix: Use `:batchEmbedContents` not `:embedContent` endpoint
+  - Request format: Must use `json=payload` with proper batch structure
+  - Cost awareness: Embeddings cost $0.0002 per 1K tokens (10x initial error)
+  - Validation requirement: Always check response length matches request
+- **User Feedback Importance**: Added clear display of which diversity method (Jaccard vs Semantic) is being used
+  - Pattern: Similar to existing "[FALLBACK]" and evolution operators display
+  - Implementation: Both CLI commands now show diversity method with guidance
+- **PR Review Efficiency**: Systematic 4-phase protocol found all issues from 5 reviewers
+  - gemini-code-assist[bot]: Critical API endpoint correction
+  - cursor[bot]: Request handling standardization
+  - coderabbitai[bot]: Code cleanup (unused imports, f-strings)
+- **Previous Learnings Reinforced**:
+  - Always test with real API to catch integration issues
+  - Follow TDD strictly - wrote tests first, then implementation
+  - Fallback patterns essential for reliability (Jaccard fallback for API failures)
 
 ## Technical Notes
 
