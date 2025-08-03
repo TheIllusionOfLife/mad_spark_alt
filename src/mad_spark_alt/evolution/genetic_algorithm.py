@@ -48,6 +48,7 @@ from mad_spark_alt.evolution.operators import (
     TournamentSelection,
 )
 from mad_spark_alt.evolution.semantic_operators import (
+    BatchSemanticCrossoverOperator,
     BatchSemanticMutationOperator,
     SemanticCrossoverOperator,
 )
@@ -102,14 +103,14 @@ class GeneticAlgorithm:
         # Initialize semantic operators if LLM provider is available
         self.llm_provider = llm_provider
         self.semantic_mutation_operator: Optional[BatchSemanticMutationOperator] = None
-        self.semantic_crossover_operator: Optional[SemanticCrossoverOperator] = None
+        self.semantic_crossover_operator: Optional[BatchSemanticCrossoverOperator] = None
         # SmartOperatorSelector removed - using simplified semantic operator selection
         
         if llm_provider is not None:
             self.semantic_mutation_operator = BatchSemanticMutationOperator(
                 llm_provider, cache_ttl=cache_ttl
             )
-            self.semantic_crossover_operator = SemanticCrossoverOperator(
+            self.semantic_crossover_operator = BatchSemanticCrossoverOperator(
                 llm_provider, cache_ttl=cache_ttl
             )
             logger.info("Semantic operators initialized with LLM provider")
@@ -721,56 +722,104 @@ class GeneticAlgorithm:
         
         This method eliminates the sequential bottleneck by:
         1. Generating all parent pairs upfront
-        2. Performing all crossovers (some can be batched in future)
+        2. Batch processing ALL crossovers in a single LLM call (if using semantic)
         3. Batch processing ALL mutations in a single LLM call
         4. Batch processing ALL evaluations
         """
         try:
-            # Step 1: Generate all offspring for mutation upfront
-            offspring_for_mutation: List[GeneratedIdea] = []
-            semantic_crossovers = 0
-            traditional_crossovers = 0
+            # Step 1: Generate all parent pairs upfront
+            parent_pairs_for_crossover = []
+            parent_pairs_no_crossover = []
+            semantic_pairs = []
+            traditional_pairs = []
             
-            while len(offspring_for_mutation) < num_offspring_needed:
+            pairs_needed = (num_offspring_needed + 1) // 2  # Round up for odd numbers
+            
+            for _ in range(pairs_needed):
                 # Select parents
                 parents = await selector.select(population, 2, config)
                 
                 # Decide on crossover
                 if random.random() < config.crossover_rate:
-                    # Use semantic crossover if available
+                    parent_pairs_for_crossover.append((parents[0], parents[1]))
+                    
+                    # Decide semantic vs traditional
                     use_semantic = (
                         self.semantic_crossover_operator is not None and
                         config.use_semantic_operators
                     )
                     
                     if use_semantic:
-                        assert self.semantic_crossover_operator is not None
-                        operator_context = evaluation_context if evaluation_context else context
+                        semantic_pairs.append((parents[0].idea, parents[1].idea))
+                    else:
+                        traditional_pairs.append((parents[0].idea, parents[1].idea))
+                else:
+                    parent_pairs_no_crossover.append((parents[0], parents[1]))
+            
+            # Step 2: Process all crossovers
+            offspring_for_mutation: List[GeneratedIdea] = []
+            
+            # Process semantic crossovers (BATCH if possible)
+            if semantic_pairs:
+                assert self.semantic_crossover_operator is not None
+                operator_context = evaluation_context if evaluation_context else context
+                
+                # Check if batch crossover is available
+                if hasattr(self.semantic_crossover_operator, 'crossover_batch'):
+                    logger.info(f"Batch processing {len(semantic_pairs)} semantic crossovers in single LLM call")
+                    # CRITICAL OPTIMIZATION: Single LLM call for ALL crossovers!
+                    crossover_results = await self.semantic_crossover_operator.crossover_batch(
+                        semantic_pairs, operator_context
+                    )
+                    
+                    # Flatten results
+                    for offspring1, offspring2 in crossover_results:
+                        offspring_for_mutation.append(offspring1)
+                        if len(offspring_for_mutation) < num_offspring_needed:
+                            offspring_for_mutation.append(offspring2)
+                    
+                    # Track metrics
+                    self.semantic_operator_metrics['semantic_crossovers'] += len(semantic_pairs)
+                    self.semantic_operator_metrics['semantic_llm_calls'] += 1  # Single batch call!
+                else:
+                    # Fall back to sequential if batch not available
+                    for parent1, parent2 in semantic_pairs:
                         offspring1, offspring2 = await self.semantic_crossover_operator.crossover(
-                            parents[0].idea, parents[1].idea, operator_context
+                            parent1, parent2, operator_context
                         )
-                        semantic_crossovers += 1
+                        offspring_for_mutation.append(offspring1)
+                        if len(offspring_for_mutation) < num_offspring_needed:
+                            offspring_for_mutation.append(offspring2)
+                        
                         self.semantic_operator_metrics['semantic_crossovers'] += 1
                         self.semantic_operator_metrics['semantic_llm_calls'] += 1
-                    else:
-                        offspring1, offspring2 = await self.crossover_operator.crossover(
-                            parents[0].idea, parents[1].idea, context
-                        )
-                        traditional_crossovers += 1
-                        self.semantic_operator_metrics['traditional_crossovers'] += 1
-                else:
-                    # No crossover, copy parents
-                    offspring1, offspring2 = parents[0].idea, parents[1].idea
-                
-                # Add to offspring list
-                offspring_for_mutation.append(offspring1)
+            
+            # Process traditional crossovers (still sequential)
+            if traditional_pairs:
+                for parent1, parent2 in traditional_pairs:
+                    offspring1, offspring2 = await self.crossover_operator.crossover(
+                        parent1, parent2, context
+                    )
+                    offspring_for_mutation.append(offspring1)
+                    if len(offspring_for_mutation) < num_offspring_needed:
+                        offspring_for_mutation.append(offspring2)
+                    
+                    self.semantic_operator_metrics['traditional_crossovers'] += 1
+            
+            # Add no-crossover pairs
+            for parent1, parent2 in parent_pairs_no_crossover:
+                offspring_for_mutation.append(parent1.idea)
                 if len(offspring_for_mutation) < num_offspring_needed:
-                    offspring_for_mutation.append(offspring2)
+                    offspring_for_mutation.append(parent2.idea)
             
             # Ensure exact number of offspring
             offspring_for_mutation = offspring_for_mutation[:num_offspring_needed]
             
-            # Step 2: CRITICAL OPTIMIZATION - Batch process ALL mutations in a single LLM call
+            # Count the crossovers for logging
+            semantic_crossovers = len(semantic_pairs)
+            traditional_crossovers = len(traditional_pairs)
+            
+            # Step 3: CRITICAL OPTIMIZATION - Batch process ALL mutations in a single LLM call
             if (config.use_semantic_operators and 
                 self.semantic_mutation_operator is not None and 
                 hasattr(self.semantic_mutation_operator, 'mutate_batch')):
