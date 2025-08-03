@@ -11,6 +11,7 @@ from typing import Dict, List, Optional
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.core.unified_evaluator import HypothesisEvaluation, UnifiedEvaluator
+from mad_spark_alt.core.llm_provider import LLMProviderInterface
 from mad_spark_alt.evolution.interfaces import (
     DiversityMethod,
     EvolutionConfig,
@@ -29,7 +30,7 @@ DEFAULT_FAILURE_SCORE = 0.1  # Penalty score rather than neutral 0.5
 
 def create_diversity_calculator(
     diversity_method: DiversityMethod,
-    llm_provider=None
+    llm_provider: Optional[LLMProviderInterface] = None
 ) -> DiversityCalculator:
     """
     Create appropriate diversity calculator based on method.
@@ -83,7 +84,7 @@ class FitnessEvaluator:
     def configure_diversity_method(
         self, 
         diversity_method: DiversityMethod, 
-        llm_provider=None
+        llm_provider: Optional[LLMProviderInterface] = None
     ) -> None:
         """
         Configure diversity calculation method.

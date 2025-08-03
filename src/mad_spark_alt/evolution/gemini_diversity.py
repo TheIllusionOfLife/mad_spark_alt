@@ -9,7 +9,7 @@ import hashlib
 import logging
 from typing import Dict, List, Optional, Tuple
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import cosine_similarity  # type: ignore[import-untyped]
 
 from .diversity_calculator import DiversityCalculator
 from .interfaces import IndividualFitness
@@ -55,7 +55,7 @@ class GeminiDiversityCalculator(DiversityCalculator):
             return 1.0  # Maximum diversity for empty or single-item populations
             
         # Extract unique texts and track mapping
-        unique_texts = []
+        unique_texts: List[str] = []
         text_to_idx = {}
         idx_to_population = []
         
@@ -92,9 +92,9 @@ class GeminiDiversityCalculator(DiversityCalculator):
             f"({len(unique_texts)} unique): {diversity:.3f}"
         )
         
-        return diversity
+        return float(diversity)
         
-    async def _get_embeddings_with_cache(self, texts: List[str]) -> np.ndarray:
+    async def _get_embeddings_with_cache(self, texts: List[str]) -> np.ndarray[float, np.dtype[np.float64]]:
         """
         Get embeddings for texts, using cache where possible.
         
@@ -107,7 +107,7 @@ class GeminiDiversityCalculator(DiversityCalculator):
         # Check cache and identify texts needing API calls
         needed_texts = []
         needed_indices = []
-        embeddings = [None] * len(texts)
+        embeddings: List[Optional[List[float]]] = [None] * len(texts)
         
         for i, text in enumerate(texts):
             text_hash = self._get_content_hash(text)
@@ -134,4 +134,4 @@ class GeminiDiversityCalculator(DiversityCalculator):
                 self._cache[text_hash] = embedding
                 embeddings[needed_indices[i]] = embedding
         
-        return np.array(embeddings)
+        return np.array([emb for emb in embeddings if emb is not None], dtype=float)
