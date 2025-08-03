@@ -12,6 +12,9 @@ from typing import Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+# Default model constant
+DEFAULT_MODEL = "gemini-2.5-flash"
+
 
 @dataclass
 class ModelCosts:
@@ -24,10 +27,11 @@ class ModelCosts:
 # Gemini 2.5 Flash costs (as of January 2025)
 # Note: Gemini 2.5 Flash has thinking/reasoning mode that costs $3.50 per million output tokens
 # when reasoning is enabled. This utility uses standard pricing as base rates.
+# Source: https://cloud.google.com/vertex-ai/generative-ai/pricing
 _MODEL_COSTS = {
     "gemini-2.5-flash": ModelCosts(
-        input_cost_per_1k_tokens=0.00015,  # $0.15 per million tokens = $0.00015 per 1k tokens
-        output_cost_per_1k_tokens=0.0006,  # $0.60 per million tokens = $0.0006 per 1k tokens
+        input_cost_per_1k_tokens=0.00030,  # $0.30 per million tokens = $0.00030 per 1k tokens
+        output_cost_per_1k_tokens=0.0025,  # $2.50 per million tokens = $0.0025 per 1k tokens
     ),
 }
 
@@ -80,7 +84,7 @@ def calculate_llm_cost_from_config(
 def calculate_llm_cost(
     input_tokens: int,
     output_tokens: int,
-    model: str = "gemini-2.5-flash",
+    model: str = DEFAULT_MODEL,
 ) -> float:
     """
     Calculate cost for LLM usage given input and output tokens.
@@ -101,9 +105,9 @@ def calculate_llm_cost(
     if model_costs is None:
         # Fall back to Gemini 2.5 Flash costs if model not found
         logger.warning(
-            "Model '%s' not found, falling back to 'gemini-2.5-flash' costs.", model
+            "Model '%s' not found, falling back to '%s' costs.", model, DEFAULT_MODEL
         )
-        model_costs = DEFAULT_MODEL_COSTS["gemini-2.5-flash"]
+        model_costs = DEFAULT_MODEL_COSTS[DEFAULT_MODEL]
 
     input_cost = (input_tokens / 1000) * model_costs.input_cost_per_1k_tokens
     output_cost = (output_tokens / 1000) * model_costs.output_cost_per_1k_tokens
@@ -113,7 +117,7 @@ def calculate_llm_cost(
 
 def calculate_token_cost(
     total_tokens: int,
-    model: str = "gemini-2.5-flash",
+    model: str = DEFAULT_MODEL,
     input_output_ratio: float = 0.5,
 ) -> float:
     """
@@ -136,7 +140,7 @@ def calculate_token_cost(
 
 def estimate_token_cost(
     tokens: int,
-    model: str = "gemini-2.5-flash",
+    model: str = DEFAULT_MODEL,
     assume_equal_input_output: bool = True,
 ) -> float:
     """
@@ -182,7 +186,7 @@ def get_available_models() -> Dict[str, ModelCosts]:
 
 def calculate_cost_with_usage(
     usage: Dict[str, int],
-    model: str = "gemini-2.5-flash",
+    model: str = DEFAULT_MODEL,
 ) -> Tuple[float, int, int]:
     """
     Calculate cost from a usage dictionary (Google format).

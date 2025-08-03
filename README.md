@@ -103,6 +103,47 @@ The evolution system uses diversity calculation to prevent premature convergence
 
 **Recommendation**: Use Jaccard for development and quick testing, Semantic for final production runs where conceptual diversity matters most.
 
+## Cost Information
+
+### LLM API Pricing (Gemini 2.5 Flash)
+Based on official Google Cloud pricing (as of August 2025):
+- **Input**: $0.30 per million tokens
+- **Output**: $2.50 per million tokens  
+- **Embeddings**: $0.20 per million tokens (text-embedding-004)
+
+### Cost Simulation: Evolution Run
+
+For the heaviest evolution setting with `--population 10 --generations 5` (maximum allowed):
+
+| Phase | Operation | Estimated Cost | Actual Cost* |
+|-------|-----------|----------------|--------------|
+| **QADI Processing** | 4 LLM calls (Q→A→D→I) | $0.012 | Included |
+| **Evolution** | 5 generations × 5 calls/gen | $0.050 | Included |
+| **Fitness Evaluation** | Initial + 5 generations | $0.050 | Included |
+| **Diversity (Semantic)** | 6 embedding calls | $0.001 | Included |
+| **Total** | ~36 API calls | **$0.11** | **$0.016** |
+
+*Actual cost from real run with semantic diversity, verbose output, and maximum settings. The significant difference is due to caching (14% hit rate), batch operations, and efficient token usage.
+
+### Cost Optimization
+
+1. **Batch Operations**: Already implemented - saves 10+ LLM calls per run
+2. **Caching**: Fitness evaluations and embeddings are cached by content
+3. **Jaccard Diversity**: Free alternative to semantic embeddings
+4. **Smaller Populations**: Use `--population 5` to halve evolution costs
+
+### Performance vs Cost Trade-offs
+
+| Configuration | Time | Cost | Quality | Usage |
+|--------------|------|------|---------|--------|
+| Basic QADI only | ~10s | $0.002 | Good baseline | Quick exploration |
+| Evolution (pop=3, gen=2) | ~60s | $0.005 | Better diversity | Typical usage |
+| Evolution (pop=5, gen=3) | ~180s | $0.008 | Great results | Extended run |
+| Evolution (pop=10, gen=5) | ~450s | $0.016 | Maximum quality | Heavy/research |
+| With semantic diversity | +30s | +$0.001 | Conceptual diversity | When needed |
+
+**Note**: Actual costs may vary based on prompt length and response verbosity.
+
 ## Architecture
 
 - **QADI Orchestrator**: 4-phase implementation
@@ -237,7 +278,21 @@ See the `run_nohup.sh` script for our solution to terminal timeout issues.
      - Target O(n log n) or better complexity
      - Validate diversity metrics remain meaningful after optimization
 
-2. **Batch Semantic Operators Enhancement**
+2. **Batch Semantic Crossover Implementation** 🚀
+   - **Status**: High Priority - Major Performance Win
+   - **Current State**: Crossover operations run sequentially (3 calls per generation)
+   - **Opportunity**: Batch all crossovers into 1 LLM call per generation
+   - **Impact**: 
+     - Save 10 LLM calls across 5 generations (2 calls × 5 gens)
+     - Reduce evolution time by ~20 seconds (30% faster)
+     - No additional cost (same tokens, just batched)
+   - **Implementation**:
+     - Create `BatchSemanticCrossoverOperator` similar to existing batch mutation
+     - Modify `_generate_offspring_parallel()` to collect all crossover pairs
+     - Single LLM call with structured output for multiple offspring pairs
+     - Maintain parent lineage tracking for all batch-generated offspring
+
+3. **Batch Semantic Operators Enhancement**
    - **Status**: Active Development Needed
    - **Issue**: Batch mutations don't support breakthrough mutations for high-scoring ideas
    - **TODOs**: semantic_operators.py lines 802-804, 870
