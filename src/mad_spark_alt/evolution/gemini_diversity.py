@@ -7,7 +7,7 @@ from Google's Gemini API, providing true semantic understanding of ideas.
 
 import hashlib
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity  # type: ignore[import-untyped]
 
@@ -94,7 +94,7 @@ class GeminiDiversityCalculator(DiversityCalculator):
         
         return float(diversity)
         
-    async def _get_embeddings_with_cache(self, texts: List[str]) -> np.ndarray[float, np.dtype[np.float64]]:
+    async def _get_embeddings_with_cache(self, texts: List[str]) -> np.ndarray[Any, np.dtype[Any]]:
         """
         Get embeddings for texts, using cache where possible.
         
@@ -134,4 +134,4 @@ class GeminiDiversityCalculator(DiversityCalculator):
                 self._cache[text_hash] = embedding
                 embeddings[needed_indices[i]] = embedding
         
-        return np.array([emb for emb in embeddings if emb is not None], dtype=float)
+        return np.array([emb for emb in embeddings if emb is not None], dtype=float)  # type: ignore[no-any-return]
