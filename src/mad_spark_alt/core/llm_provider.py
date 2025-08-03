@@ -27,7 +27,7 @@ from .retry import (
     RetryConfig,
     safe_aiohttp_request,
 )
-from .cost_utils import calculate_llm_cost_from_config
+from .cost_utils import calculate_llm_cost_from_config, get_model_costs
 
 logger = logging.getLogger(__name__)
 
@@ -371,14 +371,22 @@ class GoogleProvider(LLMProviderInterface):
         )
 
     def get_available_models(self) -> List[ModelConfig]:
-        """Get available Google models."""
+        """Get available Google models.
+        
+        Note: Pricing is centralized in cost_utils.py. Update pricing there.
+        """
+        # Get pricing from centralized cost_utils module
+        model_costs = get_model_costs("gemini-2.5-flash")
+        if not model_costs:
+            raise ValueError("Gemini 2.5 Flash costs not configured in cost_utils")
+        
         return [
             ModelConfig(
                 provider=LLMProvider.GOOGLE,
                 model_name="gemini-2.5-flash",
                 model_size=ModelSize.LARGE,
-                input_cost_per_1k=0.00015,  # $0.15 per million tokens
-                output_cost_per_1k=0.0006,  # $0.60 per million tokens
+                input_cost_per_1k=model_costs.input_cost_per_1k_tokens,
+                output_cost_per_1k=model_costs.output_cost_per_1k_tokens,
                 max_tokens=8192,
             ),
         ]

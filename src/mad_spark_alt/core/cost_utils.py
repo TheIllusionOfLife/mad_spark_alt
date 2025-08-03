@@ -24,10 +24,11 @@ class ModelCosts:
 # Gemini 2.5 Flash costs (as of January 2025)
 # Note: Gemini 2.5 Flash has thinking/reasoning mode that costs $3.50 per million output tokens
 # when reasoning is enabled. This utility uses standard pricing as base rates.
+# Source: https://cloud.google.com/vertex-ai/generative-ai/pricing
 _MODEL_COSTS = {
     "gemini-2.5-flash": ModelCosts(
-        input_cost_per_1k_tokens=0.00015,  # $0.15 per million tokens = $0.00015 per 1k tokens
-        output_cost_per_1k_tokens=0.0006,  # $0.60 per million tokens = $0.0006 per 1k tokens
+        input_cost_per_1k_tokens=0.00030,  # $0.30 per million tokens = $0.00030 per 1k tokens
+        output_cost_per_1k_tokens=0.0025,  # $2.50 per million tokens = $0.0025 per 1k tokens
     ),
 }
 
