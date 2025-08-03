@@ -222,25 +222,27 @@ See the `run_nohup.sh` script for our solution to terminal timeout issues.
 
 #### Next Priority Tasks
 
-*Note: This section is the primary source of truth for upcoming development work. Tasks listed here have been verified against the current codebase.*
+*Note: This section is the primary source of truth for upcoming development work. Tasks listed here have been verified against the current codebase (August 2025).*
 
 **📋 Implementation Plan**: See [IMPLEMENTATION_PLAN_DIVERSITY_BREAKTHROUGH.md](docs/IMPLEMENTATION_PLAN_DIVERSITY_BREAKTHROUGH.md) for detailed implementation roadmap.
 
 1. **Performance Optimization: Diversity Calculation**
    - **Status**: Active Development Needed
-   - **Issue**: O(n²) complexity in `calculate_population_diversity()` (fitness.py:244-264)
+   - **Issue**: O(n²) complexity in both `JaccardDiversityCalculator` (jaccard_diversity.py:44-64) and `GeminiDiversityCalculator` (gemini_diversity.py:79)
    - **Impact**: Severe performance degradation with large populations (nested loops comparing all pairs)
+   - **Note**: Gemini uses fast numpy operations for cosine similarity, but still O(n²)
    - **Approach**:
-     - Profile current Jaccard similarity implementation
-     - Implement optimized algorithm (MinHash, LSH, or sampling-based approaches)
+     - Profile current implementations with large populations
+     - Research optimized algorithms (MinHash, LSH, or sampling-based approaches)
      - Target O(n log n) or better complexity
      - Validate diversity metrics remain meaningful after optimization
 
 2. **Batch Semantic Operators Enhancement**
    - **Status**: Active Development Needed
    - **Issue**: Batch mutations don't support breakthrough mutations for high-scoring ideas
-   - **TODOs**: semantic_operators.py lines 804, 872
+   - **TODOs**: semantic_operators.py lines 802-804, 870
    - **Impact**: High-performing ideas (fitness >= 0.8) miss revolutionary mutation opportunities in batch mode
+   - **Note**: Breakthrough mutations ARE implemented for single mutations, just not batch
    - **Approach**:
      - Separate ideas into breakthrough (fitness >= 0.8) and regular batches
      - Apply breakthrough prompts/parameters (temp 0.95, double tokens) to high performers
@@ -249,8 +251,9 @@ See the `run_nohup.sh` script for our solution to terminal timeout issues.
 
 #### Completed Tasks ✅
 - **Performance Benchmarking Suite**: Already exists in `tests/performance_benchmarks.py`
-- **Title Length Extension**: Already implemented - uses 150 characters with smart truncation
+- **Title Length Extension**: Already implemented - uses 150 characters with smart truncation (qadi_simple.py)
 - **Evolution Progress**: Basic text indicators exist and function adequately
+- **Semantic Diversity Calculator**: Implemented with Gemini embeddings (PR #93)
 
 #### Known Issues / Blockers
 - None currently blocking development
@@ -293,7 +296,8 @@ This implementation significantly reduces "Failed to extract enough hypotheses" 
 - [x] **Parallel Evolution Processing**: Implemented batch LLM processing for genetic operations (dramatically reduces heavy workload execution time)
 - [x] **Batch Semantic Operators**: Single LLM call processes multiple mutations simultaneously instead of sequential processing
 - [ ] Implement cache warming strategies for semantic operators
-- [ ] Optimize string similarity calculations with better algorithms
+- [ ] Optimize diversity calculations from O(n²) to O(n log n) or better
+- [ ] Add diversity calculation benchmarks to performance test suite
 
 ### Enhanced Features
 - [ ] Add more sophisticated fitness estimation for unevaluated offspring
