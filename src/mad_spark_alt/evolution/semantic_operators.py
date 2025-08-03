@@ -548,20 +548,19 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         """
         # Check multiple sources for fitness indicators
         
-        # 1 & 2. Check metadata for fitness scores (DRY approach)
-        for key in ("fitness_score", "avg_fitness"):
-            if key in idea.metadata:
-                fitness = idea.metadata[key]
-                if isinstance(fitness, (int, float)) and fitness >= self.breakthrough_threshold:
-                    return True
+        # 1. Check metadata for overall fitness score
+        if "overall_fitness" in idea.metadata:
+            fitness = idea.metadata["overall_fitness"]
+            if isinstance(fitness, (int, float)) and fitness >= self.breakthrough_threshold:
+                return True
                     
-        # 3. Check confidence score as proxy (high confidence + later generation)
+        # 2. Check confidence score as proxy (high confidence + later generation)
         if idea.confidence_score and idea.confidence_score >= self.BREAKTHROUGH_CONFIDENCE_PROXY_THRESHOLD:
             generation = idea.metadata.get("generation", 0)
             if generation >= 1:  # Must be from evolution, not initial generation
                 return True
                 
-        # 4. Check for explicit high-performance indicators
+        # 3. Check for explicit high-performance indicators
         if "high_performance" in idea.metadata:
             return bool(idea.metadata["high_performance"])
             
@@ -985,10 +984,8 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         }
         
         # Include original fitness information if available
-        if "fitness_score" in original.metadata:
-            metadata["parent_fitness"] = original.metadata["fitness_score"]
-        if "avg_fitness" in original.metadata:
-            metadata["parent_avg_fitness"] = original.metadata["avg_fitness"]
+        if "overall_fitness" in original.metadata:
+            metadata["parent_fitness"] = original.metadata["overall_fitness"]
             
         generation_description = "BREAKTHROUGH mutation" if is_breakthrough else "Semantic mutation"
         

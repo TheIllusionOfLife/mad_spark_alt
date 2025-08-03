@@ -394,6 +394,15 @@ class EvolutionCheckpointer:
         for fitness_data in data:
             # Deserialize idea
             idea_data = fitness_data["idea"]
+            # Migrate old field names in metadata if present
+            metadata = idea_data.get("metadata", {})
+            if "fitness_score" in metadata and "overall_fitness" not in metadata:
+                metadata["overall_fitness"] = metadata.pop("fitness_score")
+                logger.debug("Migrated fitness_score to overall_fitness in checkpoint")
+            if "avg_fitness" in metadata and "overall_fitness" not in metadata:
+                metadata["overall_fitness"] = metadata.pop("avg_fitness")
+                logger.debug("Migrated avg_fitness to overall_fitness in checkpoint")
+            
             idea = GeneratedIdea(
                 content=idea_data["content"],
                 thinking_method=ThinkingMethod(idea_data["thinking_method"]),
@@ -402,7 +411,7 @@ class EvolutionCheckpointer:
                 confidence_score=idea_data.get("confidence_score"),
                 reasoning=idea_data.get("reasoning"),
                 parent_ideas=idea_data.get("parent_ideas", []),
-                metadata=idea_data.get("metadata", {}),
+                metadata=metadata,
                 timestamp=idea_data.get("timestamp"),
             )
 
