@@ -296,7 +296,6 @@ This implementation significantly reduces "Failed to extract enough hypotheses" 
 - [x] **Parallel Evolution Processing**: Implemented batch LLM processing for genetic operations (dramatically reduces heavy workload execution time)
 - [x] **Batch Semantic Operators**: Single LLM call processes multiple mutations simultaneously instead of sequential processing
 - [ ] Implement cache warming strategies for semantic operators
-- [ ] Optimize diversity calculations from O(n²) to O(n log n) or better
 - [ ] Add diversity calculation benchmarks to performance test suite
 
 ### Enhanced Features
