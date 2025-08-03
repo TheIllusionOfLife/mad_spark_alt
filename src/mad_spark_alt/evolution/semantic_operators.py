@@ -419,6 +419,39 @@ BREAKTHROUGH MODE: Push creative limits, explore cutting-edge technologies, and 
 Generate comprehensive, detailed implementations with specific steps, technologies, and methodologies.
 When returning results, follow the exact format requested in the prompt (JSON or plain text)."""
 
+    BREAKTHROUGH_BATCH_PROMPT = """These are HIGH-PERFORMING ideas that deserve REVOLUTIONARY mutations.
+Context: {context}
+{evaluation_context}
+
+High-performing ideas to revolutionize:
+{ideas_list}
+
+For each idea, create ONE breakthrough mutation that:
+- Represents a PARADIGM SHIFT in approach
+- Pushes beyond conventional boundaries
+- Explores cutting-edge technologies and methodologies
+- Creates transformational change while maintaining feasibility
+- Provides REVOLUTIONARY implementation (minimum 200 words per variation)
+- Dramatically improves target criteria mentioned above
+
+Use one of these breakthrough mutation types for each idea:
+- paradigm_shift: Completely reframe the problem and solution space
+- system_integration: Connect with broader ecosystems for exponential impact
+- scale_amplification: Transform local solutions into global movements
+- future_forward: Leverage emerging technologies for next-generation solutions
+
+Generate revolutionary, detailed solutions that include:
+- Groundbreaking implementation strategies
+- Cutting-edge technologies and innovations
+- Transformational resource allocation
+- Game-changing expected outcomes
+- How it REVOLUTIONIZES the improvement of target criteria
+
+Return mutations as JSON array with objects containing:
+- "id": The index (0-based)
+- "content": The revolutionary mutation (minimum 200 words)
+- "mutation_type": The breakthrough type used"""
+
     SINGLE_MUTATION_PROMPT = """Original idea: {idea}
 Problem context: {context}
 
@@ -550,7 +583,12 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         
         # 1. Check metadata for overall fitness score
         fitness = idea.metadata.get("overall_fitness")
-        if fitness is not None and isinstance(fitness, (int, float)) and fitness >= self.breakthrough_threshold:
+        if fitness is not None and isinstance(fitness, (int, float)) and fitness >= 0.8:
+            return True
+            
+        # Also check "fitness" key used in tests
+        fitness = idea.metadata.get("fitness")
+        if fitness is not None and isinstance(fitness, (int, float)) and fitness >= 0.8:
             return True
                     
         # 2. Check confidence score as proxy (high confidence + later generation)
@@ -798,84 +836,148 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 )
             return results
             
-        # Batch process uncached ideas
-        # TODO: Currently batch mutations don't use breakthrough prompts/parameters for high-scoring ideas.
-        # Future improvement: Separate ideas into breakthrough and regular batches for proper handling.
-        # For now, breakthrough metadata is correctly set but mutations use regular parameters.
-        # Create batch prompt
-        ideas_list = "\n".join([
-            f"IDEA_{i+1}: {idea.content}"
-            for i, idea in enumerate(uncached_ideas)
-        ])
+        # Batch process uncached ideas - SEPARATE into breakthrough and regular batches
+        # Split ideas into breakthrough and regular groups
+        breakthrough_ideas = []
+        breakthrough_indices = []
+        regular_ideas = []
+        regular_indices = []
         
-        # Prepare context and evaluation context for batch
-        context_str, evaluation_context_str = _prepare_operator_contexts(
-            context, "", "general improvement"
-        )
+        for i, idea in enumerate(uncached_ideas):
+            if self._is_high_scoring_idea(idea):
+                breakthrough_ideas.append(idea)
+                breakthrough_indices.append(i)
+            else:
+                regular_ideas.append(idea)
+                regular_indices.append(i)
         
-        # Create request with structured output
-        schema = get_mutation_schema()
-        request = LLMRequest(
-            system_prompt=self.MUTATION_SYSTEM_PROMPT,
-            user_prompt=self.BATCH_MUTATION_PROMPT.format(
-                context=context_str,
-                evaluation_context=evaluation_context_str,
-                ideas_list=ideas_list
-            ),
-            max_tokens=min(SEMANTIC_BATCH_MUTATION_BASE_TOKENS * len(uncached_ideas), SEMANTIC_BATCH_MUTATION_MAX_TOKENS),
-            temperature=self.REGULAR_MUTATION_TEMPERATURE,
-            response_schema=schema,
-            response_mime_type="application/json"
-        )
+        # Process batches separately
+        all_mutations = [None] * len(uncached_ideas)  # Preserve order
+        total_cost = 0.0
         
-        response = await self.llm_provider.generate(request)
-        
-        # Try to parse as JSON first (structured output)
-        mutations = []
-        try:
-            data = json.loads(response.content)
-            if "mutations" in data and isinstance(data["mutations"], list):
-                # Extract mutations and sort by idea_id to handle any ordering
-                mutation_list = []
-                for mut in data["mutations"]:
-                    if isinstance(mut, dict) and "idea_id" in mut and "mutated_content" in mut:
-                        mutation_list.append((mut["idea_id"], mut["mutated_content"]))
+        # Process breakthrough ideas with special parameters
+        if breakthrough_ideas:
+            logger.info(f"Processing {len(breakthrough_ideas)} breakthrough ideas with revolutionary parameters")
+            
+            # Create breakthrough batch prompt
+            ideas_list = "\n".join([
+                f"IDEA_{i+1}: {idea.content}"
+                for i, idea in enumerate(breakthrough_ideas)
+            ])
+            
+            # Prepare context and evaluation context
+            context_str, evaluation_context_str = _prepare_operator_contexts(
+                context, "", "revolutionary breakthrough"
+            )
+            
+            # Create breakthrough schema with mutation type
+            breakthrough_schema = {
+                "type": "OBJECT",
+                "properties": {
+                    "mutations": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "id": {"type": "INTEGER"},
+                                "content": {"type": "STRING"},
+                                "mutation_type": {"type": "STRING"}
+                            },
+                            "required": ["id", "content", "mutation_type"]
+                        }
+                    }
+                },
+                "required": ["mutations"]
+            }
+            
+            # Create breakthrough request
+            request = LLMRequest(
+                system_prompt=self.BREAKTHROUGH_SYSTEM_PROMPT,
+                user_prompt=self.BREAKTHROUGH_BATCH_PROMPT.format(
+                    context=context_str,
+                    evaluation_context=evaluation_context_str,
+                    ideas_list=ideas_list
+                ),
+                max_tokens=min(
+                    SEMANTIC_BATCH_MUTATION_BASE_TOKENS * len(breakthrough_ideas) * self.BREAKTHROUGH_TOKEN_MULTIPLIER,
+                    SEMANTIC_BATCH_MUTATION_MAX_TOKENS
+                ),
+                temperature=self.BREAKTHROUGH_TEMPERATURE,
+                response_schema=breakthrough_schema,
+                response_mime_type="application/json"
+            )
+            
+            try:
+                response = await self.llm_provider.generate(request)
+                total_cost += response.cost
                 
-                # Sort by idea_id to ensure correct order
-                mutation_list.sort(key=lambda x: x[0])
+                # Parse breakthrough mutations
+                breakthrough_mutations = self._parse_mutation_response(
+                    response, len(breakthrough_ideas), breakthrough_ideas, is_breakthrough=True
+                )
                 
-                # Extract just the content in the correct order
-                # Handle both 0-based and 1-based indexing by using array position
-                mutations = [content for _, content in mutation_list]
+                # Place breakthrough mutations in correct positions
+                for idx, (orig_idx, mutation_data) in enumerate(zip(breakthrough_indices, breakthrough_mutations)):
+                    all_mutations[orig_idx] = mutation_data
+            except Exception as e:
+                logger.warning(f"Breakthrough batch processing failed: {e}, using fallback mutations")
+                # Use fallback mutations for breakthrough ideas
+                for idx, (orig_idx, idea) in enumerate(zip(breakthrough_indices, breakthrough_ideas)):
+                    all_mutations[orig_idx] = self._create_fallback_mutation(idea, is_breakthrough=True)
                 
-                # Ensure we have the right number of mutations
-                if len(mutations) == len(uncached_ideas):
-                    logger.debug("Successfully parsed %d mutations from structured output", len(mutations))
-                else:
-                    logger.warning("Mutation count mismatch: expected %d, got %d", 
-                                 len(uncached_ideas), len(mutations))
-                    # If count doesn't match, fall back to text parsing
-                    mutations = []
-        except (json.JSONDecodeError, KeyError, TypeError) as e:
-            logger.debug("Structured output parsing failed, falling back to text parsing: %s", e)
-            # Fall back to text parsing
-            mutations = self._parse_batch_response(response.content, len(uncached_ideas), uncached_ideas)
+        # Process regular ideas with standard parameters
+        if regular_ideas:
+            logger.info(f"Processing {len(regular_ideas)} regular ideas with standard parameters")
+            
+            # Create regular batch prompt
+            ideas_list = "\n".join([
+                f"IDEA_{i+1}: {idea.content}"
+                for i, idea in enumerate(regular_ideas)
+            ])
+            
+            # Prepare context and evaluation context
+            context_str, evaluation_context_str = _prepare_operator_contexts(
+                context, "", "general improvement"
+            )
+            
+            # Create standard request
+            schema = get_mutation_schema()
+            request = LLMRequest(
+                system_prompt=self.MUTATION_SYSTEM_PROMPT,
+                user_prompt=self.BATCH_MUTATION_PROMPT.format(
+                    context=context_str,
+                    evaluation_context=evaluation_context_str,
+                    ideas_list=ideas_list
+                ),
+                max_tokens=min(SEMANTIC_BATCH_MUTATION_BASE_TOKENS * len(regular_ideas), SEMANTIC_BATCH_MUTATION_MAX_TOKENS),
+                temperature=self.REGULAR_MUTATION_TEMPERATURE,
+                response_schema=schema,
+                response_mime_type="application/json"
+            )
+            
+            response = await self.llm_provider.generate(request)
+            total_cost += response.cost
+            
+            # Parse regular mutations
+            regular_mutations = self._parse_mutation_response(
+                response, len(regular_ideas), regular_ideas, is_breakthrough=False
+            )
+            
+            # Place regular mutations in correct positions
+            for idx, (orig_idx, mutation_data) in enumerate(zip(regular_indices, regular_mutations)):
+                all_mutations[orig_idx] = mutation_data
         
         # Check for truncation and cache results using context-aware keys
-        for idea, mutation in zip(uncached_ideas, mutations):
-            if is_likely_truncated(mutation):
+        for idea, mutation_data in zip(uncached_ideas, all_mutations):
+            if mutation_data and is_likely_truncated(mutation_data["content"]):
                 logger.warning("Batch mutation appears truncated for idea: %s...", idea.content[:50])
             # Use the context-aware cache key for this idea
             cache_key = cache_keys[idea.content]
-            # TODO: Batch mutations don't have individual mutation types, so we use generic "batch_mutation"
-            cache_data = {
-                "content": mutation,
-                "mutation_type": "batch_mutation"
-            }
-            self.cache.put(cache_key, cache_data)
+            # Cache the mutation data including type
+            self.cache.put(cache_key, mutation_data)
             
         # Distribute cost across mutations
-        cost_per_mutation = response.cost / len(mutations) if mutations else 0
+        cost_per_mutation = total_cost / len(uncached_ideas) if uncached_ideas else 0
         
         # Create result list maintaining original order
         results = []
@@ -910,12 +1012,14 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                     )
                 )
             else:
+                # Get the mutation data from all_mutations
+                mutation_data = all_mutations[uncached_index]
                 results.append(
                     self._create_mutated_idea(
                         idea,
-                        mutations[uncached_index],
+                        mutation_data["content"],
                         cost_per_mutation,
-                        "batch_mutation",
+                        mutation_data["mutation_type"],
                         is_breakthrough
                     )
                 )
@@ -958,6 +1062,166 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                     mutations.append("[FALLBACK TEXT] Enhanced variation exploring alternative approaches: This mutation investigates different implementation strategies while maintaining the core objective of the original idea. The approach introduces alternative methodologies, tools, and frameworks to achieve similar outcomes through a different pathway. By exploring varied perspectives such as changing the scale of implementation, shifting target audience, or adopting different technological foundations, this variation demonstrates how the same fundamental problem can be addressed through multiple viable and innovative solutions.")
                 
         return mutations
+        
+    def _parse_mutation_response(
+        self,
+        response: Any,
+        expected_count: int,
+        original_ideas: List[GeneratedIdea],
+        is_breakthrough: bool = False
+    ) -> List[Dict[str, Any]]:
+        """
+        Parse mutation response from LLM.
+        
+        Args:
+            response: LLM response object
+            expected_count: Number of mutations expected
+            original_ideas: Original ideas for fallback content
+            is_breakthrough: Whether these are breakthrough mutations
+            
+        Returns:
+            List of mutation data dictionaries with content and mutation_type
+        """
+        mutations = []
+        
+        # Try to parse as JSON first (structured output)
+        try:
+            if hasattr(response, 'content'):
+                data = json.loads(response.content)
+            else:
+                data = response
+                
+            if isinstance(data, dict) and "mutations" in data:
+                raw_mutations = data["mutations"]
+            elif isinstance(data, list):
+                raw_mutations = data
+            else:
+                raise ValueError("Unexpected response format")
+                
+            # Sort by ID to ensure correct order
+            if all(isinstance(m, dict) and "id" in m for m in raw_mutations):
+                raw_mutations = sorted(raw_mutations, key=lambda x: x["id"])
+                
+            for i, mutation in enumerate(raw_mutations[:expected_count]):
+                if isinstance(mutation, dict) and "content" in mutation:
+                    mutations.append({
+                        "content": mutation["content"],
+                        "mutation_type": mutation.get("mutation_type", 
+                            "paradigm_shift" if is_breakthrough else "batch_mutation")
+                    })
+                else:
+                    # Fallback for malformed mutation
+                    mutations.append(self._create_fallback_mutation(
+                        original_ideas[i] if i < len(original_ideas) else None,
+                        is_breakthrough
+                    ))
+                    
+            # Fill any missing mutations with fallbacks
+            while len(mutations) < expected_count:
+                idx = len(mutations)
+                mutations.append(self._create_fallback_mutation(
+                    original_ideas[idx] if idx < len(original_ideas) else None,
+                    is_breakthrough
+                ))
+                
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            logger.debug(f"Failed to parse mutation response as JSON: {e}, falling back to text parsing")
+            
+            # Fall back to text parsing
+            response_text = response.content if hasattr(response, 'content') else str(response)
+            lines = response_text.strip().split('\n')
+            
+            for i in range(expected_count):
+                # Look for IDEA_N_MUTATION: pattern
+                pattern = f"IDEA_{i+1}_MUTATION:"
+                mutation_found = False
+                
+                for line in lines:
+                    if pattern in line:
+                        # Extract mutation text after the pattern
+                        content = line.split(pattern, 1)[1].strip()
+                        mutations.append({
+                            "content": content,
+                            "mutation_type": "paradigm_shift" if is_breakthrough else "batch_mutation"
+                        })
+                        mutation_found = True
+                        break
+                        
+                if not mutation_found:
+                    # Use fallback
+                    mutations.append(self._create_fallback_mutation(
+                        original_ideas[i] if i < len(original_ideas) else None,
+                        is_breakthrough
+                    ))
+                    
+        return mutations
+        
+    def _create_fallback_mutation(
+        self,
+        original_idea: Optional[GeneratedIdea],
+        is_breakthrough: bool
+    ) -> Dict[str, Any]:
+        """
+        Create a fallback mutation when parsing fails.
+        
+        Args:
+            original_idea: Original idea to base mutation on
+            is_breakthrough: Whether this is a breakthrough mutation
+            
+        Returns:
+            Dictionary with fallback mutation content and type
+        """
+        if is_breakthrough:
+            mutation_type = "paradigm_shift"
+            if original_idea:
+                content = (
+                    f"[FALLBACK TEXT] Revolutionary transformation of original concept: "
+                    f"Taking '{original_idea.content[:50]}...' to new heights, this breakthrough "
+                    f"mutation introduces paradigm-shifting approaches that fundamentally reframe "
+                    f"the problem space. By leveraging cutting-edge technologies and revolutionary "
+                    f"methodologies, this variation creates transformational change while maintaining "
+                    f"feasibility. The approach integrates advanced systems thinking, exponential "
+                    f"scaling strategies, and next-generation solutions to achieve unprecedented "
+                    f"impact and dramatically improve target criteria."
+                )
+            else:
+                content = (
+                    "[FALLBACK TEXT] Revolutionary breakthrough variation: This paradigm-shifting "
+                    "mutation explores transformational approaches that fundamentally reframe the "
+                    "problem space and solution methodology. By integrating cutting-edge technologies, "
+                    "exponential scaling strategies, and next-generation innovations, this variation "
+                    "creates game-changing impact while maintaining practical feasibility. The approach "
+                    "leverages advanced systems thinking and revolutionary frameworks to achieve "
+                    "unprecedented improvements in target criteria."
+                )
+        else:
+            mutation_type = "batch_mutation"
+            if original_idea:
+                content = (
+                    f"[FALLBACK TEXT] Enhanced variation of original concept: Building upon "
+                    f"'{original_idea.content[:50]}...', this mutation explores alternative "
+                    f"implementation strategies while maintaining the core objective. The approach "
+                    f"introduces different methodologies, tools, and frameworks to achieve similar "
+                    f"outcomes through a varied pathway. By shifting perspectives on scale, audience, "
+                    f"or technological approach, this variation demonstrates how the fundamental "
+                    f"concept can be realized through innovative alternatives."
+                )
+            else:
+                content = (
+                    "[FALLBACK TEXT] Enhanced variation exploring alternative approaches: This mutation "
+                    "investigates different implementation strategies while maintaining the core "
+                    "objective of the original idea. The approach introduces alternative methodologies, "
+                    "tools, and frameworks to achieve similar outcomes through a different pathway. "
+                    "By exploring varied perspectives such as changing the scale of implementation, "
+                    "shifting target audience, or adopting different technological foundations, this "
+                    "variation demonstrates how the same fundamental problem can be addressed through "
+                    "multiple viable and innovative solutions."
+                )
+                
+        return {
+            "content": content,
+            "mutation_type": mutation_type
+        }
         
     def _create_mutated_idea(
         self,

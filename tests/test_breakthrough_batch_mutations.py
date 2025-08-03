@@ -6,6 +6,7 @@ high-scoring ideas with revolutionary mutation parameters.
 """
 
 import asyncio
+import json
 from typing import List
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -112,8 +113,16 @@ class TestBreakthroughBatchMutations:
             ]
         }
         
-        # Set up mock to return different responses
-        mock_llm_provider.generate.side_effect = [breakthrough_response, regular_response]
+        # Set up mock to return different responses as mock objects
+        breakthrough_mock = MagicMock()
+        breakthrough_mock.content = json.dumps(breakthrough_response)
+        breakthrough_mock.cost = 0.002
+        
+        regular_mock = MagicMock()
+        regular_mock.content = json.dumps(regular_response)
+        regular_mock.cost = 0.001
+        
+        mock_llm_provider.generate.side_effect = [breakthrough_mock, regular_mock]
         
         results = await operator.mutate_batch(mixed_fitness_ideas)
         
@@ -133,19 +142,23 @@ class TestBreakthroughBatchMutations:
         # Take only high-scoring ideas
         breakthrough_ideas = [idea for idea in mixed_fitness_ideas if idea.confidence_score >= 0.8]
         
-        mock_response = {
+        mock_response = MagicMock()
+        mock_response.content = json.dumps({
             "mutations": [
                 {"id": i, "content": f"Breakthrough mutation {i}"} 
                 for i in range(len(breakthrough_ideas))
             ]
-        }
+        })
+        mock_response.cost = 0.003
         mock_llm_provider.generate.return_value = mock_response
         
         await operator.mutate_batch(breakthrough_ideas)
         
         # Check that temperature 0.95 was used
         call_args = mock_llm_provider.generate.call_args
-        assert call_args.kwargs.get('temperature', 0) == 0.95
+        # The first argument is the LLMRequest object
+        llm_request = call_args[0][0]
+        assert llm_request.temperature == 0.95
 
     @pytest.mark.asyncio
     async def test_breakthrough_token_limits(self, mock_llm_provider, mixed_fitness_ideas):
@@ -154,20 +167,23 @@ class TestBreakthroughBatchMutations:
         
         breakthrough_ideas = [idea for idea in mixed_fitness_ideas if idea.confidence_score >= 0.8]
         
-        mock_response = {
+        mock_response = MagicMock()
+        mock_response.content = json.dumps({
             "mutations": [
                 {"id": i, "content": f"Breakthrough mutation {i}"} 
                 for i in range(len(breakthrough_ideas))
             ]
-        }
+        })
+        mock_response.cost = 0.003
         mock_llm_provider.generate.return_value = mock_response
         
         await operator.mutate_batch(breakthrough_ideas)
         
         # Check that max_tokens was doubled
         call_args = mock_llm_provider.generate.call_args
-        max_tokens = call_args.kwargs.get('max_tokens', 0)
-        assert max_tokens >= 1000  # Should be at least 2x the default
+        # The first argument is the LLMRequest object
+        llm_request = call_args[0][0]
+        assert llm_request.max_tokens >= 1000  # Should be at least 2x the default
 
     @pytest.mark.asyncio
     async def test_breakthrough_prompt_content(self, mock_llm_provider, mixed_fitness_ideas):
@@ -176,19 +192,23 @@ class TestBreakthroughBatchMutations:
         
         breakthrough_ideas = [idea for idea in mixed_fitness_ideas if idea.confidence_score >= 0.8]
         
-        mock_response = {
+        mock_response = MagicMock()
+        mock_response.content = json.dumps({
             "mutations": [
-                {"id": i, "content": f"Mutation {i}"} 
+                {"id": i, "content": f"Mutation {i}", "mutation_type": "paradigm_shift"} 
                 for i in range(len(breakthrough_ideas))
             ]
-        }
+        })
+        mock_response.cost = 0.003
         mock_llm_provider.generate.return_value = mock_response
         
         await operator.mutate_batch(breakthrough_ideas)
         
         # Check prompt contains breakthrough language
         call_args = mock_llm_provider.generate.call_args
-        prompt = call_args[0][0] if call_args[0] else call_args.kwargs.get('prompt', '')
+        # The first argument is the LLMRequest object
+        llm_request = call_args[0][0]
+        prompt = llm_request.user_prompt
         
         assert "REVOLUTIONARY" in prompt or "revolutionary" in prompt.lower()
         assert any(mutation_type in prompt.lower() for mutation_type in [
@@ -216,7 +236,14 @@ class TestBreakthroughBatchMutations:
             ]
         }
         
-        mock_llm_provider.generate.side_effect = [breakthrough_response, regular_response]
+        # Mock responses
+        breakthrough_mock = MagicMock()
+        breakthrough_mock.content = json.dumps(breakthrough_response)
+        breakthrough_mock.cost = 0.002
+        regular_mock = MagicMock()
+        regular_mock.content = json.dumps(regular_response)
+        regular_mock.cost = 0.001
+        mock_llm_provider.generate.side_effect = [breakthrough_mock, regular_mock]
         
         results = await operator.mutate_batch(mixed_fitness_ideas)
         
@@ -244,14 +271,28 @@ class TestBreakthroughBatchMutations:
         regular_response = {
             "mutations": [{"id": i, "content": f"Regular {i}"} for i in range(3)]
         }
-        mock_llm_provider.generate.side_effect = [breakthrough_response, regular_response]
+        # Mock responses
+        breakthrough_mock = MagicMock()
+        breakthrough_mock.content = json.dumps(breakthrough_response)
+        breakthrough_mock.cost = 0.002
+        regular_mock = MagicMock()
+        regular_mock.content = json.dumps(regular_response)
+        regular_mock.cost = 0.001
+        mock_llm_provider.generate.side_effect = [breakthrough_mock, regular_mock]
         
         results1 = await operator.mutate_batch(mixed_fitness_ideas)
         assert mock_llm_provider.generate.call_count == 2
         
         # Reset mock
         mock_llm_provider.generate.reset_mock()
-        mock_llm_provider.generate.side_effect = [breakthrough_response, regular_response]
+        # Reset and mock again for any cache misses
+        breakthrough_mock2 = MagicMock()
+        breakthrough_mock2.content = json.dumps(breakthrough_response)
+        breakthrough_mock2.cost = 0.002
+        regular_mock2 = MagicMock()
+        regular_mock2.content = json.dumps(regular_response)
+        regular_mock2.cost = 0.001
+        mock_llm_provider.generate.side_effect = [breakthrough_mock2, regular_mock2]
         
         # Second call should use cache
         results2 = await operator.mutate_batch(mixed_fitness_ideas)
@@ -268,19 +309,22 @@ class TestBreakthroughBatchMutations:
         
         breakthrough_ideas = [idea for idea in mixed_fitness_ideas if idea.confidence_score >= 0.8]
         
-        mock_response = {
+        mock_response = MagicMock()
+        mock_response.content = json.dumps({
             "mutations": [
                 {"id": i, "content": f"Context-aware breakthrough {i}"} 
                 for i in range(len(breakthrough_ideas))
             ]
-        }
+        })
+        mock_response.cost = 0.003
         mock_llm_provider.generate.return_value = mock_response
         
         await operator.mutate_batch(breakthrough_ideas, evaluation_context)
         
         # Check that context influences prompt
         call_args = mock_llm_provider.generate.call_args
-        prompt = call_args[0][0] if call_args[0] else call_args.kwargs.get('prompt', '')
+        llm_request = call_args[0][0]
+        prompt = llm_request.user_prompt
         
         assert "impact" in prompt.lower()
         assert "scalability" in prompt.lower()
@@ -302,9 +346,11 @@ class TestBreakthroughBatchMutations:
         
         operator = BatchSemanticMutationOperator(mock_llm_provider)
         
-        regular_response = {
+        regular_response = MagicMock()
+        regular_response.content = json.dumps({
             "mutations": [{"id": i, "content": f"Regular mutation {i}"} for i in range(3)]
-        }
+        })
+        regular_response.cost = 0.001
         mock_llm_provider.generate.return_value = regular_response
         
         results = await operator.mutate_batch(regular_ideas)
@@ -324,18 +370,21 @@ class TestBreakthroughBatchMutations:
                 thinking_method=ThinkingMethod.INDUCTION,
                 agent_name="Test",
                 generation_prompt="Test",
-                confidence_score=0.85 + i * 0.05
+                confidence_score=0.85 + i * 0.05,
+                metadata={"generation": 1}  # Required for breakthrough detection with high confidence
             ) for i in range(3)
         ]
         
         operator = BatchSemanticMutationOperator(mock_llm_provider)
         
-        breakthrough_response = {
+        breakthrough_response = MagicMock()
+        breakthrough_response.content = json.dumps({
             "mutations": [
                 {"id": i, "content": f"Revolutionary mutation {i}", "mutation_type": "paradigm_shift"} 
                 for i in range(3)
             ]
-        }
+        })
+        breakthrough_response.cost = 0.003
         mock_llm_provider.generate.return_value = breakthrough_response
         
         results = await operator.mutate_batch(breakthrough_ideas)
@@ -351,9 +400,14 @@ class TestBreakthroughBatchMutations:
         operator = BatchSemanticMutationOperator(mock_llm_provider)
         
         # Mock error for breakthrough batch
+        # Mock regular response for after error
+        regular_mock = MagicMock()
+        regular_mock.content = json.dumps({"mutations": [{"id": i, "content": f"Regular {i}"} for i in range(3)]})
+        regular_mock.cost = 0.001
+        
         mock_llm_provider.generate.side_effect = [
             Exception("Breakthrough batch failed"),
-            {"mutations": [{"id": i, "content": f"Regular {i}"} for i in range(3)]}
+            regular_mock
         ]
         
         # Should still process regular batch and use fallback for breakthrough
@@ -385,7 +439,14 @@ class TestBreakthroughBatchMutations:
             ]
         }
         
-        mock_llm_provider.generate.side_effect = [breakthrough_response, regular_response]
+        # Mock responses  
+        breakthrough_mock = MagicMock()
+        breakthrough_mock.content = json.dumps(breakthrough_response)
+        breakthrough_mock.cost = 0.002
+        regular_mock = MagicMock()
+        regular_mock.content = json.dumps(regular_response)
+        regular_mock.cost = 0.001
+        mock_llm_provider.generate.side_effect = [breakthrough_mock, regular_mock]
         
         results = await operator.mutate_batch(interleaved)
         
