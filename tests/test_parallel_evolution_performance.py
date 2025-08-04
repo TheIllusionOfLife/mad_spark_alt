@@ -24,7 +24,7 @@ class TestParallelEvolutionPerformance:
     @pytest.fixture
     def mock_fitness_evaluator(self):
         """Mock fitness evaluator with realistic timing."""
-        evaluator = AsyncMock()
+        evaluator = MagicMock()  # Use MagicMock to avoid coroutine property access issues
         
         # Simulate realistic evaluation timing (3s per evaluation)
         async def mock_evaluate(population, config, context=None):
@@ -43,6 +43,8 @@ class TestParallelEvolutionPerformance:
         
         evaluator.evaluate_population = mock_evaluate
         evaluator.calculate_population_diversity = AsyncMock(return_value=0.8)
+        evaluator.cache = None  # Explicitly set cache to None
+        evaluator.get_cache_stats = MagicMock(return_value={})
         return evaluator
 
     @pytest.fixture
@@ -86,6 +88,31 @@ class TestParallelEvolutionPerformance:
         
         mutation_op.mutate_batch = mock_batch_mutate
         crossover_op.crossover = mock_crossover
+        
+        # Mock batch crossover
+        async def mock_batch_crossover(pairs, context=None):
+            await asyncio.sleep(0.05 * len(pairs))  # Scale with batch size
+            results = []
+            for parent1, parent2 in pairs:
+                results.append((
+                    GeneratedIdea(
+                        content=f"Batch cross1: {parent1.content}",
+                        thinking_method=ThinkingMethod.ABDUCTION,
+                        agent_name="batch_crossover",
+                        generation_prompt="batch crossover",
+                        metadata={"generation": 1}
+                    ),
+                    GeneratedIdea(
+                        content=f"Batch cross2: {parent2.content}",
+                        thinking_method=ThinkingMethod.ABDUCTION,
+                        agent_name="batch_crossover",
+                        generation_prompt="batch crossover",
+                        metadata={"generation": 1}
+                    )
+                ))
+            return results
+        
+        crossover_op.crossover_batch = mock_batch_crossover
         
         return mutation_op, crossover_op
 

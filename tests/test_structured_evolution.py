@@ -44,8 +44,8 @@ class TestStructuredMutation:
         structured_response = {
             "mutations": [
                 {
-                    "idea_id": 1,
-                    "mutated_content": "Develop a comprehensive recycling education program in schools with student ambassadors and rewards system"
+                    "id": 1,
+                    "content": "Develop a comprehensive recycling education program in schools with student ambassadors and rewards system"
                 }
             ]
         }
@@ -62,7 +62,7 @@ class TestStructuredMutation:
         llm_provider.generate = AsyncMock(return_value=mock_response)
         
         # Perform mutation
-        mutated_ideas = await mutation_operator.mutate_batch([idea])
+        mutated_ideas = await mutation_operator.mutate_batch([idea], context="Test mutation context")
         
         # Verify structured output was requested
         llm_provider.generate.assert_called_once()
@@ -115,16 +115,16 @@ class TestStructuredMutation:
         structured_response = {
             "mutations": [
                 {
-                    "idea_id": 1,
-                    "mutated_content": "Install solar panels with battery storage systems on residential and commercial rooftops"
+                    "id": 1,  # Changed from idea_id
+                    "content": "Install solar panels with battery storage systems on residential and commercial rooftops"  # Changed from mutated_content
                 },
                 {
-                    "idea_id": 2,
-                    "mutated_content": "Establish community gardens with composting programs and educational workshops"
+                    "id": 2,
+                    "content": "Establish community gardens with composting programs and educational workshops"
                 },
                 {
-                    "idea_id": 3,
-                    "mutated_content": "Develop electric vehicle infrastructure with charging stations and purchase incentives"
+                    "id": 3,
+                    "content": "Develop electric vehicle infrastructure with charging stations and purchase incentives"
                 }
             ]
         }
@@ -141,7 +141,7 @@ class TestStructuredMutation:
         llm_provider.generate = AsyncMock(return_value=mock_response)
         
         # Perform batch mutation
-        mutated_ideas = await mutation_operator.mutate_batch(ideas)
+        mutated_ideas = await mutation_operator.mutate_batch(ideas, context="Test mutation context")
         
         # Verify results
         assert len(mutated_ideas) == 3
@@ -209,11 +209,11 @@ IDEA_1_MUTATION: Implement comprehensive plastic reduction strategies including 
             )
         ]
         
-        # Mock structured output response with 0-based IDs
+        # Mock structured output response with 1-based IDs (as expected by parser)
         structured_response = {
             "mutations": [
-                {"idea_id": 0, "mutated_content": "Enhanced idea A content"},
-                {"idea_id": 1, "mutated_content": "Enhanced idea B content"}
+                {"id": 1, "content": "Enhanced idea A content"},  # IDEA_1
+                {"id": 2, "content": "Enhanced idea B content"}   # IDEA_2
             ]
         }
         
@@ -264,9 +264,9 @@ IDEA_1_MUTATION: Implement comprehensive plastic reduction strategies including 
         # Mock structured output response with non-sequential IDs (out of order)
         structured_response = {
             "mutations": [
-                {"idea_id": 3, "mutated_content": "Enhanced idea C content"},
-                {"idea_id": 1, "mutated_content": "Enhanced idea A content"},
-                {"idea_id": 2, "mutated_content": "Enhanced idea B content"}
+                {"id": 3, "content": "Enhanced idea C content"},
+                {"id": 1, "content": "Enhanced idea A content"},
+                {"id": 2, "content": "Enhanced idea B content"}
             ]
         }
         

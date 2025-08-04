@@ -44,7 +44,7 @@ class TestHeavyWorkloadTimeout:
         """Test current sequential processing to demonstrate the bottleneck."""
         
         # Mock components to simulate current sequential processing
-        mock_evaluator = AsyncMock()
+        mock_evaluator = MagicMock()  # Use MagicMock to avoid coroutine property access issues
         mock_mutation = AsyncMock()
         mock_crossover = AsyncMock()
         
@@ -101,6 +101,8 @@ class TestHeavyWorkloadTimeout:
         
         mock_evaluator.evaluate_population = mock_evaluate
         mock_evaluator.calculate_population_diversity = AsyncMock(return_value=0.8)
+        mock_evaluator.cache = None  # Explicitly set cache to None to avoid attribute access issues
+        mock_evaluator.get_cache_stats = MagicMock(return_value={})  # Add this method
         mock_mutation.mutate = mock_mutate
         mock_crossover.crossover = mock_cross
         
@@ -165,14 +167,14 @@ class TestHeavyWorkloadTimeout:
         # and PASS after parallel processing is implemented
         
         # Mock parallel processing components
-        mock_evaluator = AsyncMock()
+        mock_evaluator = MagicMock()  # Use MagicMock to avoid coroutine property access issues
         mock_batch_mutation = AsyncMock()
         mock_crossover = AsyncMock()
         
         # Simulate batch processing efficiency
         async def mock_batch_evaluate(population, config, context=None):
             # Batch evaluation should be more efficient than individual
-            batch_size = min(len(population), 5)  # Process in batches of 5
+            batch_size = min(len(population), 5) if population else 1  # Process in batches of 5
             await asyncio.sleep(0.05 * len(population) / batch_size)  # Efficient batch timing
             return [
                 IndividualFitness(
@@ -201,6 +203,8 @@ class TestHeavyWorkloadTimeout:
         
         mock_evaluator.evaluate_population = mock_batch_evaluate
         mock_evaluator.calculate_population_diversity = AsyncMock(return_value=0.8)
+        mock_evaluator.cache = None  # Explicitly set cache to None to avoid attribute access issues
+        mock_evaluator.get_cache_stats = MagicMock(return_value={})  # Add this method
         mock_batch_mutation.mutate_batch = mock_batch_mutate
         mock_crossover.crossover = AsyncMock(return_value=(
             GeneratedIdea(
@@ -219,17 +223,44 @@ class TestHeavyWorkloadTimeout:
             )
         ))
         
+        # Mock traditional mutation operator
+        mock_traditional_mutation = MagicMock()
+        mock_traditional_mutation.mutate = AsyncMock(side_effect=lambda idea, context: GeneratedIdea(
+            content=f"Traditional mutated: {idea.content}",
+            thinking_method=ThinkingMethod.ABDUCTION,
+            agent_name="traditional_mutator",
+            generation_prompt="traditional mutation",
+            metadata=idea.metadata.copy()
+        ))
+        
         # Create algorithm that should use parallel processing
         # This will fail initially until parallel implementation is complete
         algorithm = GeneticAlgorithm(
             fitness_evaluator=mock_evaluator,
             crossover_operator=mock_crossover,
-            mutation_operator=MagicMock()  # Traditional mutation
+            mutation_operator=mock_traditional_mutation  # Traditional mutation
         )
         
         # Mock the semantic operators that are initialized internally
         algorithm.semantic_mutation_operator = mock_batch_mutation
         algorithm.semantic_crossover_operator = mock_crossover
+        
+        # Also mock batch crossover if available
+        mock_crossover.crossover_batch = AsyncMock(side_effect=lambda pairs, context: [
+            (GeneratedIdea(
+                content=f"Batch cross1: {pair[0].content}",
+                thinking_method=ThinkingMethod.ABDUCTION,
+                agent_name="batch_crossover",
+                generation_prompt="batch crossover",
+                metadata={}
+            ), GeneratedIdea(
+                content=f"Batch cross2: {pair[1].content}",
+                thinking_method=ThinkingMethod.ABDUCTION,
+                agent_name="batch_crossover",
+                generation_prompt="batch crossover",
+                metadata={}
+            )) for pair in pairs
+        ])
         
         # Test heavy workload scenario
         config = EvolutionConfig(

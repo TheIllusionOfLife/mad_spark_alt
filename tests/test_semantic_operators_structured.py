@@ -139,8 +139,8 @@ class TestSemanticOperatorsStructured:
         json_response = {
             "mutations": [
                 {
-                    "idea_id": 1,
-                    "mutated_content": "This is a detailed mutation that transforms the original concept by shifting perspective from individual gameplay to community-driven experiences. The Mobius strip becomes a shared space where multiple players can interact and influence each other's progress. Implementation involves creating a persistent world state that tracks collective actions and emergent behaviors across all connected players."
+                    "id": 1,  # 1-based indexing to match IDEA_1 in prompt
+                    "content": "This is a detailed mutation that transforms the original concept by shifting perspective from individual gameplay to community-driven experiences. The Mobius strip becomes a shared space where multiple players can interact and influence each other's progress. Implementation involves creating a persistent world state that tracks collective actions and emergent behaviors across all connected players."
                 }
             ]
         }
@@ -165,11 +165,11 @@ class TestSemanticOperatorsStructured:
         
         # Run mutation
         ideas = [original_idea]
-        mutated = await operator.mutate_batch(ideas)
+        mutated = await operator.mutate_batch(ideas, context="Test mutation context")
         
         # Verify results
         assert len(mutated) == 1
-        assert mutated[0].content == json_response["mutations"][0]["mutated_content"]
+        assert mutated[0].content == json_response["mutations"][0]["content"]
         assert "[FALLBACK TEXT]" not in mutated[0].content
         assert len(mutated[0].content) > 150
     
