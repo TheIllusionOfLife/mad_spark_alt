@@ -5,7 +5,6 @@ This module tests that the genetic algorithm correctly integrates with
 the smart selector and semantic operators for LLM-powered evolution.
 """
 
-import asyncio
 from unittest.mock import AsyncMock, patch
 from typing import List
 

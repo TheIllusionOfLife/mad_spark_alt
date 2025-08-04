@@ -184,10 +184,10 @@ def get_mutation_schema() -> Dict[str, Any]:
                 "items": {
                     "type": "OBJECT",
                     "properties": {
-                        "idea_id": {"type": "INTEGER"},
-                        "mutated_content": {"type": "STRING"},
+                        "id": {"type": "INTEGER"},
+                        "content": {"type": "STRING"},
                     },
-                    "required": ["idea_id", "mutated_content"]
+                    "required": ["id", "content"]
                 }
             }
         },
@@ -419,6 +419,39 @@ BREAKTHROUGH MODE: Push creative limits, explore cutting-edge technologies, and 
 Generate comprehensive, detailed implementations with specific steps, technologies, and methodologies.
 When returning results, follow the exact format requested in the prompt (JSON or plain text)."""
 
+    BREAKTHROUGH_BATCH_PROMPT = """These are HIGH-PERFORMING ideas that deserve REVOLUTIONARY mutations.
+Context: {context}
+{evaluation_context}
+
+High-performing ideas to revolutionize:
+{ideas_list}
+
+For each idea, create ONE breakthrough mutation that:
+- Represents a PARADIGM SHIFT in approach
+- Pushes beyond conventional boundaries
+- Explores cutting-edge technologies and methodologies
+- Creates transformational change while maintaining feasibility
+- Provides REVOLUTIONARY implementation (minimum 200 words per variation)
+- Dramatically improves target criteria mentioned above
+
+Use one of these breakthrough mutation types for each idea:
+- paradigm_shift: Completely reframe the problem and solution space
+- system_integration: Connect with broader ecosystems for exponential impact
+- scale_amplification: Transform local solutions into global movements
+- future_forward: Leverage emerging technologies for next-generation solutions
+
+Generate revolutionary, detailed solutions that include:
+- Groundbreaking implementation strategies
+- Cutting-edge technologies and innovations
+- Transformational resource allocation
+- Game-changing expected outcomes
+- How it REVOLUTIONIZES the improvement of target criteria
+
+Return mutations as JSON array with objects containing:
+- "id": The index (0-based)
+- "content": The revolutionary mutation (minimum 200 words)
+- "mutation_type": The breakthrough type used"""
+
     SINGLE_MUTATION_PROMPT = """Original idea: {idea}
 Problem context: {context}
 
@@ -502,7 +535,7 @@ Generate complete, detailed solutions that include:
 - Expected outcomes and benefits
 - Improvements to target criteria (if specified)
 
-Return JSON with mutations array containing idea_id and mutated_content for each idea."""
+Return JSON with mutations array containing id and content for each idea."""
     
     def __init__(
         self, 
@@ -550,6 +583,11 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         
         # 1. Check metadata for overall fitness score
         fitness = idea.metadata.get("overall_fitness")
+        if fitness is not None and isinstance(fitness, (int, float)) and fitness >= self.breakthrough_threshold:
+            return True
+            
+        # Also check "fitness" key used in tests
+        fitness = idea.metadata.get("fitness")
         if fitness is not None and isinstance(fitness, (int, float)) and fitness >= self.breakthrough_threshold:
             return True
                     
@@ -798,84 +836,155 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 )
             return results
             
-        # Batch process uncached ideas
-        # TODO: Currently batch mutations don't use breakthrough prompts/parameters for high-scoring ideas.
-        # Future improvement: Separate ideas into breakthrough and regular batches for proper handling.
-        # For now, breakthrough metadata is correctly set but mutations use regular parameters.
-        # Create batch prompt
-        ideas_list = "\n".join([
-            f"IDEA_{i+1}: {idea.content}"
-            for i, idea in enumerate(uncached_ideas)
-        ])
+        # Batch process uncached ideas - SEPARATE into breakthrough and regular batches
+        # Split ideas into breakthrough and regular groups
+        breakthrough_ideas = []
+        breakthrough_indices = []
+        regular_ideas = []
+        regular_indices = []
         
-        # Prepare context and evaluation context for batch
-        context_str, evaluation_context_str = _prepare_operator_contexts(
-            context, "", "general improvement"
-        )
+        for i, idea in enumerate(uncached_ideas):
+            if self._is_high_scoring_idea(idea):
+                breakthrough_ideas.append(idea)
+                breakthrough_indices.append(i)
+            else:
+                regular_ideas.append(idea)
+                regular_indices.append(i)
         
-        # Create request with structured output
-        schema = get_mutation_schema()
-        request = LLMRequest(
-            system_prompt=self.MUTATION_SYSTEM_PROMPT,
-            user_prompt=self.BATCH_MUTATION_PROMPT.format(
-                context=context_str,
-                evaluation_context=evaluation_context_str,
-                ideas_list=ideas_list
-            ),
-            max_tokens=min(SEMANTIC_BATCH_MUTATION_BASE_TOKENS * len(uncached_ideas), SEMANTIC_BATCH_MUTATION_MAX_TOKENS),
-            temperature=self.REGULAR_MUTATION_TEMPERATURE,
-            response_schema=schema,
-            response_mime_type="application/json"
-        )
+        # Process batches separately
+        all_mutations: List[Optional[Dict[str, Any]]] = [None] * len(uncached_ideas)  # Preserve order
+        total_cost = 0.0
         
-        response = await self.llm_provider.generate(request)
-        
-        # Try to parse as JSON first (structured output)
-        mutations = []
-        try:
-            data = json.loads(response.content)
-            if "mutations" in data and isinstance(data["mutations"], list):
-                # Extract mutations and sort by idea_id to handle any ordering
-                mutation_list = []
-                for mut in data["mutations"]:
-                    if isinstance(mut, dict) and "idea_id" in mut and "mutated_content" in mut:
-                        mutation_list.append((mut["idea_id"], mut["mutated_content"]))
+        # Process breakthrough ideas with special parameters
+        if breakthrough_ideas:
+            logger.info(f"Processing {len(breakthrough_ideas)} breakthrough ideas with revolutionary parameters")
+            
+            # Create breakthrough batch prompt
+            ideas_list = "\n".join([
+                f"IDEA_{i+1}: {idea.content}"
+                for i, idea in enumerate(breakthrough_ideas)
+            ])
+            
+            # Prepare context and evaluation context
+            context_str, evaluation_context_str = _prepare_operator_contexts(
+                context, "", "revolutionary breakthrough"
+            )
+            
+            # Create breakthrough schema with mutation type
+            breakthrough_schema = {
+                "type": "OBJECT",
+                "properties": {
+                    "mutations": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "id": {"type": "INTEGER"},
+                                "content": {"type": "STRING"},
+                                "mutation_type": {"type": "STRING"}
+                            },
+                            "required": ["id", "content", "mutation_type"]
+                        }
+                    }
+                },
+                "required": ["mutations"]
+            }
+            
+            # Create breakthrough request
+            request = LLMRequest(
+                system_prompt=self.BREAKTHROUGH_SYSTEM_PROMPT,
+                user_prompt=self.BREAKTHROUGH_BATCH_PROMPT.format(
+                    context=context_str,
+                    evaluation_context=evaluation_context_str,
+                    ideas_list=ideas_list
+                ),
+                max_tokens=min(
+                    SEMANTIC_BATCH_MUTATION_BASE_TOKENS * len(breakthrough_ideas) * self.BREAKTHROUGH_TOKEN_MULTIPLIER,
+                    SEMANTIC_BATCH_MUTATION_MAX_TOKENS
+                ),
+                temperature=self.BREAKTHROUGH_TEMPERATURE,
+                response_schema=breakthrough_schema,
+                response_mime_type="application/json"
+            )
+            
+            try:
+                response = await self.llm_provider.generate(request)
+                total_cost += response.cost
                 
-                # Sort by idea_id to ensure correct order
-                mutation_list.sort(key=lambda x: x[0])
+                # Parse breakthrough mutations
+                breakthrough_mutations = self._parse_mutation_response(
+                    response, len(breakthrough_ideas), breakthrough_ideas, is_breakthrough=True
+                )
                 
-                # Extract just the content in the correct order
-                # Handle both 0-based and 1-based indexing by using array position
-                mutations = [content for _, content in mutation_list]
+                # Place breakthrough mutations in correct positions
+                for idx, (orig_idx, mutation_data) in enumerate(zip(breakthrough_indices, breakthrough_mutations)):
+                    all_mutations[orig_idx] = mutation_data
+            except Exception as e:
+                logger.warning(f"Breakthrough batch processing failed: {e}, using fallback mutations")
+                # Use fallback mutations for breakthrough ideas
+                for idx, (orig_idx, idea) in enumerate(zip(breakthrough_indices, breakthrough_ideas)):
+                    all_mutations[orig_idx] = self._create_fallback_mutation(idea, is_breakthrough=True)
                 
-                # Ensure we have the right number of mutations
-                if len(mutations) == len(uncached_ideas):
-                    logger.debug("Successfully parsed %d mutations from structured output", len(mutations))
-                else:
-                    logger.warning("Mutation count mismatch: expected %d, got %d", 
-                                 len(uncached_ideas), len(mutations))
-                    # If count doesn't match, fall back to text parsing
-                    mutations = []
-        except (json.JSONDecodeError, KeyError, TypeError) as e:
-            logger.debug("Structured output parsing failed, falling back to text parsing: %s", e)
-            # Fall back to text parsing
-            mutations = self._parse_batch_response(response.content, len(uncached_ideas), uncached_ideas)
+        # Process regular ideas with standard parameters
+        if regular_ideas:
+            logger.info(f"Processing {len(regular_ideas)} regular ideas with standard parameters")
+            
+            # Create regular batch prompt
+            ideas_list = "\n".join([
+                f"IDEA_{i+1}: {idea.content}"
+                for i, idea in enumerate(regular_ideas)
+            ])
+            
+            # Prepare context and evaluation context
+            context_str, evaluation_context_str = _prepare_operator_contexts(
+                context, "", "general improvement"
+            )
+            
+            # Create standard request
+            schema = get_mutation_schema()
+            request = LLMRequest(
+                system_prompt=self.MUTATION_SYSTEM_PROMPT,
+                user_prompt=self.BATCH_MUTATION_PROMPT.format(
+                    context=context_str,
+                    evaluation_context=evaluation_context_str,
+                    ideas_list=ideas_list
+                ),
+                max_tokens=min(SEMANTIC_BATCH_MUTATION_BASE_TOKENS * len(regular_ideas), SEMANTIC_BATCH_MUTATION_MAX_TOKENS),
+                temperature=self.REGULAR_MUTATION_TEMPERATURE,
+                response_schema=schema,
+                response_mime_type="application/json"
+            )
+            
+            try:
+                response = await self.llm_provider.generate(request)
+                total_cost += response.cost
+                
+                # Parse regular mutations
+                regular_mutations = self._parse_mutation_response(
+                    response, len(regular_ideas), regular_ideas, is_breakthrough=False
+                )
+                
+                # Place regular mutations in correct positions
+                for idx, (orig_idx, mutation_data) in enumerate(zip(regular_indices, regular_mutations)):
+                    all_mutations[orig_idx] = mutation_data
+            except Exception as e:
+                logger.warning(f"Regular batch processing failed: {e}, using fallback mutations")
+                # Use fallback mutations for regular ideas
+                for idx, (orig_idx, idea) in enumerate(zip(regular_indices, regular_ideas)):
+                    all_mutations[orig_idx] = self._create_fallback_mutation(idea, is_breakthrough=False)
         
         # Check for truncation and cache results using context-aware keys
-        for idea, mutation in zip(uncached_ideas, mutations):
-            if is_likely_truncated(mutation):
-                logger.warning("Batch mutation appears truncated for idea: %s...", idea.content[:50])
-            # Use the context-aware cache key for this idea
-            cache_key = cache_keys[idea.content]
-            # TODO: Batch mutations don't have individual mutation types, so we use generic "batch_mutation"
-            cache_data = {
-                "content": mutation,
-                "mutation_type": "batch_mutation"
-            }
-            self.cache.put(cache_key, cache_data)
+        for idea, cached_mutation_data in zip(uncached_ideas, all_mutations):
+            if cached_mutation_data is not None:
+                if is_likely_truncated(cached_mutation_data["content"]):
+                    logger.warning("Batch mutation appears truncated for idea: %s...", idea.content[:50])
+                # Use the context-aware cache key for this idea
+                cache_key = cache_keys[idea.content]
+                # Cache the mutation data including type
+                self.cache.put(cache_key, cached_mutation_data)
             
         # Distribute cost across mutations
-        cost_per_mutation = response.cost / len(mutations) if mutations else 0
+        cost_per_mutation = total_cost / len(uncached_ideas) if uncached_ideas else 0
         
         # Create result list maintaining original order
         results = []
@@ -910,15 +1019,29 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                     )
                 )
             else:
-                results.append(
-                    self._create_mutated_idea(
-                        idea,
-                        mutations[uncached_index],
-                        cost_per_mutation,
-                        "batch_mutation",
-                        is_breakthrough
+                # Get the mutation data from all_mutations
+                current_mutation_data = all_mutations[uncached_index]
+                if current_mutation_data is not None:
+                    results.append(
+                        self._create_mutated_idea(
+                            idea,
+                            current_mutation_data["content"],
+                            cost_per_mutation,
+                            current_mutation_data["mutation_type"],
+                            is_breakthrough
+                        )
                     )
-                )
+                else:
+                    # Fallback if mutation data is missing
+                    results.append(
+                        self._create_mutated_idea(
+                            idea,
+                            idea.content,  # Use original content
+                            0.0,
+                            "fallback",
+                            is_breakthrough
+                        )
+                    )
                 uncached_index += 1
                 
         return results
@@ -958,6 +1081,179 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                     mutations.append("[FALLBACK TEXT] Enhanced variation exploring alternative approaches: This mutation investigates different implementation strategies while maintaining the core objective of the original idea. The approach introduces alternative methodologies, tools, and frameworks to achieve similar outcomes through a different pathway. By exploring varied perspectives such as changing the scale of implementation, shifting target audience, or adopting different technological foundations, this variation demonstrates how the same fundamental problem can be addressed through multiple viable and innovative solutions.")
                 
         return mutations
+        
+    def _parse_mutation_response(
+        self,
+        response: Any,
+        expected_count: int,
+        original_ideas: List[GeneratedIdea],
+        is_breakthrough: bool = False
+    ) -> List[Dict[str, Any]]:
+        """
+        Parse mutation response from LLM.
+        
+        Args:
+            response: LLM response object
+            expected_count: Number of mutations expected
+            original_ideas: Original ideas for fallback content
+            is_breakthrough: Whether these are breakthrough mutations
+            
+        Returns:
+            List of mutation data dictionaries with content and mutation_type
+        """
+        mutations: List[Dict[str, Any]] = []
+        
+        # Try to parse as JSON first (structured output)
+        try:
+            if hasattr(response, 'content'):
+                data = json.loads(response.content)
+            else:
+                data = response
+                
+            if isinstance(data, dict) and "mutations" in data:
+                raw_mutations = data["mutations"]
+            elif isinstance(data, list):
+                raw_mutations = data
+            else:
+                raise ValueError("Unexpected response format")
+                
+            # Process mutations - create a list with correct ordering based on ID
+            # Initialize ordered mutations list with None placeholders
+            ordered_mutations: List[Optional[Dict[str, Any]]] = [None] * expected_count
+            
+            for mutation in raw_mutations:
+                if isinstance(mutation, dict) and "id" in mutation and "content" in mutation:
+                    # IDs are 1-based, convert to 0-based index
+                    idx = mutation["id"] - 1
+                    if 0 <= idx < expected_count:
+                        ordered_mutations[idx] = {
+                            "content": mutation["content"],
+                            "mutation_type": mutation.get("mutation_type", 
+                                "paradigm_shift" if is_breakthrough else "batch_mutation")
+                        }
+                    else:
+                        logger.warning(f"Mutation ID {mutation['id']} out of range")
+            
+            # Fill any None entries with fallbacks
+            for i in range(expected_count):
+                if ordered_mutations[i] is None:
+                    ordered_mutations[i] = self._create_fallback_mutation(
+                        original_ideas[i] if i < len(original_ideas) else None,
+                        is_breakthrough
+                    )
+                    
+            # Add ordered mutations to results, filtering out None
+            for mutation in ordered_mutations:
+                if mutation is not None:
+                    mutations.append(mutation)
+                    
+            # Fill any missing mutations with fallbacks
+            while len(mutations) < expected_count:
+                idx = len(mutations)
+                mutations.append(self._create_fallback_mutation(
+                    original_ideas[idx] if idx < len(original_ideas) else None,
+                    is_breakthrough
+                ))
+                
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            logger.debug(f"Failed to parse mutation response as JSON: {e}, falling back to text parsing")
+            
+            # Fall back to text parsing
+            response_text = response.content if hasattr(response, 'content') else str(response)
+            lines = response_text.strip().split('\n')
+            
+            for i in range(expected_count):
+                # Look for IDEA_N_MUTATION: pattern
+                pattern = f"IDEA_{i+1}_MUTATION:"
+                mutation_found = False
+                
+                for line in lines:
+                    if pattern in line:
+                        # Extract mutation text after the pattern
+                        content = line.split(pattern, 1)[1].strip()
+                        mutations.append({
+                            "content": content,
+                            "mutation_type": "paradigm_shift" if is_breakthrough else "batch_mutation"
+                        })
+                        mutation_found = True
+                        break
+                        
+                if not mutation_found:
+                    # Use fallback
+                    mutations.append(self._create_fallback_mutation(
+                        original_ideas[i] if i < len(original_ideas) else None,
+                        is_breakthrough
+                    ))
+                    
+        # Return non-None mutations
+        return [m for m in mutations if m is not None]
+        
+    def _create_fallback_mutation(
+        self,
+        original_idea: Optional[GeneratedIdea],
+        is_breakthrough: bool
+    ) -> Dict[str, Any]:
+        """
+        Create a fallback mutation when parsing fails.
+        
+        Args:
+            original_idea: Original idea to base mutation on
+            is_breakthrough: Whether this is a breakthrough mutation
+            
+        Returns:
+            Dictionary with fallback mutation content and type
+        """
+        if is_breakthrough:
+            mutation_type = "paradigm_shift"
+            if original_idea:
+                content = (
+                    f"[FALLBACK TEXT] Revolutionary transformation of original concept: "
+                    f"Taking '{original_idea.content[:50]}...' to new heights, this breakthrough "
+                    f"mutation introduces paradigm-shifting approaches that fundamentally reframe "
+                    f"the problem space. By leveraging cutting-edge technologies and revolutionary "
+                    f"methodologies, this variation creates transformational change while maintaining "
+                    f"feasibility. The approach integrates advanced systems thinking, exponential "
+                    f"scaling strategies, and next-generation solutions to achieve unprecedented "
+                    f"impact and dramatically improve target criteria."
+                )
+            else:
+                content = (
+                    "[FALLBACK TEXT] Revolutionary breakthrough variation: This paradigm-shifting "
+                    "mutation explores transformational approaches that fundamentally reframe the "
+                    "problem space and solution methodology. By integrating cutting-edge technologies, "
+                    "exponential scaling strategies, and next-generation innovations, this variation "
+                    "creates game-changing impact while maintaining practical feasibility. The approach "
+                    "leverages advanced systems thinking and revolutionary frameworks to achieve "
+                    "unprecedented improvements in target criteria."
+                )
+        else:
+            mutation_type = "batch_mutation"
+            if original_idea:
+                content = (
+                    f"[FALLBACK TEXT] Enhanced variation of original concept: Building upon "
+                    f"'{original_idea.content[:50]}...', this mutation explores alternative "
+                    f"implementation strategies while maintaining the core objective. The approach "
+                    f"introduces different methodologies, tools, and frameworks to achieve similar "
+                    f"outcomes through a varied pathway. By shifting perspectives on scale, audience, "
+                    f"or technological approach, this variation demonstrates how the fundamental "
+                    f"concept can be realized through innovative alternatives."
+                )
+            else:
+                content = (
+                    "[FALLBACK TEXT] Enhanced variation exploring alternative approaches: This mutation "
+                    "investigates different implementation strategies while maintaining the core "
+                    "objective of the original idea. The approach introduces alternative methodologies, "
+                    "tools, and frameworks to achieve similar outcomes through a different pathway. "
+                    "By exploring varied perspectives such as changing the scale of implementation, "
+                    "shifting target audience, or adopting different technological foundations, this "
+                    "variation demonstrates how the same fundamental problem can be addressed through "
+                    "multiple viable and innovative solutions."
+                )
+                
+        return {
+            "content": content,
+            "mutation_type": mutation_type
+        }
         
     def _create_mutated_idea(
         self,
@@ -1278,6 +1574,350 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
             metadata={
                 "operator": "semantic_crossover",
                 "llm_cost": llm_cost,
+                "generation": max(
+                    primary_parent.metadata.get("generation", 0),
+                    secondary_parent.metadata.get("generation", 0)
+                ) + 1,
+            },
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+
+
+class BatchSemanticCrossoverOperator(CrossoverInterface):
+    """
+    Batch LLM-powered crossover operator that processes multiple parent pairs in a single call.
+    
+    This operator significantly improves performance by batching all crossover operations
+    from a generation into a single LLM request, reducing API calls and improving consistency.
+    """
+    
+    def __init__(
+        self,
+        llm_provider: GoogleProvider,
+        cache_ttl: int = 3600
+    ):
+        """
+        Initialize batch semantic crossover operator.
+        
+        Args:
+            llm_provider: LLM provider for generating crossovers
+            cache_ttl: Cache time-to-live in seconds
+        """
+        self.llm_provider = llm_provider
+        self.cache = SemanticOperatorCache(ttl_seconds=cache_ttl)
+        self._sequential_operator = SemanticCrossoverOperator(llm_provider, cache_ttl)
+        self.structured_output_enabled = True
+        
+    @property
+    def name(self) -> str:
+        return "batch_semantic_crossover"
+        
+    def validate_config(self, config: Dict) -> bool:
+        """Validate crossover configuration."""
+        return True
+        
+    async def crossover(
+        self,
+        parent1: GeneratedIdea,
+        parent2: GeneratedIdea,
+        context: Optional[Union[str, EvaluationContext]] = None
+    ) -> Tuple[GeneratedIdea, GeneratedIdea]:
+        """
+        Perform crossover between two parent ideas.
+        
+        This method implements the abstract method from CrossoverInterface
+        by delegating to the batch processing method for a single pair.
+        
+        Args:
+            parent1: First parent idea
+            parent2: Second parent idea
+            context: Optional context for crossover
+            
+        Returns:
+            Tuple of two offspring ideas
+        """
+        # Use batch processing for single pair
+        results = await self.crossover_batch([(parent1, parent2)], context)
+        return results[0] if results else (parent1, parent2)
+        
+    async def crossover_batch(
+        self,
+        parent_pairs: List[Tuple[GeneratedIdea, GeneratedIdea]],
+        context: Optional[Union[str, EvaluationContext]] = None
+    ) -> List[Tuple[GeneratedIdea, GeneratedIdea]]:
+        """
+        Perform batch semantic crossover on multiple parent pairs.
+        
+        Args:
+            parent_pairs: List of (parent1, parent2) tuples
+            context: Optional context for crossover
+            
+        Returns:
+            List of (offspring1, offspring2) tuples
+        """
+        if not parent_pairs:
+            return []
+            
+        # Check cache for each pair and separate cached/uncached
+        cached_results = []
+        uncached_pairs = []
+        uncached_indices = []
+        
+        for i, (parent1, parent2) in enumerate(parent_pairs):
+            # Create canonical cache key
+            sorted_contents = sorted([parent1.content, parent2.content])
+            base_cache_key = f"{sorted_contents[0]}||{sorted_contents[1]}"
+            cache_key = _prepare_cache_key_with_context(base_cache_key, context)
+            
+            cached_result = self.cache.get(cache_key, operation_type="batch_crossover", return_dict=True)
+            
+            if cached_result and isinstance(cached_result, dict):
+                # Parse cached result
+                offspring1_content = cached_result.get("offspring1", "")
+                offspring2_content = cached_result.get("offspring2", "")
+                if offspring1_content and offspring2_content:
+                    cached_results.append((
+                        self._create_offspring(parent1, parent2, offspring1_content, 0.0, from_cache=True),
+                        self._create_offspring(parent2, parent1, offspring2_content, 0.0, from_cache=True)
+                    ))
+                    continue
+                    
+            # Not cached, add to uncached list
+            uncached_pairs.append((parent1, parent2))
+            uncached_indices.append(i)
+            
+        # If all are cached, return cached results
+        if not uncached_pairs:
+            return cached_results
+            
+        # Prepare context for batch processing
+        context_str, evaluation_context_str = _prepare_operator_contexts(
+            context, "", "general optimization"
+        )
+        
+        # Generate batch crossover prompt
+        batch_prompt = self._create_batch_prompt(uncached_pairs, context_str, evaluation_context_str)
+        
+        try:
+            # Use structured output for batch crossover
+            schema = self._get_batch_crossover_schema()
+            request = LLMRequest(
+                system_prompt=SemanticCrossoverOperator.CROSSOVER_SYSTEM_PROMPT,
+                user_prompt=batch_prompt,
+                max_tokens=min(SEMANTIC_CROSSOVER_MAX_TOKENS * len(uncached_pairs), SEMANTIC_BATCH_MUTATION_MAX_TOKENS),
+                temperature=0.8,
+                response_schema=schema,
+                response_mime_type="application/json"
+            )
+            
+            result = await self.llm_provider.generate(request)
+            llm_cost = result.cost if hasattr(result, 'cost') else 0.0
+            
+            # Parse batch results
+            # Initialize results list with None placeholders to maintain order
+            batch_results: List[Optional[Tuple[GeneratedIdea, GeneratedIdea]]] = [None] * len(uncached_pairs)
+            # Parse JSON from response content
+            try:
+                data = json.loads(result.content)
+                logger.debug(f"Parsed data type: {type(data)}, keys: {data.keys() if isinstance(data, dict) else 'not a dict'}")
+                if isinstance(data, dict) and "crossovers" in data:
+                    crossovers = data["crossovers"]
+                    
+                    # Validate we got the right number of results
+                    if len(crossovers) != len(uncached_pairs):
+                        logger.warning(f"Expected {len(uncached_pairs)} crossovers but got {len(crossovers)}")
+                    
+                    # Process each crossover result using pair_id for correct mapping
+                    for crossover_data in crossovers:
+                        pair_id = crossover_data.get("pair_id")
+                        if pair_id is None:
+                            logger.warning("Missing pair_id in crossover result")
+                            continue
+                            
+                        # pair_id is 1-based as per the prompt
+                        idx = pair_id - 1
+                        if idx < 0 or idx >= len(uncached_pairs):
+                            logger.warning(f"Crossover pair_id {pair_id} out of range")
+                            continue
+                            
+                        parent1, parent2 = uncached_pairs[idx]
+                        offspring1_content = str(crossover_data.get("offspring1", ""))
+                        offspring2_content = str(crossover_data.get("offspring2", ""))
+                        
+                        # Validate offspring content
+                        if not offspring1_content or not offspring2_content:
+                            logger.warning(f"Empty offspring content for pair_id {pair_id}")
+                            # Use fallback
+                            offspring1_content = self._generate_fallback_offspring(parent1, parent2, True)
+                            offspring2_content = self._generate_fallback_offspring(parent1, parent2, False)
+                        
+                        # Create offspring ideas
+                        offspring1 = self._create_offspring(parent1, parent2, offspring1_content, llm_cost / len(uncached_pairs))
+                        offspring2 = self._create_offspring(parent2, parent1, offspring2_content, llm_cost / len(uncached_pairs))
+                        
+                        # Place result at correct index
+                        batch_results[idx] = (offspring1, offspring2)
+                        
+                        # Cache the result
+                        sorted_contents = sorted([parent1.content, parent2.content])
+                        base_cache_key = f"{sorted_contents[0]}||{sorted_contents[1]}"
+                        cache_key = _prepare_cache_key_with_context(base_cache_key, context)
+                        cache_data = {
+                            "offspring1": offspring1_content,
+                            "offspring2": offspring2_content
+                        }
+                        self.cache.put(cache_key, cache_data, operation_type="batch_crossover")
+                        
+                    # Check for any None values in batch_results (missing pair_ids)
+                    for i, batch_result in enumerate(batch_results):
+                        if batch_result is None:
+                            parent1, parent2 = uncached_pairs[i]
+                            logger.warning(f"Missing result for pair {i+1}, using fallback")
+                            offspring1_content = self._generate_fallback_offspring(parent1, parent2, True)
+                            offspring2_content = self._generate_fallback_offspring(parent1, parent2, False)
+                            offspring1 = self._create_offspring(parent1, parent2, offspring1_content, 0.0)
+                            offspring2 = self._create_offspring(parent2, parent1, offspring2_content, 0.0)
+                            batch_results[i] = (offspring1, offspring2)
+                        
+                else:
+                    raise ValueError("Invalid response format - missing crossovers")
+                    
+            except (json.JSONDecodeError, KeyError, ValueError) as e:
+                # Fallback to sequential processing if batch fails
+                logger.warning(f"Batch crossover failed: {e}, falling back to sequential processing")
+                batch_results = []
+                for parent1, parent2 in uncached_pairs:
+                    offspring1, offspring2 = await self._sequential_operator.crossover(parent1, parent2, context)
+                    batch_results.append((offspring1, offspring2))
+                    
+        except Exception as e:
+            logger.error(f"Batch crossover error: {e}")
+            # Fallback to sequential processing
+            batch_results = []
+            for parent1, parent2 in uncached_pairs:
+                try:
+                    offspring1, offspring2 = await self._sequential_operator.crossover(parent1, parent2, context)
+                    batch_results.append((offspring1, offspring2))
+                except Exception as seq_error:
+                    logger.error(f"Sequential crossover also failed: {seq_error}")
+                    # Use fallback content
+                    offspring1_content = self._generate_fallback_offspring(parent1, parent2, True)
+                    offspring2_content = self._generate_fallback_offspring(parent1, parent2, False)
+                    offspring1 = self._create_offspring(parent1, parent2, offspring1_content, 0.0)
+                    offspring2 = self._create_offspring(parent2, parent1, offspring2_content, 0.0)
+                    batch_results.append((offspring1, offspring2))
+        
+        # Combine cached and new results in original order
+        final_results: List[Tuple[GeneratedIdea, GeneratedIdea]] = []
+        cached_idx = 0
+        batch_idx = 0
+        
+        for i in range(len(parent_pairs)):
+            if i in uncached_indices:
+                crossover_result = batch_results[batch_idx]
+                if crossover_result is not None:
+                    final_results.append(crossover_result)
+                batch_idx += 1
+            else:
+                final_results.append(cached_results[cached_idx])
+                cached_idx += 1
+                
+        return final_results
+        
+    def _create_batch_prompt(
+        self,
+        parent_pairs: List[Tuple[GeneratedIdea, GeneratedIdea]],
+        context_str: str,
+        evaluation_context_str: str
+    ) -> str:
+        """Create batch crossover prompt for multiple parent pairs."""
+        pairs_text = ""
+        for i, (parent1, parent2) in enumerate(parent_pairs):
+            pairs_text += f"\nPair {i + 1}:\nParent 1: {parent1.content}\nParent 2: {parent2.content}\n"
+            
+        return f"""Context: {context_str}
+
+{evaluation_context_str}
+
+Generate crossover offspring for the following {len(parent_pairs)} parent pairs. 
+For each pair, create TWO distinct offspring that meaningfully integrate concepts from BOTH parents.
+
+{pairs_text}
+
+For each pair, the offspring must:
+1. Meaningfully integrate concepts from BOTH parents
+2. Create synergy between parent concepts
+3. Provide DETAILED implementation (minimum 150 words per offspring)
+4. Be SUBSTANTIALLY DIFFERENT from each other
+5. PRIORITIZE improvements to any target criteria mentioned above
+
+Return the results as JSON with a "crossovers" array containing objects with:
+- "pair_id": index of the parent pair (1-based, matching Pair 1, Pair 2, etc.)
+- "offspring1": detailed first offspring (min 150 words)
+- "offspring2": detailed second offspring (min 150 words)"""
+        
+    def _get_batch_crossover_schema(self) -> Dict[str, Any]:
+        """Get JSON schema for batch crossover structured output."""
+        return {
+            "type": "OBJECT",
+            "properties": {
+                "crossovers": {
+                    "type": "ARRAY",
+                    "items": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "pair_id": {"type": "INTEGER"},
+                            "offspring1": {"type": "STRING"},
+                            "offspring2": {"type": "STRING"}
+                        },
+                        "required": ["pair_id", "offspring1", "offspring2"]
+                    }
+                }
+            },
+            "required": ["crossovers"]
+        }
+        
+    def _generate_fallback_offspring(
+        self,
+        parent1: GeneratedIdea,
+        parent2: GeneratedIdea,
+        is_first: bool
+    ) -> str:
+        """Generate fallback text for batch crossover offspring."""
+        if is_first:
+            return f"[FALLBACK TEXT] Hybrid approach combining elements from both parent ideas: This solution integrates key aspects from '{parent1.content[:50]}...' and '{parent2.content[:50]}...'. The approach combines the structural framework of the first concept with the innovative mechanisms of the second, creating a comprehensive solution that addresses the same core problem through multiple complementary strategies. Implementation would involve adapting the proven methodologies from both approaches while ensuring seamless integration and enhanced effectiveness. The hybrid nature allows for greater flexibility and robustness in addressing various scenarios."
+        else:
+            return f"[FALLBACK TEXT] Alternative integration emphasizing synergy: This variation explores a different combination pattern by merging the core principles from '{parent1.content[:50]}...' with the practical implementation strategies from '{parent2.content[:50]}...'. The resulting solution maintains the strengths of both parent approaches while introducing novel elements that emerge from their interaction. This alternative demonstrates how the same foundational concepts can yield distinctly different yet equally valuable outcomes through strategic recombination. The focus is on creating emergent properties that neither parent could achieve alone."
+            
+    def _create_offspring(
+        self,
+        primary_parent: GeneratedIdea,
+        secondary_parent: GeneratedIdea,
+        content: str,
+        llm_cost: float,
+        from_cache: bool = False
+    ) -> GeneratedIdea:
+        """Create an offspring idea object."""
+        return GeneratedIdea(
+            content=content,
+            thinking_method=primary_parent.thinking_method,
+            agent_name="BatchSemanticCrossoverOperator",
+            generation_prompt=f"Batch crossover of: '{primary_parent.content[:30]}...' and '{secondary_parent.content[:30]}...'",
+            confidence_score=(
+                (primary_parent.confidence_score or 0.5) +
+                (secondary_parent.confidence_score or 0.5)
+            ) / 2,
+            reasoning="Batch semantic integration of parent concepts",
+            parent_ideas=[primary_parent.content, secondary_parent.content],
+            metadata={
+                "operator": "semantic_batch_crossover",
+                "crossover_type": "semantic_batch",
+                "llm_cost": llm_cost,
+                "from_cache": from_cache,
+                "parent_ids": [
+                    primary_parent.metadata.get("id", ""),
+                    secondary_parent.metadata.get("id", "")
+                ],
                 "generation": max(
                     primary_parent.metadata.get("generation", 0),
                     secondary_parent.metadata.get("generation", 0)

@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from mad_spark_alt.evolution.interfaces import IndividualFitness, EvolutionConfig
 from mad_spark_alt.evolution.genetic_algorithm import GeneticAlgorithm
-from mad_spark_alt.evolution.semantic_operators import BatchSemanticMutationOperator, SemanticCrossoverOperator
+from mad_spark_alt.evolution.semantic_operators import BatchSemanticMutationOperator, BatchSemanticCrossoverOperator
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.core.llm_provider import GoogleProvider
 
@@ -73,7 +73,7 @@ class TestSimpleOperatorSelection:
         assert ga.semantic_mutation_operator is not None
         assert ga.semantic_crossover_operator is not None
         assert isinstance(ga.semantic_mutation_operator, BatchSemanticMutationOperator)
-        assert isinstance(ga.semantic_crossover_operator, SemanticCrossoverOperator)
+        assert isinstance(ga.semantic_crossover_operator, BatchSemanticCrossoverOperator)
 
         # Mock the semantic operator methods - create a modified idea to trigger stats counting
         modified_idea = GeneratedIdea(

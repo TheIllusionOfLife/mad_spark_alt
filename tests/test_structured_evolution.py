@@ -44,8 +44,8 @@ class TestStructuredMutation:
         structured_response = {
             "mutations": [
                 {
-                    "idea_id": 1,
-                    "mutated_content": "Develop a comprehensive recycling education program in schools with student ambassadors and rewards system"
+                    "id": 1,
+                    "content": "Develop a comprehensive recycling education program in schools with student ambassadors and rewards system"
                 }
             ]
         }
@@ -62,7 +62,7 @@ class TestStructuredMutation:
         llm_provider.generate = AsyncMock(return_value=mock_response)
         
         # Perform mutation
-        mutated_ideas = await mutation_operator.mutate_batch([idea])
+        mutated_ideas = await mutation_operator.mutate_batch([idea], context="Test mutation context")
         
         # Verify structured output was requested
         llm_provider.generate.assert_called_once()
@@ -115,16 +115,16 @@ class TestStructuredMutation:
         structured_response = {
             "mutations": [
                 {
-                    "idea_id": 1,
-                    "mutated_content": "Install solar panels with battery storage systems on residential and commercial rooftops"
+                    "id": 1,  # Changed from idea_id
+                    "content": "Install solar panels with battery storage systems on residential and commercial rooftops"  # Changed from mutated_content
                 },
                 {
-                    "idea_id": 2,
-                    "mutated_content": "Establish community gardens with composting programs and educational workshops"
+                    "id": 2,
+                    "content": "Establish community gardens with composting programs and educational workshops"
                 },
                 {
-                    "idea_id": 3,
-                    "mutated_content": "Develop electric vehicle infrastructure with charging stations and purchase incentives"
+                    "id": 3,
+                    "content": "Develop electric vehicle infrastructure with charging stations and purchase incentives"
                 }
             ]
         }
@@ -141,7 +141,7 @@ class TestStructuredMutation:
         llm_provider.generate = AsyncMock(return_value=mock_response)
         
         # Perform batch mutation
-        mutated_ideas = await mutation_operator.mutate_batch(ideas)
+        mutated_ideas = await mutation_operator.mutate_batch(ideas, context="Test mutation context")
         
         # Verify results
         assert len(mutated_ideas) == 3
@@ -209,11 +209,11 @@ IDEA_1_MUTATION: Implement comprehensive plastic reduction strategies including 
             )
         ]
         
-        # Mock structured output response with 0-based IDs
+        # Mock structured output response with 1-based IDs (as expected by parser)
         structured_response = {
             "mutations": [
-                {"idea_id": 0, "mutated_content": "Enhanced idea A content"},
-                {"idea_id": 1, "mutated_content": "Enhanced idea B content"}
+                {"id": 1, "content": "Enhanced idea A content"},  # IDEA_1
+                {"id": 2, "content": "Enhanced idea B content"}   # IDEA_2
             ]
         }
         
@@ -264,9 +264,9 @@ IDEA_1_MUTATION: Implement comprehensive plastic reduction strategies including 
         # Mock structured output response with non-sequential IDs (out of order)
         structured_response = {
             "mutations": [
-                {"idea_id": 3, "mutated_content": "Enhanced idea C content"},
-                {"idea_id": 1, "mutated_content": "Enhanced idea A content"},
-                {"idea_id": 2, "mutated_content": "Enhanced idea B content"}
+                {"id": 3, "content": "Enhanced idea C content"},
+                {"id": 1, "content": "Enhanced idea A content"},
+                {"id": 2, "content": "Enhanced idea B content"}
             ]
         }
         
@@ -416,6 +416,117 @@ OFFSPRING_2: Create carbon-neutral public transit networks with renewable energy
         assert "electric public transportation" in offspring[0].content
         assert "carbon-neutral public transit" in offspring[1].content
 
+    @pytest.mark.asyncio
+    async def test_batch_crossover_with_non_sequential_ids(self):
+        """Test batch crossover handles non-sequential pair_ids correctly."""
+        from mad_spark_alt.evolution.semantic_operators import BatchSemanticCrossoverOperator
+        
+        # Create mock LLM provider
+        llm_provider = AsyncMock()
+        
+        # Create test parent pairs
+        parent_pairs = [
+            (
+                GeneratedIdea(
+                    content="Solar panels on buildings",
+                    thinking_method=ThinkingMethod.DEDUCTION,
+                    agent_name="TestAgent",
+                    generation_prompt="Test prompt",
+                    confidence_score=0.8
+                ),
+                GeneratedIdea(
+                    content="Wind turbines in parks",
+                    thinking_method=ThinkingMethod.INDUCTION,
+                    agent_name="TestAgent",
+                    generation_prompt="Test prompt",
+                    confidence_score=0.7
+                )
+            ),
+            (
+                GeneratedIdea(
+                    content="Geothermal energy systems",
+                    thinking_method=ThinkingMethod.QUESTIONING,
+                    agent_name="TestAgent",
+                    generation_prompt="Test prompt",
+                    confidence_score=0.9
+                ),
+                GeneratedIdea(
+                    content="Tidal power generation",
+                    thinking_method=ThinkingMethod.ABDUCTION,
+                    agent_name="TestAgent",
+                    generation_prompt="Test prompt",
+                    confidence_score=0.8
+                )
+            ),
+            (
+                GeneratedIdea(
+                    content="Community composting programs",
+                    thinking_method=ThinkingMethod.DEDUCTION,
+                    agent_name="TestAgent",
+                    generation_prompt="Test prompt",
+                    confidence_score=0.7
+                ),
+                GeneratedIdea(
+                    content="Urban farming initiatives",
+                    thinking_method=ThinkingMethod.INDUCTION,
+                    agent_name="TestAgent",
+                    generation_prompt="Test prompt",
+                    confidence_score=0.8
+                )
+            )
+        ]
+        
+        # Mock structured response with non-sequential pair_ids (out of order)
+        structured_response = {
+            "crossovers": [
+                {
+                    "pair_id": 3,
+                    "offspring1": "Sustainable food production with composting integration",
+                    "offspring2": "Urban agriculture with waste recycling systems"
+                },
+                {
+                    "pair_id": 1,
+                    "offspring1": "Solar-wind hybrid energy for buildings and parks",
+                    "offspring2": "Renewable energy infrastructure in urban spaces"
+                },
+                {
+                    "pair_id": 2,
+                    "offspring1": "Ocean-based renewable energy systems",
+                    "offspring2": "Combined geothermal-tidal power generation"
+                }
+            ]
+        }
+        
+        # Mock LLM response
+        mock_response = LLMResponse(
+            content=json.dumps(structured_response),
+            provider=LLMProvider.GOOGLE,
+            model="gemini-2.5-flash",
+            usage={"prompt_tokens": 300, "completion_tokens": 400},
+            cost=0.003
+        )
+        
+        llm_provider.generate = AsyncMock(return_value=mock_response)
+        
+        # Create operator and test batch crossover
+        operator = BatchSemanticCrossoverOperator(llm_provider=llm_provider, cache_ttl=0)
+        results = await operator.crossover_batch(parent_pairs, "test context")
+        
+        # Verify results - crossovers should be applied in correct order based on pair_id
+        assert len(results) == 3
+        
+        # pair_id 1 should match first parent pair
+        assert "Solar-wind hybrid" in results[0][0].content
+        assert "Renewable energy infrastructure" in results[0][1].content
+        
+        # pair_id 2 should match second parent pair
+        assert "Ocean-based renewable" in results[1][0].content
+        assert "geothermal-tidal" in results[1][1].content
+        
+        # pair_id 3 should match third parent pair
+        assert "Sustainable food production" in results[2][0].content
+        assert "Urban agriculture" in results[2][1].content
+
 
 class TestEvolutionOperatorSchemas:
     """Test schema generation for evolution operators."""
@@ -434,10 +545,10 @@ class TestEvolutionOperatorSchemas:
         # Verify item structure
         item_schema = schema["properties"]["mutations"]["items"]
         assert item_schema["type"] == "OBJECT"
-        assert "idea_id" in item_schema["properties"]
-        assert "mutated_content" in item_schema["properties"]
-        assert item_schema["properties"]["idea_id"]["type"] == "INTEGER"
-        assert item_schema["properties"]["mutated_content"]["type"] == "STRING"
+        assert "id" in item_schema["properties"]
+        assert "content" in item_schema["properties"]
+        assert item_schema["properties"]["id"]["type"] == "INTEGER"
+        assert item_schema["properties"]["content"]["type"] == "STRING"
 
     def test_crossover_schema_structure(self):
         """Test the structure of crossover schema."""
