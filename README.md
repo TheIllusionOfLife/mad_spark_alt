@@ -238,7 +238,7 @@ See the `run_nohup.sh` script for our solution to terminal timeout issues.
 - ✅ **[PR #97] Phase 1 Performance Optimizations**: Batch semantic operators for 60-70% performance improvement (Aug 4, 2025)
   - **Batch Processing**: BatchSemanticCrossoverOperator and BatchSemanticMutationOperator implemented
   - **Performance**: Heavy workloads now complete 60-70% faster through batch LLM operations
-  - **ID Mapping Consistency**: Established a systematic mapping pattern to resolve inconsistencies. The system now uses 1-based indexing for user-facing prompts and test mocks, while using 0-based indexing for internal parsing logic.
+  - **ID Mapping Consistency**: Established a systematic mapping pattern to resolve inconsistencies. The system uses 1-based indexing for user-facing prompts and test mocks (intuitive for humans: "pair 1", "pair 2"), while using 0-based indexing for internal parsing logic (efficient for arrays: index 0, index 1). This prevents systematic failures from ID system mismatches.
   - **Type Safety**: Resolved MyPy Optional[T] → List[T] issues with explicit null checks
   - **CI Robustness**: Systematic 4-layer fixes (logic → tests → feedback → types)
 - ✅ **[PR #93] Semantic Diversity Calculation**: Implemented Gemini embeddings for true semantic understanding (Aug 4, 2025)
@@ -395,13 +395,7 @@ This implementation significantly reduces "Failed to extract enough hypotheses" 
   - ✅ Higher temperature (0.95) and token limits for breakthrough mutations
   - ✅ Result: High-performing ideas get revolutionary variations while regular ideas get standard semantic mutations
   
-- ✅ **Phase 1 Performance Optimizations** - COMPLETED: Batch LLM operations for 60-70% performance improvement
-  - ✅ Implemented BatchSemanticCrossoverOperator and BatchSemanticMutationOperator
-  - ✅ Structured JSON output with graceful fallback to text parsing
-  - ✅ ID-based result mapping with systematic 1-based prompt → 0-based internal consistency
-  - ✅ Comprehensive test coverage with 47+ batch operation tests
-  - ✅ Heavy workload performance verified: populations ≥4 complete 60-70% faster
-  - ✅ Production-ready: All CI tests pass, CodeRabbit approved, merged to main
+- ✅ **Phase 1 Performance Optimizations** - COMPLETED: Batch LLM operations for 60-70% performance improvement. See 'Session Handover' section for implementation details.
 
 - [ ] **Directed Evolution Mode** (#4) - Add targeted evolution strategies
   - Add "directed evolution" where mutations target specific weaknesses
