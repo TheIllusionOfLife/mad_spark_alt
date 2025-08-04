@@ -5,10 +5,9 @@ This module tests the enhancement of batch mutations to properly handle
 high-scoring ideas with revolutionary mutation parameters.
 """
 
-import asyncio
 import json
 from typing import List
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

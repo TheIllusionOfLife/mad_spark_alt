@@ -583,12 +583,12 @@ Return JSON with mutations array containing idea_id and mutated_content for each
         
         # 1. Check metadata for overall fitness score
         fitness = idea.metadata.get("overall_fitness")
-        if fitness is not None and isinstance(fitness, (int, float)) and fitness >= 0.8:
+        if fitness is not None and isinstance(fitness, (int, float)) and fitness >= self.breakthrough_threshold:
             return True
             
         # Also check "fitness" key used in tests
         fitness = idea.metadata.get("fitness")
-        if fitness is not None and isinstance(fitness, (int, float)) and fitness >= 0.8:
+        if fitness is not None and isinstance(fitness, (int, float)) and fitness >= self.breakthrough_threshold:
             return True
                     
         # 2. Check confidence score as proxy (high confidence + later generation)
@@ -852,7 +852,7 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 regular_indices.append(i)
         
         # Process batches separately
-        all_mutations = [None] * len(uncached_ideas)  # Preserve order
+        all_mutations: List[Optional[Dict[str, Any]]] = [None] * len(uncached_ideas)  # Preserve order
         total_cost = 0.0
         
         # Process breakthrough ideas with special parameters
@@ -955,26 +955,33 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 response_mime_type="application/json"
             )
             
-            response = await self.llm_provider.generate(request)
-            total_cost += response.cost
-            
-            # Parse regular mutations
-            regular_mutations = self._parse_mutation_response(
-                response, len(regular_ideas), regular_ideas, is_breakthrough=False
-            )
-            
-            # Place regular mutations in correct positions
-            for idx, (orig_idx, mutation_data) in enumerate(zip(regular_indices, regular_mutations)):
-                all_mutations[orig_idx] = mutation_data
+            try:
+                response = await self.llm_provider.generate(request)
+                total_cost += response.cost
+                
+                # Parse regular mutations
+                regular_mutations = self._parse_mutation_response(
+                    response, len(regular_ideas), regular_ideas, is_breakthrough=False
+                )
+                
+                # Place regular mutations in correct positions
+                for idx, (orig_idx, mutation_data) in enumerate(zip(regular_indices, regular_mutations)):
+                    all_mutations[orig_idx] = mutation_data
+            except Exception as e:
+                logger.warning(f"Regular batch processing failed: {e}, using fallback mutations")
+                # Use fallback mutations for regular ideas
+                for idx, (orig_idx, idea) in enumerate(zip(regular_indices, regular_ideas)):
+                    all_mutations[orig_idx] = self._create_fallback_mutation(idea, is_breakthrough=False)
         
         # Check for truncation and cache results using context-aware keys
-        for idea, mutation_data in zip(uncached_ideas, all_mutations):
-            if mutation_data and is_likely_truncated(mutation_data["content"]):
-                logger.warning("Batch mutation appears truncated for idea: %s...", idea.content[:50])
-            # Use the context-aware cache key for this idea
-            cache_key = cache_keys[idea.content]
-            # Cache the mutation data including type
-            self.cache.put(cache_key, mutation_data)
+        for idea, cached_mutation_data in zip(uncached_ideas, all_mutations):
+            if cached_mutation_data is not None:
+                if is_likely_truncated(cached_mutation_data["content"]):
+                    logger.warning("Batch mutation appears truncated for idea: %s...", idea.content[:50])
+                # Use the context-aware cache key for this idea
+                cache_key = cache_keys[idea.content]
+                # Cache the mutation data including type
+                self.cache.put(cache_key, cached_mutation_data)
             
         # Distribute cost across mutations
         cost_per_mutation = total_cost / len(uncached_ideas) if uncached_ideas else 0
@@ -1013,16 +1020,28 @@ Return JSON with mutations array containing idea_id and mutated_content for each
                 )
             else:
                 # Get the mutation data from all_mutations
-                mutation_data = all_mutations[uncached_index]
-                results.append(
-                    self._create_mutated_idea(
-                        idea,
-                        mutation_data["content"],
-                        cost_per_mutation,
-                        mutation_data["mutation_type"],
-                        is_breakthrough
+                current_mutation_data = all_mutations[uncached_index]
+                if current_mutation_data is not None:
+                    results.append(
+                        self._create_mutated_idea(
+                            idea,
+                            current_mutation_data["content"],
+                            cost_per_mutation,
+                            current_mutation_data["mutation_type"],
+                            is_breakthrough
+                        )
                     )
-                )
+                else:
+                    # Fallback if mutation data is missing
+                    results.append(
+                        self._create_mutated_idea(
+                            idea,
+                            idea.content,  # Use original content
+                            0.0,
+                            "fallback",
+                            is_breakthrough
+                        )
+                    )
                 uncached_index += 1
                 
         return results
@@ -1672,7 +1691,7 @@ class BatchSemanticCrossoverOperator(CrossoverInterface):
             request = LLMRequest(
                 system_prompt=SemanticCrossoverOperator.CROSSOVER_SYSTEM_PROMPT,
                 user_prompt=batch_prompt,
-                max_tokens=SEMANTIC_CROSSOVER_MAX_TOKENS * len(uncached_pairs),
+                max_tokens=min(SEMANTIC_CROSSOVER_MAX_TOKENS * len(uncached_pairs), SEMANTIC_BATCH_MUTATION_MAX_TOKENS),
                 temperature=0.8,
                 response_schema=schema,
                 response_mime_type="application/json"

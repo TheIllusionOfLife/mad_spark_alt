@@ -239,11 +239,14 @@ IDEA_2_MUTATION: Deploy smart grid technology"""
         
         operator = BatchSemanticMutationOperator(mock_llm_provider)
         
-        # Should handle error gracefully
-        with pytest.raises(Exception) as exc_info:
-            await operator.mutate_batch(sample_ideas, "context")
+        # Should handle error gracefully and return fallback mutations
+        results = await operator.mutate_batch(sample_ideas, "context")
         
-        assert "LLM API error" in str(exc_info.value)
+        # Should return fallback mutations for all ideas
+        assert len(results) == len(sample_ideas)
+        for i, result in enumerate(results):
+            assert result.content.startswith("[FALLBACK TEXT]")
+            assert sample_ideas[i].content[:50] in result.content  # Original content is referenced
 
 
 class TestSemanticCrossoverOperator:
