@@ -186,11 +186,23 @@ def get_approach_label(text: str, index: int) -> str:
         return f"Approach {index}: "
 
 
+# Constants for title extraction
+MIN_HYPOTHESIS_LENGTH = 10
+MIN_MEANINGFUL_TITLE_LENGTH = 10
+MAX_TITLE_LENGTH = 80
+WORD_BOUNDARY_THRESHOLD = 50
+
+def _truncate_title(title: str) -> str:
+    """Truncate title to MAX_TITLE_LENGTH if needed."""
+    if len(title) <= MAX_TITLE_LENGTH:
+        return title
+    return title[:MAX_TITLE_LENGTH] + "..."
+
 def extract_hypothesis_title(cleaned_hypothesis: str, index: int) -> str:
     """Extract a meaningful title from hypothesis content."""
     
     # Emergency fallback for empty or very short hypotheses
-    if not cleaned_hypothesis or len(cleaned_hypothesis.strip()) < 10:
+    if not cleaned_hypothesis or len(cleaned_hypothesis.strip()) < MIN_HYPOTHESIS_LENGTH:
         return f"Approach {index}"
     
     # Strategy: Extract the first meaningful sentence or phrase
@@ -200,37 +212,37 @@ def extract_hypothesis_title(cleaned_hypothesis: str, index: int) -> str:
     jp_sentence_match = re.match(r'^([^。！？]+[。！？])', cleaned_hypothesis)
     if jp_sentence_match:
         title = jp_sentence_match.group(1).strip()
-        if len(title) > 10:  # Meaningful length
-            return title[:80] + "..." if len(title) > 80 else title
+        if len(title) > MIN_MEANINGFUL_TITLE_LENGTH:
+            return _truncate_title(title)
     
     # Try English sentence patterns
     en_sentence_match = re.match(r'^([^.!?]+[.!?])', cleaned_hypothesis)
     if en_sentence_match:
         title = en_sentence_match.group(1).strip()
-        if len(title) > 20:
-            return title[:80] + "..." if len(title) > 80 else title
+        if len(title) > MIN_MEANINGFUL_TITLE_LENGTH:
+            return _truncate_title(title)
     
     # For numbered lists, try to extract the intro part
     if "：" in cleaned_hypothesis or ":" in cleaned_hypothesis:
         # Split on colon and take the first part
         parts = re.split(r'[:：]', cleaned_hypothesis)
-        if parts[0] and len(parts[0].strip()) > 10:
+        if parts[0] and len(parts[0].strip()) > MIN_MEANINGFUL_TITLE_LENGTH:
             title = parts[0].strip()
-            return title[:80] + "..." if len(title) > 80 else title
+            return _truncate_title(title)
     
     # Try splitting by common delimiters
     delimiters = ['。', '.', '、', ',', 'を', 'は', 'が', 'の']
     for delimiter in delimiters:
         if delimiter in cleaned_hypothesis[:100]:
             parts = cleaned_hypothesis.split(delimiter, 1)
-            if parts[0] and len(parts[0].strip()) > 10:
+            if parts[0] and len(parts[0].strip()) > MIN_MEANINGFUL_TITLE_LENGTH:
                 title = parts[0].strip()
-                return title[:80] + "..." if len(title) > 80 else title
+                return _truncate_title(title)
     
-    # Final fallback: First 80 chars with word boundary
-    if len(cleaned_hypothesis) > 80:
+    # Final fallback: First MAX_TITLE_LENGTH chars with word boundary
+    if len(cleaned_hypothesis) > MAX_TITLE_LENGTH:
         # Try to find a word boundary
-        truncated = cleaned_hypothesis[:80]
+        truncated = cleaned_hypothesis[:MAX_TITLE_LENGTH]
         last_space = truncated.rfind(' ')
         last_jp_particle = max(
             truncated.rfind('を') if 'を' in truncated else -1,
@@ -240,12 +252,12 @@ def extract_hypothesis_title(cleaned_hypothesis: str, index: int) -> str:
         )
         boundary = max(last_space, last_jp_particle)
         
-        if boundary > 50:
+        if boundary > WORD_BOUNDARY_THRESHOLD:
             return truncated[:boundary].strip() + "..."
         else:
-            return truncated[:77] + "..."
+            return truncated[:MAX_TITLE_LENGTH-3] + "..."
     
-    return cleaned_hypothesis[:80].strip()
+    return cleaned_hypothesis[:MAX_TITLE_LENGTH].strip()
 
 
 def truncate_at_sentence_boundary(text: str, max_length: int) -> str:

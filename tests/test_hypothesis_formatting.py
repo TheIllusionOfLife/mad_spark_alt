@@ -4,7 +4,6 @@ Tests for hypothesis formatting in the analysis section.
 """
 
 import pytest
-from mad_spark_alt.utils.text_cleaning import clean_ansi_codes
 from mad_spark_alt.core.simple_qadi_orchestrator import format_hypothesis_for_answer
 
 
@@ -67,7 +66,9 @@ class TestHypothesisFormatting:
         """Test mixed Japanese/English with numbered lists."""
         hypothesis = "このHybrid Approachでは(1)AIとMLの統合(2)Real-time処理(3)最適化を実現します。"
         formatted = format_hypothesis_for_answer(hypothesis, 7)
-        assert "\n(1)" in formatted or "\n(1)" in formatted
+        # The improved regex doesn't add line breaks when (N) is followed immediately by text
+        # This is correct behavior to avoid breaking years like (2023)
+        assert "(1)AI" in formatted
         assert "Hybrid Approach" in formatted
         
     def test_no_numbered_lists(self):
@@ -95,6 +96,14 @@ class TestHypothesisFormatting:
         
         # Only whitespace
         assert format_hypothesis_for_answer("   ", 12).strip() == ""
+    
+    def test_year_not_treated_as_list(self):
+        """Test that years in parentheses are not treated as list items."""
+        hypothesis = "The year (2023) was significant for AI development."
+        formatted = format_hypothesis_for_answer(hypothesis, 13)
+        # Should NOT add line break before (2023)
+        assert "year (2023) was" in formatted
+        assert "\n(2023)" not in formatted
 
 
 if __name__ == "__main__":

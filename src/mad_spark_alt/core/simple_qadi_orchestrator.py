@@ -129,12 +129,13 @@ def format_hypothesis_for_answer(hypothesis: str, approach_number: int) -> str:
         return ""
     
     # Clean any ANSI codes first
-    from ..utils.text_cleaning import clean_ansi_codes
     hypothesis = clean_ansi_codes(hypothesis)
     
     # Fix numbered list formatting
     # Replace inline (1), (2), etc. with proper line breaks
-    hypothesis = re.sub(r'\s*\((\d+)\)\s*', r'\n(\1) ', hypothesis)
+    # Only match patterns that look like list items, not years or references
+    # Look for patterns where (N) is preceded by space/punctuation and followed by actual list content
+    hypothesis = re.sub(r'(?<=[\s。.!?])\s*\((\d{1,2})\)\s*(?=[^\s\d])', r'\n(\1) ', hypothesis)
     
     # Clean up multiple spaces and normalize whitespace (but preserve line breaks)
     lines = hypothesis.split('\n')
