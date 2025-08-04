@@ -83,7 +83,7 @@ class TestBatchSemanticCrossoverOperator:
         mock_response.content = json.dumps({
             "crossovers": [
                 {
-                    "pair_id": 0,
+                    "pair_id": 1,
                     "offspring1": "Hybrid tech-community solution combining digital platforms with local engagement",
                     "offspring2": "Innovation hub model merging technology infrastructure with community spaces"
                 }
@@ -114,17 +114,17 @@ class TestBatchSemanticCrossoverOperator:
         mock_response.content = json.dumps({
             "crossovers": [
                 {
-                    "pair_id": 0,
+                    "pair_id": 1,
                     "offspring1": "Offspring 1-1: Tech-community hybrid",
                     "offspring2": "Offspring 1-2: Innovation hub"
                 },
                 {
-                    "pair_id": 1,
+                    "pair_id": 2,
                     "offspring1": "Offspring 2-1: Digital platform solution",
                     "offspring2": "Offspring 2-2: Community engagement system"
                 },
                 {
-                    "pair_id": 2,
+                    "pair_id": 3,
                     "offspring1": "Offspring 3-1: Infrastructure integration",
                     "offspring2": "Offspring 3-2: Sustainable transport network"
                 }
@@ -158,7 +158,7 @@ class TestBatchSemanticCrossoverOperator:
         mock_response.content = json.dumps({
             "crossovers": [
                 {
-                    "pair_id": 0,
+                    "pair_id": 1,
                     "offspring1": "Context-aware solution targeting impact and feasibility",
                     "offspring2": "Sustainability-focused transport innovation"
                 }
@@ -185,7 +185,7 @@ class TestBatchSemanticCrossoverOperator:
         mock_response.content = json.dumps({
             "crossovers": [
                 {
-                    "pair_id": 0,
+                    "pair_id": 1,
                     "offspring1": "Cached offspring 1",
                     "offspring2": "Cached offspring 2"
                 }
@@ -218,7 +218,7 @@ class TestBatchSemanticCrossoverOperator:
         mock_response1.content = json.dumps({
             "crossovers": [
                 {
-                    "pair_id": 0,
+                    "pair_id": 1,
                     "offspring1": "Cached offspring 1",
                     "offspring2": "Cached offspring 2"
                 }
@@ -233,12 +233,12 @@ class TestBatchSemanticCrossoverOperator:
         mock_response2.content = json.dumps({
             "crossovers": [
                 {
-                    "pair_id": 0,
+                    "pair_id": 1,
                     "offspring1": "New offspring 1-1",
                     "offspring2": "New offspring 1-2"
                 },
                 {
-                    "pair_id": 1,
+                    "pair_id": 2,
                     "offspring1": "New offspring 2-1",
                     "offspring2": "New offspring 2-2"
                 }
@@ -365,7 +365,7 @@ class TestBatchSemanticCrossoverOperator:
         mock_response = MagicMock()
         mock_response.content = json.dumps({
             "crossovers": [
-                {"pair_id": i, "offspring1": f"Batch offspring {i}-1", "offspring2": f"Batch offspring {i}-2"}
+                {"pair_id": i+1, "offspring1": f"Batch offspring {i}-1", "offspring2": f"Batch offspring {i}-2"}
                 for i in range(10)
             ]
         })
@@ -398,7 +398,7 @@ class TestBatchSemanticCrossoverOperator:
         operator = BatchSemanticCrossoverOperator(mock_llm_provider)
         
         mock_response = MagicMock()
-        mock_response.content = json.dumps({"crossovers": [{"pair_id": 0, "offspring1": "O1", "offspring2": "O2"}]})
+        mock_response.content = json.dumps({"crossovers": [{"pair_id": 1, "offspring1": "O1", "offspring2": "O2"}]})
         mock_response.cost = 0.001
         mock_llm_provider.generate.return_value = mock_response
         
@@ -427,7 +427,7 @@ class TestBatchSemanticCrossoverOperator:
         mock_response = MagicMock()
         mock_response.content = json.dumps({
             "crossovers": [
-                {"pair_id": 0, "offspring1": "O1", "offspring2": "O2"}
+                {"pair_id": 1, "offspring1": "O1", "offspring2": "O2"}
             ]
         })
         mock_response.cost = 0.001

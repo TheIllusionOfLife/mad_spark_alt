@@ -98,17 +98,17 @@ class TestBreakthroughBatchMutations:
         # Mock responses for two separate batches
         breakthrough_response = {
             "mutations": [
-                {"id": 0, "content": "BREAKTHROUGH: Paradigm shift in carbon capture"},
-                {"id": 1, "content": "BREAKTHROUGH: System integration for net-zero"},
-                {"id": 2, "content": "BREAKTHROUGH: Future-forward climate solution"}
+                {"id": 1, "content": "BREAKTHROUGH: Paradigm shift in carbon capture"},
+                {"id": 2, "content": "BREAKTHROUGH: System integration for net-zero"},
+                {"id": 3, "content": "BREAKTHROUGH: Future-forward climate solution"}
             ]
         }
         
         regular_response = {
             "mutations": [
-                {"id": 0, "content": "REGULAR: Incremental efficiency improvement"},
-                {"id": 1, "content": "REGULAR: Standard optimization approach"},
-                {"id": 2, "content": "REGULAR: Conventional sustainability measure"}
+                {"id": 1, "content": "REGULAR: Incremental efficiency improvement"},
+                {"id": 2, "content": "REGULAR: Standard optimization approach"},
+                {"id": 3, "content": "REGULAR: Conventional sustainability measure"}
             ]
         }
         
@@ -221,17 +221,17 @@ class TestBreakthroughBatchMutations:
         
         breakthrough_response = {
             "mutations": [
-                {"id": 0, "content": "Paradigm shift mutation", "mutation_type": "paradigm_shift"},
-                {"id": 1, "content": "System integration mutation", "mutation_type": "system_integration"},
-                {"id": 2, "content": "Scale amplification mutation", "mutation_type": "scale_amplification"}
+                {"id": 1, "content": "Paradigm shift mutation", "mutation_type": "paradigm_shift"},
+                {"id": 2, "content": "System integration mutation", "mutation_type": "system_integration"},
+                {"id": 3, "content": "Scale amplification mutation", "mutation_type": "scale_amplification"}
             ]
         }
         
         regular_response = {
             "mutations": [
-                {"id": 0, "content": "Regular mutation 1"},
-                {"id": 1, "content": "Regular mutation 2"},
-                {"id": 2, "content": "Regular mutation 3"}
+                {"id": 1, "content": "Regular mutation 1"},
+                {"id": 2, "content": "Regular mutation 2"},
+                {"id": 3, "content": "Regular mutation 3"}
             ]
         }
         
@@ -429,12 +429,12 @@ class TestBreakthroughBatchMutations:
         
         breakthrough_response = {
             "mutations": [
-                {"id": i, "content": f"BREAKTHROUGH-{i}"} for i in range(3)
+                {"id": i+1, "content": f"BREAKTHROUGH-{i}"} for i in range(3)
             ]
         }
         regular_response = {
             "mutations": [
-                {"id": i, "content": f"REGULAR-{i}"} for i in range(3)
+                {"id": i+1, "content": f"REGULAR-{i}"} for i in range(3)
             ]
         }
         
