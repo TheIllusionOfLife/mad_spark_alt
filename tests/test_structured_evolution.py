@@ -434,10 +434,10 @@ class TestEvolutionOperatorSchemas:
         # Verify item structure
         item_schema = schema["properties"]["mutations"]["items"]
         assert item_schema["type"] == "OBJECT"
-        assert "idea_id" in item_schema["properties"]
-        assert "mutated_content" in item_schema["properties"]
-        assert item_schema["properties"]["idea_id"]["type"] == "INTEGER"
-        assert item_schema["properties"]["mutated_content"]["type"] == "STRING"
+        assert "id" in item_schema["properties"]
+        assert "content" in item_schema["properties"]
+        assert item_schema["properties"]["id"]["type"] == "INTEGER"
+        assert item_schema["properties"]["content"]["type"] == "STRING"
 
     def test_crossover_schema_structure(self):
         """Test the structure of crossover schema."""

@@ -81,9 +81,9 @@ class TestStructuredOutputSchemas:
         assert mutations_schema["type"] == "ARRAY"
         
         item_schema = mutations_schema["items"]
-        assert "idea_id" in item_schema["properties"]
-        assert item_schema["properties"]["idea_id"]["type"] == "INTEGER"
-        assert "mutated_content" in item_schema["properties"]
+        assert "id" in item_schema["properties"]
+        assert item_schema["properties"]["id"]["type"] == "INTEGER"
+        assert "content" in item_schema["properties"]
     
     def test_crossover_schema_structure(self):
         """Test crossover schema has correct structure."""
