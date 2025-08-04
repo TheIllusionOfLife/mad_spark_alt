@@ -394,7 +394,7 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Testing**: Comprehensive integration tests confirm structured output reliability
 - **Documentation**: See [STRUCTURED_OUTPUT.md](docs/STRUCTURED_OUTPUT.md) for details
 
-### Phase 2 Hypothesis Display Format (PR #89)
+### Phase 2 Hypothesis Display Format (PR #89, #101)
 - **User Preference**: Simple numbered list format without "**Approach X:**" labels
 - **Implementation**: Extract first sentence as title, display description on subsequent lines
 - **Format Example**:
@@ -410,6 +410,10 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Cleaning Required**: Remove duplicate numbering and approach prefixes from LLM responses
 - **Title Extraction**: Use regex to find first sentence ending with standard punctuation (`.`, `?`, `!`)
 - **Fallback**: If no clear sentence boundary, display entire hypothesis with number
+- **Critical Fix (PR #101)**: NEVER use category-based extraction (returns generic labels like "Technical/Technology Approach")
+- **Always Extract Content**: Use actual hypothesis content for titles, not classification categories
+- **Constants**: MAX_TITLE_LENGTH=80, MIN_MEANINGFUL_TITLE_LENGTH=10
+- **List Formatting**: Use pattern `r'(?<=[\s。.!?])\s*\((\d{1,2})\)\s*(?=[^\s\d])'` to avoid breaking years
 
 ### Terminal Timeout Workarounds (PR #69)
 - **Problem**: Some environments kill processes after exactly 2 minutes regardless of Python timeout settings
