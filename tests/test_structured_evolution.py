@@ -416,6 +416,117 @@ OFFSPRING_2: Create carbon-neutral public transit networks with renewable energy
         assert "electric public transportation" in offspring[0].content
         assert "carbon-neutral public transit" in offspring[1].content
 
+    @pytest.mark.asyncio
+    async def test_batch_crossover_with_non_sequential_ids(self):
+        """Test batch crossover handles non-sequential pair_ids correctly."""
+        from mad_spark_alt.evolution.semantic_operators import BatchSemanticCrossoverOperator
+        
+        # Create mock LLM provider
+        llm_provider = AsyncMock()
+        
+        # Create test parent pairs
+        parent_pairs = [
+            (
+                GeneratedIdea(
+                    content="Solar panels on buildings",
+                    thinking_method=ThinkingMethod.DEDUCTION,
+                    agent_name="TestAgent",
+                    generation_prompt="Test prompt",
+                    confidence_score=0.8
+                ),
+                GeneratedIdea(
+                    content="Wind turbines in parks",
+                    thinking_method=ThinkingMethod.INDUCTION,
+                    agent_name="TestAgent",
+                    generation_prompt="Test prompt",
+                    confidence_score=0.7
+                )
+            ),
+            (
+                GeneratedIdea(
+                    content="Geothermal energy systems",
+                    thinking_method=ThinkingMethod.QUESTIONING,
+                    agent_name="TestAgent",
+                    generation_prompt="Test prompt",
+                    confidence_score=0.9
+                ),
+                GeneratedIdea(
+                    content="Tidal power generation",
+                    thinking_method=ThinkingMethod.ABDUCTION,
+                    agent_name="TestAgent",
+                    generation_prompt="Test prompt",
+                    confidence_score=0.8
+                )
+            ),
+            (
+                GeneratedIdea(
+                    content="Community composting programs",
+                    thinking_method=ThinkingMethod.DEDUCTION,
+                    agent_name="TestAgent",
+                    generation_prompt="Test prompt",
+                    confidence_score=0.7
+                ),
+                GeneratedIdea(
+                    content="Urban farming initiatives",
+                    thinking_method=ThinkingMethod.INDUCTION,
+                    agent_name="TestAgent",
+                    generation_prompt="Test prompt",
+                    confidence_score=0.8
+                )
+            )
+        ]
+        
+        # Mock structured response with non-sequential pair_ids (out of order)
+        structured_response = {
+            "crossovers": [
+                {
+                    "pair_id": 3,
+                    "offspring1": "Sustainable food production with composting integration",
+                    "offspring2": "Urban agriculture with waste recycling systems"
+                },
+                {
+                    "pair_id": 1,
+                    "offspring1": "Solar-wind hybrid energy for buildings and parks",
+                    "offspring2": "Renewable energy infrastructure in urban spaces"
+                },
+                {
+                    "pair_id": 2,
+                    "offspring1": "Ocean-based renewable energy systems",
+                    "offspring2": "Combined geothermal-tidal power generation"
+                }
+            ]
+        }
+        
+        # Mock LLM response
+        mock_response = LLMResponse(
+            content=json.dumps(structured_response),
+            provider=LLMProvider.GOOGLE,
+            model="gemini-2.5-flash",
+            usage={"prompt_tokens": 300, "completion_tokens": 400},
+            cost=0.003
+        )
+        
+        llm_provider.generate = AsyncMock(return_value=mock_response)
+        
+        # Create operator and test batch crossover
+        operator = BatchSemanticCrossoverOperator(llm_provider=llm_provider, cache_ttl=0)
+        results = await operator.crossover_batch(parent_pairs, "test context")
+        
+        # Verify results - crossovers should be applied in correct order based on pair_id
+        assert len(results) == 3
+        
+        # pair_id 1 should match first parent pair
+        assert "Solar-wind hybrid" in results[0][0].content
+        assert "Renewable energy infrastructure" in results[0][1].content
+        
+        # pair_id 2 should match second parent pair
+        assert "Ocean-based renewable" in results[1][0].content
+        assert "geothermal-tidal" in results[1][1].content
+        
+        # pair_id 3 should match third parent pair
+        assert "Sustainable food production" in results[2][0].content
+        assert "Urban agriculture" in results[2][1].content
+
 
 class TestEvolutionOperatorSchemas:
     """Test schema generation for evolution operators."""

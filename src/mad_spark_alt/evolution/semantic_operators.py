@@ -1117,23 +1117,30 @@ Return JSON with mutations array containing idea_id and mutated_content for each
             else:
                 raise ValueError("Unexpected response format")
                 
-            # Sort by ID to ensure correct order
-            if all(isinstance(m, dict) and "id" in m for m in raw_mutations):
-                raw_mutations = sorted(raw_mutations, key=lambda x: x["id"])
-                
-            for i, mutation in enumerate(raw_mutations[:expected_count]):
-                if isinstance(mutation, dict) and "content" in mutation:
-                    mutations.append({
-                        "content": mutation["content"],
-                        "mutation_type": mutation.get("mutation_type", 
-                            "paradigm_shift" if is_breakthrough else "batch_mutation")
-                    })
-                else:
-                    # Fallback for malformed mutation
-                    mutations.append(self._create_fallback_mutation(
+            # Process mutations - create a list with correct ordering based on ID
+            # Initialize mutations list with None placeholders
+            mutations = [None] * expected_count
+            
+            for mutation in raw_mutations:
+                if isinstance(mutation, dict) and "id" in mutation and "content" in mutation:
+                    # IDs are 1-based, convert to 0-based index
+                    idx = mutation["id"] - 1
+                    if 0 <= idx < expected_count:
+                        mutations[idx] = {
+                            "content": mutation["content"],
+                            "mutation_type": mutation.get("mutation_type", 
+                                "paradigm_shift" if is_breakthrough else "batch_mutation")
+                        }
+                    else:
+                        logger.warning(f"Mutation ID {mutation['id']} out of range")
+            
+            # Fill any None entries with fallbacks
+            for i in range(expected_count):
+                if mutations[i] is None:
+                    mutations[i] = self._create_fallback_mutation(
                         original_ideas[i] if i < len(original_ideas) else None,
                         is_breakthrough
-                    ))
+                    )
                     
             # Fill any missing mutations with fallbacks
             while len(mutations) < expected_count:
@@ -1701,10 +1708,12 @@ class BatchSemanticCrossoverOperator(CrossoverInterface):
             llm_cost = result.cost if hasattr(result, 'cost') else 0.0
             
             # Parse batch results
-            batch_results = []
+            # Initialize results list with None placeholders to maintain order
+            batch_results = [None] * len(uncached_pairs)
             # Parse JSON from response content
             try:
                 data = json.loads(result.content)
+                logger.debug(f"Parsed data type: {type(data)}, keys: {data.keys() if isinstance(data, dict) else 'not a dict'}")
                 if isinstance(data, dict) and "crossovers" in data:
                     crossovers = data["crossovers"]
                     
@@ -1712,18 +1721,26 @@ class BatchSemanticCrossoverOperator(CrossoverInterface):
                     if len(crossovers) != len(uncached_pairs):
                         logger.warning(f"Expected {len(uncached_pairs)} crossovers but got {len(crossovers)}")
                     
-                    # Process each crossover result
-                    for i, crossover_data in enumerate(crossovers):
-                        if i >= len(uncached_pairs):
-                            break
+                    # Process each crossover result using pair_id for correct mapping
+                    for crossover_data in crossovers:
+                        pair_id = crossover_data.get("pair_id")
+                        if pair_id is None:
+                            logger.warning("Missing pair_id in crossover result")
+                            continue
                             
-                        parent1, parent2 = uncached_pairs[i]
-                        offspring1_content = crossover_data.get("offspring1", "")
-                        offspring2_content = crossover_data.get("offspring2", "")
+                        # pair_id is 1-based, convert to 0-based index
+                        idx = pair_id - 1
+                        if idx < 0 or idx >= len(uncached_pairs):
+                            logger.warning(f"Crossover pair_id {pair_id} out of range")
+                            continue
+                            
+                        parent1, parent2 = uncached_pairs[idx]
+                        offspring1_content = str(crossover_data.get("offspring1", ""))
+                        offspring2_content = str(crossover_data.get("offspring2", ""))
                         
                         # Validate offspring content
                         if not offspring1_content or not offspring2_content:
-                            logger.warning(f"Empty offspring content for pair {i}")
+                            logger.warning(f"Empty offspring content for pair_id {pair_id}")
                             # Use fallback
                             offspring1_content = self._generate_fallback_offspring(parent1, parent2, True)
                             offspring2_content = self._generate_fallback_offspring(parent1, parent2, False)
@@ -1732,7 +1749,8 @@ class BatchSemanticCrossoverOperator(CrossoverInterface):
                         offspring1 = self._create_offspring(parent1, parent2, offspring1_content, llm_cost / len(uncached_pairs))
                         offspring2 = self._create_offspring(parent2, parent1, offspring2_content, llm_cost / len(uncached_pairs))
                         
-                        batch_results.append((offspring1, offspring2))
+                        # Place result at correct index
+                        batch_results[idx] = (offspring1, offspring2)
                         
                         # Cache the result
                         sorted_contents = sorted([parent1.content, parent2.content])
@@ -1744,12 +1762,24 @@ class BatchSemanticCrossoverOperator(CrossoverInterface):
                         }
                         self.cache.put(cache_key, cache_data, operation_type="batch_crossover")
                         
+                    # Check for any None values in batch_results (missing pair_ids)
+                    for i, result in enumerate(batch_results):
+                        if result is None:
+                            parent1, parent2 = uncached_pairs[i]
+                            logger.warning(f"Missing result for pair {i+1}, using fallback")
+                            offspring1_content = self._generate_fallback_offspring(parent1, parent2, True)
+                            offspring2_content = self._generate_fallback_offspring(parent1, parent2, False)
+                            offspring1 = self._create_offspring(parent1, parent2, offspring1_content, 0.0)
+                            offspring2 = self._create_offspring(parent2, parent1, offspring2_content, 0.0)
+                            batch_results[i] = (offspring1, offspring2)
+                        
                 else:
                     raise ValueError("Invalid response format - missing crossovers")
                     
             except (json.JSONDecodeError, KeyError, ValueError) as e:
                 # Fallback to sequential processing if batch fails
-                logger.warning("Batch crossover failed, falling back to sequential processing")
+                logger.warning(f"Batch crossover failed: {e}, falling back to sequential processing")
+                batch_results = []
                 for parent1, parent2 in uncached_pairs:
                     offspring1, offspring2 = await self._sequential_operator.crossover(parent1, parent2, context)
                     batch_results.append((offspring1, offspring2))
