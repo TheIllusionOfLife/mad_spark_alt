@@ -17,45 +17,43 @@ from mad_spark_alt.utils.text_cleaning import clean_ansi_codes
 class TestHypothesisTitleExtraction:
     """Test title extraction from various hypothesis formats."""
     
-    def test_category_based_extraction_japanese(self):
-        """Test extraction of category-based titles for Japanese keywords."""
-        # Individual/Personal category
+    def test_sentence_extraction_with_keywords_japanese(self):
+        """Test extraction of actual sentence content for Japanese text with keywords."""
+        # Should extract the sentence, not return category label
         hypothesis = "このアプローチは、個人の能力を最大限に活用することを目指します。"
-        assert extract_hypothesis_title(hypothesis, 1) == "Individual/Personal Approach"
+        assert extract_hypothesis_title(hypothesis, 1) == "このアプローチは、個人の能力を最大限に活用することを目指します。"
         
-        # Team/Collaborative category
         hypothesis = "チームワークと協力を通じて、革新的な解決策を生み出します。"
-        assert extract_hypothesis_title(hypothesis, 2) == "Team/Collaborative Approach"
+        assert extract_hypothesis_title(hypothesis, 2) == "チームワークと協力を通じて、革新的な解決策を生み出します。"
         
-        # System/Organizational category
         hypothesis = "組織全体のシステムを再構築し、効率を向上させます。"
-        assert extract_hypothesis_title(hypothesis, 3) == "System/Organizational Approach"
+        assert extract_hypothesis_title(hypothesis, 3) == "組織全体のシステムを再構築し、効率を向上させます。"
         
-    def test_category_based_extraction_english(self):
-        """Test extraction of category-based titles for English keywords."""
+    def test_sentence_extraction_with_keywords_english(self):
+        """Test extraction of actual sentence content for English text with keywords."""
         hypothesis = "This approach focuses on personal growth and individual achievement."
-        assert extract_hypothesis_title(hypothesis, 1) == "Individual/Personal Approach"
+        assert extract_hypothesis_title(hypothesis, 1) == "This approach focuses on personal growth and individual achievement."
         
         hypothesis = "Through collaborative efforts and team synergy, we can achieve more."
-        assert extract_hypothesis_title(hypothesis, 2) == "Team/Collaborative Approach"
+        assert extract_hypothesis_title(hypothesis, 2) == "Through collaborative efforts and team synergy, we can achieve more."
         
-    def test_new_category_extraction(self):
-        """Test extraction of additional categories."""
-        # Technical/Technology
+    def test_sentence_extraction_various_content(self):
+        """Test extraction of sentences with various content types."""
+        # Technical/Technology content
         hypothesis = "最新の技術とアルゴリズムを活用して問題を解決します。"
-        assert extract_hypothesis_title(hypothesis, 4) == "Technical/Technology Approach"
+        assert extract_hypothesis_title(hypothesis, 4) == "最新の技術とアルゴリズムを活用して問題を解決します。"
         
-        # Scale/Expansion
+        # Scale/Expansion content
         hypothesis = "大規模なスケールアップによって、システムの能力を拡大します。"
-        assert extract_hypothesis_title(hypothesis, 5) == "Scale/Expansion Approach"
+        assert extract_hypothesis_title(hypothesis, 5) == "大規模なスケールアップによって、システムの能力を拡大します。"
         
-        # Evolution/Development
+        # Evolution/Development content
         hypothesis = "継続的な進化と発達を通じて、より高度な知能を実現します。"
-        assert extract_hypothesis_title(hypothesis, 6) == "Evolution/Development Approach"
+        assert extract_hypothesis_title(hypothesis, 6) == "継続的な進化と発達を通じて、より高度な知能を実現します。"
         
-        # Integration/Hybrid
+        # Integration/Hybrid content
         hypothesis = "複数のアプローチを統合し、ハイブリッドな解決策を提供します。"
-        assert extract_hypothesis_title(hypothesis, 7) == "Integration/Hybrid Approach"
+        assert extract_hypothesis_title(hypothesis, 7) == "複数のアプローチを統合し、ハイブリッドな解決策を提供します。"
         
     def test_sentence_extraction_japanese(self):
         """Test extraction of first sentence for Japanese text."""
@@ -77,25 +75,25 @@ class TestHypothesisTitleExtraction:
         
     def test_no_clear_sentence_boundary(self):
         """Test extraction when there's no clear sentence boundary."""
-        # Japanese without punctuation - contains アルゴリズム so will be categorized as Technical
+        # Japanese without punctuation - should extract using delimiter
         hypothesis = "継続的学習と適応的アルゴリズムを組み合わせた革新的手法により高度な問題解決能力を実現"
         title = extract_hypothesis_title(hypothesis, 11)
-        # Should be categorized as Technical/Technology due to アルゴリズム
-        assert title == "Technical/Technology Approach"
+        # Should extract part before delimiter 'を'
+        assert "継続的学習" in title or title == hypothesis[:80]
         
     def test_long_hypothesis_truncation(self):
         """Test proper truncation of long hypotheses."""
         hypothesis = "これは非常に長い仮説の説明で、" + "詳細な技術的説明が含まれています。" * 10
         title = extract_hypothesis_title(hypothesis, 12)
-        # Contains "技術" so will be categorized as Technical/Technology
-        assert title == "Technical/Technology Approach"
+        # For sentences with period, it should extract the first sentence
+        assert title == "これは非常に長い仮説の説明で、詳細な技術的説明が含まれています。"
         
     def test_mixed_language_content(self):
         """Test extraction from mixed Japanese/English content."""
         hypothesis = "AIとMLを活用したDeep Learningアプローチで、次世代の知能システムを構築します。"
         title = extract_hypothesis_title(hypothesis, 13)
-        # Contains "システム" so will be categorized as System/Organizational
-        assert title == "System/Organizational Approach"
+        # Should extract the full sentence with period
+        assert title == "AIとMLを活用したDeep Learningアプローチで、次世代の知能システムを構築します。"
         
     def test_numbered_list_in_hypothesis(self):
         """Test extraction when hypothesis contains numbered lists."""
@@ -120,7 +118,7 @@ class TestHypothesisTitleExtraction:
         title = extract_hypothesis_title(cleaned, 17)
         assert "[1m" not in title and "[0m" not in title
         # Should extract the first part (splits on 。)
-        assert title == "これは太字のアプローチです"
+        assert title == "これは太字のアプローチです。"
 
 
 

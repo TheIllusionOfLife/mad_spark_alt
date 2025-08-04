@@ -193,38 +193,14 @@ def extract_hypothesis_title(cleaned_hypothesis: str, index: int) -> str:
     if not cleaned_hypothesis or len(cleaned_hypothesis.strip()) < 10:
         return f"Approach {index}"
     
-    # First, try category-based extraction with expanded keywords
-    # Check in order of priority (more specific categories first)
-    category_keywords = {
-        "Technical/Technology": ["技術", "Technical", "Technology", "テクノロジー", "アルゴリズム"],
-        "Scale/Expansion": ["スケール", "Scale", "拡大", "Expansion", "大規模"],
-        "Evolution/Development": ["進化", "Evolution", "発達", "Development", "成長"],
-        "Integration/Hybrid": ["統合", "Integration", "ハイブリッド", "Hybrid", "融合"],
-        "Individual/Personal": ["個人", "Personal", "Individual", "自己", "人間", "personal", "individual"],
-        "Team/Collaborative": ["チーム", "Team", "Collaborative", "集団", "協力", "共同", "team", "collaborative"],
-        "System/Organizational": ["システム", "System", "Organizational", "組織", "構造", "体系", "system"],
-    }
-    
-    # Case-insensitive keyword matching for English
-    hypothesis_lower = cleaned_hypothesis.lower()
-    
-    for category, keywords in category_keywords.items():
-        for keyword in keywords:
-            # For English keywords, do case-insensitive match
-            if keyword.islower() and keyword in hypothesis_lower:
-                return f"{category} Approach"
-            # For Japanese or mixed-case keywords, do exact match
-            elif keyword in cleaned_hypothesis:
-                return f"{category} Approach"
-    
-    # Fallback: Extract first meaningful sentence or phrase
-    # Handle both Japanese and English sentence patterns
+    # Strategy: Extract the first meaningful sentence or phrase
+    # Don't use category-based extraction as it returns generic labels
     
     # Try Japanese sentence ending patterns first
     jp_sentence_match = re.match(r'^([^。！？]+[。！？])', cleaned_hypothesis)
     if jp_sentence_match:
         title = jp_sentence_match.group(1).strip()
-        if len(title) > 20:  # Meaningful length
+        if len(title) > 10:  # Meaningful length
             return title[:80] + "..." if len(title) > 80 else title
     
     # Try English sentence patterns
