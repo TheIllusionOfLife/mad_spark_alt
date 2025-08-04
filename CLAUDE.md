@@ -413,7 +413,7 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Critical Fix (PR #101)**: NEVER use category-based extraction (returns generic labels like "Technical/Technology Approach")
 - **Always Extract Content**: Use actual hypothesis content for titles, not classification categories
 - **Constants**: MAX_TITLE_LENGTH=80, MIN_MEANINGFUL_TITLE_LENGTH=10
-- **List Formatting**: Use pattern `r'(?<=[\s。.!?])\s*\((\d{1,2})\)\s*(?=[^\s\d])'` to avoid breaking years
+- **List Formatting**: Use pattern `r'(?<=[\s。.!?！？])\s*\((\d{1,2})\)\s*(?=[^\s\d])'` to avoid breaking years
 
 ### Terminal Timeout Workarounds (PR #69)
 - **Problem**: Some environments kill processes after exactly 2 minutes regardless of Python timeout settings

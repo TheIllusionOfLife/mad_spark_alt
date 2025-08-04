@@ -322,7 +322,7 @@ See the `run_nohup.sh` script for our solution to terminal timeout issues.
   - **Category-Based Extraction Trap**: Never use keyword matching to classify content - it returns generic labels not actual content
   - **Actual Content Extraction**: Always extract the first meaningful sentence/phrase from the hypothesis itself
   - **Japanese/English Support**: Use language-specific punctuation patterns (.。!?！？) for sentence boundaries
-  - **List Item Detection**: Use precise regex `r'(?<=[\s。.!?])\s*\((\d{1,2})\)\s*(?=[^\s\d])'` to avoid treating years as list items
+  - **List Item Detection**: Use precise regex `r'(?<=[\s。.!?！？])\s*\((\d{1,2})\)\s*(?=[^\s\d])'` to avoid treating years as list items
   - **Systematic PR Review**: Even "simple" fixes benefit from 4-bot review process (found 4 distinct issues)
   - **Constants Over Magic Numbers**: Extract all numeric thresholds to named constants at module level
 - **Phase 1 Performance Optimization Success**: Batch semantic operators deliver dramatic improvements
