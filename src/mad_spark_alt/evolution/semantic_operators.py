@@ -184,10 +184,10 @@ def get_mutation_schema() -> Dict[str, Any]:
                 "items": {
                     "type": "OBJECT",
                     "properties": {
-                        "idea_id": {"type": "INTEGER"},
-                        "mutated_content": {"type": "STRING"},
+                        "id": {"type": "INTEGER"},
+                        "content": {"type": "STRING"},
                     },
-                    "required": ["idea_id", "mutated_content"]
+                    "required": ["id", "content"]
                 }
             }
         },

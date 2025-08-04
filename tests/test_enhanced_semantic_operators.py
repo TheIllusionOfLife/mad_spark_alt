@@ -201,8 +201,8 @@ class TestEnhancedSemanticMutation:
         mock_response = LLMResponse(
             content=json.dumps({
                 "mutations": [
-                    {"idea_id": 1, "mutated_content": "Enhanced community composting with mobile collection"},
-                    {"idea_id": 2, "mutated_content": "Digital deposit system with accessibility features"}
+                    {"id": 1, "content": "Enhanced community composting with mobile collection"},
+                    {"id": 2, "content": "Digital deposit system with accessibility features"}
                 ]
             }),
             cost=0.02,
@@ -473,8 +473,8 @@ class TestIntegrationWithEvolutionContext:
         mock_response = LLMResponse(
             content=json.dumps({
                 "mutations": [
-                    {"idea_id": 1, "mutated_content": "Enhanced community program"},
-                    {"idea_id": 2, "mutated_content": "Revolutionary AI system"}
+                    {"id": 1, "content": "Enhanced community program"},
+                    {"id": 2, "content": "Revolutionary AI system"}
                 ]
             }),
             cost=0.02,
@@ -671,9 +671,9 @@ class TestIntegrationWithEvolutionContext:
         # No cache entry for idea 3 (will be uncached)
         
         # Mock response for uncached idea - note that only idea 3 is uncached
-        # Since ideas 1 & 2 are cached, the batch only contains idea 3, so it should be idea_id: 1
+        # Since ideas 1 & 2 are cached, the batch only contains idea 3, so it should be id: 1
         mock_response = LLMResponse(
-            content='{"mutations": [{"idea_id": 1, "mutated_content": "New mutation for idea 3", "mutation_type": "batch_mutation"}]}',
+            content='{"mutations": [{"id": 1, "content": "New mutation for idea 3", "mutation_type": "batch_mutation"}]}',
             cost=0.01,
             provider="google",
             model="gemini-pro"
