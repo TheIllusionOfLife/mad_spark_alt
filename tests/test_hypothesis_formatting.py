@@ -5,13 +5,7 @@ Tests for hypothesis formatting in the analysis section.
 
 import pytest
 from mad_spark_alt.utils.text_cleaning import clean_ansi_codes
-
-
-def format_hypothesis_for_answer(hypothesis: str, approach_number: int) -> str:
-    """Format hypothesis content for clean display in answer."""
-    # This function will be implemented in simple_qadi_orchestrator.py
-    # For now, we'll define it here to make tests fail
-    raise NotImplementedError("format_hypothesis_for_answer not implemented yet")
+from mad_spark_alt.core.simple_qadi_orchestrator import format_hypothesis_for_answer
 
 
 class TestHypothesisFormatting:

@@ -115,6 +115,49 @@ def parse_structured_response(response_content: str, fallback_parser: Callable[[
         return fallback_parser(response_content)
 
 
+def format_hypothesis_for_answer(hypothesis: str, approach_number: int) -> str:
+    """Format hypothesis content for clean display in answer.
+    
+    Args:
+        hypothesis: The hypothesis text to format
+        approach_number: The approach number (1-based)
+        
+    Returns:
+        Formatted hypothesis with proper line breaks and spacing
+    """
+    if not hypothesis:
+        return ""
+    
+    # Clean any ANSI codes first
+    from ..utils.text_cleaning import clean_ansi_codes
+    hypothesis = clean_ansi_codes(hypothesis)
+    
+    # Fix numbered list formatting
+    # Replace inline (1), (2), etc. with proper line breaks
+    hypothesis = re.sub(r'\s*\((\d+)\)\s*', r'\n(\1) ', hypothesis)
+    
+    # Clean up multiple spaces and normalize whitespace (but preserve line breaks)
+    lines = hypothesis.split('\n')
+    cleaned_lines = []
+    for line in lines:
+        # Normalize spaces within each line
+        cleaned_line = re.sub(r'\s+', ' ', line).strip()
+        if cleaned_line:  # Don't add empty lines
+            cleaned_lines.append(cleaned_line)
+    hypothesis = '\n'.join(cleaned_lines)
+    
+    # Ensure proper spacing after punctuation
+    # Japanese punctuation
+    hypothesis = re.sub(r'([。、！？])\s*([^\s])', r'\1 \2', hypothesis)
+    # English punctuation
+    hypothesis = re.sub(r'([,.!?])\s*([^\s])', r'\1 \2', hypothesis)
+    
+    # Clean up any double line breaks that might have been created
+    hypothesis = re.sub(r'\n\s*\n', '\n', hypothesis)
+    
+    return hypothesis
+
+
 @dataclass
 class HypothesisScore:
     """Scores for a single hypothesis."""
@@ -1226,8 +1269,12 @@ class SimpleQADIOrchestrator:
         best_hypothesis = hypotheses[best_idx]
         best_score = scores[best_idx]
         
-        # Generate a concise answer based on the best hypothesis
-        answer = f"Based on the evaluation, the most effective approach is: {best_hypothesis}\n\n"
+        # Format the hypothesis for clean display
+        formatted_hypothesis = format_hypothesis_for_answer(best_hypothesis, best_idx + 1)
+        
+        # Include approach number in the answer
+        answer = f"Based on the evaluation, the most effective approach is **Approach {best_idx + 1}**:\n\n"
+        answer += f"{formatted_hypothesis}\n\n"
         answer += f"This approach scores highest with an overall score of {best_score.overall:.2f}, "
         answer += f"offering strong impact ({best_score.impact:.2f}) and feasibility ({best_score.feasibility:.2f})."
         

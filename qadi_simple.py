@@ -168,6 +168,92 @@ def get_approach_label(text: str, index: int) -> str:
         return f"Approach {index}: "
 
 
+def extract_hypothesis_title(cleaned_hypothesis: str, index: int) -> str:
+    """Extract a meaningful title from hypothesis content."""
+    
+    # Emergency fallback for empty or very short hypotheses
+    if not cleaned_hypothesis or len(cleaned_hypothesis.strip()) < 10:
+        return f"Approach {index}"
+    
+    # First, try category-based extraction with expanded keywords
+    # Check in order of priority (more specific categories first)
+    category_keywords = {
+        "Technical/Technology": ["技術", "Technical", "Technology", "テクノロジー", "アルゴリズム"],
+        "Scale/Expansion": ["スケール", "Scale", "拡大", "Expansion", "大規模"],
+        "Evolution/Development": ["進化", "Evolution", "発達", "Development", "成長"],
+        "Integration/Hybrid": ["統合", "Integration", "ハイブリッド", "Hybrid", "融合"],
+        "Individual/Personal": ["個人", "Personal", "Individual", "自己", "人間", "personal", "individual"],
+        "Team/Collaborative": ["チーム", "Team", "Collaborative", "集団", "協力", "共同", "team", "collaborative"],
+        "System/Organizational": ["システム", "System", "Organizational", "組織", "構造", "体系", "system"],
+    }
+    
+    # Case-insensitive keyword matching for English
+    hypothesis_lower = cleaned_hypothesis.lower()
+    
+    for category, keywords in category_keywords.items():
+        for keyword in keywords:
+            # For English keywords, do case-insensitive match
+            if keyword.islower() and keyword in hypothesis_lower:
+                return f"{category} Approach"
+            # For Japanese or mixed-case keywords, do exact match
+            elif keyword in cleaned_hypothesis:
+                return f"{category} Approach"
+    
+    # Fallback: Extract first meaningful sentence or phrase
+    # Handle both Japanese and English sentence patterns
+    
+    # Try Japanese sentence ending patterns first
+    jp_sentence_match = re.match(r'^([^。！？]+[。！？])', cleaned_hypothesis)
+    if jp_sentence_match:
+        title = jp_sentence_match.group(1).strip()
+        if len(title) > 20:  # Meaningful length
+            return title[:80] + "..." if len(title) > 80 else title
+    
+    # Try English sentence patterns
+    en_sentence_match = re.match(r'^([^.!?]+[.!?])', cleaned_hypothesis)
+    if en_sentence_match:
+        title = en_sentence_match.group(1).strip()
+        if len(title) > 20:
+            return title[:80] + "..." if len(title) > 80 else title
+    
+    # For numbered lists, try to extract the intro part
+    if "：" in cleaned_hypothesis or ":" in cleaned_hypothesis:
+        # Split on colon and take the first part
+        parts = re.split(r'[:：]', cleaned_hypothesis)
+        if parts[0] and len(parts[0].strip()) > 10:
+            title = parts[0].strip()
+            return title[:80] + "..." if len(title) > 80 else title
+    
+    # Try splitting by common delimiters
+    delimiters = ['。', '.', '、', ',', 'を', 'は', 'が', 'の']
+    for delimiter in delimiters:
+        if delimiter in cleaned_hypothesis[:100]:
+            parts = cleaned_hypothesis.split(delimiter, 1)
+            if parts[0] and len(parts[0].strip()) > 10:
+                title = parts[0].strip()
+                return title[:80] + "..." if len(title) > 80 else title
+    
+    # Final fallback: First 80 chars with word boundary
+    if len(cleaned_hypothesis) > 80:
+        # Try to find a word boundary
+        truncated = cleaned_hypothesis[:80]
+        last_space = truncated.rfind(' ')
+        last_jp_particle = max(
+            truncated.rfind('を') if 'を' in truncated else -1,
+            truncated.rfind('は') if 'は' in truncated else -1,
+            truncated.rfind('が') if 'が' in truncated else -1,
+            truncated.rfind('の') if 'の' in truncated else -1
+        )
+        boundary = max(last_space, last_jp_particle)
+        
+        if boundary > 50:
+            return truncated[:boundary].strip() + "..."
+        else:
+            return truncated[:77] + "..."
+    
+    return cleaned_hypothesis[:80].strip()
+
+
 def truncate_at_sentence_boundary(text: str, max_length: int) -> str:
     """Truncate text at sentence boundary to preserve readability."""
     if len(text) <= max_length:
@@ -285,32 +371,14 @@ def format_evaluation_scores(hypotheses: List[str], scores: List) -> str:
         approach_prefix_pattern = r'^Approach\s+\d+:\s*'
         cleaned_hypothesis = re.sub(approach_prefix_pattern, '', cleaned_hypothesis, flags=re.IGNORECASE)
         
-        # Try to extract a clean, meaningful title
-        # Look for patterns that indicate approach types in any language
-        if any(keyword in cleaned_hypothesis for keyword in ["個人", "Personal", "Individual"]):
-            title = "Individual/Personal Approach"
-        elif any(keyword in cleaned_hypothesis for keyword in ["チーム", "Team", "Collaborative", "集団", "協力"]):
-            title = "Team/Collaborative Approach"
-        elif any(keyword in cleaned_hypothesis for keyword in ["システム", "System", "Organizational", "組織", "構造"]):
-            title = "System/Organizational Approach"
-        else:
-            # Extract first meaningful phrase as title
-            # Remove markdown formatting for cleaner extraction
-            clean_text = clean_markdown_text(cleaned_hypothesis)
-            # Take first sentence or phrase up to 80 characters
-            sentences = re.split(r'[。.!?！？]\s*', clean_text)
-            if sentences and sentences[0]:
-                title = sentences[0].strip()
-                if len(title) > 80:
-                    # Find word boundary
-                    word_boundary = title.rfind(' ', 0, 77)
-                    if word_boundary > 40:
-                        title = title[:word_boundary] + "..."
-                    else:
-                        title = title[:77] + "..."
-            else:
-                # Fallback to simple truncation
-                title = clean_text[:80].strip() + "..." if len(clean_text) > 80 else clean_text
+        # Extract title using the new function
+        title = extract_hypothesis_title(cleaned_hypothesis, i + 1)
+        
+        # Ensure we always have a meaningful title
+        if not title or len(title) < 5:
+            # Emergency fallback
+            title = f"Approach {i+1}"
+            logger.warning(f"Failed to extract meaningful title for approach {i+1}")
         
         # Format with clean title
         output += f"**Approach {i+1} Scores: {title}**\n"
