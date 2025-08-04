@@ -232,9 +232,14 @@ See the `run_nohup.sh` script for our solution to terminal timeout issues.
 
 ## Session Handover
 
-### Last Updated: August 04, 2025 02:57 PM JST
+### Last Updated: August 04, 2025 06:39 PM JST
 
 #### Recently Completed
+- ✅ **[PR #101] QADI Display Formatting Fix**: Improved hypothesis title extraction and analysis formatting (Aug 4, 2025)
+  - **Title Extraction**: Fixed evaluation scores showing generic category labels instead of actual hypothesis content
+  - **Analysis Section**: Added approach number display and fixed line break issues for numbered lists
+  - **Code Quality**: Addressed all feedback from 4 bot reviewers (claude[bot], coderabbitai[bot], cursor[bot], gemini-code-assist[bot])
+  - **Pattern Update**: Updated CLAUDE.md with critical fix - never use category-based extraction for titles
 - ✅ **[PR #97] Phase 1 Performance Optimizations**: Batch semantic operators for 60-70% performance improvement (Aug 4, 2025)
   - **Batch Processing**: BatchSemanticCrossoverOperator and BatchSemanticMutationOperator implemented
   - **Performance**: Heavy workloads now complete 60-70% faster through batch LLM operations
@@ -313,6 +318,13 @@ See the `run_nohup.sh` script for our solution to terminal timeout issues.
 - **Performance baseline established**: Evolution system now reliably completes without timeouts
 
 #### Session Learnings
+- **Hypothesis Title Extraction (PR #101)**: Critical lessons for user-facing text extraction
+  - **Category-Based Extraction Trap**: Never use keyword matching to classify content - it returns generic labels not actual content
+  - **Actual Content Extraction**: Always extract the first meaningful sentence/phrase from the hypothesis itself
+  - **Japanese/English Support**: Use language-specific punctuation patterns (.。!?！？) for sentence boundaries
+  - **List Item Detection**: Use precise regex `r'(?<=[\s。.!?！？])\s*\((\d{1,2})\)\s*(?=[^\s\d])'` to avoid treating years as list items
+  - **Systematic PR Review**: Even "simple" fixes benefit from 4-bot review process (found 4 distinct issues)
+  - **Constants Over Magic Numbers**: Extract all numeric thresholds to named constants at module level
 - **Phase 1 Performance Optimization Success**: Batch semantic operators deliver dramatic improvements
   - **Systematic Bug Fixing**: Layer-by-layer approach (logic → tests → feedback → types) prevents cascading issues
   - **ID Mapping Consistency**: Critical to establish 3-way consistency: prompts, parsing logic, test mocks
