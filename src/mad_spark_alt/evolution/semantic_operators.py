@@ -535,7 +535,7 @@ Generate complete, detailed solutions that include:
 - Expected outcomes and benefits
 - Improvements to target criteria (if specified)
 
-Return JSON with mutations array containing idea_id and mutated_content for each idea."""
+Return JSON with mutations array containing id and content for each idea."""
     
     def __init__(
         self, 

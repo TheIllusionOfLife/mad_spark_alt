@@ -109,7 +109,7 @@ class TestBatchCrossoverIntegration:
                 crossovers = []
                 for i in range(num_pairs):
                     crossovers.append({
-                        "pair_id": i,
+                        "pair_id": i + 1,
                         "offspring1": f"Batch crossover offspring {i*2}",
                         "offspring2": f"Batch crossover offspring {i*2+1}"
                     })
@@ -126,7 +126,7 @@ class TestBatchCrossoverIntegration:
                 mutations = []
                 for i in range(num_ideas):
                     mutations.append({
-                        "id": i,
+                        "id": i + 1,
                         "content": f"Batch mutated idea {i}"
                     })
                 
@@ -151,7 +151,7 @@ class TestBatchCrossoverIntegration:
         result = await ga.evolve(request)
         
         # Verify result
-        assert result.success
+        assert result.error_message is None
         assert len(result.generation_snapshots) == evolution_config.generations + 1  # Initial + 2 generations
         
         # Check that batch crossover was used
@@ -268,7 +268,7 @@ class TestBatchCrossoverIntegration:
         result = await ga.evolve(request)
         
         # Verify it succeeded using fallback
-        assert result.success
+        assert result.error_message is None
         assert call_count > 2  # Should have made multiple sequential calls after batch failed
 
     @pytest.mark.asyncio 
@@ -371,7 +371,7 @@ class TestBatchCrossoverIntegration:
         result = await ga.evolve(request)
         
         # Verify performance improvement
-        assert result.success
+        assert result.error_message is None
         
         # With 3 generations, population 10, elite 2:
         # Each generation needs 8 new offspring = 4 parent pairs
