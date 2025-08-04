@@ -86,26 +86,44 @@ class SimplerQADIOrchestrator(SimpleQADIOrchestrator):
 
 
 def clean_markdown_text(text: str) -> str:
-    """Remove all markdown formatting and clean up text."""
+    """Remove markdown formatting while preserving structure."""
     if not text:
         return ""
     
-    # Remove all markdown formatting
-    cleaned = text.replace('**', '').replace('*', '').replace('__', '').replace('_', '')
-    cleaned = cleaned.replace('##', '').replace('#', '')
-    cleaned = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', cleaned)  # Links
-    cleaned = re.sub(r'`([^`]+)`', r'\1', cleaned)  # Inline code
-    cleaned = re.sub(r'```[^`]*```', '', cleaned, flags=re.DOTALL)  # Code blocks
-    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)  # Multiple newlines
-    cleaned = re.sub(r'^[-*+]\s+', '', cleaned, flags=re.MULTILINE)  # Bullets
-    cleaned = re.sub(r'^\d+\.\s+', '', cleaned, flags=re.MULTILINE)  # Numbered lists
-    cleaned = re.sub(r'^>\s+', '', cleaned, flags=re.MULTILINE)  # Blockquotes
-    cleaned = re.sub(r'^\|.*\|$', '', cleaned, flags=re.MULTILINE)  # Tables
-    cleaned = re.sub(r'^[-\s]+$', '', cleaned, flags=re.MULTILINE)  # Table separators
+    # Remove bold and italic markers but keep content
+    cleaned = text.replace('**', '').replace('__', '')
+    # Be careful with single asterisks - only remove if they're formatting
+    cleaned = re.sub(r'(?<!\w)\*([^*]+)\*(?!\w)', r'\1', cleaned)
     
-    # Clean up whitespace
-    cleaned = ' '.join(cleaned.split())
+    # Remove headers but keep content
+    cleaned = re.sub(r'^#{1,6}\s+', '', cleaned, flags=re.MULTILINE)
     
+    # Keep link text, remove URL
+    cleaned = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', cleaned)
+    
+    # Remove inline code markers but keep content
+    cleaned = re.sub(r'`([^`]+)`', r'\1', cleaned)
+    
+    # Remove code blocks entirely (they're usually not part of main content)
+    cleaned = re.sub(r'```[^`]*```', '', cleaned, flags=re.DOTALL)
+    
+    # Preserve numbered list structure but remove markers
+    cleaned = re.sub(r'^(\d+)\.\s+', r'\1. ', cleaned, flags=re.MULTILINE)
+    
+    # Remove bullet markers but keep content
+    cleaned = re.sub(r'^[-*+]\s+', '', cleaned, flags=re.MULTILINE)
+    
+    # Remove blockquote markers
+    cleaned = re.sub(r'^>\s+', '', cleaned, flags=re.MULTILINE)
+    
+    # Remove table formatting
+    cleaned = re.sub(r'^\|.*\|$', '', cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r'^[-\s]+$', '', cleaned, flags=re.MULTILINE)
+    
+    # Preserve single line breaks for readability
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+    
+    # Don't over-clean - keep some structure
     return cleaned.strip()
 
 
