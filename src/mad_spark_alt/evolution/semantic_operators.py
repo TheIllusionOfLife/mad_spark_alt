@@ -1101,7 +1101,7 @@ Return JSON with mutations array containing id and content for each idea."""
         Returns:
             List of mutation data dictionaries with content and mutation_type
         """
-        mutations = []
+        mutations: List[Dict[str, Any]] = []
         
         # Try to parse as JSON first (structured output)
         try:
@@ -1118,15 +1118,15 @@ Return JSON with mutations array containing id and content for each idea."""
                 raise ValueError("Unexpected response format")
                 
             # Process mutations - create a list with correct ordering based on ID
-            # Initialize mutations list with None placeholders
-            mutations = [None] * expected_count
+            # Initialize ordered mutations list with None placeholders
+            ordered_mutations: List[Optional[Dict[str, Any]]] = [None] * expected_count
             
             for mutation in raw_mutations:
                 if isinstance(mutation, dict) and "id" in mutation and "content" in mutation:
                     # IDs are 1-based, convert to 0-based index
                     idx = mutation["id"] - 1
                     if 0 <= idx < expected_count:
-                        mutations[idx] = {
+                        ordered_mutations[idx] = {
                             "content": mutation["content"],
                             "mutation_type": mutation.get("mutation_type", 
                                 "paradigm_shift" if is_breakthrough else "batch_mutation")
@@ -1136,11 +1136,16 @@ Return JSON with mutations array containing id and content for each idea."""
             
             # Fill any None entries with fallbacks
             for i in range(expected_count):
-                if mutations[i] is None:
-                    mutations[i] = self._create_fallback_mutation(
+                if ordered_mutations[i] is None:
+                    ordered_mutations[i] = self._create_fallback_mutation(
                         original_ideas[i] if i < len(original_ideas) else None,
                         is_breakthrough
                     )
+                    
+            # Add ordered mutations to results, filtering out None
+            for mutation in ordered_mutations:
+                if mutation is not None:
+                    mutations.append(mutation)
                     
             # Fill any missing mutations with fallbacks
             while len(mutations) < expected_count:
@@ -1180,7 +1185,8 @@ Return JSON with mutations array containing id and content for each idea."""
                         is_breakthrough
                     ))
                     
-        return mutations
+        # Return non-None mutations
+        return [m for m in mutations if m is not None]
         
     def _create_fallback_mutation(
         self,
@@ -1709,7 +1715,7 @@ class BatchSemanticCrossoverOperator(CrossoverInterface):
             
             # Parse batch results
             # Initialize results list with None placeholders to maintain order
-            batch_results = [None] * len(uncached_pairs)
+            batch_results: List[Optional[Tuple[GeneratedIdea, GeneratedIdea]]] = [None] * len(uncached_pairs)
             # Parse JSON from response content
             try:
                 data = json.loads(result.content)
@@ -1763,8 +1769,8 @@ class BatchSemanticCrossoverOperator(CrossoverInterface):
                         self.cache.put(cache_key, cache_data, operation_type="batch_crossover")
                         
                     # Check for any None values in batch_results (missing pair_ids)
-                    for i, result in enumerate(batch_results):
-                        if result is None:
+                    for i, batch_result in enumerate(batch_results):
+                        if batch_result is None:
                             parent1, parent2 = uncached_pairs[i]
                             logger.warning(f"Missing result for pair {i+1}, using fallback")
                             offspring1_content = self._generate_fallback_offspring(parent1, parent2, True)
@@ -1802,13 +1808,15 @@ class BatchSemanticCrossoverOperator(CrossoverInterface):
                     batch_results.append((offspring1, offspring2))
         
         # Combine cached and new results in original order
-        final_results = []
+        final_results: List[Tuple[GeneratedIdea, GeneratedIdea]] = []
         cached_idx = 0
         batch_idx = 0
         
         for i in range(len(parent_pairs)):
             if i in uncached_indices:
-                final_results.append(batch_results[batch_idx])
+                crossover_result = batch_results[batch_idx]
+                if crossover_result is not None:
+                    final_results.append(crossover_result)
                 batch_idx += 1
             else:
                 final_results.append(cached_results[cached_idx])
