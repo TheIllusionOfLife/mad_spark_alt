@@ -1728,7 +1728,7 @@ class BatchSemanticCrossoverOperator(CrossoverInterface):
                             logger.warning("Missing pair_id in crossover result")
                             continue
                             
-                        # pair_id is 1-based, convert to 0-based index
+                        # pair_id is 1-based as per the prompt
                         idx = pair_id - 1
                         if idx < 0 or idx >= len(uncached_pairs):
                             logger.warning(f"Crossover pair_id {pair_id} out of range")
@@ -1844,7 +1844,7 @@ For each pair, the offspring must:
 5. PRIORITIZE improvements to any target criteria mentioned above
 
 Return the results as JSON with a "crossovers" array containing objects with:
-- "pair_id": index of the parent pair (0-based)
+- "pair_id": index of the parent pair (1-based, matching Pair 1, Pair 2, etc.)
 - "offspring1": detailed first offspring (min 150 words)
 - "offspring2": detailed second offspring (min 150 words)"""
         
