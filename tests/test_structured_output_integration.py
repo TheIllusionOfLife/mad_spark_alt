@@ -199,8 +199,8 @@ class TestStructuredOutputParsing:
             content=json.dumps({
                 "mutations": [
                     {
-                        "idea_id": 1,
-                        "mutated_content": "Enhanced version of the idea"
+                        "id": 1,
+                        "content": "Enhanced version of the idea"
                     }
                 ]
             }),
