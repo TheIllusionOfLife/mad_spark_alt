@@ -569,7 +569,7 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **API Compatibility**: Uses existing `mutate_batch()` method from BatchSemanticMutationOperator
 - **Key Optimization**: Replaces 25 sequential LLM calls (for pop=10, gen=5) with 5 batch LLM calls
 
-### Phase 1 Performance Optimizations (PR #97) - COMPLETED ✅
+### Phase 1 Performance Optimizations ([PR #97](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/97)) - COMPLETED ✅
 - **ID Mapping Consistency**: Established systematic 1-based prompt → 0-based parsing → 1-based test mock pattern
 - **Batch Processing Refinement**: Fixed crossover and mutation batch operations with structured output schemas
 - **Type Safety**: Resolved Optional[T] → List[T] mypy errors with explicit null checks
