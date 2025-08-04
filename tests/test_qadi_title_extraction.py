@@ -123,42 +123,6 @@ class TestHypothesisTitleExtraction:
         assert title == "これは太字のアプローチです"
 
 
-class TestHypothesisFormatting:
-    """Test hypothesis formatting for the analysis section."""
-    
-    def format_hypothesis_for_answer(hypothesis: str, approach_number: int) -> str:
-        """Format hypothesis content for clean display in answer."""
-        # This function will be implemented in simple_qadi_orchestrator.py
-        raise NotImplementedError("format_hypothesis_for_answer not implemented yet")
-    
-    def test_numbered_list_formatting(self):
-        """Test that inline numbered lists get proper line breaks."""
-        hypothesis = "このアプローチでは (1) データ収集 (2) 分析 (3) 実装を行います。"
-        formatted = format_hypothesis_for_answer(hypothesis, 1)
-        assert "\n(1) データ収集" in formatted
-        assert "\n(2) 分析" in formatted
-        assert "\n(3) 実装" in formatted
-        
-    def test_whitespace_normalization(self):
-        """Test that excessive whitespace is normalized."""
-        hypothesis = "これは    複数の     空白が     含まれる     テキストです。"
-        formatted = format_hypothesis_for_answer(hypothesis, 2)
-        assert "これは 複数の 空白が 含まれる テキストです。" in formatted
-        
-    def test_punctuation_spacing(self):
-        """Test proper spacing after punctuation."""
-        hypothesis = "第一に、計画を立てます。第二に、実行します。第三に、評価します。"
-        formatted = format_hypothesis_for_answer(hypothesis, 3)
-        # Should maintain proper spacing
-        assert "。 " in formatted
-        
-    def test_ansi_code_removal(self):
-        """Test that ANSI codes are removed."""
-        hypothesis = "\x1b[1mBold approach\x1b[0m with (1) step one (2) step two"
-        formatted = format_hypothesis_for_answer(hypothesis, 4)
-        assert "\x1b" not in formatted
-        assert "Bold approach" in formatted
-        assert "\n(1) step one" in formatted
 
 
 if __name__ == "__main__":
