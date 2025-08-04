@@ -53,7 +53,7 @@ uv run mad_spark_alt "Your question" --evolve --generations 3 --population 8
 uv run mad_spark_alt "Your question" --evolve --traditional
 
 # Use semantic diversity calculation for enhanced idea variety (slower but more accurate)
-uv run mad_spark_alt "Your question" --evolve --diversity-method semantic
+uv run mad_spark_alt "Your question" --evolve --generations 2 --population 10 --diversity-method semantic --verbose
 ```
 
 ## Important: Two Different Commands
