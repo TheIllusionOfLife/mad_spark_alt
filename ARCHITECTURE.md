@@ -200,7 +200,7 @@ graph TD
     
     CLI --> QS
     QS --> SO
-    SO -.-> SMO
+    SO --> SMO
     SO --> LLM
     SO --> PROMPT
     SO --> RENDER
@@ -662,7 +662,7 @@ def test_evolution_timeout():
 mad_spark_alt/
 ├── src/mad_spark_alt/
 │   ├── core/                    # Core orchestration & services
-│   │   ├── simple_qadi_orchestrator.py  # Main orchestrator
+│   │   ├── simple_qadi_orchestrator.py  # Core QADI implementation
 │   │   ├── llm_provider.py             # Gemini integration
 │   │   ├── cost_utils.py               # Token tracking
 │   │   └── terminal_renderer.py        # Output formatting

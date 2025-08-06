@@ -12,12 +12,6 @@ Intelligent analysis system using QADI methodology (Question → Abduction → D
 - **Real-World Examples**: Concrete applications at individual, community, and systemic levels
 - **Structured Output**: Utilizes Gemini's structured output API for reliable parsing of hypotheses and scores
 
-## Documentation
-
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete system architecture, data flows, and technical standards (single source of truth)
-- **[CLAUDE.md](CLAUDE.md)** - AI assistant instructions and development patterns
-- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development workflow and contribution guidelines
-
 ## Installation
 
 ```bash
@@ -230,11 +224,13 @@ See the `run_nohup.sh` script for our solution to terminal timeout issues.
 
 ## Documentation
 
-- [DEVELOPMENT.md](DEVELOPMENT.md): Architecture, API reference, contribution guide
-- [RESEARCH.md](RESEARCH.md): QADI methodology background
-- [SESSIONS.md](SESSIONS.md): Development history
-- [STRUCTURED_OUTPUT.md](docs/STRUCTURED_OUTPUT.md): Gemini structured output implementation
-- [docs/](docs/): Additional documentation including CLI usage, examples, and API reference
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete system architecture, data flows, and technical standards (single source of truth)
+- **[CLAUDE.md](CLAUDE.md)** - AI assistant instructions and development patterns
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Architecture, API reference, contribution guide
+- **[RESEARCH.md](RESEARCH.md)** - QADI methodology background
+- **[SESSIONS.md](SESSIONS.md)** - Development history
+- **[STRUCTURED_OUTPUT.md](docs/STRUCTURED_OUTPUT.md)** - Gemini structured output implementation
+- **[docs/](docs/)** - Additional documentation including CLI usage, examples, and API reference
 
 ## Session Handover
 
