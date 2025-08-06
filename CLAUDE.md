@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **IMPORTANT**: For complete system architecture, component relationships, and data flows, see **[ARCHITECTURE.md](ARCHITECTURE.md)** - the single source of truth for technical design.
+
 ## Project Overview
 
 Mad Spark Alt is a sophisticated Multi-Agent Idea Generation System powered by Large Language Models and based on the QADI (Question → Abduction → Deduction → Induction) methodology from "Shin Logical Thinking".

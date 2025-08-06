@@ -12,6 +12,12 @@ Intelligent analysis system using QADI methodology (Question → Abduction → D
 - **Real-World Examples**: Concrete applications at individual, community, and systemic levels
 - **Structured Output**: Utilizes Gemini's structured output API for reliable parsing of hypotheses and scores
 
+## Documentation
+
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete system architecture, data flows, and technical standards (single source of truth)
+- **[CLAUDE.md](CLAUDE.md)** - AI assistant instructions and development patterns
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development workflow and contribution guidelines
+
 ## Installation
 
 ```bash
