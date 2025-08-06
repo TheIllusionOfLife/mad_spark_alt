@@ -224,11 +224,13 @@ See the `run_nohup.sh` script for our solution to terminal timeout issues.
 
 ## Documentation
 
-- [DEVELOPMENT.md](DEVELOPMENT.md): Architecture, API reference, contribution guide
-- [RESEARCH.md](RESEARCH.md): QADI methodology background
-- [SESSIONS.md](SESSIONS.md): Development history
-- [STRUCTURED_OUTPUT.md](docs/STRUCTURED_OUTPUT.md): Gemini structured output implementation
-- [docs/](docs/): Additional documentation including CLI usage, examples, and API reference
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete system architecture, data flows, and technical standards (single source of truth)
+- **[CLAUDE.md](CLAUDE.md)** - AI assistant instructions and development patterns
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Architecture, API reference, contribution guide
+- **[RESEARCH.md](RESEARCH.md)** - QADI methodology background
+- **[SESSIONS.md](SESSIONS.md)** - Development history
+- **[STRUCTURED_OUTPUT.md](docs/STRUCTURED_OUTPUT.md)** - Gemini structured output implementation
+- **[docs/](docs/)** - Additional documentation including CLI usage, examples, and API reference
 
 ## Session Handover
 
