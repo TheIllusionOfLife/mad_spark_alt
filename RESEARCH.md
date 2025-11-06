@@ -583,5 +583,5 @@ Preliminary human studies show:
 ---
 
 For implementation details and code examples, see [DEVELOPMENT.md](DEVELOPMENT.md).
-For current development status, see [SESSIONS.md](SESSIONS.md).
+For current development status, see [SESSION_HANDOVER.md](SESSION_HANDOVER.md).
 For quick start and usage, see [README.md](README.md).
