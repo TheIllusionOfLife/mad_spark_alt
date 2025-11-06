@@ -324,18 +324,12 @@ class TestGoogleProviderStructuredOutput:
     """Test Google provider structured output field names."""
 
     @pytest.mark.asyncio
-    async def test_structured_output_uses_correct_field_name(self):
+    async def test_structured_output_uses_correct_field_name(self, sample_model_config: ModelConfig):
         """Test that structured output uses responseJsonSchema, not responseSchema."""
         provider = GoogleProvider("test_api_key")
 
-        # Create model config and attach to request
-        config = ModelConfig(
-            provider=LLMProvider.GOOGLE,
-            model_name="gemini-2.5-flash",
-            model_size=ModelSize.LARGE,
-            input_cost_per_1k=0.00015,
-            output_cost_per_1k=0.0006,
-        )
+        # Use sample config fixture
+        config = sample_model_config
 
         # Create request with structured output
         request = LLMRequest(

@@ -99,6 +99,7 @@ class TestStructuredOutputSupport:
             generation_config = payload["generationConfig"]
             assert generation_config["responseMimeType"] == "application/json"
             assert generation_config["responseJsonSchema"] == schema
+            assert "responseSchema" not in generation_config, "The incorrect 'responseSchema' key should not be present"
             
             # Verify response
             assert response.content == json.dumps({"name": "John", "age": 30})
