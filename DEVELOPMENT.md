@@ -108,43 +108,19 @@ uv run mad-spark evolve "Your problem" --temperature 1.2
 - **checkpointing.py**: Save/resume evolution state
 - **llm_operators.py**: AI-powered genetic operators
 
-### True QADI Methodology
+### QADI Methodology
 
-The system implements the hypothesis-driven QADI approach from "Shin Logical Thinking":
+The system implements the 4-phase QADI approach (Question → Abduction → Deduction → Induction) from "Shin Logical Thinking".
 
-#### Phase Implementation
+**For comprehensive methodology details**, see **[RESEARCH.md](RESEARCH.md)**.
 
-1. **Question (Q)** - Core Question Extraction
-   - Extracts THE single most important question from any input
-   - Uses low temperature (0.3) for focused extraction
-   - Handles questions, statements, topics, requests uniformly
+**Quick summary:**
+1. **Question (Q)** - Extract core question
+2. **Abduction (A)** - Generate hypotheses
+3. **Deduction (D)** - Evaluate & score
+4. **Induction (I)** - Verify with examples
 
-2. **Abduction (A)** - Hypothesis Generation  
-   - Generates 3 specific hypotheses to answer the core question
-   - Default temperature 0.8 (user adjustable with --temperature)
-   - Each hypothesis directly addresses the question
-
-3. **Deduction (D)** - Evaluation & Answer
-   - Evaluates each hypothesis on 5 criteria:
-     - **Novelty** (20%): Innovation/uniqueness
-     - **Impact** (30%): Positive change potential
-     - **Cost** (20%): Resource efficiency (inverted)
-     - **Feasibility** (20%): Implementation practicality
-     - **Risks** (10%): Risk level (inverted)
-   - Provides THE definitive answer with action plan
-   - Uses low temperature (0.2) for analytical precision
-
-4. **Induction (I)** - Verification
-   - Verifies the answer with 3 real-world examples
-   - Confirms broad applicability
-   - Medium temperature (0.5) for balanced examples
-
-#### Key Improvements
-
-- **Universal Prompts**: Single set works for all input types
-- **Phase Optimization**: Each phase uses ideal hyperparameters
-- **Unified Scoring**: Evolution uses same criteria as deduction
-- **User Control**: Temperature adjustment for creativity tuning
+**For technical implementation details**, see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
 ### Key Patterns
 

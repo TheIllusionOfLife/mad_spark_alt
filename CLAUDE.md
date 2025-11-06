@@ -1,8 +1,14 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+> **NOTE**: This file contains AI assistant instructions and serves as a project-specific style guide for learned development patterns.
+>
+> **For project documentation:**
+> - Quick start & overview: [README.md](README.md)
+> - System architecture: [ARCHITECTURE.md](ARCHITECTURE.md)
+> - Development guide: [DEVELOPMENT.md](DEVELOPMENT.md)
+> - QADI methodology: [RESEARCH.md](RESEARCH.md)
 
-> **IMPORTANT**: For complete system architecture, component relationships, and data flows, see **[ARCHITECTURE.md](ARCHITECTURE.md)** - the single source of truth for technical design.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 

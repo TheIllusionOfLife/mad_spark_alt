@@ -228,126 +228,25 @@ See the `run_nohup.sh` script for our solution to terminal timeout issues.
 - **[CLAUDE.md](CLAUDE.md)** - AI assistant instructions and development patterns
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** - Architecture, API reference, contribution guide
 - **[RESEARCH.md](RESEARCH.md)** - QADI methodology background
-- **[SESSIONS.md](SESSIONS.md)** - Development history
+- **[SESSION_HANDOVER.md](SESSION_HANDOVER.md)** - Development history and learnings
 - **[STRUCTURED_OUTPUT.md](docs/STRUCTURED_OUTPUT.md)** - Gemini structured output implementation
 - **[docs/](docs/)** - Additional documentation including CLI usage, examples, and API reference
 
-## Session Handover
+## Development Roadmap
 
-### Last Updated: August 04, 2025 06:39 PM JST
+### Current Priorities
 
-#### Recently Completed
-- ✅ **[PR #101] QADI Display Formatting Fix**: Improved hypothesis title extraction and analysis formatting (Aug 4, 2025)
-  - **Title Extraction**: Fixed evaluation scores showing generic category labels instead of actual hypothesis content
-  - **Analysis Section**: Added approach number display and fixed line break issues for numbered lists
-  - **Code Quality**: Addressed all feedback from 4 bot reviewers (claude[bot], coderabbitai[bot], cursor[bot], gemini-code-assist[bot])
-  - **Pattern Update**: Updated CLAUDE.md with critical fix - never use category-based extraction for titles
-- ✅ **[PR #97] Phase 1 Performance Optimizations**: Batch semantic operators for 60-70% performance improvement (Aug 4, 2025)
-  - **Batch Processing**: BatchSemanticCrossoverOperator and BatchSemanticMutationOperator implemented
-  - **Performance**: Heavy workloads now complete 60-70% faster through batch LLM operations
-  - **ID Mapping Consistency**: Established a systematic mapping pattern to resolve inconsistencies. The system uses 1-based indexing for user-facing prompts and test mocks (intuitive for humans: "pair 1", "pair 2"), while using 0-based indexing for internal parsing logic (efficient for arrays: index 0, index 1). This prevents systematic failures from ID system mismatches.
-  - **Type Safety**: Resolved MyPy Optional[T] → List[T] issues with explicit null checks
-  - **CI Robustness**: Systematic 4-layer fixes (logic → tests → feedback → types)
-- ✅ **[PR #93] Semantic Diversity Calculation**: Implemented Gemini embeddings for true semantic understanding (Aug 4, 2025)
-  - **API Integration**: Added embedding support to LLM provider with proper batch endpoint
-  - **Dual Strategy**: Semantic (embedding-based) and Jaccard (word-based) diversity calculators
-  - **Fallback Design**: Automatic fallback to Jaccard if API fails
-  - **User Feedback**: Clear display of which diversity method is being used
-  - **Cost Optimization**: Caching embeddings by content hash to minimize API calls
-- ✅ **[PR #92] Fitness Score Unification**: Refactored `confidence_score` to `overall_fitness` throughout codebase (Aug 3, 2025)
-  - **Consistency**: Unified naming across all evaluation and evolution systems
-  - **Migration**: Proper dual-field support during transition period
-- ✅ **[PR #91] Documentation Updates**: Verified development plan and organized legacy docs (Aug 3, 2025)
-- ✅ **[PR #90] Documentation & Phase 2 Display**: Fixed reviewer feedback and improved formatting (Aug 3, 2025)
-  - **Reviewer Coordination**: Addressed feedback from claude[bot], coderabbitai[bot], gemini-code-assist[bot]
-  - **Documentation**: Updated title extraction docs to mention all punctuation marks (.?!)
-  - **Display Format**: Consolidated Phase 2 entries in Session Handover
-- ✅ **[PR #89] Structured Output & Display Format**: Comprehensive testing and documentation (Aug 3, 2025)
-  - **Structured Output**: Created STRUCTURED_OUTPUT.md, added 453 lines of integration tests, fixed schema types, and verified Gemini API integration
-  - **Display Format**: Improved hypothesis presentation by extracting first sentence as title and using simple numbered list, per user request
-  - **Code Quality**: Addressed all feedback from multiple bot reviewers
-- ✅ **[PR #87] UX Improvements**: Fixed output truncation, evaluation scores, and evolution display (Aug 2, 2025)
-  - **Smart Truncation**: Implemented regex-based sentence boundary detection
-  - **Evaluation Scores**: Added approach titles and consistent metric ordering
-  - **Evolution Output**: Cleaned parent references from genetic algorithm output
-- ✅ **[PR #85] Parallel Evolution Processing**: Eliminated sequential bottleneck with batch LLM operations (Aug 2, 2025)
-  - **Critical Fix**: Heavy workloads now complete without timeout
-  - **Performance**: 60-70% execution time reduction through parallel processing
+**Active Development:**
+1. **Result Export & Persistence** - Add `--output` flag to main `mad_spark_alt` command for saving analysis results
+2. **Performance Optimization: Diversity Calculation** - Reduce O(n²) complexity to enable larger population sizes
+3. **Directed Evolution Mode** - Intelligent evolution with targeted mutations and multi-stage strategies
 
-#### Next Priority Tasks
+**Recently Completed:**
+- ✅ **Phase 1 Performance Optimizations** (PR #97) - 60-70% execution time improvement through batch operations
+- ✅ **Semantic Diversity Calculator** (PR #93) - Gemini embeddings for true semantic understanding
+- ✅ **Structured Output Implementation** (PR #71) - Reliable parsing with Gemini's responseSchema
 
-*Note: This section is the primary source of truth for upcoming development work. Tasks listed here have been verified against the current codebase (August 2025).*
-
-**📋 Implementation Plan**: See [IMPLEMENTATION_PLAN_DIVERSITY_BREAKTHROUGH.md](docs/IMPLEMENTATION_PLAN_DIVERSITY_BREAKTHROUGH.md) for detailed implementation roadmap.
-
-1. **Performance Optimization: Diversity Calculation**
-   - **Status**: Active Development Needed
-   - **Issue**: O(n²) complexity in both `JaccardDiversityCalculator` (jaccard_diversity.py:44-64) and `GeminiDiversityCalculator` (gemini_diversity.py:79)
-   - **Impact**: Severe performance degradation with large populations (nested loops comparing all pairs)
-   - **Note**: Gemini uses fast numpy operations for cosine similarity, but still O(n²)
-   - **Approach**:
-     - Profile current implementations with large populations
-     - Research optimized algorithms (MinHash, LSH, or sampling-based approaches)
-     - Target O(n log n) or better complexity
-     - Validate diversity metrics remain meaningful after optimization
-
-2. **Directed Evolution Mode**: Implement targeted evolution strategies  
-   - **Status**: Next Major Development Priority
-   - **Context**: Build on batch processing foundation to add intelligent evolution stages
-   - **Implementation**:
-     - Add "directed evolution" where mutations target specific weaknesses
-     - Implement different evolution stages: diversification → intensification → synthesis
-     - Apply special "enhancement" mutations only to elite individuals
-     - Use different temperature/creativity settings for elite vs general population
-
-3. **Plugin Architecture**: Create plugin system for custom operators
-   - **Status**: Extensibility Enhancement
-   - **Context**: Make batch processing extensible for domain-specific operators
-   - **Implementation**:
-     - Abstract operator interfaces with registration system
-     - Plugin discovery and loading mechanism
-     - Documentation for creating custom operators
-
-#### Completed Tasks ✅
-- ✅ **Phase 1 Performance Optimizations** (PR #97): Batch LLM operations for 60-70% performance improvement. See 'Recently Completed' for details.
-- **Performance Benchmarking Suite**: Already exists in `tests/performance_benchmarks.py`
-- **Title Length Extension**: Already implemented - uses 150 characters with smart truncation (qadi_simple.py)
-- **Evolution Progress**: Basic text indicators exist and function adequately
-- **Semantic Diversity Calculator**: Implemented with Gemini embeddings (PR #93)
-
-#### Known Issues / Blockers
-- None currently blocking development
-- **Performance baseline established**: Evolution system now reliably completes without timeouts
-
-#### Session Learnings
-- **Hypothesis Title Extraction (PR #101)**: Critical lessons for user-facing text extraction
-  - **Category-Based Extraction Trap**: Never use keyword matching to classify content - it returns generic labels not actual content
-  - **Actual Content Extraction**: Always extract the first meaningful sentence/phrase from the hypothesis itself
-  - **Japanese/English Support**: Use language-specific punctuation patterns (.。!?！？) for sentence boundaries
-  - **List Item Detection**: Use precise regex `r'(?<=[\s。.!?！？])\s*\((\d{1,2})\)\s*(?=[^\s\d])'` to avoid treating years as list items
-  - **Systematic PR Review**: Even "simple" fixes benefit from 4-bot review process (found 4 distinct issues)
-  - **Constants Over Magic Numbers**: Extract all numeric thresholds to named constants at module level
-- **Phase 1 Performance Optimization Success**: Batch semantic operators deliver dramatic improvements
-  - **Systematic Bug Fixing**: Layer-by-layer approach (logic → tests → feedback → types) prevents cascading issues
-  - **ID Mapping Consistency**: Critical to establish 3-way consistency: prompts, parsing logic, test mocks
-  - **Batch Processing Performance**: Replacing multiple sequential LLM calls with a single batch call provides dramatic performance gains (e.g., from O(n) to O(1) API calls for a generation's mutations)
-  - **MyPy Optional Types**: Always use explicit null checks rather than type ignore comments for Optional[T] → List[T] operations
-- **Semantic Diversity Implementation**: Successfully added Gemini embeddings for true semantic understanding of idea diversity
-  - Critical API fix: Use `:batchEmbedContents` not `:embedContent` endpoint
-  - Request format: Must use `json=payload` with proper batch structure
-  - Cost awareness: Embeddings cost $0.0002 per 1K tokens (10x initial error)
-  - Validation requirement: Always check response length matches request
-- **User Feedback Importance**: Added clear display of which diversity method (Jaccard vs Semantic) is being used
-  - Pattern: Similar to existing "[FALLBACK]" and evolution operators display
-  - Implementation: Both CLI commands now show diversity method with guidance
-- **PR Review Efficiency**: Systematic 4-phase protocol found all issues from 5 reviewers
-  - gemini-code-assist[bot]: Critical API endpoint correction
-  - cursor[bot]: Request handling standardization
-  - coderabbitai[bot]: Code cleanup (unused imports, f-strings)
-- **Previous Learnings Reinforced**:
-  - Always test with real API to catch integration issues
-  - Follow TDD strictly - wrote tests first, then implementation
-  - Fallback patterns essential for reliability (Jaccard fallback for API failures)
+For detailed development history, completed tasks, and session learnings, see **[SESSION_HANDOVER.md](SESSION_HANDOVER.md)**.
 
 ## Technical Notes
 
@@ -362,60 +261,16 @@ The system now uses Gemini's structured output feature (`responseMimeType` and `
 
 This implementation significantly reduces "Failed to extract enough hypotheses" errors and ensures more reliable parsing of LLM responses.
 
-## Future Improvements
+## Documentation Map
 
-### Performance Optimizations
-- [x] **Parallel Evolution Processing**: Implemented batch LLM processing for genetic operations (dramatically reduces heavy workload execution time)
-- [x] **Batch Semantic Operators**: Single LLM call processes multiple mutations simultaneously instead of sequential processing
-- [ ] Implement cache warming strategies for semantic operators
-- [ ] Add diversity calculation benchmarks to performance test suite
-
-### Enhanced Features
-- [ ] Add more sophisticated fitness estimation for unevaluated offspring
-- [ ] Implement adaptive mutation strategies based on population convergence
-- [ ] Add visualization tools for evolution progress
-- [ ] Support for multi-objective optimization
-
-### Code Quality
-- [ ] Add more integration tests with real LLM calls
-- [ ] Implement comprehensive error recovery for LLM API failures
-- [ ] Add telemetry and monitoring for production usage
-- [ ] Create plugin architecture for custom operators
-
-### Documentation
-- [ ] Add tutorial for implementing custom genetic operators
-- [ ] Create performance tuning guide
-- [ ] Document best practices for population/generation sizing
-- [ ] Add troubleshooting guide for common issues
-
-### Evolution System Enhancements
-- ✅ **Remove Smart Selector** - COMPLETED: Simplified by removing SmartOperatorSelector class entirely
-  - ✅ Replaced probabilistic decisions with simple: if semantic operators available → use them
-  - ✅ Kept `use_semantic_operators` as simple on/off switch
-  - ✅ Result: Cleaner codebase, better predictability, same functionality
-  
-- ✅ **Evaluation Context** (#6) - COMPLETED: Pass scoring context to evolution
-  - ✅ Added EvaluationContext dataclass with original question and target improvements
-  - ✅ Semantic operators now receive evaluation context for targeted mutations/crossovers
-  - ✅ Enhanced prompts guide evolution toward specific fitness improvements
-  - ✅ Result: More targeted evolution that improves weak scores
-  
-- ✅ **Enhanced Semantic Operators** (#2) - COMPLETED: Improved prompts for higher scores
-  - ✅ Modified mutation prompts to explicitly target evaluation criteria
-  - ✅ Added "score improvement" directive to semantic operators
-  - ✅ Included evaluation criteria (impact, feasibility, etc.) in mutation/crossover context
-  - ✅ Created "breakthrough" mutation type for high-scoring ideas (fitness >= 0.8)
-  - ✅ Added revolutionary mutation types: paradigm_shift, system_integration, scale_amplification, future_forward
-  - ✅ Higher temperature (0.95) and token limits for breakthrough mutations
-  - ✅ Result: High-performing ideas get revolutionary variations while regular ideas get standard semantic mutations
-  
-- ✅ **Phase 1 Performance Optimizations** - COMPLETED: Batch LLM operations for 60-70% performance improvement. See 'Session Handover' section for implementation details.
-
-- [ ] **Directed Evolution Mode** (#4) - Add targeted evolution strategies
-  - Add "directed evolution" where mutations target specific weaknesses
-  - Implement different evolution stages: diversification → intensification → synthesis
-  - Apply special "enhancement" mutations only to elite individuals
-  - Use different temperature/creativity settings for elite vs general population
+- **[README.md](README.md)** (you are here) - Quick start, installation, and overview
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design, components, and technical architecture
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development setup, contribution guide, and testing
+- **[RESEARCH.md](RESEARCH.md)** - QADI methodology and academic background
+- **[CLAUDE.md](CLAUDE.md)** - AI assistant development patterns and learned practices
+- **[SESSION_HANDOVER.md](SESSION_HANDOVER.md)** - Development progress, learnings, and future roadmap
+- **[DEPRECATED.md](DEPRECATED.md)** - Deprecated features and migration notes
+- **[docs/](docs/)** - API reference, CLI usage, code examples, and detailed guides
 
 ## License
 
