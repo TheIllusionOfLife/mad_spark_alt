@@ -309,7 +309,7 @@ def evaluate(
         invalid_names = [name for name in evaluator_names if name not in available_evaluators]
         if invalid_names:
             console.print(f"[red]Error: Unknown evaluators: {', '.join(invalid_names)}[/red]")
-            console.print(f"[yellow]Available evaluators:[/yellow]")
+            console.print("[yellow]Available evaluators:[/yellow]")
             for name in sorted(available_evaluators.keys()):
                 console.print(f"  - {name}")
             sys.exit(1)
