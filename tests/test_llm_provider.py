@@ -320,6 +320,84 @@ class TestRateLimiting:
         limiter.token_usage = []
 
 
+class TestGoogleProviderStructuredOutput:
+    """Test Google provider structured output field names."""
+
+    @pytest.mark.asyncio
+    async def test_structured_output_uses_correct_field_name(self):
+        """Test that structured output uses responseJsonSchema, not responseSchema."""
+        provider = GoogleProvider("test_api_key")
+
+        # Create model config and attach to request
+        config = ModelConfig(
+            provider=LLMProvider.GOOGLE,
+            model_name="gemini-2.5-flash",
+            model_size=ModelSize.LARGE,
+            input_cost_per_1k=0.00015,
+            output_cost_per_1k=0.0006,
+        )
+
+        # Create request with structured output
+        request = LLMRequest(
+            user_prompt="Generate a hypothesis",
+            max_tokens=1000,
+            temperature=0.7,
+            model_configuration=config,
+            response_schema={
+                "type": "object",
+                "properties": {
+                    "hypotheses": {
+                        "type": "array",
+                        "items": {"type": "string"}
+                    }
+                }
+            },
+            response_mime_type="application/json"
+        )
+
+        # Mock the safe_aiohttp_request to capture the payload
+        captured_payload = {}
+
+        mock_response_data = {
+            "candidates": [{
+                "content": {
+                    "parts": [{"text": '{"hypotheses": ["test"]}'}]
+                },
+                "finishReason": "STOP"
+            }],
+            "usageMetadata": {
+                "promptTokenCount": 100,
+                "candidatesTokenCount": 50
+            }
+        }
+
+        async def mock_safe_request(**kwargs):
+            nonlocal captured_payload
+            if 'json' in kwargs:
+                captured_payload = kwargs['json']
+            return mock_response_data
+
+        with patch('mad_spark_alt.core.llm_provider.safe_aiohttp_request', new=mock_safe_request):
+            await provider.generate(request)
+
+        # Verify the payload structure
+        assert "generationConfig" in captured_payload, "Payload missing generationConfig"
+        gen_config = captured_payload["generationConfig"]
+
+        # The CRITICAL assertion: should use responseJsonSchema, not responseSchema
+        assert "responseJsonSchema" in gen_config, \
+            "Payload should use 'responseJsonSchema' per Gemini API specification"
+        assert "responseSchema" not in gen_config, \
+            "Payload should NOT use 'responseSchema' (incorrect field name)"
+
+        # Verify the schema was included
+        assert gen_config["responseJsonSchema"] == request.response_schema
+
+        # Verify responseMimeType is also present
+        assert "responseMimeType" in gen_config
+        assert gen_config["responseMimeType"] == "application/json"
+
+
 @pytest.mark.asyncio
 class TestIntegration:
     """Integration tests for LLM provider system."""
