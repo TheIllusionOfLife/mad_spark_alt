@@ -155,7 +155,11 @@ class CreativityEvaluator:
         Returns:
             Evaluation summary
         """
-        request = EvaluationRequest(outputs=[output], **kwargs)
+        request = EvaluationRequest(
+            outputs=[output],
+            evaluator_names=evaluator_names,
+            **kwargs
+        )
 
         return await self.evaluate(request)
 
@@ -171,11 +175,21 @@ class CreativityEvaluator:
         for layer in target_layers:
             layer_evaluators = []
 
-            for output_type in output_types:
-                compatible = registry.get_compatible_evaluators(
-                    layer=layer, output_type=output_type
-                )
-                layer_evaluators.extend(compatible)
+            # If specific evaluators are requested, use only those
+            if request.evaluator_names:
+                for name in request.evaluator_names:
+                    evaluator = registry.get_evaluator(name)
+                    if evaluator and evaluator.layer == layer:
+                        # Check if evaluator supports the output types
+                        if any(ot in evaluator.supported_output_types for ot in output_types):
+                            layer_evaluators.append(evaluator)
+            else:
+                # Otherwise, get all compatible evaluators
+                for output_type in output_types:
+                    compatible = registry.get_compatible_evaluators(
+                        layer=layer, output_type=output_type
+                    )
+                    layer_evaluators.extend(compatible)
 
             # Remove duplicates while preserving order
             seen = set()

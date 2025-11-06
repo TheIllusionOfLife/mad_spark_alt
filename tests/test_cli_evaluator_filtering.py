@@ -27,8 +27,15 @@ def cli_runner():
 @pytest.fixture
 def mock_evaluator_registry():
     """Mock evaluator registry with test evaluators."""
+    # Save original state
+    original_evaluators = registry._evaluators.copy()
+    original_instances = registry._instances.copy()
+    original_layer_index = {k: v.copy() for k, v in registry._layer_index.items()}
+    original_output_type_index = {k: v.copy() for k, v in registry._output_type_index.items()}
+
     # Clear registry before each test
     registry._evaluators.clear()
+    registry._instances.clear()
     registry._layer_index.clear()
     registry._output_type_index.clear()
 
@@ -75,10 +82,15 @@ def mock_evaluator_registry():
 
     yield registry
 
-    # Cleanup
+    # Restore original state
     registry._evaluators.clear()
+    registry._evaluators.update(original_evaluators)
+    registry._instances.clear()
+    registry._instances.update(original_instances)
     registry._layer_index.clear()
+    registry._layer_index.update(original_layer_index)
     registry._output_type_index.clear()
+    registry._output_type_index.update(original_output_type_index)
 
 
 @pytest.fixture
@@ -236,7 +248,7 @@ class TestEvaluatorSelectionLogic:
 
         # Create request with specific evaluators
         request = EvaluationRequest(
-            outputs=[ModelOutput(text="test", output_type=OutputType.TEXT)],
+            outputs=[ModelOutput(content="test", output_type=OutputType.TEXT, model_name="test")],
             target_layers=[EvaluationLayer.QUANTITATIVE],
             evaluator_names=["novelty_evaluator"],  # Only novelty
         )
@@ -263,7 +275,7 @@ class TestEvaluatorSelectionLogic:
 
         # Create request without specific evaluators
         request = EvaluationRequest(
-            outputs=[ModelOutput(text="test", output_type=OutputType.TEXT)],
+            outputs=[ModelOutput(content="test", output_type=OutputType.TEXT, model_name="test")],
             target_layers=[EvaluationLayer.QUANTITATIVE],
             evaluator_names=None,  # Use all
         )
@@ -290,7 +302,7 @@ class TestEvaluatorSelectionLogic:
 
         # Try to select LLM_JUDGE evaluator for QUANTITATIVE layer
         request = EvaluationRequest(
-            outputs=[ModelOutput(text="test", output_type=OutputType.TEXT)],
+            outputs=[ModelOutput(content="test", output_type=OutputType.TEXT, model_name="test")],
             target_layers=[EvaluationLayer.QUANTITATIVE],
             evaluator_names=["quality_evaluator"],  # LLM_JUDGE layer
         )
@@ -323,7 +335,7 @@ class TestEvaluateSingleOutputMethod:
         ) as mock_evaluate:
             evaluator = CreativityEvaluator()
 
-            output = ModelOutput(text="test", output_type=OutputType.TEXT)
+            output = ModelOutput(content="test", output_type=OutputType.TEXT, model_name="test")
             await evaluator.evaluate_single_output(
                 output, evaluator_names=["novelty_evaluator"]
             )
@@ -345,7 +357,7 @@ class TestEvaluateSingleOutputMethod:
         ) as mock_evaluate:
             evaluator = CreativityEvaluator()
 
-            output = ModelOutput(text="test", output_type=OutputType.TEXT)
+            output = ModelOutput(content="test", output_type=OutputType.TEXT, model_name="test")
             await evaluator.evaluate_single_output(output)
 
             # Verify evaluate was called with request without evaluator_names

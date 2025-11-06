@@ -74,6 +74,7 @@ class EvaluationRequest:
     outputs: List[ModelOutput]
     evaluation_config: Dict[str, Any] = field(default_factory=dict)
     target_layers: List[EvaluationLayer] = field(default_factory=list)
+    evaluator_names: Optional[List[str]] = None
     task_context: Optional[str] = None
 
 

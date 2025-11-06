@@ -72,6 +72,24 @@ This project provides two distinct command-line interfaces:
 
 **Note**: Most users should use `mad_spark_alt` for QADI analysis. The `mad-spark` CLI is for advanced evaluation workflows.
 
+#### Evaluator Filtering
+
+The `mad-spark evaluate` command supports filtering which evaluators to run:
+
+```bash
+# List available evaluators
+uv run mad-spark list-evaluators
+
+# Use a specific evaluator
+uv run mad-spark evaluate "text" --evaluators diversity_evaluator
+
+# Use multiple evaluators
+uv run mad-spark evaluate "text" --evaluators diversity_evaluator,quality_evaluator
+
+# Use all evaluators (default)
+uv run mad-spark evaluate "text"
+```
+
 ## How QADI Works
 
 1. **Q**: Extract core question
