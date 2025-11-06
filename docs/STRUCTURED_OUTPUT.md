@@ -4,7 +4,7 @@ This document describes how the Mad Spark Alt system uses Gemini's structured ou
 
 ## Overview
 
-The system uses Gemini's `responseSchema` and `responseMimeType` parameters to ensure LLM responses follow a specific JSON structure. This eliminates the need for complex regex parsing and provides consistent, reliable data extraction.
+The system uses Gemini's `responseJsonSchema` and `responseMimeType` parameters to ensure LLM responses follow a specific JSON structure. This eliminates the need for complex regex parsing and provides consistent, reliable data extraction.
 
 ## Implementation Details
 
@@ -24,7 +24,7 @@ The GoogleProvider automatically includes these in the generation config when pr
 ```python
 if request.response_schema and request.response_mime_type:
     generation_config["responseMimeType"] = request.response_mime_type
-    generation_config["responseSchema"] = request.response_schema
+    generation_config["responseJsonSchema"] = request.response_schema
 ```
 
 ### Schema Definitions
