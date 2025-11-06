@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-> **NOTE**: This file contains AI assistant instructions and learned development patterns.
+> **NOTE**: This file contains AI assistant instructions and serves as a project-specific style guide for learned development patterns.
 >
 > **For project documentation:**
 > - Quick start & overview: [README.md](README.md)

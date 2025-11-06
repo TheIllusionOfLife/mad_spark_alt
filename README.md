@@ -269,6 +269,7 @@ This implementation significantly reduces "Failed to extract enough hypotheses" 
 - **[RESEARCH.md](RESEARCH.md)** - QADI methodology and academic background
 - **[CLAUDE.md](CLAUDE.md)** - AI assistant development patterns and learned practices
 - **[SESSION_HANDOVER.md](SESSION_HANDOVER.md)** - Development progress, learnings, and future roadmap
+- **[DEPRECATED.md](DEPRECATED.md)** - Deprecated features and migration notes
 - **[docs/](docs/)** - API reference, CLI usage, code examples, and detailed guides
 
 ## License
