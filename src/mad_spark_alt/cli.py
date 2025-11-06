@@ -201,7 +201,7 @@ def main(verbose: bool) -> None:
 
 @main.command()
 def list_evaluators() -> None:
-    """List all registered evaluators."""
+    """List all registered evaluators with usage examples."""
     evaluators = registry.list_evaluators()
 
     if not evaluators:
@@ -217,6 +217,13 @@ def list_evaluators() -> None:
         table.add_row(name, info["layer"], ", ".join(info["supported_output_types"]))
 
     console.print(table)
+    console.print("\n[bold]Usage Examples:[/bold]")
+    console.print("  # Use a single evaluator:")
+    console.print("  mad-spark evaluate 'text' --evaluators diversity_evaluator")
+    console.print("\n  # Use multiple evaluators:")
+    console.print("  mad-spark evaluate 'text' --evaluators diversity_evaluator,quality_evaluator")
+    console.print("\n  # Use all evaluators (default):")
+    console.print("  mad-spark evaluate 'text'")
 
 
 @main.command()
@@ -230,7 +237,11 @@ def list_evaluators() -> None:
     default="text",
     help="Output type",
 )
-@click.option("--evaluators", "-e", help="Comma-separated list of evaluators to use")
+@click.option(
+    "--evaluators",
+    "-e",
+    help="Comma-separated list of evaluators to use (e.g., 'diversity_evaluator,quality_evaluator'). Use 'mad-spark list-evaluators' to see available options.",
+)
 @click.option(
     "--layers",
     "-l",
@@ -289,6 +300,20 @@ def evaluate(
                 console.print(f"[red]Error: Invalid layer '{layer_name}'[/red]")
                 sys.exit(1)
 
+    # Parse and validate evaluator names
+    evaluator_names = None
+    if evaluators:
+        evaluator_names = [e.strip() for e in evaluators.split(",")]
+        # Validate evaluator names
+        available_evaluators = registry.list_evaluators()
+        invalid_names = [name for name in evaluator_names if name not in available_evaluators]
+        if invalid_names:
+            console.print(f"[red]Error: Unknown evaluators: {', '.join(invalid_names)}[/red]")
+            console.print("[yellow]Available evaluators:[/yellow]")
+            for name in sorted(available_evaluators.keys()):
+                console.print(f"  - {name}")
+            sys.exit(1)
+
     # Create model output
     model_output = ModelOutput(
         content=input_text,
@@ -300,6 +325,7 @@ def evaluate(
     request = EvaluationRequest(
         outputs=[model_output],
         target_layers=target_layers,
+        evaluator_names=evaluator_names,
     )
 
     # Run evaluation
