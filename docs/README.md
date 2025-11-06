@@ -51,17 +51,17 @@ This documentation is organized into focused guides for different audiences and 
 
 ## 🚀 Quick Start Links
 
-- **Try QADI**: `uv run python qadi_simple_multi.py "Your question"`
-- **View all CLI options**: `uv run python qadi_simple_multi.py --help`
+- **Try QADI**: `uv run mad-spark qadi "Your question"`
+- **View all CLI options**: `uv run mad-spark --help`
 - **Run evolution**: `uv run mad-spark evolve "Your problem"`
 - **See examples**: [examples.md](examples.md)
 
 ## 🧭 Feature-Specific Documentation
 
-### Dynamic Prompt Engineering
-- **Technical details**: [qadi_api.md#dynamic-prompt-engineering](qadi_api.md#dynamic-prompt-engineering)
-- **Usage examples**: [examples.md#dynamic-prompt-engineering-examples](examples.md#dynamic-prompt-engineering-examples)
-- **CLI usage**: [cli_usage.md#question-types-and-usage](cli_usage.md#question-types-and-usage)
+### QADI System
+- **Technical details**: [qadi_api.md](qadi_api.md)
+- **Usage examples**: [examples.md](examples.md)
+- **CLI usage**: [cli_usage.md](cli_usage.md)
 
 ### Genetic Evolution
 - **API reference**: [qadi_api.md](qadi_api.md) (evolution section)

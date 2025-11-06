@@ -1,15 +1,84 @@
 # Deprecated Components
 
-This document tracks deprecated components that are retained for backward compatibility but should not be used in new code.
+This document tracks deprecated and removed components, providing migration paths for users.
+
+## Recently Removed (v2.0.0)
+
+### Prompt Classification & Adaptive Prompts (Removed: 2025-11-06)
+
+**Removed Modules:**
+- `mad_spark_alt.core.prompt_classifier` (749 lines)
+- `mad_spark_alt.core.adaptive_prompts` (504 lines)
+
+**Removed Script:**
+- `qadi_simple_multi.py` (568 lines)
+
+**Reason for Removal:**
+These modules were made obsolete by SimpleQADIOrchestrator, which automatically
+handles question type detection and prompt adaptation with superior accuracy.
+
+**Migration Path:**
+
+#### Before (Deprecated):
+```python
+from mad_spark_alt.core import classify_question, get_adaptive_prompt
+
+# Manual classification
+result = classify_question("How can we reduce costs?")
+prompt = get_adaptive_prompt(result.question_type, "How can we reduce costs?")
+
+# Use in custom orchestration...
+```
+
+#### After (Recommended):
+```python
+import asyncio
+import os
+from mad_spark_alt.core import SimpleQADIOrchestrator, setup_llm_providers
+
+async def run_qadi():
+    # 1. Setup LLM provider (requires API key)
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    if not google_api_key:
+        raise ValueError("GOOGLE_API_KEY environment variable not set")
+
+    await setup_llm_providers(google_api_key=google_api_key)
+
+    # 2. Create orchestrator (uses global llm_manager)
+    orchestrator = SimpleQADIOrchestrator(num_hypotheses=3)
+
+    # 3. Run QADI cycle
+    result = await orchestrator.run_qadi_cycle("How can we reduce costs?")
+    print(result.hypotheses)
+
+# Run the async function
+asyncio.run(run_qadi())
+```
+
+**Why This Is Better:**
+- ✅ No manual question type detection needed
+- ✅ Automatically adapts prompts based on context
+- ✅ Handles scoring and synthesis in one call
+- ✅ Production-tested and actively maintained
+- ✅ Better accuracy than manual classification
+
+**CLI Alternative:**
+```bash
+# Instead of: python qadi_simple_multi.py "question" --type=business
+# Use: uv run mad-spark qadi "question"
+
+uv run mad-spark qadi "How can we reduce costs?"
+```
+
+---
 
 ## Files Retained for Backward Compatibility
 
 ### prompt_classifier.py & adaptive_prompts.py
-- **Status**: Deprecated as of PR #40
-- **Reason**: Replaced by the universal QADI prompts in `qadi_prompts.py`
-- **Migration Path**: Use `SimpleQADIOrchestrator` which provides universal prompts without classification
-- **Retention Reason**: Kept to avoid breaking existing code that imports these modules
-- **Future**: Will be removed in v2.0.0
+- **Status**: ~~Deprecated as of PR #40~~ **REMOVED** as of 2025-11-06
+- **Reason**: Replaced by the universal QADI prompts in `SimpleQADIOrchestrator`
+- **Migration Path**: See "Recently Removed" section above
+- **Future**: ~~Will be removed in v2.0.0~~ **COMPLETED**
 
 ### Old Orchestrators
 The following orchestrators are superseded by `SimpleQADIOrchestrator`:
@@ -34,17 +103,17 @@ The following orchestrators are superseded by `SimpleQADIOrchestrator`:
 
 ## Import Changes
 
-### Old Import Pattern
+### Old Import Pattern (No longer works)
 ```python
 from mad_spark_alt.core import QADIOrchestrator, SmartQADIOrchestrator
-from mad_spark_alt.core.prompt_classifier import classify_question
-from mad_spark_alt.core.adaptive_prompts import get_adaptive_prompt
+from mad_spark_alt.core.prompt_classifier import classify_question  # ❌ REMOVED
+from mad_spark_alt.core.adaptive_prompts import get_adaptive_prompt  # ❌ REMOVED
 ```
 
 ### New Import Pattern
 ```python
-from mad_spark_alt.core import SimpleQADIOrchestrator, SimpleQADIResult
-from mad_spark_alt.core import UnifiedEvaluator, HypothesisEvaluation
+from mad_spark_alt.core import SimpleQADIOrchestrator, setup_llm_providers
+# prompt_classifier and adaptive_prompts modules have been removed
 ```
 
 ## Example Migration

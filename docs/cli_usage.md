@@ -240,58 +240,56 @@ mad-spark diversity-analysis file1.txt file2.txt file3.txt --metric all
 
 ## QADI System Commands
 
-### QADI Multi-Agent Analysis (Recommended)
+### QADI Analysis (Recommended)
 
-The primary QADI interface uses `qadi_simple_multi.py` with automatic question type detection:
+Use the CLI for QADI multi-agent analysis:
 
 ```bash
-# Basic QADI with auto question type detection
-uv run python qadi_simple_multi.py "How can we improve urban sustainability?"
+# Basic QADI analysis
+uv run mad-spark qadi "How can we improve urban sustainability?"
 
 # View help and all options
-uv run python qadi_simple_multi.py --help
+uv run mad-spark qadi --help
 
-# Manual question type override for specific perspective
-uv run python qadi_simple_multi.py --type=business "How to monetize renewable energy"
-uv run python qadi_simple_multi.py --type=technical "Build a microservices architecture"
-uv run python qadi_simple_multi.py --type=creative "Design an interactive art installation"
-
-# Concrete mode for implementation-focused results
-uv run python qadi_simple_multi.py --concrete "Build a mobile game"
-uv run python qadi_simple_multi.py --concrete --type=business "Launch a SaaS startup"
-
-# Combined options for maximum control
-uv run python qadi_simple_multi.py --type=technical --concrete "Build REST API"
+# View all CLI options
+uv run mad-spark --help
 ```
 
-### Question Types and Usage
+### Using the Python API
 
-The system automatically detects these question types:
+For programmatic access, use `SimpleQADIOrchestrator`:
 
-- **Technical**: Software, architecture, implementation, coding
-- **Business**: Strategy, growth, revenue, market, operations  
-- **Creative**: Design, innovation, artistic, brainstorming
-- **Research**: Analysis, investigation, academic, data
-- **Planning**: Organization, project management, timelines
-- **Personal**: Individual growth, skills, career development
+```python
+import asyncio
+import os
+from mad_spark_alt.core import SimpleQADIOrchestrator, setup_llm_providers
 
-```bash
-# Examples for each question type
-uv run python qadi_simple_multi.py "How to implement OAuth authentication?"        # → Technical
-uv run python qadi_simple_multi.py "How can startups compete with big tech?"       # → Business  
-uv run python qadi_simple_multi.py "Design a logo for sustainable fashion"         # → Creative
-uv run python qadi_simple_multi.py "What factors influence remote work success?"   # → Research
-uv run python qadi_simple_multi.py "How to plan a product roadmap?"               # → Planning
-uv run python qadi_simple_multi.py "How can I improve my productivity?"           # → Personal
+async def run_qadi():
+    # 1. Setup LLM provider (requires API key)
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    if not google_api_key:
+        raise ValueError("GOOGLE_API_KEY environment variable not set")
+
+    await setup_llm_providers(google_api_key=google_api_key)
+
+    # 2. Create orchestrator (uses global llm_manager)
+    orchestrator = SimpleQADIOrchestrator(num_hypotheses=3)
+
+    # 3. Run QADI cycle
+    result = await orchestrator.run_qadi_cycle("Your question here")
+    print(result.hypotheses)
+
+# Run the async function
+asyncio.run(run_qadi())
 ```
 
-### Legacy QADI Commands (Older Interface)
+### Legacy Scripts (Deprecated)
 
 ```bash
 # Quick single-prompt QADI
 uv run python qadi.py "Your question here"
 
-# Interactive QADI demonstration  
+# Interactive QADI demonstration
 uv run python examples/qadi_demo.py
 
 # Basic usage examples
