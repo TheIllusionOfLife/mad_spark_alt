@@ -31,4 +31,4 @@ See `DEPRECATED.md` for detailed migration instructions from:
 
 ## [Previous Releases]
 
-For release history prior to this changelog, see git commit history.
+For release history before this changelog, see git commit history.

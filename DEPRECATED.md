@@ -32,18 +32,27 @@ prompt = get_adaptive_prompt(result.question_type, "How can we reduce costs?")
 
 #### After (Recommended):
 ```python
+import asyncio
+import os
 from mad_spark_alt.core import SimpleQADIOrchestrator, setup_llm_providers
 
-# SimpleQADI handles everything automatically
-llm_manager = setup_llm_providers()
-orchestrator = SimpleQADIOrchestrator(
-    llm_manager=llm_manager,
-    model_config=None,  # Uses default
-    num_hypotheses=3
-)
+async def run_qadi():
+    # 1. Setup LLM provider (requires API key)
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    if not google_api_key:
+        raise ValueError("GOOGLE_API_KEY environment variable not set")
 
-result = await orchestrator.run_qadi_cycle("How can we reduce costs?")
-print(result.hypotheses)
+    await setup_llm_providers(google_api_key=google_api_key)
+
+    # 2. Create orchestrator (uses global llm_manager)
+    orchestrator = SimpleQADIOrchestrator(num_hypotheses=3)
+
+    # 3. Run QADI cycle
+    result = await orchestrator.run_qadi_cycle("How can we reduce costs?")
+    print(result.hypotheses)
+
+# Run the async function
+asyncio.run(run_qadi())
 ```
 
 **Why This Is Better:**
