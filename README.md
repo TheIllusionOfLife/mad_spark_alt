@@ -351,6 +351,12 @@ This implementation significantly reduces "Failed to extract enough hypotheses" 
    - **Depends on**: Steps 11-12 complete
    - **Estimate**: 2 days
 
+4. **[Phase 3] Deprecate Old Orchestrators (Step 14)**
+   - **Source**: refactoring_plan_20251106.md
+   - **Context**: Add deprecation warnings to orchestrators replaced by Unified Orchestrator
+   - **Depends on**: Step 11 complete
+   - **Estimate**: 1 day
+
 #### Known Issues / Blockers
 - None - Phase 2 complete, ready for Phase 3
 
