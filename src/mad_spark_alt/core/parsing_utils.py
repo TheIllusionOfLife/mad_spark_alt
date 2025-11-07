@@ -17,7 +17,7 @@ Each parser class provides three methods:
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import re
 import logging
 import json
@@ -506,10 +506,10 @@ class ScoreParser:
 
         # First, try to find a section that contains both the hypothesis marker AND score criteria
         # This helps distinguish between hypothesis generation and evaluation sections
-        all_sections = []
-        section_lines = []
+        all_sections: List[Tuple[int, List[str]]] = []
+        section_lines: List[str] = []
         in_section = False
-        current_hypothesis_num = None
+        current_hypothesis_num: Optional[int] = None
 
         for line in lines:
             line = line.strip()
@@ -525,7 +525,7 @@ class ScoreParser:
 
             if hypothesis_match:
                 # Save previous section if we have one
-                if in_section and section_lines:
+                if in_section and section_lines and current_hypothesis_num is not None:
                     all_sections.append((current_hypothesis_num, section_lines.copy()))
 
                 # Start new section
@@ -544,14 +544,14 @@ class ScoreParser:
                 )
                 if next_match:
                     next_num = int(next_match.group(1))
-                    if next_num != current_hypothesis_num:
+                    if next_num != current_hypothesis_num and current_hypothesis_num is not None:
                         # Save current section and start next
                         all_sections.append((current_hypothesis_num, section_lines.copy()))
                         current_hypothesis_num = next_num
                         section_lines = [next_match.group(2).strip()]
                         continue
 
-                if line.startswith(("ANSWER:", "Action Plan:")):
+                if line.startswith(("ANSWER:", "Action Plan:")) and current_hypothesis_num is not None:
                     # Save current section and stop
                     all_sections.append((current_hypothesis_num, section_lines.copy()))
                     break
@@ -559,7 +559,7 @@ class ScoreParser:
                 section_lines.append(line)
 
         # Don't forget the last section
-        if in_section and section_lines:
+        if in_section and section_lines and current_hypothesis_num is not None:
             all_sections.append((current_hypothesis_num, section_lines.copy()))
 
         # Now find the section for our hypothesis_num that has score criteria
