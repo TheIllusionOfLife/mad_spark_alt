@@ -290,6 +290,105 @@ This implementation significantly reduces "Failed to extract enough hypotheses" 
 - **[DEPRECATED.md](DEPRECATED.md)** - Deprecated features and migration notes
 - **[docs/](docs/)** - API reference, CLI usage, code examples, and detailed guides
 
+## Session Handover
+
+### Last Updated: November 07, 2025 09:22 PM JST
+
+#### Recently Completed
+- ✅ **[PR #112]**: BaseOrchestrator infrastructure implementation (Step 7)
+  - Created abstract base class with circuit breaker pattern
+  - Added shared orchestration logic (context building, error handling)
+  - 468 lines, 49 comprehensive tests passing
+  - Provides foundation for unified orchestrator architecture
+
+- ✅ **[PR #111]**: Phase logic extraction (Step 6)
+  - Extracted all 4 QADI phases to standalone module (791 lines)
+  - Reduced SimpleQADI from 1,003 → 221 lines
+  - Added comprehensive phase-level tests
+  - Clear separation of orchestration from phase logic
+
+- ✅ **[PR #110]**: Parsing utilities consolidation (Step 5)
+  - Created unified parsing_utils.py (843 lines)
+  - HypothesisParser, ScoreParser, ActionPlanParser classes
+  - Reduced SimpleQADI from 1,296 → 1,003 lines
+  - Eliminated 622+ lines of duplicate parsing code
+
+- ✅ **[PR #105-107]**: Phase 1 quick wins complete
+  - Removed 1,251 lines of deprecated code
+  - Fixed CLI --evaluators flag
+  - Verified/fixed Gemini structured output (responseJsonSchema)
+
+#### Refactoring Plan Progress (57% Complete)
+**Reference**: See `refactoring_plan_20251106.md` for detailed plan
+
+**Phase 1**: ✅ **100% Complete** (4/4 items)
+- All quick wins implemented and merged
+
+**Phase 2**: ⚠️ **67% Complete** (4/6 items)
+- ✅ Items 5-8: Parsing utils, phase logic, base orchestrator, SimpleQADI refactored
+- ❌ Item 9: MultiPerspective still needs refactoring (507 → ~200 lines target)
+- ❌ Item 10: Legacy orchestrators still present (723 lines to remove)
+
+**Phase 3**: ❌ **Not Started** (0/4 items)
+- Items 11-14: Unified orchestrator, config system, semantic operators split, deprecations
+
+#### Next Priority Tasks
+
+1. **[NEXT] Refactor MultiPerspectiveOrchestrator (Step 9)**
+   - **Source**: refactoring_plan_20251106.md lines 750-819
+   - **Context**: Currently 507 lines, duplicates entire QADI cycle instead of delegating to SimpleQADI
+   - **Approach**:
+     - Import SimpleQADIOrchestrator class (not just data classes)
+     - Replace `_run_perspective_analysis()` to instantiate and call SimpleQADI
+     - Remove ~300 lines of duplicate phase execution methods
+     - Keep only perspective-specific code (synthesis, relevance scoring)
+   - **Target**: ~200 lines (60% reduction)
+   - **Estimate**: 1 day
+   - **Blocker**: None, ready to implement
+
+2. **[QUICK WIN] Remove Legacy Orchestrators (Step 10)**
+   - **Source**: refactoring_plan_20251106.md lines 822-849
+   - **Context**: 3 deprecated orchestrator files still present (723 lines total)
+   - **Files**: enhanced_orchestrator.py (201), robust_orchestrator.py (305), fast_orchestrator.py (217)
+   - **Approach**:
+     1. Update examples/user_test.py to use SmartQADIOrchestrator instead of FastQADIOrchestrator
+     2. Delete 3 orchestrator files
+     3. Remove exports from core/__init__.py
+     4. Run all tests to verify no breakage
+   - **Estimate**: 2 hours
+   - **Blocker**: Must update examples/user_test.py first
+
+3. **[Phase 3] Create Unified Orchestrator (Step 11)**
+   - **Source**: refactoring_plan_20251106.md lines 854-919
+   - **Context**: Single orchestrator with config-based behavior selection
+   - **Depends on**: Steps 9-10 complete
+   - **Estimate**: 3 days
+
+#### Known Issues / Blockers
+- **MultiPerspective**: Lines 151-225 contain duplicate QADI logic - needs SimpleQADI delegation
+- **FastQADIOrchestrator**: Still used in examples/user_test.py:184 - blocks deletion of legacy orchestrators
+- **Phase 3 Dependency**: Items 11-14 should wait until Phase 2 (items 9-10) are complete
+
+#### Session Learnings
+
+**Investigation Discovery (2025-11-07)**:
+- Refactoring plan document (created 2025-11-06) described Step 8 as "TODO" with SimpleQADI at 1,296 lines
+- Investigation revealed Step 8 was already complete via PRs #110-111 merged on 2025-11-07
+- SimpleQADI now at 221 lines (83% reduction, exceeded ~400 line target!)
+- Phase logic, parsing utils, and base orchestrator all exist and are well-tested
+- **Lesson**: Always verify current codebase state before planning - work may already be done
+
+**Architecture Insights**:
+- Phase extraction pattern successful: orchestration separated from phase logic
+- BaseOrchestrator provides reusable infrastructure (circuit breaker, context building)
+- Parsing utilities eliminate duplication across orchestrators
+- Integration tests validate phase-to-phase data flow independently
+
+**Remaining Refactoring Strategy**:
+- Step 9 (MultiPerspective): Low risk, clear delegation pattern to follow
+- Step 10 (Legacy removal): Very low risk, just cleanup work
+- Phase 3: Higher complexity, should follow established patterns from Phase 2
+
 ## License
 
 MIT
