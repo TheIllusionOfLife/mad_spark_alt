@@ -349,13 +349,7 @@ class MultiPerspectiveQADIOrchestrator:
         parsed_scores = ScoreParser.parse_with_fallback(text, hypothesis_num=hypothesis_num)
 
         # Calculate overall score using QADI formula
-        scores_dict = {
-            "impact": parsed_scores.impact,
-            "feasibility": parsed_scores.feasibility,
-            "accessibility": parsed_scores.accessibility,
-            "sustainability": parsed_scores.sustainability,
-            "scalability": parsed_scores.scalability,
-        }
+        scores_dict = parsed_scores.to_dict()
         overall = calculate_hypothesis_score(scores_dict)
 
         return HypothesisScore(

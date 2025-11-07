@@ -186,13 +186,7 @@ Scalability: [score] - [one line explanation]
         parsed_scores = ScoreParser.parse_with_fallback(response)
 
         # Convert ParsedScores to dict format
-        scores = {
-            "impact": parsed_scores.impact,
-            "feasibility": parsed_scores.feasibility,
-            "accessibility": parsed_scores.accessibility,
-            "sustainability": parsed_scores.sustainability,
-            "scalability": parsed_scores.scalability,
-        }
+        scores = parsed_scores.to_dict()
 
         # Extract explanations from the response text
         explanations = {}
@@ -207,7 +201,8 @@ Scalability: [score] - [one line explanation]
             # Check each criterion for explanations
             for criterion in criteria:
                 # Match "Criterion: score - explanation" format (case insensitive)
-                pattern = rf"^{criterion}:\s*[-]?[0-9.]+\s*[-]\s*(.+)$"
+                # Support optional bullet (*), fractions (8/10), decimals, and various dash types
+                pattern = rf"^\*?\s*{criterion}:\s*[-+]?(?:\d+(?:\.\d+)?|\d+/\d+)\s*[-–—]\s*(.+)$"
                 match = re.match(pattern, line, re.IGNORECASE)
 
                 if match:

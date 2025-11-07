@@ -336,6 +336,34 @@ class ScoreParser:
     """Parse evaluation scores from LLM responses."""
 
     @staticmethod
+    def _normalize_score(value: Any, default: float = 0.5) -> float:
+        """
+        Normalize score to 0-1 range, handling various scales.
+
+        Args:
+            value: Score value (could be float, int, string)
+            default: Default value if conversion fails
+
+        Returns:
+            Normalized score between 0.0 and 1.0
+        """
+        try:
+            score = float(value)
+            # If score > 1, assume it's on 0-10 or 0-100 scale
+            if score > 1.0:
+                if score <= 10.0:
+                    score = score / 10.0
+                elif score <= 100.0:
+                    score = score / 100.0
+                else:
+                    # Score is way out of range, clamp to 1.0
+                    score = 1.0
+            # Ensure final score is in [0, 1] range
+            return max(0.0, min(1.0, score))
+        except (ValueError, TypeError):
+            return default
+
+    @staticmethod
     def parse_structured_scores(response_content: str) -> Optional[ParsedScores]:
         """
         Parse structured JSON score response.
@@ -372,11 +400,11 @@ class ScoreParser:
             if "scores" in data and isinstance(data["scores"], dict):
                 scores_dict = data["scores"]
                 return ParsedScores(
-                    impact=float(scores_dict.get("impact", 0.5)),
-                    feasibility=float(scores_dict.get("feasibility", 0.5)),
-                    accessibility=float(scores_dict.get("accessibility", 0.5)),
-                    sustainability=float(scores_dict.get("sustainability", 0.5)),
-                    scalability=float(scores_dict.get("scalability", 0.5)),
+                    impact=ScoreParser._normalize_score(scores_dict.get("impact", 0.5)),
+                    feasibility=ScoreParser._normalize_score(scores_dict.get("feasibility", 0.5)),
+                    accessibility=ScoreParser._normalize_score(scores_dict.get("accessibility", 0.5)),
+                    sustainability=ScoreParser._normalize_score(scores_dict.get("sustainability", 0.5)),
+                    scalability=ScoreParser._normalize_score(scores_dict.get("scalability", 0.5)),
                 )
 
             # Check for nested scores in evaluations array
@@ -386,11 +414,11 @@ class ScoreParser:
                     if isinstance(first_eval, dict) and "scores" in first_eval:
                         scores_dict = first_eval["scores"]
                         return ParsedScores(
-                            impact=float(scores_dict.get("impact", 0.5)),
-                            feasibility=float(scores_dict.get("feasibility", 0.5)),
-                            accessibility=float(scores_dict.get("accessibility", 0.5)),
-                            sustainability=float(scores_dict.get("sustainability", 0.5)),
-                            scalability=float(scores_dict.get("scalability", 0.5)),
+                            impact=ScoreParser._normalize_score(scores_dict.get("impact", 0.5)),
+                            feasibility=ScoreParser._normalize_score(scores_dict.get("feasibility", 0.5)),
+                            accessibility=ScoreParser._normalize_score(scores_dict.get("accessibility", 0.5)),
+                            sustainability=ScoreParser._normalize_score(scores_dict.get("sustainability", 0.5)),
+                            scalability=ScoreParser._normalize_score(scores_dict.get("scalability", 0.5)),
                         )
 
         except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
@@ -408,11 +436,11 @@ class ScoreParser:
                 if "scores" in data and isinstance(data["scores"], dict):
                     scores_dict = data["scores"]
                     return ParsedScores(
-                        impact=float(scores_dict.get("impact", 0.5)),
-                        feasibility=float(scores_dict.get("feasibility", 0.5)),
-                        accessibility=float(scores_dict.get("accessibility", 0.5)),
-                        sustainability=float(scores_dict.get("sustainability", 0.5)),
-                        scalability=float(scores_dict.get("scalability", 0.5)),
+                        impact=ScoreParser._normalize_score(scores_dict.get("impact", 0.5)),
+                        feasibility=ScoreParser._normalize_score(scores_dict.get("feasibility", 0.5)),
+                        accessibility=ScoreParser._normalize_score(scores_dict.get("accessibility", 0.5)),
+                        sustainability=ScoreParser._normalize_score(scores_dict.get("sustainability", 0.5)),
+                        scalability=ScoreParser._normalize_score(scores_dict.get("scalability", 0.5)),
                     )
 
                 # Check for nested scores in evaluations array
@@ -422,11 +450,11 @@ class ScoreParser:
                         if isinstance(first_eval, dict) and "scores" in first_eval:
                             scores_dict = first_eval["scores"]
                             return ParsedScores(
-                                impact=float(scores_dict.get("impact", 0.5)),
-                                feasibility=float(scores_dict.get("feasibility", 0.5)),
-                                accessibility=float(scores_dict.get("accessibility", 0.5)),
-                                sustainability=float(scores_dict.get("sustainability", 0.5)),
-                                scalability=float(scores_dict.get("scalability", 0.5)),
+                                impact=ScoreParser._normalize_score(scores_dict.get("impact", 0.5)),
+                                feasibility=ScoreParser._normalize_score(scores_dict.get("feasibility", 0.5)),
+                                accessibility=ScoreParser._normalize_score(scores_dict.get("accessibility", 0.5)),
+                                sustainability=ScoreParser._normalize_score(scores_dict.get("sustainability", 0.5)),
+                                scalability=ScoreParser._normalize_score(scores_dict.get("scalability", 0.5)),
                             )
             except Exception as e2:
                 logger.debug("extract_and_parse_json also failed for scores: %s", e2)
@@ -767,7 +795,7 @@ class ActionPlanParser:
         items = [
             item.strip()
             for item in plan_items
-            if item.strip() and len(item.strip()) > 1  # Filter out single character items
+            if item.strip() and len(item.strip()) >= MIN_ACTION_ITEM_LENGTH
         ]
 
         # If no items found with bullets/numbers, try splitting by newlines
