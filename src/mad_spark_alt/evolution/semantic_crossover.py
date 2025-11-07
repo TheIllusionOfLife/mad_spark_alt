@@ -19,6 +19,7 @@ from .operator_cache import SemanticOperatorCache
 from .semantic_utils import (
     SEMANTIC_CROSSOVER_MAX_TOKENS,
     SEMANTIC_BATCH_MUTATION_MAX_TOKENS,
+    generate_crossover_fallback_text,
     get_crossover_schema,
     is_likely_truncated,
     _prepare_operator_contexts,
@@ -269,16 +270,7 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
         Returns:
             Fallback text for offspring
         """
-        if parent1 and parent2:
-            if is_first:
-                return f"[FALLBACK TEXT] Hybrid approach combining elements from both parent ideas: This solution integrates key aspects from '{parent1.content[:50]}...' and '{parent2.content[:50]}...'. The approach combines the structural framework of the first concept with the innovative mechanisms of the second, creating a comprehensive solution that addresses the same core problem through multiple complementary strategies. Implementation would involve adapting the proven methodologies from both approaches while ensuring seamless integration and enhanced effectiveness."
-            else:
-                return f"[FALLBACK TEXT] Alternative integration emphasizing synergy: This variation explores a different combination pattern by merging the core principles from '{parent1.content[:50]}...' with the practical implementation strategies from '{parent2.content[:50]}...'. The resulting solution maintains the strengths of both parent approaches while introducing novel elements that emerge from their interaction. This alternative demonstrates how the same foundational concepts can yield distinctly different yet equally valuable outcomes through strategic recombination."
-        else:
-            if is_first:
-                return "[FALLBACK TEXT] Integrated solution combining complementary strengths: This approach synthesizes the core methodologies from both parent concepts, creating a hybrid solution that leverages their respective advantages. By merging the foundational elements with enhanced scalability features, this combination addresses limitations present in either approach alone. The integration focuses on creating synergy between different implementation strategies while maintaining practical feasibility."
-            else:
-                return "[FALLBACK TEXT] Alternative fusion emphasizing innovation: This variation explores a different integration pattern by prioritizing the innovative aspects of one approach while using the structural framework of the other. The result is a solution that pushes boundaries while remaining grounded in proven methodologies. This alternative path demonstrates how the same parent concepts can yield distinctly different yet equally valuable outcomes through creative recombination."
+        return generate_crossover_fallback_text(parent1, parent2, is_first)
 
     def _create_offspring(
         self,
@@ -612,10 +604,9 @@ Return the results as JSON with a "crossovers" array containing objects with:
         is_first: bool
     ) -> str:
         """Generate fallback text for batch crossover offspring."""
-        if is_first:
-            return f"[FALLBACK TEXT] Hybrid approach combining elements from both parent ideas: This solution integrates key aspects from '{parent1.content[:50]}...' and '{parent2.content[:50]}...'. The approach combines the structural framework of the first concept with the innovative mechanisms of the second, creating a comprehensive solution that addresses the same core problem through multiple complementary strategies. Implementation would involve adapting the proven methodologies from both approaches while ensuring seamless integration and enhanced effectiveness. The hybrid nature allows for greater flexibility and robustness in addressing various scenarios."
-        else:
-            return f"[FALLBACK TEXT] Alternative integration emphasizing synergy: This variation explores a different combination pattern by merging the core principles from '{parent1.content[:50]}...' with the practical implementation strategies from '{parent2.content[:50]}...'. The resulting solution maintains the strengths of both parent approaches while introducing novel elements that emerge from their interaction. This alternative demonstrates how the same foundational concepts can yield distinctly different yet equally valuable outcomes through strategic recombination. The focus is on creating emergent properties that neither parent could achieve alone."
+        # Use shared utility with extra detail for batch variant
+        extra_detail = " The hybrid nature allows for greater flexibility and robustness in addressing various scenarios." if is_first else " The focus is on creating emergent properties that neither parent could achieve alone."
+        return generate_crossover_fallback_text(parent1, parent2, is_first, extra_detail)
 
     def _create_offspring(
         self,

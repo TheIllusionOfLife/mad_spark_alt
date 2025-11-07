@@ -201,3 +201,47 @@ def get_crossover_schema() -> Dict[str, Any]:
         },
         "required": ["offspring_1", "offspring_2"]
     }
+
+
+def generate_crossover_fallback_text(
+    parent1: Optional[Any],
+    parent2: Optional[Any],
+    is_first: bool,
+    extra_detail: str = ""
+) -> str:
+    """
+    Generate fallback text for crossover offspring (DRY utility).
+
+    Args:
+        parent1: First parent idea (GeneratedIdea or None)
+        parent2: Second parent idea (GeneratedIdea or None)
+        is_first: Whether this is the first offspring
+        extra_detail: Additional detail for batch variants
+
+    Returns:
+        Fallback text for offspring
+    """
+    # Extract content snippets if parents exist
+    p1_snippet = parent1.content[:50] if parent1 and hasattr(parent1, 'content') else "parent concept"
+    p2_snippet = parent2.content[:50] if parent2 and hasattr(parent2, 'content') else "complementary approach"
+
+    if is_first:
+        return (
+            f"[FALLBACK TEXT] Hybrid approach combining elements from both parent ideas: "
+            f"This solution integrates key aspects from '{p1_snippet}...' and '{p2_snippet}...'. "
+            f"The approach combines the structural framework of the first concept with the innovative "
+            f"mechanisms of the second, creating a comprehensive solution that addresses the same core "
+            f"problem through multiple complementary strategies. Implementation would involve adapting the "
+            f"proven methodologies from both approaches while ensuring seamless integration and enhanced "
+            f"effectiveness.{extra_detail}"
+        )
+    else:
+        return (
+            f"[FALLBACK TEXT] Alternative integration emphasizing synergy: This variation explores a "
+            f"different combination pattern by merging the core principles from '{p1_snippet}...' with "
+            f"the practical implementation strategies from '{p2_snippet}...'. The resulting solution "
+            f"maintains the strengths of both parent approaches while introducing novel elements that "
+            f"emerge from their interaction. This alternative demonstrates how the same foundational "
+            f"concepts can yield distinctly different yet equally valuable outcomes through strategic "
+            f"recombination.{extra_detail}"
+        )
