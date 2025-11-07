@@ -6,7 +6,10 @@ Provides type-safe, validated configuration with factory methods for common use 
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .llm_provider import ModelConfig
 
 
 class ExecutionMode(Enum):
@@ -60,7 +63,7 @@ class OrchestratorConfig:
     timeout_config: TimeoutConfig = field(default_factory=TimeoutConfig)
 
     # Model Configuration
-    model_config: Optional[object] = None  # Can be ModelConfig if needed
+    model_config: Optional["ModelConfig"] = None
     temperature_override: Optional[float] = None
 
     def validate(self) -> None:
