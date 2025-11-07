@@ -328,6 +328,49 @@ async def execute_abduction_phase(
     raise RuntimeError("Failed to generate hypotheses")
 
 
+def _get_deduction_schema() -> Dict[str, Any]:
+    """Get JSON schema for structured deduction/scoring.
+
+    Returns:
+        JSON schema dictionary for Gemini structured output
+    """
+    return {
+        "type": "OBJECT",
+        "properties": {
+            "evaluations": {
+                "type": "ARRAY",
+                "items": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "hypothesis_id": {"type": "STRING"},
+                        "scores": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "impact": {"type": "NUMBER"},
+                                "feasibility": {"type": "NUMBER"},
+                                "accessibility": {"type": "NUMBER"},
+                                "sustainability": {"type": "NUMBER"},
+                                "scalability": {"type": "NUMBER"},
+                            },
+                            "required": [
+                                "impact",
+                                "feasibility",
+                                "accessibility",
+                                "sustainability",
+                                "scalability",
+                            ],
+                        },
+                    },
+                    "required": ["hypothesis_id", "scores"],
+                },
+            },
+            "answer": {"type": "STRING"},
+            "action_plan": {"type": "ARRAY", "items": {"type": "STRING"}},
+        },
+        "required": ["evaluations", "answer", "action_plan"],
+    }
+
+
 async def execute_deduction_phase(
     phase_input: PhaseInput, core_question: str, hypotheses: List[str]
 ) -> DeductionResult:
@@ -348,7 +391,168 @@ async def execute_deduction_phase(
     Raises:
         RuntimeError: If evaluation fails after max_retries
     """
-    raise NotImplementedError("execute_deduction_phase not yet implemented")
+    # Check if parallel evaluation needed
+    if len(hypotheses) > 5:
+        # For now, use sequential (parallel implementation can be added later)
+        # This maintains functionality while simplifying initial implementation
+        logger.debug("Using sequential evaluation for %d hypotheses", len(hypotheses))
+
+    # Sequential evaluation for all hypothesis sets
+    prompts = QADIPrompts()
+    hypotheses_text = "\n".join([f"{i+1}. {h}" for i, h in enumerate(hypotheses)])
+    prompt = prompts.get_deduction_prompt(phase_input.user_input, core_question, hypotheses_text)
+    hyperparams = PHASE_HYPERPARAMETERS["deduction"]
+
+    total_cost = 0.0
+    raw_response = ""
+
+    for attempt in range(phase_input.max_retries + 1):
+        try:
+            # Create request with structured output schema
+            schema = _get_deduction_schema()
+            request = LLMRequest(
+                user_prompt=prompt,
+                temperature=hyperparams["temperature"],
+                max_tokens=int(hyperparams["max_tokens"]),
+                top_p=hyperparams.get("top_p", 0.9),
+                response_schema=schema,
+                response_mime_type="application/json",
+            )
+
+            response = await phase_input.llm_manager.generate(request)
+            total_cost += response.cost
+            raw_response = response.content
+            content = clean_ansi_codes(response.content.strip())
+
+            # Try to parse as JSON first (structured output)
+            try:
+                data = json.loads(content)
+
+                # Extract scores from structured response
+                scores = []
+                for eval_data in data.get("evaluations", []):
+                    score_data = eval_data.get("scores", {})
+                    # Calculate overall score using the consistent weighted method
+                    scores_dict = {
+                        "impact": score_data.get("impact", 0.5),
+                        "feasibility": score_data.get("feasibility", 0.5),
+                        "accessibility": score_data.get("accessibility", 0.5),
+                        "sustainability": score_data.get("sustainability", 0.5),
+                        "scalability": score_data.get("scalability", 0.5),
+                    }
+                    overall = calculate_hypothesis_score(scores_dict)
+
+                    score = HypothesisScore(
+                        impact=scores_dict["impact"],
+                        feasibility=scores_dict["feasibility"],
+                        accessibility=scores_dict["accessibility"],
+                        sustainability=scores_dict["sustainability"],
+                        scalability=scores_dict["scalability"],
+                        overall=overall,
+                    )
+                    scores.append(score)
+
+                # Ensure we have scores for all hypotheses
+                while len(scores) < len(hypotheses):
+                    scores.append(
+                        HypothesisScore(
+                            impact=0.5,
+                            feasibility=0.5,
+                            accessibility=0.5,
+                            sustainability=0.5,
+                            scalability=0.5,
+                            overall=0.5,
+                        )
+                    )
+
+                answer = data.get("answer", "")
+                action_plan = data.get("action_plan", [])
+
+                return DeductionResult(
+                    hypothesis_scores=scores,
+                    answer=answer,
+                    action_plan=action_plan,
+                    llm_cost=total_cost,
+                    raw_response=raw_response,
+                    used_parallel=False,
+                )
+
+            except (json.JSONDecodeError, KeyError, TypeError) as e:
+                # Fall back to text parsing
+                logger.debug("Structured output parsing failed, falling back to text parsing: %s", e)
+
+            # Parse the evaluation scores using text parsing with ScoreParser
+            scores = []
+            for i in range(len(hypotheses)):
+                # Use ScoreParser from parsing_utils
+                score_dict = ScoreParser.parse_with_fallback(
+                    content, hypothesis_index=i + 1, expected_keys=["impact", "feasibility", "accessibility", "sustainability", "scalability"]
+                )
+                overall = calculate_hypothesis_score(score_dict)
+                score = HypothesisScore(
+                    impact=score_dict.get("impact", 0.5),
+                    feasibility=score_dict.get("feasibility", 0.5),
+                    accessibility=score_dict.get("accessibility", 0.5),
+                    sustainability=score_dict.get("sustainability", 0.5),
+                    scalability=score_dict.get("scalability", 0.5),
+                    overall=overall,
+                )
+                scores.append(score)
+
+            # Extract answer using multiple patterns
+            answer = ""
+            ANSWER_PREFIX = "ANSWER:"
+            ACTION_PLAN_PREFIX = "Action Plan:"
+
+            # Try exact ANSWER: format first
+            answer_match = re.search(
+                rf"{ANSWER_PREFIX}\s*(.+?)(?={ACTION_PLAN_PREFIX}|$)",
+                content,
+                re.DOTALL | re.IGNORECASE,
+            )
+            if answer_match:
+                answer = answer_match.group(1).strip()
+            else:
+                # Try alternative patterns
+                alt_patterns = [
+                    r"(?:^|\n)\s*(?:\*\*)?Answer(?:\*\*)?:?\s*(.+?)(?=Action Plan|$)",
+                    r"(?:^|\n)\s*#+\s*Answer:?\s*(.+?)(?=Action Plan|$)",
+                    r"Based on.+?evaluation.+?(\*\*.+?\*\*.*?)(?=Action Plan|$)",
+                ]
+                for pattern in alt_patterns:
+                    match = re.search(pattern, content, re.DOTALL | re.IGNORECASE)
+                    if match:
+                        answer = match.group(1).strip()
+                        break
+
+            # Extract action plan using parsing_utils
+            action_plan = ActionPlanParser.parse_with_fallback(content, section_prefix="Action Plan:")
+
+            return DeductionResult(
+                hypothesis_scores=scores,
+                answer=answer,
+                action_plan=action_plan,
+                llm_cost=total_cost,
+                raw_response=raw_response,
+                used_parallel=False,
+            )
+
+        except Exception as e:
+            if attempt == phase_input.max_retries:
+                logger.error(
+                    "Failed to evaluate hypotheses after %d attempts. "
+                    "Last error: %s. The evaluation process encountered issues.",
+                    phase_input.max_retries + 1,
+                    e,
+                )
+                raise RuntimeError(
+                    f"Failed to evaluate hypotheses after {phase_input.max_retries + 1} attempts. "
+                    f"Last error: {e}. The LLM may be having trouble with the evaluation format."
+                )
+            logger.warning("Deduction phase attempt %d failed: %s", attempt + 1, e)
+            await asyncio.sleep(1)
+
+    raise RuntimeError("Failed to evaluate hypotheses")
 
 
 async def execute_induction_phase(
@@ -375,4 +579,137 @@ async def execute_induction_phase(
     Raises:
         RuntimeError: If verification fails after max_retries
     """
-    raise NotImplementedError("execute_induction_phase not yet implemented")
+    CONCLUSION_PREFIX = "Conclusion:"
+
+    prompts = QADIPrompts()
+    prompt = prompts.get_induction_prompt(phase_input.user_input, core_question, answer)
+    hyperparams = PHASE_HYPERPARAMETERS["induction"]
+
+    total_cost = 0.0
+    raw_response = ""
+
+    for attempt in range(phase_input.max_retries + 1):
+        try:
+            request = LLMRequest(
+                user_prompt=prompt,
+                temperature=hyperparams["temperature"],
+                max_tokens=int(hyperparams["max_tokens"]),
+                top_p=hyperparams.get("top_p", 0.9),
+            )
+
+            response = await phase_input.llm_manager.generate(request)
+            total_cost += response.cost
+            raw_response = response.content
+            content = clean_ansi_codes(response.content.strip())
+
+            # Extract verification examples using pattern matching
+            examples = []
+
+            # Look for "Example N:" pattern
+            example_pattern = r"Example\s*(\d+):\s*(.+?)(?=Example\s*\d+:|Conclusion:|$)"
+            example_matches = re.findall(example_pattern, content, re.DOTALL | re.IGNORECASE)
+
+            for _, example_content in example_matches:
+                # Clean up the example content
+                example_text = example_content.strip()
+                # Replace bullet points with proper formatting
+                example_text = re.sub(r"^[-•]\s*", "", example_text, flags=re.MULTILINE)
+                examples.append(example_text)
+
+            # If no examples found with "Example N:" pattern, try numbered list
+            if not examples:
+                lines = content.split("\n")
+                current_example = ""
+                current_index = None
+
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+
+                    # Check if line starts with "1.", "2.", or "3."
+                    example_match = re.match(r"^([123])\.\s*(.*)$", line)
+                    if example_match:
+                        # Save previous example if we have one
+                        if current_index is not None and current_example.strip():
+                            examples.append(current_example.strip())
+
+                        # Start new example
+                        current_index = int(example_match.group(1))
+                        current_example = example_match.group(2)
+                    elif line.startswith(CONCLUSION_PREFIX):
+                        # Save last example before conclusion
+                        if current_index is not None and current_example.strip():
+                            examples.append(current_example.strip())
+                        break
+                    elif current_index is not None:
+                        # Continue building current example
+                        current_example += " " + line
+
+                # Don't forget the last example if no conclusion found
+                if current_index is not None and current_example.strip():
+                    examples.append(current_example.strip())
+
+            # Extract conclusion
+            conclusion_match = re.search(rf"{CONCLUSION_PREFIX}\s*(.+?)$", content, re.DOTALL)
+            conclusion = conclusion_match.group(1).strip() if conclusion_match else ""
+
+            # Fix self-reference issues in conclusion
+            if conclusion and answer:
+                # Replace references like "(H1)", "(H2)", "(H3)" with the actual hypothesis content
+                for i, hypothesis in enumerate(hypotheses):
+                    # Handle various reference patterns
+                    patterns = [
+                        rf"\(H{i+1}\)",  # (H1), (H2), (H3)
+                        rf"H{i+1}",  # H1, H2, H3
+                        rf"hypothesis {i+1}",  # hypothesis 1, hypothesis 2, hypothesis 3
+                        rf"approach {i+1}",  # approach 1, approach 2, approach 3
+                    ]
+
+                    # Create a brief description of the hypothesis (first 50 chars)
+                    brief_hypothesis = hypothesis[:50] + "..." if len(hypothesis) > 50 else hypothesis
+                    replacement = f'"{brief_hypothesis}"'
+
+                    for pattern in patterns:
+                        # Only replace if it's referring to the chosen answer
+                        if re.search(rf"your answer.*{pattern}", conclusion, re.IGNORECASE):
+                            conclusion = re.sub(
+                                rf"your answer\s*\({pattern}\)",
+                                f"the recommended approach {replacement}",
+                                conclusion,
+                                flags=re.IGNORECASE,
+                            )
+                        elif re.search(rf"the answer.*{pattern}", conclusion, re.IGNORECASE):
+                            conclusion = re.sub(
+                                rf"the answer\s*\({pattern}\)",
+                                f"the recommended approach {replacement}",
+                                conclusion,
+                                flags=re.IGNORECASE,
+                            )
+
+                # Fix any remaining "your answer" references
+                conclusion = re.sub(r"your answer", "the recommended approach", conclusion, flags=re.IGNORECASE)
+
+            return InductionResult(
+                examples=examples,
+                conclusion=conclusion,
+                llm_cost=total_cost,
+                raw_response=raw_response,
+            )
+
+        except Exception as e:
+            if attempt == phase_input.max_retries:
+                logger.error(
+                    "Failed to verify answer after %d attempts. "
+                    "Last error: %s. The verification process could not complete.",
+                    phase_input.max_retries + 1,
+                    e,
+                )
+                raise RuntimeError(
+                    f"Failed to verify answer after {phase_input.max_retries + 1} attempts. "
+                    f"Last error: {e}. The system will proceed with unverified results."
+                )
+            logger.warning("Induction phase attempt %d failed: %s", attempt + 1, e)
+            await asyncio.sleep(1)
+
+    raise RuntimeError("Failed to verify answer")
