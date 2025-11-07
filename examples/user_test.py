@@ -173,14 +173,14 @@ async def generate_ideas(
     problem: str,
     context: Optional[str] = None,
     max_ideas: int = 3,
-    fast_mode: bool = True,
     save_to_file: bool = False,
     quiet: bool = False,
 ) -> Tuple[any, Optional[str]]:
-    """Generate ideas using the QADI system."""
+    """Generate ideas using the QADI system.
 
-    # Note: FastQADIOrchestrator removed - using SmartQADIOrchestrator for all modes
-    # Parallel execution infrastructure now in BaseOrchestrator (PR #112)
+    Note: FastQADIOrchestrator removed - using SmartQADIOrchestrator for all modes.
+    Parallel execution infrastructure now in BaseOrchestrator (PR #112).
+    """
     orchestrator = SmartQADIOrchestrator()
 
     # Ensure agents are set up
@@ -292,7 +292,7 @@ def display_console_results(result):
             console.print(f"  • {idea.content}", style="green")
 
 
-async def interactive_mode(save_to_file: bool = False, fast_mode: bool = True):
+async def interactive_mode(save_to_file: bool = False):
     """Run in interactive mode where user can input multiple prompts."""
     console.print("\n🎮 Interactive Mode", style="bold cyan")
     console.print("Enter your problem statements and see QADI in action!")
@@ -322,11 +322,6 @@ async def interactive_mode(save_to_file: bool = False, fast_mode: bool = True):
                     + ("ON" if save_to_file else "OFF")
                     + ")"
                 )
-                console.print(
-                    "• Type 'fast' to toggle fast mode (currently: "
-                    + ("ON" if fast_mode else "OFF")
-                    + ")"
-                )
                 console.print("• Type 'quit' to exit")
                 continue
 
@@ -334,13 +329,6 @@ async def interactive_mode(save_to_file: bool = False, fast_mode: bool = True):
                 save_to_file = not save_to_file
                 console.print(
                     f"💾 File saving: {'ON' if save_to_file else 'OFF'}", style="yellow"
-                )
-                continue
-
-            if problem.lower() == "fast":
-                fast_mode = not fast_mode
-                console.print(
-                    f"⚡ Fast mode: {'ON' if fast_mode else 'OFF'}", style="yellow"
                 )
                 continue
 
@@ -368,7 +356,7 @@ async def interactive_mode(save_to_file: bool = False, fast_mode: bool = True):
                 continue
 
             # Generate ideas
-            await generate_ideas(problem, context, max_ideas, fast_mode, save_to_file)
+            await generate_ideas(problem, context, max_ideas, save_to_file)
 
         except KeyboardInterrupt:
             console.print("\n\n👋 Interrupted. Thanks for testing!", style="yellow")
@@ -388,7 +376,7 @@ Examples:
   %(prog)s "What is consciousness?"
   %(prog)s --save "How to reduce plastic waste?"
   %(prog)s --interactive
-  %(prog)s --slow --ideas 5 "Future of education"
+  %(prog)s --ideas 5 "Future of education"
   %(prog)s --quiet --save "AI ethics challenges"
         """,
     )
@@ -409,12 +397,6 @@ Examples:
         "--save",
         action="store_true",
         help="Save full results to a timestamped file",
-    )
-
-    parser.add_argument(
-        "--slow",
-        action="store_true",
-        help="Use sequential mode (slower but with context enhancement)",
     )
 
     parser.add_argument(
@@ -446,14 +428,13 @@ Examples:
 
     # Determine mode and execute
     if args.interactive:
-        await interactive_mode(save_to_file=args.save, fast_mode=not args.slow)
+        await interactive_mode(save_to_file=args.save)
     elif args.problem:
         # Join all problem arguments
         problem = " ".join(args.problem)
         result, filename = await generate_ideas(
             problem,
             max_ideas=min(args.ideas, 10),
-            fast_mode=not args.slow,
             save_to_file=args.save,
             quiet=args.quiet,
         )
@@ -476,16 +457,13 @@ Examples:
             if choice == "1":
                 await generate_ideas(
                     "How can we reduce plastic waste in urban environments?",
-                    fast_mode=not args.slow,
                     save_to_file=args.save,
                 )
             elif choice == "2":
                 problem = Prompt.ask("\n💭 Enter your problem statement")
-                await generate_ideas(
-                    problem, fast_mode=not args.slow, save_to_file=args.save
-                )
+                await generate_ideas(problem, save_to_file=args.save)
             else:
-                await interactive_mode(save_to_file=args.save, fast_mode=not args.slow)
+                await interactive_mode(save_to_file=args.save)
         else:
             # Quiet mode with no arguments - show usage
             parser.print_help()
