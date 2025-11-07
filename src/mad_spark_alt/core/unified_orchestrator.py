@@ -13,7 +13,7 @@ from .orchestrator_config import (
     ExecutionMode,
     Strategy
 )
-from .simple_qadi_orchestrator import SimpleQADIOrchestrator
+from .simple_qadi_orchestrator import SimpleQADIOrchestrator, SimpleQADIResult
 from .smart_registry import SmartAgentRegistry
 from .interfaces import GeneratedIdea
 from .phase_logic import HypothesisScore
@@ -152,7 +152,7 @@ class UnifiedQADIOrchestrator:
         # Convert to unified result
         return self._convert_simple_result(simple_result)
 
-    def _convert_simple_result(self, simple_result) -> UnifiedQADIResult:
+    def _convert_simple_result(self, simple_result: SimpleQADIResult) -> UnifiedQADIResult:
         """
         Convert SimpleQADIResult to UnifiedQADIResult.
 
