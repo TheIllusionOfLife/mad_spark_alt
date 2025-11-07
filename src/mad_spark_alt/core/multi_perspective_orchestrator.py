@@ -8,17 +8,13 @@ relevant perspectives based on question intent detection.
 import asyncio
 import logging
 import re
-import traceback
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 from .intent_detector import IntentDetector, QuestionIntent
 from .interfaces import GeneratedIdea, ThinkingMethod
 from .llm_provider import LLMRequest, llm_manager
-from .multi_perspective_prompts import MultiPerspectivePrompts
-from .qadi_prompts import PHASE_HYPERPARAMETERS, calculate_hypothesis_score
-from .simple_qadi_orchestrator import HypothesisScore, SimpleQADIResult
-from .parsing_utils import ScoreParser
+from .simple_qadi_orchestrator import SimpleQADIOrchestrator, SimpleQADIResult, HypothesisScore
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +59,9 @@ class MultiPerspectiveQADIOrchestrator:
 
     Detects question intent and runs QADI from multiple relevant perspectives,
     then synthesizes the results into a comprehensive answer.
+
+    This orchestrator delegates the QADI cycle execution to SimpleQADIOrchestrator
+    instances, focusing on perspective coordination and synthesis.
     """
 
     def __init__(self, temperature_override: Optional[float] = None) -> None:
@@ -73,7 +72,6 @@ class MultiPerspectiveQADIOrchestrator:
             temperature_override: Optional temperature override for hypothesis generation
         """
         self.intent_detector = IntentDetector()
-        self.prompts = MultiPerspectivePrompts()
         self.temperature_override = temperature_override
 
     async def run_multi_perspective_analysis(
@@ -151,234 +149,33 @@ class MultiPerspectiveQADIOrchestrator:
     async def _run_perspective_analysis(
         self, user_input: str, perspective: QuestionIntent
     ) -> Optional[SimpleQADIResult]:
-        """Run QADI analysis from a single perspective."""
+        """
+        Run QADI analysis from a single perspective.
+
+        Delegates to SimpleQADIOrchestrator with perspective-augmented input.
+        """
         try:
             logger.info(f"Running {perspective.value} perspective analysis")
 
-            result = SimpleQADIResult(
-                core_question="",
-                hypotheses=[],
-                hypothesis_scores=[],
-                final_answer="",
-                action_plan=[],
-                verification_examples=[],
-                verification_conclusion="",
+            # Create SimpleQADI orchestrator instance
+            orchestrator = SimpleQADIOrchestrator(
+                temperature_override=self.temperature_override,
+                num_hypotheses=3
             )
 
-            # Phase 1: Questioning
-            prompt = self.prompts.get_questioning_prompt(user_input, perspective)
-            question, cost = await self._run_llm_phase(prompt, "questioning")
-            result.core_question = self._extract_question(question)
-            result.total_llm_cost += cost
+            # Augment question with perspective context
+            perspective_question = f"From a {perspective.value} perspective: {user_input}"
 
-            # Phase 2: Abduction (Hypothesis Generation)
-            prompt = self.prompts.get_abduction_prompt(
-                user_input, result.core_question, perspective
-            )
-            hypotheses_text, cost = await self._run_llm_phase(
-                prompt, "abduction", use_temperature_override=True
-            )
-            result.hypotheses = self._extract_hypotheses(hypotheses_text)
-            result.total_llm_cost += cost
-
-            # Phase 3: Deduction (Evaluation)
-            if not result.hypotheses:
-                logger.error(
-                    f"No hypotheses generated for {perspective.value} perspective"
-                )
-                return None
-
-            hypotheses_formatted = "\n".join(
-                [f"H{i+1}: {h}" for i, h in enumerate(result.hypotheses)]
-            )
-            prompt = self.prompts.get_deduction_prompt(
-                user_input, result.core_question, hypotheses_formatted, perspective
-            )
-            deduction_text, cost = await self._run_llm_phase(prompt, "deduction")
-
-            # Parse deduction results
-            deduction_parsed = self._parse_deduction_results(
-                deduction_text, len(result.hypotheses)
-            )
-            result.hypothesis_scores = deduction_parsed["scores"]
-            result.final_answer = deduction_parsed["answer"]
-            result.action_plan = deduction_parsed["action_plan"]
-            result.total_llm_cost += cost
-
-            # Phase 4: Induction (Verification)
-            prompt = self.prompts.get_induction_prompt(
-                user_input, result.core_question, result.final_answer, perspective
-            )
-            induction_text, cost = await self._run_llm_phase(prompt, "induction")
-
-            induction_parsed = self._parse_induction_results(induction_text)
-            result.verification_examples = induction_parsed["examples"]
-            result.verification_conclusion = induction_parsed["conclusion"]
-            result.total_llm_cost += cost
+            # Run QADI cycle (delegates to phase_logic)
+            result = await orchestrator.run_qadi_cycle(perspective_question)
 
             return result
 
         except Exception as e:
             logger.error(f"Failed {perspective.value} perspective analysis: {e}")
-
+            import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             return None
-
-    async def _run_llm_phase(
-        self,
-        prompt: str,
-        phase: str,
-        use_temperature_override: bool = False,
-    ) -> Tuple[str, float]:
-        """Run a single LLM phase with appropriate parameters."""
-        hyperparams = PHASE_HYPERPARAMETERS.get(
-            phase, PHASE_HYPERPARAMETERS["questioning"]
-        )
-
-        # Apply temperature override for abduction if specified
-        if (
-            use_temperature_override
-            and self.temperature_override is not None
-            and phase == "abduction"
-        ):
-            temperature = self.temperature_override
-        else:
-            temperature = hyperparams["temperature"]
-
-        request = LLMRequest(
-            user_prompt=prompt,
-            temperature=temperature,
-            max_tokens=int(hyperparams["max_tokens"]),
-            top_p=hyperparams.get("top_p", 0.9),
-        )
-
-        response = await llm_manager.generate(request)
-        return response.content.strip(), response.cost
-
-    def _extract_question(self, text: str) -> str:
-        """Extract core question from LLM response."""
-
-        match = re.search(r"Q:\s*(.+)", text, re.DOTALL)
-        if match:
-            # Take only the first line of the match
-            return match.group(1).strip().split("\n")[0].strip()
-
-        # Fallback: use first non-empty line
-        for line in text.split("\n"):
-            if line.strip() and not line.strip().startswith(("Think about:", "-", "*")):
-                return line.strip()
-
-        return "What is the core challenge here?"
-
-    def _extract_hypotheses(self, text: str) -> List[str]:
-        """Extract hypotheses from LLM response."""
-
-        hypotheses = []
-        lines = text.split("\n")
-
-        current_hypothesis = ""
-        current_index = None
-
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-
-            # Check if line starts with H1:, H2:, or H3:
-            match = re.match(r"H([123]):\s*(.+)", line)
-            if match:
-                # Save previous hypothesis if we have one
-                if current_index is not None and current_hypothesis.strip():
-                    hypotheses.append(current_hypothesis.strip())
-
-                # Start new hypothesis
-                current_index = int(match.group(1))
-                current_hypothesis = match.group(2)
-            elif current_index is not None:
-                # Continue building current hypothesis
-                current_hypothesis += " " + line
-
-        # Don't forget the last hypothesis
-        if current_index is not None and current_hypothesis.strip():
-            hypotheses.append(current_hypothesis.strip())
-
-        # If no hypotheses found with H1: format, try numbered format
-        if not hypotheses:
-            for line in lines:
-                match = re.match(r"^\d+\.\s*(.+)", line.strip())
-                if match:
-                    hypotheses.append(match.group(1).strip())
-
-        return hypotheses[:3]  # Maximum 3 hypotheses
-
-    def _parse_deduction_results(
-        self, text: str, num_hypotheses: int
-    ) -> Dict[str, Any]:
-        """Parse deduction phase results."""
-
-        # Extract scores for each hypothesis
-        scores = []
-        for i in range(num_hypotheses):
-            score = self._extract_hypothesis_scores(text, i + 1)
-            scores.append(score)
-
-        # Extract answer
-        answer_match = re.search(r"ANSWER:\s*(.+?)(?=Action Plan:|$)", text, re.DOTALL)
-        answer = answer_match.group(1).strip() if answer_match else ""
-
-        # Extract action plan
-        action_plan = []
-        plan_match = re.search(r"Action Plan:\s*(.+?)$", text, re.DOTALL)
-        if plan_match:
-            plan_text = plan_match.group(1).strip()
-            # Extract numbered items
-            plan_items = re.findall(r"\d+\.\s*(.+?)(?=\d+\.|$)", plan_text, re.DOTALL)
-            action_plan = [item.strip() for item in plan_items]
-
-        return {
-            "scores": scores,
-            "answer": answer,
-            "action_plan": action_plan,
-        }
-
-    def _extract_hypothesis_scores(
-        self, text: str, hypothesis_num: int
-    ) -> HypothesisScore:
-        """Extract scores for a specific hypothesis."""
-        # Use parsing_utils for score extraction
-        parsed_scores = ScoreParser.parse_with_fallback(text, hypothesis_num=hypothesis_num)
-
-        # Calculate overall score using QADI formula
-        scores_dict = parsed_scores.to_dict()
-        overall = calculate_hypothesis_score(scores_dict)
-
-        return HypothesisScore(
-            impact=parsed_scores.impact,
-            feasibility=parsed_scores.feasibility,
-            accessibility=parsed_scores.accessibility,
-            sustainability=parsed_scores.sustainability,
-            scalability=parsed_scores.scalability,
-            overall=overall,
-        )
-
-    def _parse_induction_results(self, text: str) -> Dict[str, Any]:
-        """Parse induction phase results."""
-
-        # Extract examples
-        examples = []
-        example_matches = re.findall(
-            r"\d+\.\s*(.+?)(?=\d+\.|Conclusion:|$)", text, re.DOTALL
-        )
-        examples = [match.strip() for match in example_matches]
-
-        # Extract conclusion
-        conclusion_match = re.search(r"Conclusion:\s*(.+?)$", text, re.DOTALL)
-        conclusion = conclusion_match.group(1).strip() if conclusion_match else ""
-
-        return {
-            "examples": examples,
-            "conclusion": conclusion,
-        }
 
     async def _synthesize_results(
         self, user_input: str, perspective_results: List[PerspectiveResult]
@@ -441,11 +238,19 @@ INTEGRATED ACTION PLAN:
 3. [Third priority action]
 """
 
-        # Run synthesis
-        response_text, cost = await self._run_llm_phase(synthesis_prompt, "questioning")
+        # Run synthesis LLM call
+        request = LLMRequest(
+            user_prompt=synthesis_prompt,
+            temperature=0.7,
+            max_tokens=1000,
+            top_p=0.9,
+        )
+
+        response = await llm_manager.generate(request)
+        response_text = response.content.strip()
+        cost = response.cost
 
         # Parse synthesis
-
         synthesis_match = re.search(
             r"SYNTHESIS:\s*(.+?)(?=INTEGRATED ACTION PLAN:|$)", response_text, re.DOTALL
         )

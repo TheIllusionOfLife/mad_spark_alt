@@ -26,8 +26,8 @@ def mock_llm_response():
         return LLMResponse(
             content=content,
             cost=cost,
-            provider="mock",
-            model="mock-model",
+            provider="google",  # Must be valid provider enum value
+            model="gemini-pro",
             usage={"input_tokens": 100, "output_tokens": 100},
         )
     return _create_response
@@ -113,19 +113,36 @@ class TestMultiPerspectiveBaseline:
         """Test running analysis with a single forced perspective."""
         orchestrator = MultiPerspectiveQADIOrchestrator()
 
-        # Mock LLM responses
-        with patch.object(
-            orchestrator, "_run_llm_phase", new=AsyncMock()
-        ) as mock_llm:
-            mock_llm.side_effect = [
-                # Environmental perspective - 4 phases
-                (sample_questioning_response, 0.01),
-                (sample_abduction_response, 0.02),
-                (sample_deduction_response, 0.03),
-                (sample_induction_response, 0.01),
-                # Synthesis
-                ("SYNTHESIS: Use all three approaches\n\nINTEGRATED ACTION PLAN:\n1. Start R&D\n2. Deploy pilots\n3. Advocate policy", 0.01),
-            ]
+        # Mock SimpleQADI orchestrator's run_qadi_cycle method
+        mock_qadi_result = SimpleQADIResult(
+            core_question="How can we reduce ocean plastic pollution effectively?",
+            hypotheses=["H1: Biodegradable plastics", "H2: AI cleanup systems", "H3: Plastic tax"],
+            hypothesis_scores=[
+                HypothesisScore(0.9, 0.6, 0.7, 0.9, 0.8, 0.78),
+                HypothesisScore(0.7, 0.8, 0.5, 0.6, 0.7, 0.66),
+                HypothesisScore(0.8, 0.4, 0.9, 0.8, 0.9, 0.76),
+            ],
+            final_answer="Multi-pronged approach combining all three",
+            action_plan=["Accelerate R&D", "Deploy pilot systems", "Advocate for taxation"],
+            verification_examples=["Costa Rica example", "Ocean Cleanup project"],
+            verification_conclusion="Integrated approach validated",
+            total_llm_cost=0.07,
+        )
+
+        with patch("mad_spark_alt.core.multi_perspective_orchestrator.SimpleQADIOrchestrator") as MockOrchestrator, \
+             patch("mad_spark_alt.core.multi_perspective_orchestrator.llm_manager") as mock_llm:
+
+            # Mock SimpleQADI instance
+            mock_instance = AsyncMock()
+            mock_instance.run_qadi_cycle = AsyncMock(return_value=mock_qadi_result)
+            MockOrchestrator.return_value = mock_instance
+
+            # Mock synthesis LLM call
+            mock_llm.generate = AsyncMock()
+            mock_llm.generate.return_value = mock_llm_response(
+                "SYNTHESIS: Use all three approaches\n\nINTEGRATED ACTION PLAN:\n1. Start R&D\n2. Deploy pilots\n3. Advocate policy",
+                0.01
+            )
 
             result = await orchestrator.run_multi_perspective_analysis(
                 "How can we reduce ocean plastic?",
@@ -153,24 +170,36 @@ class TestMultiPerspectiveBaseline:
         """Test running analysis with multiple perspectives in parallel."""
         orchestrator = MultiPerspectiveQADIOrchestrator()
 
-        # Mock LLM responses - 3 perspectives × 4 phases + 1 synthesis
-        responses = []
-        for _ in range(3):  # 3 perspectives
-            responses.extend([
-                (sample_questioning_response, 0.01),
-                (sample_abduction_response, 0.02),
-                (sample_deduction_response, 0.03),
-                (sample_induction_response, 0.01),
-            ])
-        # Add synthesis
-        responses.append(
-            ("SYNTHESIS: Comprehensive solution\n\nINTEGRATED ACTION PLAN:\n1. Action 1\n2. Action 2\n3. Action 3", 0.01)
+        # Mock QADI result
+        mock_qadi_result = SimpleQADIResult(
+            core_question="Test question",
+            hypotheses=["H1", "H2", "H3"],
+            hypothesis_scores=[
+                HypothesisScore(0.8, 0.7, 0.6, 0.7, 0.8, 0.72),
+                HypothesisScore(0.7, 0.8, 0.7, 0.8, 0.7, 0.74),
+                HypothesisScore(0.6, 0.6, 0.8, 0.6, 0.6, 0.64),
+            ],
+            final_answer="Answer",
+            action_plan=["Action 1", "Action 2"],
+            verification_examples=["Example"],
+            verification_conclusion="Conclusion",
+            total_llm_cost=0.07,
         )
 
-        with patch.object(
-            orchestrator, "_run_llm_phase", new=AsyncMock()
-        ) as mock_llm:
-            mock_llm.side_effect = responses
+        with patch("mad_spark_alt.core.multi_perspective_orchestrator.SimpleQADIOrchestrator") as MockOrchestrator, \
+             patch("mad_spark_alt.core.multi_perspective_orchestrator.llm_manager") as mock_llm:
+
+            # Mock SimpleQADI instance
+            mock_instance = AsyncMock()
+            mock_instance.run_qadi_cycle = AsyncMock(return_value=mock_qadi_result)
+            MockOrchestrator.return_value = mock_instance
+
+            # Mock synthesis LLM call
+            mock_llm.generate = AsyncMock()
+            mock_llm.generate.return_value = mock_llm_response(
+                "SYNTHESIS: Comprehensive solution\n\nINTEGRATED ACTION PLAN:\n1. Action 1\n2. Action 2\n3. Action 3",
+                0.01
+            )
 
             result = await orchestrator.run_multi_perspective_analysis(
                 "How should we approach climate change?",
@@ -315,63 +344,8 @@ class TestMultiPerspectiveBaseline:
         assert len(result.perspective_results) == 1
         assert result.perspective_results[0].perspective == QuestionIntent.TECHNICAL
 
-    @pytest.mark.asyncio
-    async def test_hypothesis_extraction(self):
-        """Test hypothesis extraction from various formats."""
-        orchestrator = MultiPerspectiveQADIOrchestrator()
-
-        # Test H1: H2: H3: format
-        text1 = """H1: First hypothesis about X
-H2: Second hypothesis about Y
-H3: Third hypothesis about Z"""
-
-        hypotheses = orchestrator._extract_hypotheses(text1)
-        assert len(hypotheses) == 3
-        assert "First hypothesis about X" in hypotheses[0]
-        assert "Second hypothesis about Y" in hypotheses[1]
-        assert "Third hypothesis about Z" in hypotheses[2]
-
-        # Test numbered format fallback
-        text2 = """1. First idea
-2. Second idea
-3. Third idea"""
-
-        hypotheses = orchestrator._extract_hypotheses(text2)
-        assert len(hypotheses) == 3
-        assert "First idea" in hypotheses[0]
-
-    @pytest.mark.asyncio
-    async def test_score_extraction(self):
-        """Test score extraction from deduction response."""
-        orchestrator = MultiPerspectiveQADIOrchestrator()
-
-        # Use format that ScoreParser expects (H1:, H2: headers)
-        deduction_text = """H1: Evaluation
-Impact: 0.9 - High impact
-Feasibility: 0.7 - Moderately feasible
-Accessibility: 0.8 - Accessible
-Sustainability: 0.6 - Sustainable
-Scalability: 0.7 - Scalable
-
-H2: Evaluation
-Impact: 0.8
-Feasibility: 0.6
-Accessibility: 0.7
-Sustainability: 0.8
-Scalability: 0.9"""
-
-        result = orchestrator._parse_deduction_results(deduction_text, 2)
-
-        assert len(result["scores"]) == 2
-
-        # Check H1 scores
-        assert result["scores"][0].impact == 0.9
-        assert result["scores"][0].feasibility == 0.7
-        assert result["scores"][0].accessibility == 0.8
-
-        # Check H2 scores
-        assert result["scores"][1].impact == 0.8
-        assert result["scores"][1].feasibility == 0.6
+    # Tests for internal parsing methods removed - now handled by phase_logic/parsing_utils
+    # These are tested in their respective module tests
 
     @pytest.mark.asyncio
     async def test_synthesis_with_no_perspectives(self):
@@ -385,13 +359,7 @@ Scalability: 0.9"""
         assert result["synthesis_cost"] == 0.0
 
     @pytest.mark.asyncio
-    async def test_best_hypothesis_selection(
-        self,
-        sample_questioning_response,
-        sample_abduction_response,
-        sample_deduction_response,
-        sample_induction_response,
-    ):
+    async def test_best_hypothesis_selection(self):
         """Test that best hypothesis is selected across perspectives."""
         orchestrator = MultiPerspectiveQADIOrchestrator()
 
@@ -434,12 +402,16 @@ Scalability: 0.9"""
             relevance_score=0.7,  # Secondary perspective
         )
 
-        with patch.object(
-            orchestrator, "_run_llm_phase", new=AsyncMock()
-        ) as mock_llm:
-            mock_llm.return_value = (
-                "SYNTHESIS: Test\n\nINTEGRATED ACTION PLAN:\n1. A\n2. B",
-                0.01,
+        # Mock synthesis LLM call
+        with patch("mad_spark_alt.core.multi_perspective_orchestrator.llm_manager") as mock_llm:
+            from mad_spark_alt.core.llm_provider import LLMResponse
+            mock_llm.generate = AsyncMock()
+            mock_llm.generate.return_value = LLMResponse(
+                content="SYNTHESIS: Test\n\nINTEGRATED ACTION PLAN:\n1. A\n2. B",
+                cost=0.01,
+                provider="google",
+                model="gemini-pro",
+                usage={"input_tokens": 100, "output_tokens": 100},
             )
 
             result = await orchestrator._synthesize_results("Test", [pr1, pr2])
