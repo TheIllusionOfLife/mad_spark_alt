@@ -159,12 +159,12 @@ Focus on practical, actionable advice that directly addresses the original probl
 
     def _parse_llm_conclusion(self, llm_response: str) -> Conclusion:
         """Parse LLM response into Conclusion object."""
-        # Try JSON parsing first with robust handler
+        # Try JSON parsing first with enhanced json_utils
         try:
-            from .robust_json_handler import extract_json_from_response
+            from .json_utils import extract_and_parse_json
 
             # Attempt to extract structured JSON response
-            json_data = extract_json_from_response(
+            json_data = extract_and_parse_json(
                 llm_response,
                 expected_keys=[
                     "summary",
@@ -172,6 +172,7 @@ Focus on practical, actionable advice that directly addresses the original probl
                     "recommendations",
                     "next_steps",
                 ],
+                fix_issues=True,
                 fallback=None,
             )
 
