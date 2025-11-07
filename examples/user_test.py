@@ -21,7 +21,7 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.table import Table
 
-from mad_spark_alt.core import SmartQADIOrchestrator
+from mad_spark_alt.core import FastQADIOrchestrator, SmartQADIOrchestrator
 
 # Load .env file if it exists
 env_path = Path(__file__).parent.parent / ".env"
@@ -179,9 +179,11 @@ async def generate_ideas(
 ) -> Tuple[any, Optional[str]]:
     """Generate ideas using the QADI system."""
 
-    # Note: FastQADIOrchestrator removed - using SmartQADIOrchestrator for all modes
-    # Parallel execution infrastructure now in BaseOrchestrator (PR #112)
-    orchestrator = SmartQADIOrchestrator()
+    # Use FastQADIOrchestrator by default for 3x speed improvement
+    if fast_mode:
+        orchestrator = FastQADIOrchestrator(enable_parallel=True)
+    else:
+        orchestrator = SmartQADIOrchestrator()
 
     # Ensure agents are set up
     await orchestrator.ensure_agents_ready()
