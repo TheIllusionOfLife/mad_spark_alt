@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .llm_provider import LLMRequest, llm_manager
 from .qadi_prompts import EVALUATION_CRITERIA, calculate_hypothesis_score
+from .parsing_utils import ScoreParser
 
 logger = logging.getLogger(__name__)
 
@@ -181,50 +182,41 @@ Scalability: [score] - [one line explanation]
         response: str,
     ) -> Tuple[Dict[str, float], Dict[str, str]]:
         """Parse the LLM evaluation response into scores and explanations."""
-        scores = {}
-        explanations = {}
+        # Use parsing_utils for score extraction
+        parsed_scores = ScoreParser.parse_with_fallback(response)
 
+        # Convert ParsedScores to dict format
+        scores = {
+            "impact": parsed_scores.impact,
+            "feasibility": parsed_scores.feasibility,
+            "accessibility": parsed_scores.accessibility,
+            "sustainability": parsed_scores.sustainability,
+            "scalability": parsed_scores.scalability,
+        }
+
+        # Extract explanations from the response text
+        explanations = {}
         criteria = ["impact", "feasibility", "accessibility", "sustainability", "scalability"]
 
-        # Process line by line for more robust parsing
         lines = response.split("\n")
-
         for line in lines:
             line = line.strip()
             if not line:
                 continue
 
-            # Check each criterion
+            # Check each criterion for explanations
             for criterion in criteria:
                 # Match "Criterion: score - explanation" format (case insensitive)
-                # Allow negative numbers but will clamp them to valid range
-                pattern = rf"^{criterion}:\s*(-?[0-9.]+)\s*[-]\s*(.+)$"
+                pattern = rf"^{criterion}:\s*[-]?[0-9.]+\s*[-]\s*(.+)$"
                 match = re.match(pattern, line, re.IGNORECASE)
 
                 if match:
-                    try:
-                        score = float(match.group(1))
-                        # Ensure score is between 0 and 1
-                        score = max(0.0, min(1.0, score))
-                        scores[criterion] = score
-                        explanations[criterion] = match.group(2).strip()
-                    except (ValueError, TypeError):
-                        logger.warning(
-                            "Failed to parse score for %s: %s",
-                            criterion,
-                            match.group(1),
-                        )
-                        scores[criterion] = 0.5
-                        explanations[criterion] = "Failed to parse score"
+                    explanations[criterion] = match.group(1).strip()
                     break
 
-        # Fill in any missing criteria with defaults
-        expected_criteria = ["impact", "feasibility", "accessibility", "sustainability", "scalability"]
-        for criterion in expected_criteria:
-            if criterion not in scores:
-                # Log debug message instead of warning for missing criteria
-                logger.debug("No evaluation found for criterion: %s, using default", criterion)
-                scores[criterion] = 0.5
+        # Fill in any missing explanations with defaults
+        for criterion in criteria:
+            if criterion not in explanations:
                 explanations[criterion] = "Not evaluated"
 
         return scores, explanations
