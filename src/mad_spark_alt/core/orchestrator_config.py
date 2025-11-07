@@ -1,0 +1,169 @@
+"""
+Configuration system for UnifiedQADIOrchestrator.
+
+Provides type-safe, validated configuration with factory methods for common use cases.
+"""
+
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Optional, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .llm_provider import ModelConfig
+
+
+class ExecutionMode(Enum):
+    """Execution mode for QADI orchestration."""
+
+    SEQUENTIAL = "sequential"
+    PARALLEL = "parallel"
+
+
+class Strategy(Enum):
+    """Orchestration strategy selection."""
+
+    SIMPLE = "simple"
+    SMART = "smart"
+    MULTI_PERSPECTIVE = "multi_perspective"
+
+
+@dataclass
+class TimeoutConfig:
+    """Timeout configuration for orchestrator operations."""
+
+    phase_timeout: float = 90.0
+    total_timeout: float = 900.0
+    enable_retry: bool = True
+    max_retries: int = 3
+
+
+@dataclass
+class OrchestratorConfig:
+    """
+    Configuration for UnifiedQADIOrchestrator behavior.
+
+    Controls strategy selection, execution mode, timeouts, and feature flags.
+    """
+
+    # Execution
+    execution_mode: ExecutionMode = ExecutionMode.SEQUENTIAL
+    strategy: Strategy = Strategy.SIMPLE
+
+    # QADI Parameters
+    num_hypotheses: int = 3
+    enable_scoring: bool = True
+
+    # Multi-Perspective
+    perspectives: Optional[List[str]] = None
+    auto_detect_perspectives: bool = False
+
+    # Enhancements
+    enable_answer_extraction: bool = False
+    enable_robust_timeout: bool = True
+    timeout_config: TimeoutConfig = field(default_factory=TimeoutConfig)
+
+    # Model Configuration
+    model_config: Optional["ModelConfig"] = None
+    temperature_override: Optional[float] = None
+
+    def validate(self) -> None:
+        """
+        Validate configuration consistency.
+
+        Raises:
+            ValueError: If configuration is invalid.
+        """
+        # Multi-perspective requires perspectives or auto-detect
+        if self.strategy == Strategy.MULTI_PERSPECTIVE:
+            if not self.perspectives and not self.auto_detect_perspectives:
+                raise ValueError(
+                    "Multi-perspective requires perspectives or auto-detect"
+                )
+
+        # Num hypotheses must be positive
+        if self.num_hypotheses < 1:
+            raise ValueError("num_hypotheses must be >= 1")
+
+        # Temperature range validation
+        if self.temperature_override is not None:
+            if not (0.0 <= self.temperature_override <= 2.0):
+                raise ValueError(
+                    "temperature_override must be between 0.0 and 2.0"
+                )
+
+        # Timeout validation
+        if self.timeout_config.phase_timeout <= 0:
+            raise ValueError("phase_timeout must be positive")
+        if self.timeout_config.total_timeout <= 0:
+            raise ValueError("total_timeout must be positive")
+
+        # Retry validation
+        if self.timeout_config.enable_retry and self.timeout_config.max_retries <= 0:
+            raise ValueError(
+                "max_retries must be positive when retry enabled"
+            )
+
+    @classmethod
+    def simple_config(cls) -> "OrchestratorConfig":
+        """
+        Factory: Simple sequential QADI.
+
+        Returns:
+            OrchestratorConfig: Configuration for simple QADI analysis.
+        """
+        return cls(
+            execution_mode=ExecutionMode.SEQUENTIAL,
+            strategy=Strategy.SIMPLE,
+            num_hypotheses=3,
+            enable_scoring=True
+        )
+
+    @classmethod
+    def fast_config(cls) -> "OrchestratorConfig":
+        """
+        Factory: Parallel execution for speed.
+
+        Returns:
+            OrchestratorConfig: Configuration for parallel QADI execution.
+        """
+        return cls(
+            execution_mode=ExecutionMode.PARALLEL,
+            strategy=Strategy.SIMPLE,
+            num_hypotheses=3
+        )
+
+    @classmethod
+    def multi_perspective_config(
+        cls,
+        perspectives: List[str]
+    ) -> "OrchestratorConfig":
+        """
+        Factory: Multi-perspective analysis.
+
+        Args:
+            perspectives: List of perspective names.
+
+        Returns:
+            OrchestratorConfig: Configuration for multi-perspective analysis.
+        """
+        return cls(
+            execution_mode=ExecutionMode.SEQUENTIAL,
+            strategy=Strategy.MULTI_PERSPECTIVE,
+            perspectives=perspectives,
+            num_hypotheses=3
+        )
+
+    @classmethod
+    def smart_config(cls) -> "OrchestratorConfig":
+        """
+        Factory: Smart agent selection with circuit breakers.
+
+        Returns:
+            OrchestratorConfig: Configuration for smart orchestration.
+        """
+        return cls(
+            execution_mode=ExecutionMode.SEQUENTIAL,
+            strategy=Strategy.SMART,
+            num_hypotheses=3,
+            enable_robust_timeout=True
+        )
