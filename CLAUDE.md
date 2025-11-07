@@ -386,9 +386,13 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Implementation**: Use `${ARGUMENTS:-default_value}` for optional parameters
 - **Usage**: Enables flexible command reuse without duplication
 
-### Structured Output Implementation (PR #71) - VERIFIED WORKING ✅
+### Structured Output Implementation (PR #71, #107) - VERIFIED WORKING ✅
 - **Core Problem**: "Failed to extract enough hypotheses" errors due to brittle regex parsing
-- **Solution**: Gemini's `responseMimeType` and `responseSchema` with graceful fallbacks
+- **Solution**: Gemini's `responseMimeType` and `responseJsonSchema` with graceful fallbacks
+- **CRITICAL API Field Names (PR #107)**: Gemini API requires `responseJsonSchema` NOT `responseSchema`
+  - ✅ Correct: `generation_config["responseJsonSchema"] = schema`
+  - ❌ Wrong: `generation_config["responseSchema"] = schema` (silently ignored by API)
+  - Location: `src/mad_spark_alt/core/llm_provider.py:294`
 - **Implementation Status**: COMPLETE and WORKING
   - LLM Provider: `LLMRequest` with `response_schema` and `response_mime_type` fields ✅
   - QADI Orchestrator: JSON schemas for hypotheses and score parsing ✅

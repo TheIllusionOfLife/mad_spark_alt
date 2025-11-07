@@ -1,204 +1,176 @@
 # Session Handover
 
-## Last Updated: 2025-01-14 17:15 JST
+## Last Updated: November 07, 2025 09:42 AM JST
 
 ## Recently Completed ✅
 
-### PR #31 - Dynamic Prompt Engineering Complete 🎉
-- **Merged**: Successfully merged with all CI tests passing
-- **Major Achievement**: 100% question classification accuracy (4x improvement from 25%)
-- **Features**: 6 question types (technical, business, creative, research, planning, personal), adaptive prompts, manual override, concrete mode
-- **System Tested**: All components working perfectly - QADI simple multi, CLI, evolution, evaluation
-- **Documentation**: Completely updated all docs, eliminated duplication, modern examples
-- **Security**: Fixed critical regex vulnerability and fragile domain parsing from automated review
+### PR #107 - Gemini API Structured Output Field Name Fix 🎉
+- **Merged**: 2025-11-07 at 00:12:42Z
+- **Critical Bug Fix**: Corrected Gemini API field name from `responseSchema` to `responseJsonSchema`
+- **Impact**: Gemini API was silently ignoring schema parameter, now properly enforces JSON structure
+- **TDD Approach**: Comprehensive test coverage including regression prevention
+- **Testing**: All 589 unit tests pass, integration tests with real API successful
+- **Location**: `src/mad_spark_alt/core/llm_provider.py:294`
+- **Documentation**: Updated STRUCTURED_OUTPUT.md and CLAUDE.md with critical API requirements
 
-### PR #29 - Fixed agent registry and added performance improvements  
-- **Merged**: Successfully merged with all CI tests passing
-- **Critical Fix**: SmartAgentRegistry now loads environment variables properly in CLI
-- **Performance**: Added comprehensive benchmarking suite for system monitoring
-- **Code Quality**: Improved partial result collection, reduced duplication in evaluators
+### PR #106 - CLI Evaluator Filtering
+- **Merged**: 2025-11-06
+- **Feature**: `--evaluators` flag for selective evaluator filtering in CLI
+- **Usage**: `uv run mad-spark evaluate "text" --evaluators diversity_evaluator,quality_evaluator`
+- **Commands**: `uv run mad-spark list-evaluators` to see available options
 
-### Major Achievement: PR #27 - Documentation consolidation and project cleanup
-- **Merged**: Successfully merged with all CI tests passing
-- **Impact**: Removed 63 obsolete files (9,473 lines deleted), added robust evaluation utilities (2,835 lines)
-- **User Experience**: Consolidated 7 overlapping documentation files into single comprehensive README
-- **Code Quality**: Added Strategy pattern for mutations, shared evaluation utilities, comprehensive test coverage
+### PR #105 - Deprecated Module Cleanup (Phase 1)
+- **Merged**: 2025-11-06
+- **Scope**: Removed deprecated prompt classification modules
+- **Impact**: Cleaner codebase, reduced maintenance burden
+- **Migration**: Documentation updated with migration guide
 
-### Evolution System Architecture ✅ 
-- **Framework Complete**: Genetic algorithms, mutation strategies, fitness evaluation, timeout handling
-- **User Interface Added**: `uv run mad-spark evolve "your prompt"` CLI command with rich output
-- **Production Features**: Progress indicators, JSON export, interactive mode, error handling
-- **Testing Verified**: All architectural components work, comprehensive test suite added
+### PR #104 - Documentation Consolidation
+- **Merged**: 2025-11-06
+- **Achievement**: Consolidated and cleaned up documentation across project
+- **Improved**: README clarity, reduced duplication, better organization
+
+### PR #103 - Comprehensive ARCHITECTURE.md
+- **Merged**: 2025-08-06
+- **Achievement**: Single source of truth for system architecture
+- **Content**: Complete data flows, component relationships, technical standards
+
+### PR #97 - Phase 1 Performance Optimizations 🚀
+- **Merged**: 2025-08-04
+- **Achievement**: 60-70% execution time reduction for heavy workloads
+- **Method**: Batch LLM operations (parallel processing)
+- **Impact**: Evolution with population ≥4 now significantly faster
+- **Technical**: Single batch calls replace sequential operations (e.g., 5 batch calls vs 25 sequential)
 
 ## Next Priority Tasks 📋
 
-### System Status: Fully Operational ✅
-All major components are working perfectly:
-- **QADI System**: 100% classification accuracy with adaptive prompts
-- **CLI Interface**: All commands functional with rich output
-- **Evolution System**: Complete with genetic algorithms and timeout handling  
-- **Documentation**: Modern, organized, comprehensive
+### From Refactoring Plan (refactoring_plan_20251106.md)
+
+#### 1. **Test Coverage Improvements** (HIGH PRIORITY)
+- **Source**: refactoring_plan_20251106.md item 4
+- **Context**: Ensure comprehensive test coverage for critical paths
+- **Approach**: Add tests for edge cases, error handling, integration scenarios
+- **Estimate**: 4-6 hours for comprehensive coverage
+
+#### 2. **Code Quality Enhancements** (MEDIUM PRIORITY)
+- **Source**: refactoring_plan_20251106.md item 5
+- **Context**: Improve code maintainability and clarity
+- **Approach**: Refactor complex functions, add type hints, improve documentation
+- **Estimate**: 6-8 hours
+
+#### 3. **Performance Monitoring** (LOW PRIORITY)
+- **Source**: Ongoing maintenance
+- **Context**: Monitor system performance with current batch optimizations
+- **Approach**: Add metrics collection, identify bottlenecks
+- **Estimate**: 3-4 hours
 
 ### Future Enhancement Opportunities
 
-#### 1. **Performance Optimization** (LOW PRIORITY)
-- **Context**: Evolution command times out in complex scenarios (>90s)
-- **Approach**: Implement smarter timeout handling or reduce complexity for initial population generation
-- **Impact**: User experience improvement for complex evolution tasks
+#### 1. **Result Export & Persistence**
+- **Context**: Currently results only displayed to console
+- **Approach**: Add `--output` flag to main `mad_spark_alt` command for JSON/markdown export
+- **Impact**: Users can save and share analysis results
+- **Estimate**: 2-3 hours
 
-#### 2. **Additional Question Types** (ENHANCEMENT)
-- **Context**: Current 6 types cover most use cases, but could expand
-- **Approach**: Add domain-specific types like "scientific", "legal", "educational" based on user feedback
-- **Impact**: Even more targeted adaptive prompts for specialized domains
+#### 2. **Diversity Calculation Optimization**
+- **Context**: Current O(n²) complexity limits large populations
+- **Approach**: Implement approximate nearest neighbors or other optimization
+- **Impact**: Enable population sizes >10 efficiently
+- **Estimate**: 6-8 hours
 
-## Session Learnings 📚
+#### 3. **Directed Evolution Mode**
+- **Context**: Current evolution is random mutation/crossover
+- **Approach**: Intelligent evolution with targeted mutations based on fitness gradients
+- **Impact**: Faster convergence to high-quality ideas
+- **Estimate**: 12-16 hours
 
-### Major Achievement: Dynamic Prompt Engineering Complete
-- **4x Improvement**: Question classification accuracy from 25% → 100%
-- **System Integration**: Adaptive prompts work seamlessly across all QADI phases
-- **User Experience**: Manual override, concrete mode, smart cost display, model identification
-- **Documentation**: Complete modernization with clear separation of concerns
+## Known Issues / Blockers
 
-### Critical Pattern: Systematic Approach Success
-- **Four-Phase Protocol**: Merge conflicts → CI types → formatting → security fixes (reliable workflow)
-- **Real-World Testing**: Manual system testing revealed performance characteristics and user experience
-- **Security Integration**: Automated PR reviews (cursor[bot]) caught critical regex vulnerability
+### None Currently 🎉
+All critical systems operational:
+- ✅ QADI analysis working correctly
+- ✅ Structured output properly configured with Gemini API
+- ✅ Evolution system optimized with batch operations
+- ✅ CLI commands functional
+- ✅ All CI tests passing
 
-### Production-Ready Validation
-- **Core Components Tested**: QADI simple multi, CLI commands, evaluation system (evolution has partial timeout issues)
-- **User Accessibility**: Commands work as documented with proper error handling
-- **Performance Metrics**: Smart cost display, model identification, execution timing
+## Session Learnings
 
-## Technical Context for Next Session
+### Critical API Field Names Matter
+- **Learning**: Gemini API silently ignores incorrect field names
+- **Pattern**: Always verify API field names against official documentation
+- **Example**: `responseJsonSchema` (correct) vs `responseSchema` (incorrect, silently ignored)
+- **Prevention**: Add tests that verify actual API payload structure, not just response handling
 
-### System Components Status 🎉
-- ✅ `qadi_simple_multi.py` - 100% accurate adaptive prompts with 6 question types
-- ✅ `qadi.py` - Fast single-prompt analysis with smart cost display  
-- ✅ `mad-spark` CLI - Complete evaluation system with rich output
-- ✅ Dynamic prompt engineering - Auto-classification, manual override, concrete mode
-- ✅ All CI tests passing - Type checking, formatting, security validation
+### TDD Catches Integration Issues Early
+- **Learning**: Writing test first revealed the bug immediately
+- **Pattern**: For API integrations, test the actual payload sent, not just response handling
+- **Example**: Mock at the HTTP request level to capture and assert payload structure
+- **Benefit**: Caught field name bug before it could cause production issues
 
-### System Requirements Met
-- ✅ GOOGLE_API_KEY configured in .env file
-- ✅ All dependencies installed with `uv sync`
-- ✅ CLI installed in editable mode for `uv run` commands
+### GraphQL PR Review Workflow Efficiency
+- **Learning**: Single GraphQL query fetches all feedback sources (comments, reviews, line comments, CI)
+- **Pattern**: Use comprehensive extraction, then filter by priority
+- **Benefit**: Never miss reviewer feedback, systematic approach prevents errors
+- **Documentation**: ~/.claude/pr-review-guide.md has complete workflow
 
-## Files Modified This Session
+### Code Review Bot Feedback Quality
+- **Learning**: CodeRabbit provides actionable nitpick suggestions (DRY, regression prevention)
+- **Pattern**: Address low-priority improvements if they're quick wins (<2 min each)
+- **Example**: Using fixtures, adding negative assertions
+- **Benefit**: Improved code maintainability with minimal time investment
 
-### Core Implementation
-- `src/mad_spark_alt/core/prompt_classifier.py` - New question classification system
-- `src/mad_spark_alt/core/adaptive_prompts.py` - Domain-specific prompt templates
-- `src/mad_spark_alt/core/json_utils.py` - Enhanced with smart cost formatting
-- `qadi_simple_multi.py` - Complete rewrite with adaptive prompts and classification
-- `qadi.py` - Enhanced with model display and cost formatting
+## System Status Summary
 
-### Documentation Modernization
-- `README.md` - Updated with dynamic prompt engineering features
-- `CLAUDE.md` - Added new system components and patterns
-- `docs/README.md` - Redesigned as pure documentation index
-- `docs/cli_usage.md` - Complete CLI examples refresh
-- `docs/examples.md` - New adaptive prompt examples
-- `docs/qadi_api.md` - Extended API documentation
+### Core Components: Fully Operational ✅
+- **QADI Orchestration**: Working with structured output
+- **LLM Integration**: Gemini API properly configured
+- **Evolution System**: Optimized with batch operations (60-70% faster)
+- **CLI Interface**: All commands functional with evaluator filtering
+- **Testing Infrastructure**: Comprehensive with 589 passing tests
+- **Documentation**: Up-to-date and well-organized
 
-### Documentation Cleanup
-- `README.md` - Consolidated and streamlined
-- Removed 63 obsolete files (demos/, docs/, duplicated examples)
-- Enhanced project structure and user guidance
+### Recent Performance Metrics
+- **Simple QADI**: ~10s, $0.002
+- **Evolution (pop=3, gen=2)**: ~60s, $0.005
+- **Evolution (pop=10, gen=5)**: ~450s → ~180s (with batch optimization), $0.016
 
-### Quality Improvements
-- All CI tests passing across Python 3.8-3.11
-- Type safety improvements with mypy compliance
-- Code formatting standardized with black/isort
+### Key Files Updated
+- `src/mad_spark_alt/core/llm_provider.py`: Gemini API integration
+- `docs/STRUCTURED_OUTPUT.md`: API field names documented
+- `CLAUDE.md`: Critical patterns captured
+- `tests/test_llm_provider.py`: Comprehensive test coverage
+- `tests/test_structured_output.py`: Regression prevention
 
-## Quick Start for Next Session
+## Development Workflow Notes
 
+### For Next Session
+1. Check refactoring_plan_20251106.md for remaining items
+2. Review SESSION_HANDOVER.md for context
+3. Run `gh pr list --state merged --limit 5` to see recent changes
+4. Verify all tests pass: `uv run pytest tests/ -m "not integration"`
+
+### Quick Reference Commands
 ```bash
-# 1. Verify current state
-uv run python qadi.py "test"  # Should work
+# Run QADI analysis
+uv run mad_spark_alt "your question"
 
-# 2. Test agent registry
-uv run python -c "
-from mad_spark_alt.core.smart_registry import smart_registry
-import asyncio
-status = asyncio.run(smart_registry.test_agent_connectivity())
-print('Agent status:', status)
-"
+# With evolution
+uv run mad_spark_alt "your question" --evolve
 
-# 3. Fix registration if needed
-# Edit src/mad_spark_alt/core/smart_registry.py
+# List evaluators
+uv run mad-spark list-evaluators
 
-# 4. Test evolution once fixed  
-uv run mad-spark evolve "test prompt" --generations 2
+# Run tests
+uv run pytest tests/ -m "not integration"
+
+# Type checking
+uv run mypy src/
+
+# View recent PRs
+gh pr list --state merged --limit 5
 ```
 
-## Success Criteria
-- [x] `SmartAgentRegistry` shows populated agents (FIXED in PR #29)
-- [x] `mad-spark evolve` completes without timeout (FIXED)
-- [x] Users can run custom prompts through CLI (WORKING)
-- [x] Evolution pipeline produces meaningful results (VERIFIED)
+---
 
-## Implementation Details from PR #29
-
-### 1. SmartAgentRegistry Fix
-- **Problem**: CLI commands failed because environment variables weren't loaded
-- **Solution**: Added `load_env_file()` function to CLI startup in `cli.py`
-- **Code**:
-  ```python
-  def load_env_file() -> None:
-      """Load environment variables from .env file if it exists."""
-      env_path = Path(__file__).parent.parent.parent / ".env"
-      if env_path.exists():
-          try:
-              with open(env_path) as f:
-                  for line in f:
-                      line = line.strip()
-                      if line and not line.startswith("#") and "=" in line:
-                          key, value = line.split("=", 1)
-                          if key not in os.environ:
-                              os.environ[key] = value.strip('"').strip("'")
-          except Exception as e:
-              logging.warning(f"Failed to load .env file: {e}")
-  ```
-
-### 2. Performance Benchmarking Suite
-- **Created**: `tests/performance_benchmarks.py`
-- **Tests Added**:
-  - QADI cycle performance (target: <3 min average)
-  - Parallel generation scaling
-  - Evolution algorithm benchmarking
-  - Memory usage tracking with tracemalloc
-  - Concurrent request handling
-- **Key Pattern**: Use descriptive names, avoid `test_*.py` in root tests/
-
-### 3. GeneticAlgorithm API Corrections
-- **Wrong**: `ga = GeneticAlgorithm(config)`
-- **Correct**: 
-  ```python
-  ga = GeneticAlgorithm()
-  request = EvolutionRequest(initial_population, config, context)
-  result = await ga.evolve(request)
-  ```
-
-## Next Priority Tasks
-
-1. **Memory Profiler Dependency (Optional)**
-   - Source: gemini-code-assist[bot] review
-   - Context: Import was removed but might be useful for profiling
-   - Approach: Add to pyproject.toml dev dependencies if needed
-
-2. **Python-dotenv Migration (Optional)**
-   - Source: Multiple reviewer suggestions
-   - Context: More robust than manual parsing
-   - Approach: Consider as future enhancement
-
-3. **Performance Optimization**
-   - Source: Benchmark results
-   - Context: Evolution tests show optimization opportunities
-   - Approach: Profile genetic operators, optimize hot paths
-
-## Additional Technical Notes
-
-- **Critical Discovery**: SmartAgentRegistry requires env vars loaded before use
-- **Testing Pattern**: Avoid `test_*.py` naming in root tests/ directory
-- **API Pattern**: GeneticAlgorithm uses request objects, not config in constructor
-- **Review Process**: Systematic approach with author grouping works efficiently
+**Note**: This handover reflects work completed through November 7, 2025. For detailed technical patterns, see CLAUDE.md. For architecture details, see ARCHITECTURE.md.
