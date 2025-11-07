@@ -2,7 +2,6 @@
 
 from .base_orchestrator import AgentCircuitBreaker, BaseOrchestrator
 from .evaluator import CreativityEvaluator, EvaluationSummary
-from .fast_orchestrator import FastQADIOrchestrator
 from .interfaces import (  # New idea generation interfaces
     AsyncEvaluatorInterface,
     CacheableEvaluatorInterface,
@@ -52,18 +51,6 @@ from .smart_registry import (
 from .simple_qadi_orchestrator import SimpleQADIOrchestrator, SimpleQADIResult
 from .unified_evaluator import UnifiedEvaluator, HypothesisEvaluation
 
-# Import robust orchestrator if available
-try:
-    from .robust_orchestrator import RobustQADIOrchestrator
-    from .robust_orchestrator import SmartQADICycleResult as RobustQADICycleResult
-except ImportError as e:
-    # Fallback to smart orchestrator if robust version not available
-    import logging
-
-    logging.debug(f"Failed to import RobustQADIOrchestrator: {e}")
-    RobustQADIOrchestrator = SmartQADIOrchestrator  # type: ignore[misc,assignment]
-    RobustQADICycleResult = SmartQADICycleResult  # type: ignore[misc]
-
 __all__ = [
     # Base orchestrator
     "BaseOrchestrator",
@@ -103,8 +90,6 @@ __all__ = [
     "QADICycleResult",
     "SmartQADIOrchestrator",
     "SmartQADICycleResult",
-    "RobustQADIOrchestrator",
-    "RobustQADICycleResult",
     # Agent registry system
     "ThinkingAgentRegistry",
     "agent_registry",
@@ -115,11 +100,54 @@ __all__ = [
     "smart_registry",
     "setup_smart_agents",
     "get_smart_agent",
-    # Fast orchestrator
-    "FastQADIOrchestrator",
     # Simple QADI components
     "SimpleQADIOrchestrator",
     "SimpleQADIResult",
     "UnifiedEvaluator",
     "HypothesisEvaluation",
+    # Deprecated orchestrators (compatibility shims)
+    "FastQADIOrchestrator",
+    "RobustQADIOrchestrator",
+    "RobustQADICycleResult",
+    "EnhancedQADIOrchestrator",
 ]
+
+
+# Compatibility shims for removed orchestrators (deprecated in v2.0.0, will be removed in v3.0.0)
+import warnings
+
+
+def _create_deprecation_shim(
+    old_name: str, new_class: type, removal_version: str = "v3.0.0"
+) -> type:
+    """Create a deprecated class shim that warns on instantiation."""
+
+    class DeprecatedShim(new_class):  # type: ignore[misc,valid-type]
+        def __init__(self, *args, **kwargs) -> None:  # type: ignore[no-untyped-def]
+            warnings.warn(
+                f"{old_name} has been removed as of v2.0.0 and will be completely unavailable in {removal_version}. "
+                f"Use {new_class.__name__} instead. "
+                f"See DEPRECATED.md for migration guide.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            super().__init__(*args, **kwargs)
+
+    DeprecatedShim.__name__ = old_name
+    DeprecatedShim.__qualname__ = old_name
+    return DeprecatedShim
+
+
+# Create compatibility shims pointing to SmartQADIOrchestrator
+FastQADIOrchestrator = _create_deprecation_shim(
+    "FastQADIOrchestrator", SmartQADIOrchestrator
+)
+RobustQADIOrchestrator = _create_deprecation_shim(
+    "RobustQADIOrchestrator", SmartQADIOrchestrator
+)
+EnhancedQADIOrchestrator = _create_deprecation_shim(
+    "EnhancedQADIOrchestrator", SmartQADIOrchestrator
+)
+
+# RobustQADICycleResult is just an alias
+RobustQADICycleResult = SmartQADICycleResult
