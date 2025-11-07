@@ -192,8 +192,9 @@ class SemanticOperatorCache:
     def get_cache_stats(self) -> Dict[str, int]:
         """Get cache statistics for monitoring performance."""
         current_time = time.time()
+        effective_ttl = self._get_effective_ttl(current_time)
         valid_entries = sum(1 for _, (_, timestamp) in self._cache.items()
-                           if current_time - timestamp < self.ttl_seconds)
+                           if current_time - timestamp < effective_ttl)
 
         return {
             "total_entries": len(self._cache),
