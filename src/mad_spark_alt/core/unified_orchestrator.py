@@ -14,6 +14,11 @@ from .orchestrator_config import (
     Strategy
 )
 from .simple_qadi_orchestrator import SimpleQADIOrchestrator, SimpleQADIResult
+from .multi_perspective_orchestrator import (
+    MultiPerspectiveQADIOrchestrator,
+    MultiPerspectiveQADIResult
+)
+from .intent_detector import QuestionIntent
 from .smart_registry import SmartAgentRegistry
 from .interfaces import GeneratedIdea
 from .phase_logic import HypothesisScore
@@ -178,6 +183,69 @@ class UnifiedQADIOrchestrator:
             execution_metadata={}
         )
 
+    def _convert_multi_perspective_result(
+        self,
+        mp_result: MultiPerspectiveQADIResult,
+        problem_statement: str
+    ) -> UnifiedQADIResult:
+        """
+        Convert MultiPerspectiveQADIResult to UnifiedQADIResult.
+
+        Args:
+            mp_result: Result from MultiPerspectiveQADIOrchestrator
+            problem_statement: Original user question (for core_question)
+
+        Returns:
+            UnifiedQADIResult: Unified result structure
+        """
+        # Collect all hypotheses across perspectives with scores
+        all_hypotheses_with_scores = []
+        for perspective_result in mp_result.perspective_results:
+            for i, hypothesis in enumerate(perspective_result.result.hypotheses):
+                # Get score for this hypothesis
+                score = 0.5  # Default fallback
+                if i < len(perspective_result.result.hypothesis_scores):
+                    score = perspective_result.result.hypothesis_scores[i].overall
+                all_hypotheses_with_scores.append((hypothesis, score))
+
+        # Sort by score (descending) and take top N
+        all_hypotheses_with_scores.sort(key=lambda x: x[1], reverse=True)
+        top_n = self.config.num_hypotheses
+        top_hypotheses = [h for h, _ in all_hypotheses_with_scores[:top_n]]
+
+        # Get top hypothesis scores from primary perspective for backward compatibility
+        top_scores = []
+        if mp_result.perspective_results:
+            primary_perspective = mp_result.perspective_results[0]
+            if primary_perspective.result.hypothesis_scores:
+                # Take scores corresponding to top hypotheses
+                top_scores = primary_perspective.result.hypothesis_scores[:top_n]
+
+        # Convert perspectives_used from QuestionIntent to strings
+        perspectives_used = [
+            intent.value for intent in mp_result.perspectives_used
+        ]
+
+        return UnifiedQADIResult(
+            strategy_used=self.config.strategy,
+            execution_mode=self.config.execution_mode,
+            core_question=problem_statement,  # Use original problem statement
+            hypotheses=top_hypotheses,
+            hypothesis_scores=top_scores,
+            final_answer=mp_result.synthesized_answer,
+            action_plan=mp_result.synthesized_action_plan,
+            total_llm_cost=mp_result.total_llm_cost,
+            synthesized_ideas=mp_result.synthesized_ideas,
+            perspectives_used=perspectives_used,
+            synthesized_answer=mp_result.synthesized_answer,
+            phase_results={
+                "perspective_count": len(mp_result.perspective_results),
+                "primary_intent": mp_result.primary_intent.value,
+                "intent_confidence": mp_result.intent_confidence
+            },
+            execution_metadata={}
+        )
+
     async def _run_multi_perspective_strategy(
         self,
         problem_statement: str,
@@ -186,19 +254,45 @@ class UnifiedQADIOrchestrator:
         """
         Run Multi-Perspective strategy.
 
-        To be implemented in next phase.
+        Delegates to MultiPerspectiveQADIOrchestrator for execution.
 
         Args:
             problem_statement: The question to analyze
-            context: Optional context
+            context: Optional context (not used by MP orchestrator)
 
         Returns:
-            UnifiedQADIResult: Results from multi-perspective analysis
-
-        Raises:
-            NotImplementedError: Not yet implemented
+            UnifiedQADIResult: Results converted from MultiPerspectiveQADIResult
         """
-        raise NotImplementedError("Multi-perspective strategy not yet implemented")
+        # Create MultiPerspective orchestrator with configured parameters
+        mp_orch = MultiPerspectiveQADIOrchestrator(
+            temperature_override=self.config.temperature_override
+        )
+
+        # Convert string perspectives to QuestionIntent if provided
+        force_perspectives = None
+        if self.config.perspectives:
+            try:
+                force_perspectives = [
+                    QuestionIntent[p.upper()] for p in self.config.perspectives
+                ]
+            except KeyError as e:
+                raise ValueError(
+                    f"Invalid perspective: {e}. Valid perspectives: "
+                    f"{[intent.value for intent in QuestionIntent]}"
+                )
+
+        # Determine max_perspectives (default 3 as per design decision)
+        max_perspectives = 3
+
+        # Run multi-perspective analysis
+        mp_result = await mp_orch.run_multi_perspective_analysis(
+            problem_statement,
+            max_perspectives=max_perspectives,
+            force_perspectives=force_perspectives
+        )
+
+        # Convert to unified result
+        return self._convert_multi_perspective_result(mp_result, problem_statement)
 
     async def _run_smart_strategy(
         self,
