@@ -899,7 +899,8 @@ class TestUnifiedOrchestratorMultiPerspective:
             core_question="Q",
             hypotheses=["H1", "H2"],
             hypothesis_scores=[
-                HypothesisScore(impact=0.8, feasibility=0.7, accessibility=0.9, sustainability=0.75, scalability=0.80, overall=0.79)
+                HypothesisScore(impact=0.8, feasibility=0.7, accessibility=0.9, sustainability=0.75, scalability=0.80, overall=0.79),
+                HypothesisScore(impact=0.7, feasibility=0.6, accessibility=0.8, sustainability=0.65, scalability=0.70, overall=0.69)
             ],
             final_answer="Answer",
             action_plan=["Step 1", "Step 2"],

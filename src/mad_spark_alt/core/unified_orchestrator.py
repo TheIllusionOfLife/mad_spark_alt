@@ -6,7 +6,7 @@ configuration-driven implementation.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 
 from .orchestrator_config import (
     OrchestratorConfig,
@@ -199,27 +199,29 @@ class UnifiedQADIOrchestrator:
             UnifiedQADIResult: Unified result structure
         """
         # Collect all hypotheses across perspectives with scores
-        all_hypotheses_with_scores = []
+        all_hypotheses_with_scores: List[Tuple[str, float, Optional[HypothesisScore]]] = []
         for perspective_result in mp_result.perspective_results:
+            scores = perspective_result.result.hypothesis_scores or []
             for i, hypothesis in enumerate(perspective_result.result.hypotheses):
-                # Get score for this hypothesis
-                score = 0.5  # Default fallback
-                if i < len(perspective_result.result.hypothesis_scores):
-                    score = perspective_result.result.hypothesis_scores[i].overall
-                all_hypotheses_with_scores.append((hypothesis, score))
+                score_obj = scores[i] if i < len(scores) else None
+                score_value = score_obj.overall if score_obj is not None else 0.5
+                all_hypotheses_with_scores.append((hypothesis, score_value, score_obj))
 
         # Sort by score (descending) and take top N
-        all_hypotheses_with_scores.sort(key=lambda x: x[1], reverse=True)
+        all_hypotheses_with_scores.sort(key=lambda entry: entry[1], reverse=True)
         top_n = self.config.num_hypotheses
-        top_hypotheses = [h for h, _ in all_hypotheses_with_scores[:top_n]]
+        top_entries = all_hypotheses_with_scores[:top_n]
+        top_hypotheses = [hypothesis for hypothesis, _, _ in top_entries]
 
-        # Get top hypothesis scores from primary perspective for backward compatibility
-        top_scores = []
-        if mp_result.perspective_results:
-            primary_perspective = mp_result.perspective_results[0]
-            if primary_perspective.result.hypothesis_scores:
-                # Take scores corresponding to top hypotheses
-                top_scores = primary_perspective.result.hypothesis_scores[:top_n]
+        # Extract score objects, maintaining alignment with hypotheses
+        # Only return scores if ALL hypotheses have scores (maintains 1:1 alignment)
+        if not top_entries:
+            top_scores: Optional[List[HypothesisScore]] = []
+        elif all(score_obj is not None for _, _, score_obj in top_entries):
+            top_scores = [score_obj for _, _, score_obj in top_entries]  # type: ignore
+        else:
+            # Some hypotheses lack scores - return None to avoid misalignment
+            top_scores = None
 
         # Convert perspectives_used from QuestionIntent to strings
         perspectives_used = [
