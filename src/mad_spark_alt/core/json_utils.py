@@ -10,6 +10,10 @@ import re
 from typing import Any, Callable, Dict, List, Optional
 
 
+# Constants for content extraction
+_MIN_EXTRACTED_IDEA_LENGTH = 10  # Minimum length for extracted numbered/bullet list items
+
+
 def extract_json_from_response(text: str) -> Optional[str]:
     """
     Extract JSON content from LLM response text.
@@ -398,6 +402,293 @@ def safe_json_parse_with_validation(
         return fallback
 
     return parsed_data
+
+
+def _fix_common_json_issues(text: str) -> str:
+    """
+    Fix common JSON formatting issues from LLM responses.
+
+    Handles:
+    - Trailing commas before closing braces/brackets
+    - Single quotes instead of double quotes (preserves apostrophes in values)
+    - Unquoted keys
+    - JavaScript-style comments (carefully avoids breaking URLs)
+
+    Args:
+        text: Raw JSON-like text
+
+    Returns:
+        Fixed JSON text
+    """
+    # Remove trailing commas
+    text = re.sub(r",\s*}", "}", text)
+    text = re.sub(r",\s*\]", "]", text)
+
+    # Try ast.literal_eval first (safest approach for Python-like JSON with single quotes)
+    # This handles apostrophes correctly: {'name': "O'Reilly"} works perfectly
+    try:
+        import ast
+        # literal_eval only works if the text is valid Python literal syntax
+        # This handles single quotes, preserves apostrophes, and is safe
+        obj = ast.literal_eval(text)
+        # Convert back to JSON with double quotes
+        import json as json_mod
+        return json_mod.dumps(obj, ensure_ascii=False)
+    except (ValueError, SyntaxError, MemoryError):
+        # Not valid Python literal, continue with regex-based fixing
+        pass
+
+    # Fix unquoted keys first (before quote fixing to avoid conflicts)
+    text = re.sub(r'(?<!")\b(\w+)\b(?=\s*:)', r'"\1"', text)
+
+    # Remove JavaScript-style comments but preserve content inside strings
+    # This is complex, so we use a simple heuristic: only remove // at line start or after whitespace
+    # AND not inside quoted strings (simple approximation)
+    def remove_comment(match: re.Match[str]) -> str:
+        line = match.group(0)
+        # Count quotes before // to determine if we're inside a string
+        comment_pos = line.find('//')
+        if comment_pos == -1:
+            return line
+
+        # Simple heuristic: count unescaped quotes before //
+        before_comment = line[:comment_pos]
+        quote_count = before_comment.count('"') - before_comment.count('\\"')
+
+        # If odd number of quotes, we're inside a string, keep the comment
+        if quote_count % 2 == 1:
+            return line
+
+        # Even quotes (or zero), we're outside strings, remove comment
+        return line[:comment_pos].rstrip()
+
+    # Process line by line for comment removal
+    lines = text.split('\n')
+    processed_lines = []
+    for line in lines:
+        match = re.match(r'.*', line)
+        if match:
+            processed_lines.append(remove_comment(match))
+        else:
+            processed_lines.append(line)
+    text = '\n'.join(processed_lines)
+
+    # Remove block comments (/* ... */)
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+
+    # Fix single quotes - use more sophisticated approach
+    # Match single-quoted strings, accounting for escaped quotes and apostrophes
+    # Pattern: 'anything except unescaped single quotes'
+    # This still has limitations with complex cases like 'O'Reilly'
+    # For those, we rely on ast.literal_eval above
+    def fix_single_quote_strings(match: re.Match[str]) -> str:
+        full_match = match.group(0)
+        # If the matched content contains apostrophes, skip it
+        # (it's likely part of a larger single-quoted string)
+        if full_match.count("'") > 2:
+            return full_match  # Don't modify complex cases
+
+        content = match.group(1)
+        # Escape any double quotes inside
+        content = content.replace('"', '\\"')
+        return f'"{content}"'
+
+    # Only replace simple single-quoted strings (no internal apostrophes)
+    text = re.sub(r"'([^']*)'", fix_single_quote_strings, text)
+
+    return text
+
+
+def _extract_with_multiple_keys(
+    data: Dict[str, Any],
+    keys: List[str]
+) -> Optional[Any]:
+    """
+    Try to extract value using multiple possible keys.
+
+    Args:
+        data: Parsed JSON dictionary
+        keys: List of possible keys to try
+
+    Returns:
+        First matching value found, or None
+    """
+    for key in keys:
+        if key in data:
+            return data[key]
+    return None
+
+
+def _try_parse_and_validate(
+    json_str: Optional[str],
+    expected_keys: Optional[List[str]] = None
+) -> Optional[Dict[str, Any]]:
+    """
+    Attempt to parse a JSON string and validate it.
+
+    Args:
+        json_str: JSON string to parse
+        expected_keys: Optional list of keys expected in the result
+
+    Returns:
+        Parsed dictionary if successful and valid, None otherwise
+    """
+    if not json_str:
+        return None
+
+    try:
+        data = json.loads(json_str)
+        if isinstance(data, dict):
+            # If expected_keys provided, validate at least one exists
+            if not expected_keys or _extract_with_multiple_keys(data, expected_keys) is not None:
+                return data
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    return None
+
+
+def extract_and_parse_json(
+    text: str,
+    expected_keys: Optional[List[str]] = None,
+    fix_issues: bool = True,
+    fallback: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    One-step JSON extraction, fixing, and parsing with validation.
+
+    This convenience function combines:
+    1. JSON extraction from various formats (markdown, plain text, etc.)
+    2. Common issue fixing (trailing commas, quotes, comments)
+    3. JSON parsing with fallback
+    4. Optional validation for expected keys
+
+    Args:
+        text: Raw text response from LLM
+        expected_keys: Optional list of keys expected in the JSON
+        fix_issues: Whether to attempt fixing common JSON issues
+        fallback: Fallback dictionary if parsing fails
+
+    Returns:
+        Parsed JSON dictionary or fallback
+    """
+    if fallback is None:
+        fallback = {}
+
+    if not text or not isinstance(text, str):
+        return fallback
+
+    # Strategy 1: Try direct parsing first
+    if (data := _try_parse_and_validate(text, expected_keys)) is not None:
+        return data
+
+    # Strategy 2: Extract from markdown or surrounding text
+    extracted_json = extract_json_from_response(text)
+    if (data := _try_parse_and_validate(extracted_json, expected_keys)) is not None:
+        return data
+
+    # Strategy 3: Try fixing common issues and parsing again
+    if fix_issues:
+        fixed_text = _fix_common_json_issues(text)
+        if fixed_text != text:
+            # Try parsing fixed text directly
+            if (data := _try_parse_and_validate(fixed_text, expected_keys)) is not None:
+                return data
+
+            # Try extraction after fixing
+            extracted_fixed = extract_json_from_response(fixed_text)
+            if (data := _try_parse_and_validate(extracted_fixed, expected_keys)) is not None:
+                return data
+
+    return fallback
+
+
+def parse_ideas_array(
+    text: str,
+    max_ideas: Optional[int] = None,
+    fallback_keys: Optional[List[str]] = None,
+    fallback_ideas: Optional[List[Dict[str, Any]]] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Parse an array of ideas from LLM response with multiple fallback strategies.
+
+    Tries to find ideas using various key names and formats:
+    1. JSON with keys: "ideas", "hypotheses", "questions", "insights"
+    2. Custom keys provided in fallback_keys
+    3. Numbered list extraction (1., 2., 3., etc.)
+    4. Bullet list extraction (-, *, •)
+    5. Fallback list if all parsing fails
+
+    Args:
+        text: Raw text response from LLM
+        max_ideas: Maximum number of ideas to return
+        fallback_keys: Additional keys to try for finding ideas array
+        fallback_ideas: Fallback list if parsing fails
+
+    Returns:
+        List of idea dictionaries
+    """
+    if fallback_ideas is None:
+        fallback_ideas = []
+
+    if not text or not isinstance(text, str):
+        return fallback_ideas
+
+    # Default keys to try
+    default_keys = ["ideas", "hypotheses", "questions", "insights"]
+    if fallback_keys:
+        # Custom keys take priority
+        keys_to_try = fallback_keys + default_keys
+    else:
+        keys_to_try = default_keys
+
+    # Strategy 1: Try to extract and parse JSON with fixing enabled
+    result = extract_and_parse_json(
+        text,
+        expected_keys=keys_to_try,
+        fix_issues=True,
+        fallback={}
+    )
+
+    # Extract ideas array from various possible keys
+    ideas = _extract_with_multiple_keys(result, keys_to_try)
+
+    if isinstance(ideas, list) and len(ideas) > 0:
+        # Apply max_ideas limit if specified
+        if max_ideas is not None:
+            return ideas[:max_ideas]
+        return ideas
+
+    # Strategy 2: Try numbered list extraction
+    # Pattern matches: "1.", "2.", etc. at start of line or after newline
+    numbered_pattern = r"(?:^|\n)\s*(?:\d+\.?|\d+\))\s+(.+?)(?=\n\s*(?:\d+\.?|\d+\))|$)"
+    numbered_matches = re.findall(numbered_pattern, text, re.MULTILINE | re.DOTALL)
+
+    # Strategy 3: Try bullet list extraction
+    # Pattern matches: "-", "*", "•" at start of line
+    bullet_pattern = r"(?:^|\n)\s*[-•*]\s+(.+?)(?=\n\s*[-•*]|$)"
+    bullet_matches = re.findall(bullet_pattern, text, re.MULTILINE | re.DOTALL)
+
+    # Combine all extracted items
+    all_matches = numbered_matches + bullet_matches
+
+    extracted_ideas = []
+    for match in all_matches:
+        item_text = match.strip()
+        if len(item_text) >= _MIN_EXTRACTED_IDEA_LENGTH:
+            extracted_ideas.append({
+                "content": item_text,
+                "extracted": True
+            })
+
+    if extracted_ideas:
+        # Apply max_ideas limit
+        if max_ideas is not None:
+            return extracted_ideas[:max_ideas]
+        return extracted_ideas
+
+    # Return fallback if nothing extracted
+    return fallback_ideas
 
 
 def format_llm_cost(cost: float) -> str:

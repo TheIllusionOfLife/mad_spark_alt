@@ -229,6 +229,7 @@ graph TD
 | **SimplerQADIOrchestrator** | Main QADI pipeline execution | `qadi_simple.py` | SimpleQADIOrchestrator |
 | **SimpleQADIOrchestrator** | Core QADI implementation | `simple_qadi_orchestrator.py` | LLMProvider, QADIPrompts |
 | **LLMProvider** | Gemini API integration | `llm_provider.py` | google-generativeai |
+| **JSONUtils** | Unified JSON parsing for LLM responses | `json_utils.py` | None |
 | **GeneticAlgorithm** | Evolution coordination | `genetic_algorithm.py` | FitnessEvaluator, Operators |
 | **FitnessEvaluator** | 5-criteria scoring | `fitness.py` | LLMProvider |
 | **SemanticOperators** | LLM-powered mutations | `semantic_operators.py` | LLMProvider |
