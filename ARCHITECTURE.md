@@ -251,7 +251,124 @@ Legacy/Experimental:
 │   └── EnhancedQADIOrchestrator (extended features)
 ├── MultiPerspectiveQADIOrchestrator (multi-angle analysis)
 └── QADIOrchestrator (original base class)
+
+New Base Architecture (Refactoring Phase):
+└── BaseOrchestrator (abstract base, shared infrastructure)
+    └── [Future orchestrators will extend this]
 ```
+
+### BaseOrchestrator: Shared Infrastructure Layer
+
+**Purpose**: `BaseOrchestrator` provides common orchestration infrastructure that can be reused across all QADI orchestrator implementations, eliminating code duplication and ensuring consistent behavior.
+
+**Key Features**:
+- **Circuit Breaker Pattern**: Prevents cascading failures from repeatedly failing agents
+- **Agent Management**: Automatic agent setup and registry integration
+- **Helper Methods**: Context building, idea synthesis, cost extraction
+- **Error Handling**: Standardized timeout/error result factories
+- **Optional Hooks**: Customizable initialization and finalization
+
+**What Goes in BaseOrchestrator**:
+```python
+# Shared state management
+- registry: SmartAgentRegistry
+- auto_setup: bool
+- enable_circuit_breakers: bool
+- _setup_completed: bool
+- _circuit_breakers: Dict[str, AgentCircuitBreaker]
+
+# Helper methods (identical across orchestrators)
+- _build_enhanced_context()
+- _collect_and_tag_ideas()
+- _extract_llm_cost()
+
+# Agent management
+- ensure_agents_ready()
+- _create_template_agent()
+
+# Circuit breaker methods
+- _get_circuit_breaker()
+- _can_use_agent()
+- _record_agent_success()
+- _record_agent_failure()
+
+# Error result factories
+- _create_timeout_result()
+- _create_error_result()
+- _create_empty_result()
+
+# Optional hooks (can be overridden)
+- _initialize_cycle()
+- _finalize_cycle()
+```
+
+**What Stays Orchestrator-Specific**:
+```python
+# Abstract method (must be implemented by subclasses)
+- run_qadi_cycle()
+
+# Orchestrator-specific configuration
+- Timeout values
+- Execution strategy (parallel vs sequential)
+- Intent detection (MultiPerspective only)
+- Answer extraction (Enhanced only)
+- Caching (Fast only)
+```
+
+**Usage Pattern**:
+```python
+from mad_spark_alt.core import BaseOrchestrator
+
+class MyCustomOrchestrator(BaseOrchestrator):
+    async def run_qadi_cycle(self, problem_statement, context=None, cycle_config=None):
+        # Leverage base class methods
+        await self.ensure_agents_ready()
+
+        # Custom orchestration logic here
+        for method in self.QADI_SEQUENCE:
+            if not self._can_use_agent(method):
+                result = self._create_timeout_result(method)
+                continue
+
+            # Run phase...
+            self._record_agent_success(method)
+
+        # Use helper methods
+        enhanced_context = self._build_enhanced_context(context, phase1_result)
+        all_ideas = self._collect_and_tag_ideas(phases)
+        total_cost = sum(self._extract_llm_cost(r) for r in phases.values())
+```
+
+**Migration Path** (Refactoring Plan Step 7):
+1. **Current**: 7 orchestrators with ~3,850 lines of duplicated code
+2. **With BaseOrchestrator**: Extract ~400 lines of shared logic to base class
+3. **Next Steps**:
+   - Step 8: Refactor SimpleQADI to use BaseOrchestrator (~1,296 → ~400 lines)
+   - Step 9: Refactor MultiPerspective to use BaseOrchestrator (~602 → ~200 lines)
+   - Step 10: Remove deprecated orchestrators (-724 lines)
+   - Step 11-14: Create UnifiedOrchestrator for configuration-based behavior
+
+**Benefits**:
+- **-29% codebase size** (~12,000 → ~8,500 lines across all refactoring)
+- **Single source of truth** for agent management and error handling
+- **Easier to test** (shared logic tested once in BaseOrchestrator tests)
+- **Consistent behavior** across all orchestrator implementations
+- **Clear extension point** for new orchestrator types
+
+**Test Coverage**: 49 comprehensive tests covering all BaseOrchestrator functionality
+- Initialization and configuration
+- Circuit breaker pattern (8 tests)
+- Agent management (6 tests)
+- Helper methods (11 tests)
+- Error result factories (3 tests)
+- Abstract method enforcement
+- Optional hooks
+- Integration scenarios
+
+**Files**:
+- Implementation: `src/mad_spark_alt/core/base_orchestrator.py` (451 lines)
+- Tests: `tests/core/test_base_orchestrator.py` (905 lines)
+- Export: `src/mad_spark_alt/core/__init__.py` (BaseOrchestrator, AgentCircuitBreaker)
 
 ---
 
