@@ -9,6 +9,9 @@ import pytest
 from unittest.mock import AsyncMock, Mock, patch
 from typing import List
 
+from mad_spark_alt.core.orchestrator_config import OrchestratorConfig, Strategy, ExecutionMode
+from mad_spark_alt.core.unified_orchestrator import UnifiedQADIOrchestrator
+
 
 # =============================================================================
 # Simple Strategy Tests (20-25 tests)
@@ -480,26 +483,9 @@ class TestUnifiedOrchestratorSimple:
 class TestUnifiedOrchestratorMultiPerspective:
     """Tests for Multi-Perspective strategy integration."""
 
-    @pytest.fixture
-    def mp_imports(self):
-        """Import dependencies for multi-perspective tests."""
-        from mad_spark_alt.core.orchestrator_config import OrchestratorConfig, Strategy, ExecutionMode
-        from mad_spark_alt.core.unified_orchestrator import UnifiedQADIOrchestrator
-        return {
-            'OrchestratorConfig': OrchestratorConfig,
-            'Strategy': Strategy,
-            'ExecutionMode': ExecutionMode,
-            'UnifiedQADIOrchestrator': UnifiedQADIOrchestrator
-        }
-
     @pytest.mark.asyncio
-    @patch('mad_spark_alt.core.unified_orchestrator.MultiPerspectiveQADIOrchestrator')
-    async def test_init_with_multi_perspective_config(self, MockMultiPerspective, mp_imports):
+    async def test_init_with_multi_perspective_config(self):
         """Test initialization with multi-perspective config."""
-        OrchestratorConfig = mp_imports["OrchestratorConfig"]
-        Strategy = mp_imports["Strategy"]
-        ExecutionMode = mp_imports["ExecutionMode"]
-        UnifiedQADIOrchestrator = mp_imports["UnifiedQADIOrchestrator"]
         config = OrchestratorConfig.multi_perspective_config(
             perspectives=["environmental", "technical"]
         )
@@ -509,14 +495,8 @@ class TestUnifiedOrchestratorMultiPerspective:
         assert orchestrator.config.perspectives == ["environmental", "technical"]
 
     @pytest.mark.asyncio
-    @patch('mad_spark_alt.core.unified_orchestrator.MultiPerspectiveQADIOrchestrator')
-    async def test_init_validates_multi_perspective_requirements(self, MockMultiPerspective, mp_imports):
+    async def test_init_validates_multi_perspective_requirements(self):
         """Test that multi-perspective config validation works."""
-        OrchestratorConfig = mp_imports["OrchestratorConfig"]
-        Strategy = mp_imports["Strategy"]
-        ExecutionMode = mp_imports["ExecutionMode"]
-        UnifiedQADIOrchestrator = mp_imports["UnifiedQADIOrchestrator"]
-
         # Should fail without perspectives or auto_detect
         config = OrchestratorConfig(
             strategy=Strategy.MULTI_PERSPECTIVE,
@@ -529,13 +509,8 @@ class TestUnifiedOrchestratorMultiPerspective:
 
     @pytest.mark.asyncio
     @patch('mad_spark_alt.core.unified_orchestrator.MultiPerspectiveQADIOrchestrator')
-    async def test_multi_perspective_with_explicit_perspectives(self, MockMultiPerspective, mp_imports):
+    async def test_multi_perspective_with_explicit_perspectives(self, MockMultiPerspective):
         """Test multi-perspective execution with explicit perspectives."""
-        OrchestratorConfig = mp_imports["OrchestratorConfig"]
-        Strategy = mp_imports["Strategy"]
-        ExecutionMode = mp_imports["ExecutionMode"]
-        UnifiedQADIOrchestrator = mp_imports["UnifiedQADIOrchestrator"]
-
         from mad_spark_alt.core.multi_perspective_orchestrator import (
             MultiPerspectiveQADIResult,
             PerspectiveResult
@@ -631,13 +606,8 @@ class TestUnifiedOrchestratorMultiPerspective:
 
     @pytest.mark.asyncio
     @patch('mad_spark_alt.core.unified_orchestrator.MultiPerspectiveQADIOrchestrator')
-    async def test_multi_perspective_with_auto_detect(self, MockMultiPerspective, mp_imports):
+    async def test_multi_perspective_with_auto_detect(self, MockMultiPerspective):
         """Test multi-perspective with auto-detection enabled."""
-        OrchestratorConfig = mp_imports["OrchestratorConfig"]
-        Strategy = mp_imports["Strategy"]
-        ExecutionMode = mp_imports["ExecutionMode"]
-        UnifiedQADIOrchestrator = mp_imports["UnifiedQADIOrchestrator"]
-
         from mad_spark_alt.core.multi_perspective_orchestrator import (
             MultiPerspectiveQADIResult,
             PerspectiveResult
@@ -697,12 +667,8 @@ class TestUnifiedOrchestratorMultiPerspective:
 
     @pytest.mark.asyncio
     @patch('mad_spark_alt.core.unified_orchestrator.MultiPerspectiveQADIOrchestrator')
-    async def test_multi_perspective_temperature_override(self, MockMultiPerspective, mp_imports):
+    async def test_multi_perspective_temperature_override(self, MockMultiPerspective):
         """Test temperature override is passed to MultiPerspective orchestrator."""
-        OrchestratorConfig = mp_imports["OrchestratorConfig"]
-        Strategy = mp_imports["Strategy"]
-        ExecutionMode = mp_imports["ExecutionMode"]
-        UnifiedQADIOrchestrator = mp_imports["UnifiedQADIOrchestrator"]
 
         from mad_spark_alt.core.multi_perspective_orchestrator import MultiPerspectiveQADIResult
         from mad_spark_alt.core.intent_detector import QuestionIntent
@@ -738,12 +704,8 @@ class TestUnifiedOrchestratorMultiPerspective:
 
     @pytest.mark.asyncio
     @patch('mad_spark_alt.core.unified_orchestrator.MultiPerspectiveQADIOrchestrator')
-    async def test_multi_perspective_top_n_hypotheses(self, MockMultiPerspective, mp_imports):
+    async def test_multi_perspective_top_n_hypotheses(self, MockMultiPerspective):
         """Test that top N hypotheses are collected across perspectives."""
-        OrchestratorConfig = mp_imports["OrchestratorConfig"]
-        Strategy = mp_imports["Strategy"]
-        ExecutionMode = mp_imports["ExecutionMode"]
-        UnifiedQADIOrchestrator = mp_imports["UnifiedQADIOrchestrator"]
 
         from mad_spark_alt.core.multi_perspective_orchestrator import (
             MultiPerspectiveQADIResult,
@@ -832,12 +794,8 @@ class TestUnifiedOrchestratorMultiPerspective:
 
     @pytest.mark.asyncio
     @patch('mad_spark_alt.core.unified_orchestrator.MultiPerspectiveQADIOrchestrator')
-    async def test_multi_perspective_cost_aggregation(self, MockMultiPerspective, mp_imports):
+    async def test_multi_perspective_cost_aggregation(self, MockMultiPerspective):
         """Test that costs are correctly aggregated."""
-        OrchestratorConfig = mp_imports["OrchestratorConfig"]
-        Strategy = mp_imports["Strategy"]
-        ExecutionMode = mp_imports["ExecutionMode"]
-        UnifiedQADIOrchestrator = mp_imports["UnifiedQADIOrchestrator"]
 
         from mad_spark_alt.core.multi_perspective_orchestrator import MultiPerspectiveQADIResult
         from mad_spark_alt.core.intent_detector import QuestionIntent
@@ -871,12 +829,8 @@ class TestUnifiedOrchestratorMultiPerspective:
 
     @pytest.mark.asyncio
     @patch('mad_spark_alt.core.unified_orchestrator.MultiPerspectiveQADIOrchestrator')
-    async def test_multi_perspective_result_structure(self, MockMultiPerspective, mp_imports):
+    async def test_multi_perspective_result_structure(self, MockMultiPerspective):
         """Test that all required UnifiedQADIResult fields are populated."""
-        OrchestratorConfig = mp_imports["OrchestratorConfig"]
-        Strategy = mp_imports["Strategy"]
-        ExecutionMode = mp_imports["ExecutionMode"]
-        UnifiedQADIOrchestrator = mp_imports["UnifiedQADIOrchestrator"]
 
         from mad_spark_alt.core.multi_perspective_orchestrator import (
             MultiPerspectiveQADIResult,
@@ -962,12 +916,8 @@ class TestUnifiedOrchestratorMultiPerspective:
 
     @pytest.mark.asyncio
     @patch('mad_spark_alt.core.unified_orchestrator.MultiPerspectiveQADIOrchestrator')
-    async def test_multi_perspective_context_passing(self, MockMultiPerspective, mp_imports):
+    async def test_multi_perspective_context_passing(self, MockMultiPerspective):
         """Test that context is properly passed (though MP doesn't use it)."""
-        OrchestratorConfig = mp_imports["OrchestratorConfig"]
-        Strategy = mp_imports["Strategy"]
-        ExecutionMode = mp_imports["ExecutionMode"]
-        UnifiedQADIOrchestrator = mp_imports["UnifiedQADIOrchestrator"]
 
         from mad_spark_alt.core.multi_perspective_orchestrator import MultiPerspectiveQADIResult
         from mad_spark_alt.core.intent_detector import QuestionIntent
@@ -1005,12 +955,8 @@ class TestUnifiedOrchestratorMultiPerspective:
 
     @pytest.mark.asyncio
     @patch('mad_spark_alt.core.unified_orchestrator.MultiPerspectiveQADIOrchestrator')
-    async def test_multi_perspective_perspectives_used_field(self, MockMultiPerspective, mp_imports):
+    async def test_multi_perspective_perspectives_used_field(self, MockMultiPerspective):
         """Test that perspectives_used is correctly converted to strings."""
-        OrchestratorConfig = mp_imports["OrchestratorConfig"]
-        Strategy = mp_imports["Strategy"]
-        ExecutionMode = mp_imports["ExecutionMode"]
-        UnifiedQADIOrchestrator = mp_imports["UnifiedQADIOrchestrator"]
 
         from mad_spark_alt.core.multi_perspective_orchestrator import MultiPerspectiveQADIResult
         from mad_spark_alt.core.intent_detector import QuestionIntent
@@ -1049,12 +995,8 @@ class TestUnifiedOrchestratorMultiPerspective:
 
     @pytest.mark.asyncio
     @patch('mad_spark_alt.core.unified_orchestrator.MultiPerspectiveQADIOrchestrator')
-    async def test_multi_perspective_synthesized_answer_field(self, MockMultiPerspective, mp_imports):
+    async def test_multi_perspective_synthesized_answer_field(self, MockMultiPerspective):
         """Test that synthesized_answer is properly mapped."""
-        OrchestratorConfig = mp_imports["OrchestratorConfig"]
-        Strategy = mp_imports["Strategy"]
-        ExecutionMode = mp_imports["ExecutionMode"]
-        UnifiedQADIOrchestrator = mp_imports["UnifiedQADIOrchestrator"]
 
         from mad_spark_alt.core.multi_perspective_orchestrator import MultiPerspectiveQADIResult
         from mad_spark_alt.core.intent_detector import QuestionIntent
@@ -1092,12 +1034,8 @@ class TestUnifiedOrchestratorMultiPerspective:
 
     @pytest.mark.asyncio
     @patch('mad_spark_alt.core.unified_orchestrator.MultiPerspectiveQADIOrchestrator')
-    async def test_multi_perspective_phase_results_metadata(self, MockMultiPerspective, mp_imports):
+    async def test_multi_perspective_phase_results_metadata(self, MockMultiPerspective):
         """Test that phase_results contains MP-specific metadata."""
-        OrchestratorConfig = mp_imports["OrchestratorConfig"]
-        Strategy = mp_imports["Strategy"]
-        ExecutionMode = mp_imports["ExecutionMode"]
-        UnifiedQADIOrchestrator = mp_imports["UnifiedQADIOrchestrator"]
 
         from mad_spark_alt.core.multi_perspective_orchestrator import (
             MultiPerspectiveQADIResult,
@@ -1157,12 +1095,8 @@ class TestUnifiedOrchestratorMultiPerspective:
 
     @pytest.mark.asyncio
     @patch('mad_spark_alt.core.unified_orchestrator.MultiPerspectiveQADIOrchestrator')
-    async def test_multi_perspective_backward_compatible(self, MockMultiPerspective, mp_imports):
+    async def test_multi_perspective_backward_compatible(self, MockMultiPerspective):
         """Test that result works with existing code expecting SimpleQADIResult fields."""
-        OrchestratorConfig = mp_imports["OrchestratorConfig"]
-        Strategy = mp_imports["Strategy"]
-        ExecutionMode = mp_imports["ExecutionMode"]
-        UnifiedQADIOrchestrator = mp_imports["UnifiedQADIOrchestrator"]
         from mad_spark_alt.core.multi_perspective_orchestrator import MultiPerspectiveQADIResult
         from mad_spark_alt.core.intent_detector import QuestionIntent
         from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod

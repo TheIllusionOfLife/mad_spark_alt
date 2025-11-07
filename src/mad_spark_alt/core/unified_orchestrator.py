@@ -8,6 +8,9 @@ configuration-driven implementation.
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List, Tuple
 
+# Default score for hypotheses when score object is unavailable
+DEFAULT_HYPOTHESIS_SCORE = 0.5
+
 from .orchestrator_config import (
     OrchestratorConfig,
     ExecutionMode,
@@ -204,7 +207,7 @@ class UnifiedQADIOrchestrator:
             scores = perspective_result.result.hypothesis_scores or []
             for i, hypothesis in enumerate(perspective_result.result.hypotheses):
                 score_obj = scores[i] if i < len(scores) else None
-                score_value = score_obj.overall if score_obj is not None else 0.5
+                score_value = score_obj.overall if score_obj is not None else DEFAULT_HYPOTHESIS_SCORE
                 all_hypotheses_with_scores.append((hypothesis, score_value, score_obj))
 
         # Sort by score (descending) and take top N
@@ -271,20 +274,15 @@ class UnifiedQADIOrchestrator:
         )
 
         # Convert string perspectives to QuestionIntent if provided
+        # Note: Perspective validation already done in config.validate()
         force_perspectives = None
         if self.config.perspectives:
-            try:
-                force_perspectives = [
-                    QuestionIntent[p.upper()] for p in self.config.perspectives
-                ]
-            except KeyError as e:
-                raise ValueError(
-                    f"Invalid perspective: {e}. Valid perspectives: "
-                    f"{[intent.value for intent in QuestionIntent]}"
-                )
+            force_perspectives = [
+                QuestionIntent[p.upper()] for p in self.config.perspectives
+            ]
 
-        # Determine max_perspectives (default 3 as per design decision)
-        max_perspectives = 3
+        # Use configured max_perspectives
+        max_perspectives = self.config.max_perspectives
 
         # Run multi-perspective analysis
         mp_result = await mp_orch.run_multi_perspective_analysis(

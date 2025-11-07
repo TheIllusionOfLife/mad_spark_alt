@@ -56,6 +56,7 @@ class OrchestratorConfig:
     # Multi-Perspective
     perspectives: Optional[List[str]] = None
     auto_detect_perspectives: bool = False
+    max_perspectives: int = 3
 
     # Enhancements
     enable_answer_extraction: bool = False
@@ -80,9 +81,24 @@ class OrchestratorConfig:
                     "Multi-perspective requires perspectives or auto-detect"
                 )
 
+            # Validate perspective names if provided
+            if self.perspectives:
+                from .intent_detector import QuestionIntent
+                valid_perspectives = [intent.value for intent in QuestionIntent]
+                for p in self.perspectives:
+                    if p.lower() not in valid_perspectives:
+                        raise ValueError(
+                            f"Invalid perspective: {p}. Valid perspectives: "
+                            f"{valid_perspectives}"
+                        )
+
         # Num hypotheses must be positive
         if self.num_hypotheses < 1:
             raise ValueError("num_hypotheses must be >= 1")
+
+        # Max perspectives must be positive
+        if self.max_perspectives < 1:
+            raise ValueError("max_perspectives must be >= 1")
 
         # Temperature range validation
         if self.temperature_override is not None:
