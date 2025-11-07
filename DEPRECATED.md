@@ -83,15 +83,28 @@ uv run mad-spark qadi "How can we reduce costs?"
 ### Old Orchestrators
 The following orchestrators are superseded by `SimpleQADIOrchestrator`:
 - `QADIOrchestrator` - Original implementation with prompt classification
-- `SmartQADIOrchestrator` - Enhanced version with adaptive prompts
-- `RobustQADIOrchestrator` - Error-recovery focused version
-- `FastQADIOrchestrator` - Performance-optimized version
+- `SmartQADIOrchestrator` - Enhanced version with adaptive prompts (still available, but `SimpleQADIOrchestrator` preferred)
 
 **Migration Path**: Replace with `SimpleQADIOrchestrator` which provides:
 - Cleaner implementation following true QADI methodology
 - Universal prompts without classification overhead
 - Temperature control for hypothesis generation
 - Unified evaluation with the 5-criteria system
+
+### Legacy Orchestrators (Recently Removed)
+The following orchestrators have been removed as of v2.0.0 (2025-11-07):
+- ~~`RobustQADIOrchestrator`~~ - Error-recovery focused version (use `timeout_wrapper.py` directly)
+- ~~`FastQADIOrchestrator`~~ - Performance-optimized version (parallel features now in `BaseOrchestrator`)
+- ~~`EnhancedQADIOrchestrator`~~ - Answer extraction wrapper (use `answer_extractor.py` directly, now deprecated)
+
+**Migration Path**:
+- For timeout handling: Use `timeout_wrapper.py` with `SmartQADIOrchestrator` or `SimpleQADIOrchestrator`
+- For parallel execution: Use `SmartQADIOrchestrator` (circuit breaker in `BaseOrchestrator`)
+- For answer extraction: Use `answer_extractor.py` directly (deprecated, will be removed in v3.0.0)
+
+**Files Removed**: 738 lines across 3 orchestrator files
+**Date**: 2025-11-07
+**Reason**: Consolidation to reduce duplication and maintenance burden
 
 ## CLI Flag Changes
 

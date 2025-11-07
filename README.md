@@ -346,17 +346,15 @@ This implementation significantly reduces "Failed to extract enough hypotheses" 
    - **Estimate**: 1 day
    - **Blocker**: None, ready to implement
 
-2. **[QUICK WIN] Remove Legacy Orchestrators (Step 10)**
-   - **Source**: refactoring_plan_20251106.md lines 822-849
-   - **Context**: 3 deprecated orchestrator files still present (723 lines total)
-   - **Files**: enhanced_orchestrator.py (201), robust_orchestrator.py (305), fast_orchestrator.py (217)
-   - **Approach**:
-     1. Update examples/user_test.py to use SmartQADIOrchestrator instead of FastQADIOrchestrator
-     2. Delete 3 orchestrator files
-     3. Remove exports from core/__init__.py
-     4. Run all tests to verify no breakage
-   - **Estimate**: 2 hours
-   - **Blocker**: Must update examples/user_test.py first
+2. **[COMPLETED] Remove Legacy Orchestrators (Step 10)** ✅
+   - **Status**: Completed 2025-11-07
+   - **Removed**: 3 deprecated orchestrator files (738 lines total)
+   - **Files deleted**: enhanced_orchestrator.py (201), robust_orchestrator.py (305), fast_orchestrator.py (217)
+   - **Changes**:
+     1. Updated examples/user_test.py to use SmartQADIOrchestrator
+     2. Deleted 3 orchestrator files
+     3. Removed exports from core/__init__.py
+     4. Added deprecation warning to answer_extractor.py
 
 3. **[Phase 3] Create Unified Orchestrator (Step 11)**
    - **Source**: refactoring_plan_20251106.md lines 854-919
@@ -366,8 +364,7 @@ This implementation significantly reduces "Failed to extract enough hypotheses" 
 
 #### Known Issues / Blockers
 - **MultiPerspective**: Lines 151-225 contain duplicate QADI logic - needs SimpleQADI delegation
-- **FastQADIOrchestrator**: Still used in examples/user_test.py:184 - blocks deletion of legacy orchestrators
-- **Phase 3 Dependency**: Items 11-14 should wait until Phase 2 (items 9-10) are complete
+- **Phase 3 Dependency**: Items 11-14 should wait until Phase 2 (item 9) is complete
 
 #### Session Learnings
 

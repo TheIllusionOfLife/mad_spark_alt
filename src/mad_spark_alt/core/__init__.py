@@ -2,7 +2,6 @@
 
 from .base_orchestrator import AgentCircuitBreaker, BaseOrchestrator
 from .evaluator import CreativityEvaluator, EvaluationSummary
-from .fast_orchestrator import FastQADIOrchestrator
 from .interfaces import (  # New idea generation interfaces
     AsyncEvaluatorInterface,
     CacheableEvaluatorInterface,
@@ -52,18 +51,6 @@ from .smart_registry import (
 from .simple_qadi_orchestrator import SimpleQADIOrchestrator, SimpleQADIResult
 from .unified_evaluator import UnifiedEvaluator, HypothesisEvaluation
 
-# Import robust orchestrator if available
-try:
-    from .robust_orchestrator import RobustQADIOrchestrator
-    from .robust_orchestrator import SmartQADICycleResult as RobustQADICycleResult
-except ImportError as e:
-    # Fallback to smart orchestrator if robust version not available
-    import logging
-
-    logging.debug(f"Failed to import RobustQADIOrchestrator: {e}")
-    RobustQADIOrchestrator = SmartQADIOrchestrator  # type: ignore[misc,assignment]
-    RobustQADICycleResult = SmartQADICycleResult  # type: ignore[misc]
-
 __all__ = [
     # Base orchestrator
     "BaseOrchestrator",
@@ -103,8 +90,6 @@ __all__ = [
     "QADICycleResult",
     "SmartQADIOrchestrator",
     "SmartQADICycleResult",
-    "RobustQADIOrchestrator",
-    "RobustQADICycleResult",
     # Agent registry system
     "ThinkingAgentRegistry",
     "agent_registry",
@@ -115,8 +100,6 @@ __all__ = [
     "smart_registry",
     "setup_smart_agents",
     "get_smart_agent",
-    # Fast orchestrator
-    "FastQADIOrchestrator",
     # Simple QADI components
     "SimpleQADIOrchestrator",
     "SimpleQADIResult",
