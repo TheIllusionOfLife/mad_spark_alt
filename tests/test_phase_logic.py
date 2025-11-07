@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from mad_spark_alt.core.llm_provider import LLMProvider, LLMResponse
+from mad_spark_alt.core.parsing_utils import ParsedScores
 from mad_spark_alt.core.phase_logic import (
     AbductionResult,
     DeductionResult,
@@ -566,20 +567,20 @@ async def test_deduction_text_score_fallback(mock_llm_manager, phase_input):
 
     with patch("mad_spark_alt.core.phase_logic.ScoreParser") as mock_parser:
         mock_parser.parse_with_fallback.side_effect = [
-            {
-                "impact": 0.8,
-                "feasibility": 0.7,
-                "accessibility": 0.6,
-                "sustainability": 0.75,
-                "scalability": 0.65,
-            },
-            {
-                "impact": 0.9,
-                "feasibility": 0.8,
-                "accessibility": 0.7,
-                "sustainability": 0.85,
-                "scalability": 0.75,
-            },
+            ParsedScores(
+                impact=0.8,
+                feasibility=0.7,
+                accessibility=0.6,
+                sustainability=0.75,
+                scalability=0.65,
+            ),
+            ParsedScores(
+                impact=0.9,
+                feasibility=0.8,
+                accessibility=0.7,
+                sustainability=0.85,
+                scalability=0.75,
+            ),
         ]
 
         result = await execute_deduction_phase(phase_input, "Q?", hypotheses)

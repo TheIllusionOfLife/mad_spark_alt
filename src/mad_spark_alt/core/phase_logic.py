@@ -537,7 +537,14 @@ async def execute_deduction_phase(
                 parsed_scores = ScoreParser.parse_with_fallback(
                     content, hypothesis_num=i + 1
                 )
-                score_dict = parsed_scores.to_dict()
+                # Calculate overall score
+                score_dict = {
+                    "impact": parsed_scores.impact,
+                    "feasibility": parsed_scores.feasibility,
+                    "accessibility": parsed_scores.accessibility,
+                    "sustainability": parsed_scores.sustainability,
+                    "scalability": parsed_scores.scalability,
+                }
                 overall = calculate_hypothesis_score(score_dict)
                 score = HypothesisScore(
                     impact=parsed_scores.impact,
