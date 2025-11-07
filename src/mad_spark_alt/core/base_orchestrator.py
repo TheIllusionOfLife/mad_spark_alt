@@ -11,7 +11,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Type
 
 from .interfaces import (
     GeneratedIdea,
@@ -41,15 +41,19 @@ class AgentCircuitBreaker:
     failure_threshold: int = 3
     cooldown_seconds: float = 300.0  # 5 minutes
 
-    def record_failure(self) -> None:
-        """Record a failure and potentially open the circuit."""
+    def record_failure(self, agent_name: str = "agent") -> None:
+        """Record a failure and potentially open the circuit.
+
+        Args:
+            agent_name: Name of the agent for logging purposes
+        """
         self.consecutive_failures += 1
         self.last_failure_time = time.time()
 
         if self.consecutive_failures >= self.failure_threshold:
             self.is_open = True
             logger.warning(
-                f"Circuit breaker opened after {self.consecutive_failures} failures"
+                f"Circuit breaker for {agent_name} opened after {self.consecutive_failures} failures"
             )
 
     def record_success(self) -> None:
@@ -239,7 +243,7 @@ class BaseOrchestrator(ABC):
             return
 
         circuit_breaker = self._get_circuit_breaker(method)
-        circuit_breaker.record_failure()
+        circuit_breaker.record_failure(method.value)
 
     # ========================================================================
     # Agent Management Methods
@@ -283,25 +287,26 @@ class BaseOrchestrator(ABC):
         """
         try:
             # Direct imports to avoid circular dependencies
-            if method == ThinkingMethod.QUESTIONING:
-                from ..agents import QuestioningAgent
+            from ..agents import (
+                AbductionAgent,
+                DeductionAgent,
+                InductionAgent,
+                QuestioningAgent,
+            )
 
-                return QuestioningAgent()
-            elif method == ThinkingMethod.ABDUCTION:
-                from ..agents import AbductionAgent
+            agent_map: Dict[ThinkingMethod, Type[ThinkingAgentInterface]] = {
+                ThinkingMethod.QUESTIONING: QuestioningAgent,
+                ThinkingMethod.ABDUCTION: AbductionAgent,
+                ThinkingMethod.DEDUCTION: DeductionAgent,
+                ThinkingMethod.INDUCTION: InductionAgent,
+            }
 
-                return AbductionAgent()
-            elif method == ThinkingMethod.DEDUCTION:
-                from ..agents import DeductionAgent
+            agent_class = agent_map.get(method)
+            if agent_class:
+                return agent_class()
 
-                return DeductionAgent()
-            elif method == ThinkingMethod.INDUCTION:
-                from ..agents import InductionAgent
-
-                return InductionAgent()
-            else:
-                logger.error(f"Unknown thinking method: {method}")
-                return None
+            logger.error(f"Unknown thinking method: {method}")
+            return None
         except ImportError as e:
             logger.error(f"Failed to import template agent for {method.value}: {e}")
             return None
@@ -343,13 +348,14 @@ class BaseOrchestrator(ABC):
 
         return "\n\n".join(context_parts)
 
-    def _synthesize_ideas(
+    def _collect_and_tag_ideas(
         self, phases: Dict[str, IdeaGenerationResult]
     ) -> List[GeneratedIdea]:
         """
-        Synthesize the best ideas from all phases.
+        Collect all ideas from all phases and add phase metadata.
 
-        Collects all ideas from all phases and adds phase metadata to each idea.
+        Creates copies of ideas to avoid mutating the original objects,
+        following the principle of least astonishment.
 
         Args:
             phases: Dictionary mapping phase names to results
@@ -362,9 +368,20 @@ class BaseOrchestrator(ABC):
         for phase_name, phase_result in phases.items():
             if phase_result and phase_result.generated_ideas:
                 for idea in phase_result.generated_ideas:
-                    # Add phase information to metadata
-                    idea.metadata["phase"] = phase_name
-                    all_ideas.append(idea)
+                    # Create a copy to avoid mutating the original object
+                    idea_copy = GeneratedIdea(
+                        content=idea.content,
+                        thinking_method=idea.thinking_method,
+                        agent_name=idea.agent_name,
+                        generation_prompt=idea.generation_prompt,
+                        confidence_score=idea.confidence_score,
+                        reasoning=idea.reasoning,
+                        metadata=idea.metadata.copy(),
+                        timestamp=idea.timestamp,
+                        parent_ideas=idea.parent_ideas.copy(),
+                    )
+                    idea_copy.metadata["phase"] = phase_name
+                    all_ideas.append(idea_copy)
 
         return all_ideas
 

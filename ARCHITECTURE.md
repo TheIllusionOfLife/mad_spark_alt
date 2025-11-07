@@ -279,7 +279,7 @@ New Base Architecture (Refactoring Phase):
 
 # Helper methods (identical across orchestrators)
 - _build_enhanced_context()
-- _synthesize_ideas()
+- _collect_and_tag_ideas()
 - _extract_llm_cost()
 
 # Agent management
@@ -335,7 +335,7 @@ class MyCustomOrchestrator(BaseOrchestrator):
 
         # Use helper methods
         enhanced_context = self._build_enhanced_context(context, phase1_result)
-        all_ideas = self._synthesize_ideas(phases)
+        all_ideas = self._collect_and_tag_ideas(phases)
         total_cost = sum(self._extract_llm_cost(r) for r in phases.values())
 ```
 

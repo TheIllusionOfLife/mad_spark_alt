@@ -538,20 +538,20 @@ class TestHelperMethods:
         assert context == "Initial context: Base"
         assert "Abduction" not in context
 
-    def test_synthesize_ideas_with_empty_phases(self):
-        """_synthesize_ideas returns empty list for empty phases."""
+    def test_collect_and_tag_ideas_with_empty_phases(self):
+        """_collect_and_tag_ideas returns empty list for empty phases."""
         orchestrator = ConcreteTestOrchestrator()
 
-        ideas = orchestrator._synthesize_ideas({})
+        ideas = orchestrator._collect_and_tag_ideas({})
 
         assert ideas == []
 
-    def test_synthesize_ideas_from_single_phase(self, sample_phase_result):
-        """_synthesize_ideas extracts ideas from single phase."""
+    def test_collect_and_tag_ideas_from_single_phase(self, sample_phase_result):
+        """_collect_and_tag_ideas extracts ideas from single phase."""
         orchestrator = ConcreteTestOrchestrator()
 
         phases = {"abduction": sample_phase_result}
-        ideas = orchestrator._synthesize_ideas(phases)
+        ideas = orchestrator._collect_and_tag_ideas(phases)
 
         assert len(ideas) == 2
         assert ideas[0].content == "Idea 1"
@@ -560,8 +560,8 @@ class TestHelperMethods:
         assert ideas[0].metadata["phase"] == "abduction"
         assert ideas[1].metadata["phase"] == "abduction"
 
-    def test_synthesize_ideas_from_multiple_phases(self):
-        """_synthesize_ideas combines ideas from multiple phases."""
+    def test_collect_and_tag_ideas_from_multiple_phases(self):
+        """_collect_and_tag_ideas combines ideas from multiple phases."""
         orchestrator = ConcreteTestOrchestrator()
 
         result1 = IdeaGenerationResult(
@@ -597,13 +597,13 @@ class TestHelperMethods:
         )
 
         phases = {"questioning": result1, "abduction": result2}
-        ideas = orchestrator._synthesize_ideas(phases)
+        ideas = orchestrator._collect_and_tag_ideas(phases)
 
         assert len(ideas) == 3
         assert [idea.content for idea in ideas] == ["Q1", "A1", "A2"]
 
-    def test_synthesize_ideas_skips_none_results(self):
-        """_synthesize_ideas handles None phase results."""
+    def test_collect_and_tag_ideas_skips_none_results(self):
+        """_collect_and_tag_ideas handles None phase results."""
         orchestrator = ConcreteTestOrchestrator()
 
         result1 = IdeaGenerationResult(
@@ -620,7 +620,7 @@ class TestHelperMethods:
         )
 
         phases = {"questioning": None, "abduction": result1, "deduction": None}
-        ideas = orchestrator._synthesize_ideas(phases)
+        ideas = orchestrator._collect_and_tag_ideas(phases)
 
         assert len(ideas) == 1
         assert ideas[0].content == "A1"
@@ -893,9 +893,9 @@ class TestIntegrationScenarios:
         assert "What is the problem?" in context
         assert "Hypothesis 1" in context
 
-        # Synthesize ideas
+        # Collect and tag ideas
         phases = {"questioning": result1, "abduction": result2}
-        ideas = orchestrator._synthesize_ideas(phases)
+        ideas = orchestrator._collect_and_tag_ideas(phases)
         assert len(ideas) == 3
 
         # Extract costs

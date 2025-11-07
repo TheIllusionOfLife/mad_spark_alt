@@ -73,7 +73,7 @@ class MinimalRealOrchestrator(BaseOrchestrator):
 
         # Use base class helper methods
         enhanced_context = self._build_enhanced_context(context, *phases.values())
-        all_ideas = self._synthesize_ideas(phases)
+        all_ideas = self._collect_and_tag_ideas(phases)
         total_cost = sum(self._extract_llm_cost(r) for r in phases.values())
 
         self.execution_log.append("cycle_completed")
