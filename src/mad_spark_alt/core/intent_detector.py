@@ -169,9 +169,18 @@ class IntentDetector:
                     "enterprise",
                     "startup",
                     "economy",
+                    "economic",
+                    "economically",
                     "financial",
+                    "financially",
                     "commercial",
                     "corporate",
+                    "viable",
+                    "viability",
+                    "cost",
+                    "costs",
+                    "affordable",
+                    "affordability",
                 ],
                 "phrases": [
                     "business strategy",
@@ -343,8 +352,9 @@ class IntentDetector:
         """
         perspectives = [intent_result.primary_intent]
 
-        # Add secondary intents if confidence is not too high
-        if intent_result.confidence < 0.8 and intent_result.secondary_intents:
+        # Always add secondary intents up to max_perspectives
+        # This ensures multi-faceted questions get analyzed from multiple angles
+        if intent_result.secondary_intents:
             perspectives.extend(intent_result.secondary_intents[: max_perspectives - 1])
 
         # Note: Removed forced business perspective for general questions
