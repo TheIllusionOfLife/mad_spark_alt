@@ -51,6 +51,15 @@ from .smart_registry import (
 from .simple_qadi_orchestrator import SimpleQADIOrchestrator, SimpleQADIResult
 from .unified_evaluator import UnifiedEvaluator, HypothesisEvaluation
 
+# Import unified orchestrator components
+from .orchestrator_config import (
+    OrchestratorConfig,
+    ExecutionMode,
+    Strategy,
+    TimeoutConfig,
+)
+from .unified_orchestrator import UnifiedQADIOrchestrator, UnifiedQADIResult
+
 __all__ = [
     # Base orchestrator
     "BaseOrchestrator",
@@ -105,6 +114,13 @@ __all__ = [
     "SimpleQADIResult",
     "UnifiedEvaluator",
     "HypothesisEvaluation",
+    # Unified orchestrator components
+    "UnifiedQADIOrchestrator",
+    "UnifiedQADIResult",
+    "OrchestratorConfig",
+    "ExecutionMode",
+    "Strategy",
+    "TimeoutConfig",
     # Deprecated orchestrators (compatibility shims)
     "FastQADIOrchestrator",
     "RobustQADIOrchestrator",
