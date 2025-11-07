@@ -64,7 +64,7 @@ These offspring effectively combine the parent concepts."""
         offspring1, offspring2 = operator._parse_crossover_response(response)
         
         assert "Valid first offspring" in offspring1
-        assert "[FALLBACK TEXT] Alternative fusion emphasizing innovation" in offspring2  # Fallback
+        assert "[FALLBACK TEXT] Alternative integration emphasizing synergy" in offspring2  # Fallback
         assert len(offspring2) > 150  # Should be detailed fallback
     
     def test_parse_empty_response_uses_both_fallbacks(self):
@@ -74,9 +74,9 @@ These offspring effectively combine the parent concepts."""
         response = ""
         
         offspring1, offspring2 = operator._parse_crossover_response(response)
-        
-        assert "[FALLBACK TEXT] Integrated solution combining complementary strengths" in offspring1
-        assert "[FALLBACK TEXT] Alternative fusion emphasizing innovation" in offspring2
+
+        assert "[FALLBACK TEXT] Hybrid approach combining elements from both parent ideas" in offspring1
+        assert "[FALLBACK TEXT] Alternative integration emphasizing synergy" in offspring2
         assert len(offspring1) > 150  # Should be detailed fallback
         assert len(offspring2) > 150  # Should be detailed fallback
 
