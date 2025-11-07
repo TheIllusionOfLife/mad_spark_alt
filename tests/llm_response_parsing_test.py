@@ -403,6 +403,13 @@ class TestExtractAndParseJson:
         assert result["name"] == "test"
         assert result["value"] == 100
 
+    def test_json_with_apostrophe_in_value(self):
+        """Test that single-quote fixing doesn't break apostrophes in values."""
+        text = '{"review": "it\'s a test", "description": "won\'t fail"}'
+        result = extract_and_parse_json(text, fix_issues=True)
+        assert result["review"] == "it's a test"
+        assert result["description"] == "won't fail"
+
     def test_json_with_unquoted_keys(self):
         """Test JSON fixing with unquoted keys."""
         text = '{name: "test", value: 42}'
@@ -421,6 +428,13 @@ class TestExtractAndParseJson:
         result = extract_and_parse_json(text, fix_issues=True)
         assert result["status"] == "ok"
         assert result["value"] == 99
+
+    def test_json_with_url_not_treated_as_comment(self):
+        """Test that URLs like https://example.com are not broken by comment removal."""
+        text = '{"url": "https://example.com/path", "api": "http://api.test.com"}'
+        result = extract_and_parse_json(text, fix_issues=True)
+        assert result["url"] == "https://example.com/path"
+        assert result["api"] == "http://api.test.com"
 
     def test_expected_keys_validation(self):
         """Test validation with expected keys."""
@@ -526,7 +540,7 @@ class TestParseIdeasArray:
 * Fourth bullet point idea
 '''
         result = parse_ideas_array(text)
-        assert len(result) >= 2  # At least numbered items
+        assert len(result) == 4  # All 4 bullet points should be extracted
         # Check that we extracted meaningful content
         assert all(len(idea.get("content", "")) > 10 for idea in result)
 
@@ -543,7 +557,7 @@ class TestParseIdeasArray:
         fallback = [{"default": "idea"}]
         result = parse_ideas_array(text, fallback_ideas=fallback)
         # Should try extraction first, then fallback if nothing found
-        assert isinstance(result, list)
+        assert result == fallback
 
     def test_mixed_format_with_fixing(self):
         """Test parsing with JSON fixing enabled."""
@@ -567,7 +581,8 @@ class TestParseIdeasArray:
 3. No
 '''
         result = parse_ideas_array(text)
-        # Should filter out items under minimum length
+        # Should filter out items under minimum length and keep the valid one
+        assert len(result) == 1
         assert all(len(idea.get("content", "")) > 10 for idea in result)
 
     def test_nested_arrays_in_ideas(self):

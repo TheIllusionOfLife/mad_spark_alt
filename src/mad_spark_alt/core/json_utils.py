@@ -10,6 +10,10 @@ import re
 from typing import Any, Callable, Dict, List, Optional
 
 
+# Constants for content extraction
+_MIN_EXTRACTED_IDEA_LENGTH = 10  # Minimum length for extracted numbered/bullet list items
+
+
 def extract_json_from_response(text: str) -> Optional[str]:
     """
     Extract JSON content from LLM response text.
@@ -406,9 +410,9 @@ def _fix_common_json_issues(text: str) -> str:
 
     Handles:
     - Trailing commas before closing braces/brackets
-    - Single quotes instead of double quotes
+    - Single quotes instead of double quotes (preserves apostrophes in values)
     - Unquoted keys
-    - JavaScript-style comments (// and /* */)
+    - JavaScript-style comments (carefully avoids breaking URLs)
 
     Args:
         text: Raw JSON-like text
@@ -420,14 +424,25 @@ def _fix_common_json_issues(text: str) -> str:
     text = re.sub(r",\s*}", "}", text)
     text = re.sub(r",\s*\]", "]", text)
 
-    # Fix single quotes (be careful with escaped quotes and apostrophes in values)
-    text = text.replace("'", '"')
+    # Fix single quotes - only replace when they appear to be string delimiters
+    # This preserves apostrophes within values like "it's a test"
+    def fix_quotes(match: re.Match[str]) -> str:
+        content = match.group(1)
+        # Escape any double quotes inside the content
+        content = content.replace('"', '\\"')
+        return f'"{content}"'
+
+    # Replace single-quoted strings with double-quoted strings
+    # Matches paired single quotes: 'value' → "value"
+    text = re.sub(r"'([^']*)'", fix_quotes, text)
 
     # Fix unquoted keys (use negative lookbehind to avoid keys already in quotes)
     text = re.sub(r'(?<!")\b(\w+)\b(?=\s*:)', r'"\1"', text)
 
-    # Remove comments
-    text = re.sub(r"//.*$", "", text, flags=re.MULTILINE)
+    # Remove JavaScript-style comments, but be careful with URLs
+    # Only remove // comments that are preceded by whitespace or start of line
+    # to avoid breaking URLs like https://example.com
+    text = re.sub(r"(?:^|\s)//.*$", "", text, flags=re.MULTILINE)
     text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
 
     return text
@@ -450,6 +465,35 @@ def _extract_with_multiple_keys(
     for key in keys:
         if key in data:
             return data[key]
+    return None
+
+
+def _try_parse_and_validate(
+    json_str: Optional[str],
+    expected_keys: Optional[List[str]] = None
+) -> Optional[Dict[str, Any]]:
+    """
+    Attempt to parse a JSON string and validate it.
+
+    Args:
+        json_str: JSON string to parse
+        expected_keys: Optional list of keys expected in the result
+
+    Returns:
+        Parsed dictionary if successful and valid, None otherwise
+    """
+    if not json_str:
+        return None
+
+    try:
+        data = json.loads(json_str)
+        if isinstance(data, dict):
+            # If expected_keys provided, validate at least one exists
+            if not expected_keys or _extract_with_multiple_keys(data, expected_keys) is not None:
+                return data
+    except (json.JSONDecodeError, TypeError):
+        pass
+
     return None
 
 
@@ -484,60 +528,26 @@ def extract_and_parse_json(
         return fallback
 
     # Strategy 1: Try direct parsing first
-    try:
-        data = json.loads(text)
-        if isinstance(data, dict):
-            # If expected_keys provided, validate at least one exists
-            if expected_keys:
-                if _extract_with_multiple_keys(data, expected_keys) is not None:
-                    return data
-            else:
-                return data
-    except (json.JSONDecodeError, TypeError):
-        pass
+    if (data := _try_parse_and_validate(text, expected_keys)) is not None:
+        return data
 
     # Strategy 2: Extract from markdown or surrounding text
     extracted_json = extract_json_from_response(text)
-    if extracted_json:
-        try:
-            data = json.loads(extracted_json)
-            if isinstance(data, dict):
-                if expected_keys:
-                    if _extract_with_multiple_keys(data, expected_keys) is not None:
-                        return data
-                else:
-                    return data
-        except json.JSONDecodeError:
-            pass
+    if (data := _try_parse_and_validate(extracted_json, expected_keys)) is not None:
+        return data
 
     # Strategy 3: Try fixing common issues and parsing again
     if fix_issues:
         fixed_text = _fix_common_json_issues(text)
         if fixed_text != text:
-            try:
-                data = json.loads(fixed_text)
-                if isinstance(data, dict):
-                    if expected_keys:
-                        if _extract_with_multiple_keys(data, expected_keys) is not None:
-                            return data
-                    else:
-                        return data
-            except json.JSONDecodeError:
-                pass
+            # Try parsing fixed text directly
+            if (data := _try_parse_and_validate(fixed_text, expected_keys)) is not None:
+                return data
 
             # Try extraction after fixing
             extracted_fixed = extract_json_from_response(fixed_text)
-            if extracted_fixed:
-                try:
-                    data = json.loads(extracted_fixed)
-                    if isinstance(data, dict):
-                        if expected_keys:
-                            if _extract_with_multiple_keys(data, expected_keys) is not None:
-                                return data
-                        else:
-                            return data
-                except json.JSONDecodeError:
-                    pass
+            if (data := _try_parse_and_validate(extracted_fixed, expected_keys)) is not None:
+                return data
 
     return fallback
 
@@ -612,11 +622,9 @@ def parse_ideas_array(
     all_matches = numbered_matches + bullet_matches
 
     extracted_ideas = []
-    MIN_ITEM_LENGTH = 10  # Filter out too-short items
-
     for match in all_matches:
         item_text = match.strip()
-        if len(item_text) >= MIN_ITEM_LENGTH:
+        if len(item_text) >= _MIN_EXTRACTED_IDEA_LENGTH:
             extracted_ideas.append({
                 "content": item_text,
                 "extracted": True
