@@ -11,8 +11,8 @@ import json
 from unittest.mock import Mock, AsyncMock, patch
 
 from mad_spark_alt.core.llm_provider import LLMResponse
-from mad_spark_alt.core.simple_qadi_orchestrator import (
-    SimpleQADIOrchestrator,
+from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
+from mad_spark_alt.core.phase_logic import (
     get_hypothesis_generation_schema,
     get_deduction_schema,
 )

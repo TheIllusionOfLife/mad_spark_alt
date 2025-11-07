@@ -22,14 +22,114 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
+from ..utils.text_cleaning import clean_ansi_codes
 from .interfaces import GeneratedIdea, ThinkingMethod
 from .llm_provider import LLMRequest, LLMResponse, ModelConfig, llm_manager
-from .qadi_prompts import PHASE_HYPERPARAMETERS, QADIPrompts, calculate_hypothesis_score
 from .parsing_utils import ActionPlanParser, HypothesisParser, ParsedScores, ScoreParser
-from .simple_qadi_orchestrator import HypothesisScore, format_hypothesis_for_answer
-from ..utils.text_cleaning import clean_ansi_codes
+from .qadi_prompts import PHASE_HYPERPARAMETERS, QADIPrompts, calculate_hypothesis_score
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# JSON Schemas for Structured Output
+# ============================================================================
+
+
+def get_hypothesis_generation_schema() -> Dict[str, Any]:
+    """Get JSON schema for structured hypothesis generation.
+
+    Returns:
+        JSON schema dictionary for Gemini structured output
+    """
+    return {
+        "type": "OBJECT",
+        "properties": {
+            "hypotheses": {
+                "type": "ARRAY",
+                "items": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "id": {"type": "STRING"},
+                        "content": {"type": "STRING"},
+                    },
+                    "required": ["id", "content"],
+                },
+            }
+        },
+        "required": ["hypotheses"],
+    }
+
+
+def get_deduction_schema() -> Dict[str, Any]:
+    """Get JSON schema for structured deduction/scoring.
+
+    Returns:
+        JSON schema dictionary for Gemini structured output
+    """
+    return {
+        "type": "OBJECT",
+        "properties": {
+            "evaluations": {
+                "type": "ARRAY",
+                "items": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "hypothesis_id": {"type": "STRING"},
+                        "scores": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "impact": {"type": "NUMBER"},
+                                "feasibility": {"type": "NUMBER"},
+                                "accessibility": {"type": "NUMBER"},
+                                "sustainability": {"type": "NUMBER"},
+                                "scalability": {"type": "NUMBER"},
+                            },
+                            "required": [
+                                "impact",
+                                "feasibility",
+                                "accessibility",
+                                "sustainability",
+                                "scalability",
+                            ],
+                        },
+                    },
+                    "required": ["hypothesis_id", "scores"],
+                },
+            },
+            "answer": {"type": "STRING"},
+            "action_plan": {"type": "ARRAY", "items": {"type": "STRING"}},
+        },
+        "required": ["evaluations", "answer", "action_plan"],
+    }
+
+
+# ============================================================================
+# Data Classes
+# ============================================================================
+
+
+@dataclass
+class HypothesisScore:
+    """Scores for a single hypothesis."""
+
+    impact: float
+    feasibility: float
+    accessibility: float
+    sustainability: float
+    scalability: float
+    overall: float
+
+    def to_dict(self) -> Dict[str, float]:
+        """Convert to dictionary."""
+        return {
+            "impact": self.impact,
+            "feasibility": self.feasibility,
+            "accessibility": self.accessibility,
+            "sustainability": self.sustainability,
+            "scalability": self.scalability,
+            "overall": self.overall,
+        }
 
 
 @dataclass
@@ -165,7 +265,7 @@ async def execute_questioning_phase(phase_input: PhaseInput) -> QuestioningResul
             # Safe removal of prefix only from start of string
             if content.startswith(QUESTION_PREFIX):
                 return QuestioningResult(
-                    core_question=content[len(QUESTION_PREFIX):].strip(),
+                    core_question=content[len(QUESTION_PREFIX) :].strip(),
                     llm_cost=total_cost,
                     raw_response=raw_response,
                 )
@@ -194,28 +294,8 @@ async def execute_questioning_phase(phase_input: PhaseInput) -> QuestioningResul
 
 
 def _get_hypothesis_generation_schema() -> Dict[str, Any]:
-    """Get JSON schema for structured hypothesis generation.
-
-    Returns:
-        JSON schema dictionary for Gemini structured output
-    """
-    return {
-        "type": "OBJECT",
-        "properties": {
-            "hypotheses": {
-                "type": "ARRAY",
-                "items": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "id": {"type": "STRING"},
-                        "content": {"type": "STRING"},
-                    },
-                    "required": ["id", "content"],
-                },
-            }
-        },
-        "required": ["hypotheses"],
-    }
+    """Private wrapper - delegates to public function."""
+    return get_hypothesis_generation_schema()
 
 
 async def execute_abduction_phase(
@@ -243,7 +323,9 @@ async def execute_abduction_phase(
         RuntimeError: If hypothesis generation fails after max_retries (unless max_retries=0)
     """
     prompts = QADIPrompts()
-    prompt = prompts.get_abduction_prompt(phase_input.user_input, core_question, num_hypotheses)
+    prompt = prompts.get_abduction_prompt(
+        phase_input.user_input, core_question, num_hypotheses
+    )
     hyperparams = PHASE_HYPERPARAMETERS["abduction"].copy()
 
     # Apply temperature override if provided
@@ -329,46 +411,8 @@ async def execute_abduction_phase(
 
 
 def _get_deduction_schema() -> Dict[str, Any]:
-    """Get JSON schema for structured deduction/scoring.
-
-    Returns:
-        JSON schema dictionary for Gemini structured output
-    """
-    return {
-        "type": "OBJECT",
-        "properties": {
-            "evaluations": {
-                "type": "ARRAY",
-                "items": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "hypothesis_id": {"type": "STRING"},
-                        "scores": {
-                            "type": "OBJECT",
-                            "properties": {
-                                "impact": {"type": "NUMBER"},
-                                "feasibility": {"type": "NUMBER"},
-                                "accessibility": {"type": "NUMBER"},
-                                "sustainability": {"type": "NUMBER"},
-                                "scalability": {"type": "NUMBER"},
-                            },
-                            "required": [
-                                "impact",
-                                "feasibility",
-                                "accessibility",
-                                "sustainability",
-                                "scalability",
-                            ],
-                        },
-                    },
-                    "required": ["hypothesis_id", "scores"],
-                },
-            },
-            "answer": {"type": "STRING"},
-            "action_plan": {"type": "ARRAY", "items": {"type": "STRING"}},
-        },
-        "required": ["evaluations", "answer", "action_plan"],
-    }
+    """Private wrapper - delegates to public function."""
+    return get_deduction_schema()
 
 
 async def execute_deduction_phase(
@@ -400,7 +444,9 @@ async def execute_deduction_phase(
     # Sequential evaluation for all hypothesis sets
     prompts = QADIPrompts()
     hypotheses_text = "\n".join([f"{i+1}. {h}" for i, h in enumerate(hypotheses)])
-    prompt = prompts.get_deduction_prompt(phase_input.user_input, core_question, hypotheses_text)
+    prompt = prompts.get_deduction_prompt(
+        phase_input.user_input, core_question, hypotheses_text
+    )
     hyperparams = PHASE_HYPERPARAMETERS["deduction"]
 
     total_cost = 0.0
@@ -479,22 +525,26 @@ async def execute_deduction_phase(
 
             except (json.JSONDecodeError, KeyError, TypeError) as e:
                 # Fall back to text parsing
-                logger.debug("Structured output parsing failed, falling back to text parsing: %s", e)
+                logger.debug(
+                    "Structured output parsing failed, falling back to text parsing: %s",
+                    e,
+                )
 
             # Parse the evaluation scores using text parsing with ScoreParser
             scores = []
             for i in range(len(hypotheses)):
                 # Use ScoreParser from parsing_utils
-                score_dict = ScoreParser.parse_with_fallback(
-                    content, hypothesis_index=i + 1, expected_keys=["impact", "feasibility", "accessibility", "sustainability", "scalability"]
+                parsed_scores = ScoreParser.parse_with_fallback(
+                    content, hypothesis_num=i + 1
                 )
+                score_dict = parsed_scores.to_dict()
                 overall = calculate_hypothesis_score(score_dict)
                 score = HypothesisScore(
-                    impact=score_dict.get("impact", 0.5),
-                    feasibility=score_dict.get("feasibility", 0.5),
-                    accessibility=score_dict.get("accessibility", 0.5),
-                    sustainability=score_dict.get("sustainability", 0.5),
-                    scalability=score_dict.get("scalability", 0.5),
+                    impact=parsed_scores.impact,
+                    feasibility=parsed_scores.feasibility,
+                    accessibility=parsed_scores.accessibility,
+                    sustainability=parsed_scores.sustainability,
+                    scalability=parsed_scores.scalability,
                     overall=overall,
                 )
                 scores.append(score)
@@ -526,7 +576,9 @@ async def execute_deduction_phase(
                         break
 
             # Extract action plan using parsing_utils
-            action_plan = ActionPlanParser.parse_with_fallback(content, section_prefix="Action Plan:")
+            action_plan = ActionPlanParser.parse_with_fallback(
+                content, section_prefix="Action Plan:"
+            )
 
             return DeductionResult(
                 hypothesis_scores=scores,
@@ -606,8 +658,12 @@ async def execute_induction_phase(
             examples = []
 
             # Look for "Example N:" pattern
-            example_pattern = r"Example\s*(\d+):\s*(.+?)(?=Example\s*\d+:|Conclusion:|$)"
-            example_matches = re.findall(example_pattern, content, re.DOTALL | re.IGNORECASE)
+            example_pattern = (
+                r"Example\s*(\d+):\s*(.+?)(?=Example\s*\d+:|Conclusion:|$)"
+            )
+            example_matches = re.findall(
+                example_pattern, content, re.DOTALL | re.IGNORECASE
+            )
 
             for _, example_content in example_matches:
                 # Clean up the example content
@@ -651,7 +707,9 @@ async def execute_induction_phase(
                     examples.append(current_example.strip())
 
             # Extract conclusion
-            conclusion_match = re.search(rf"{CONCLUSION_PREFIX}\s*(.+?)$", content, re.DOTALL)
+            conclusion_match = re.search(
+                rf"{CONCLUSION_PREFIX}\s*(.+?)$", content, re.DOTALL
+            )
             conclusion = conclusion_match.group(1).strip() if conclusion_match else ""
 
             # Fix self-reference issues in conclusion
@@ -667,19 +725,25 @@ async def execute_induction_phase(
                     ]
 
                     # Create a brief description of the hypothesis (first 50 chars)
-                    brief_hypothesis = hypothesis[:50] + "..." if len(hypothesis) > 50 else hypothesis
+                    brief_hypothesis = (
+                        hypothesis[:50] + "..." if len(hypothesis) > 50 else hypothesis
+                    )
                     replacement = f'"{brief_hypothesis}"'
 
                     for pattern in patterns:
                         # Only replace if it's referring to the chosen answer
-                        if re.search(rf"your answer.*{pattern}", conclusion, re.IGNORECASE):
+                        if re.search(
+                            rf"your answer.*{pattern}", conclusion, re.IGNORECASE
+                        ):
                             conclusion = re.sub(
                                 rf"your answer\s*\({pattern}\)",
                                 f"the recommended approach {replacement}",
                                 conclusion,
                                 flags=re.IGNORECASE,
                             )
-                        elif re.search(rf"the answer.*{pattern}", conclusion, re.IGNORECASE):
+                        elif re.search(
+                            rf"the answer.*{pattern}", conclusion, re.IGNORECASE
+                        ):
                             conclusion = re.sub(
                                 rf"the answer\s*\({pattern}\)",
                                 f"the recommended approach {replacement}",
@@ -688,7 +752,12 @@ async def execute_induction_phase(
                             )
 
                 # Fix any remaining "your answer" references
-                conclusion = re.sub(r"your answer", "the recommended approach", conclusion, flags=re.IGNORECASE)
+                conclusion = re.sub(
+                    r"your answer",
+                    "the recommended approach",
+                    conclusion,
+                    flags=re.IGNORECASE,
+                )
 
             return InductionResult(
                 examples=examples,

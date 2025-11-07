@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from mad_spark_alt.core.llm_provider import LLMProvider, LLMResponse
 from mad_spark_alt.core.phase_logic import (
     AbductionResult,
     DeductionResult,
@@ -25,7 +26,6 @@ from mad_spark_alt.core.phase_logic import (
     execute_induction_phase,
     execute_questioning_phase,
 )
-from mad_spark_alt.core.llm_provider import LLMResponse, LLMProvider
 from mad_spark_alt.core.simple_qadi_orchestrator import HypothesisScore
 
 
@@ -66,7 +66,10 @@ async def test_questioning_phase_with_q_prefix(mock_llm_manager, phase_input):
     result = await execute_questioning_phase(phase_input)
 
     assert isinstance(result, QuestioningResult)
-    assert result.core_question == "What innovative technologies can effectively remove microplastics from ocean water?"
+    assert (
+        result.core_question
+        == "What innovative technologies can effectively remove microplastics from ocean water?"
+    )
     assert result.llm_cost == 0.001
     assert result.raw_response == mock_response.content
     assert mock_llm_manager.generate.call_count == 1
@@ -86,7 +89,10 @@ async def test_questioning_phase_without_prefix(mock_llm_manager, phase_input):
 
     result = await execute_questioning_phase(phase_input)
 
-    assert result.core_question == "What methods can reduce ocean plastic pollution most effectively?"
+    assert (
+        result.core_question
+        == "What methods can reduce ocean plastic pollution most effectively?"
+    )
     assert result.llm_cost == 0.0008
 
 
@@ -149,20 +155,30 @@ async def test_questioning_phase_max_retries(mock_llm_manager, phase_input):
 async def test_abduction_structured_json(mock_llm_manager, phase_input):
     """Test abduction phase with structured JSON output."""
     mock_response = LLMResponse(
-        content=json.dumps({
-            "hypotheses": [
-                {"id": "1", "content": "Deploy autonomous cleanup drones"},
-                {"id": "2", "content": "Implement biodegradable packaging mandates"},
-                {"id": "3", "content": "Create ocean filtration systems at river mouths"},
-            ]
-        }),
+        content=json.dumps(
+            {
+                "hypotheses": [
+                    {"id": "1", "content": "Deploy autonomous cleanup drones"},
+                    {
+                        "id": "2",
+                        "content": "Implement biodegradable packaging mandates",
+                    },
+                    {
+                        "id": "3",
+                        "content": "Create ocean filtration systems at river mouths",
+                    },
+                ]
+            }
+        ),
         provider=LLMProvider.GOOGLE,
         model="gemini-1.5-flash",
         cost=0.005,
     )
     mock_llm_manager.generate.return_value = mock_response
 
-    result = await execute_abduction_phase(phase_input, "How to reduce ocean plastic?", num_hypotheses=3)
+    result = await execute_abduction_phase(
+        phase_input, "How to reduce ocean plastic?", num_hypotheses=3
+    )
 
     assert isinstance(result, AbductionResult)
     assert len(result.hypotheses) == 3
@@ -187,14 +203,16 @@ async def test_abduction_text_fallback(mock_llm_manager, phase_input):
     )
     mock_llm_manager.generate.return_value = mock_response
 
-    with patch('mad_spark_alt.core.phase_logic.HypothesisParser') as mock_parser:
+    with patch("mad_spark_alt.core.phase_logic.HypothesisParser") as mock_parser:
         mock_parser.parse_with_fallback.return_value = [
             "Use ocean cleanup vessels with advanced filtering",
             "Ban single-use plastics globally",
             "Develop plastic-eating bacteria",
         ]
 
-        result = await execute_abduction_phase(phase_input, "How to reduce ocean plastic?")
+        result = await execute_abduction_phase(
+            phase_input, "How to reduce ocean plastic?"
+        )
 
         assert len(result.hypotheses) == 3
         assert result.num_generated == 3
@@ -204,13 +222,24 @@ async def test_abduction_text_fallback(mock_llm_manager, phase_input):
 async def test_abduction_custom_temperature(mock_llm_manager, phase_input):
     """Test abduction phase with temperature override."""
     mock_response = LLMResponse(
-        content=json.dumps({
-            "hypotheses": [
-                {"id": "1", "content": "Implement AI-powered sorting systems to categorize plastic waste efficiently"},
-                {"id": "2", "content": "Deploy ocean cleanup drones with advanced filtration technology"},
-                {"id": "3", "content": "Create biodegradable packaging alternatives to reduce plastic production"},
-            ]
-        }),
+        content=json.dumps(
+            {
+                "hypotheses": [
+                    {
+                        "id": "1",
+                        "content": "Implement AI-powered sorting systems to categorize plastic waste efficiently",
+                    },
+                    {
+                        "id": "2",
+                        "content": "Deploy ocean cleanup drones with advanced filtration technology",
+                    },
+                    {
+                        "id": "3",
+                        "content": "Create biodegradable packaging alternatives to reduce plastic production",
+                    },
+                ]
+            }
+        ),
         provider=LLMProvider.GOOGLE,
         model="gemini-1.5-flash",
         cost=0.003,
@@ -232,19 +261,39 @@ async def test_abduction_insufficient_hypotheses(mock_llm_manager, phase_input):
     # First call returns only 1 hypothesis, second returns 3
     mock_llm_manager.generate.side_effect = [
         LLMResponse(
-            content=json.dumps({"hypotheses": [{"id": "1", "content": "Only one hypothesis with sufficient length for parsing validation"}]}),
+            content=json.dumps(
+                {
+                    "hypotheses": [
+                        {
+                            "id": "1",
+                            "content": "Only one hypothesis with sufficient length for parsing validation",
+                        }
+                    ]
+                }
+            ),
             provider=LLMProvider.GOOGLE,
             model="gemini-1.5-flash",
             cost=0.002,
         ),
         LLMResponse(
-            content=json.dumps({
-                "hypotheses": [
-                    {"id": "1", "content": "Deploy autonomous cleanup drones with advanced filtering"},
-                    {"id": "2", "content": "Implement biodegradable packaging mandates globally"},
-                    {"id": "3", "content": "Create ocean filtration systems at river mouths"},
-                ]
-            }),
+            content=json.dumps(
+                {
+                    "hypotheses": [
+                        {
+                            "id": "1",
+                            "content": "Deploy autonomous cleanup drones with advanced filtering",
+                        },
+                        {
+                            "id": "2",
+                            "content": "Implement biodegradable packaging mandates globally",
+                        },
+                        {
+                            "id": "3",
+                            "content": "Create ocean filtration systems at river mouths",
+                        },
+                    ]
+                }
+            ),
             provider=LLMProvider.GOOGLE,
             model="gemini-1.5-flash",
             cost=0.003,
@@ -264,13 +313,24 @@ async def test_abduction_cost_tracking(mock_llm_manager, phase_input):
     mock_llm_manager.generate.side_effect = [
         Exception("Temporary failure"),
         LLMResponse(
-            content=json.dumps({
-                "hypotheses": [
-                    {"id": "1", "content": "Develop plastic-eating bacteria for ocean cleanup"},
-                    {"id": "2", "content": "Ban single-use plastics globally through legislation"},
-                    {"id": "3", "content": "Use ocean cleanup vessels with advanced filtering"},
-                ]
-            }),
+            content=json.dumps(
+                {
+                    "hypotheses": [
+                        {
+                            "id": "1",
+                            "content": "Develop plastic-eating bacteria for ocean cleanup",
+                        },
+                        {
+                            "id": "2",
+                            "content": "Ban single-use plastics globally through legislation",
+                        },
+                        {
+                            "id": "3",
+                            "content": "Use ocean cleanup vessels with advanced filtering",
+                        },
+                    ]
+                }
+            ),
             provider=LLMProvider.GOOGLE,
             model="gemini-1.5-flash",
             cost=0.006,
@@ -286,15 +346,32 @@ async def test_abduction_cost_tracking(mock_llm_manager, phase_input):
 async def test_abduction_num_hypotheses_parameter(mock_llm_manager, phase_input):
     """Test that num_hypotheses parameter affects request."""
     mock_response = LLMResponse(
-        content=json.dumps({
-            "hypotheses": [
-                {"id": "1", "content": "Deploy autonomous cleanup drones with AI-powered navigation"},
-                {"id": "2", "content": "Implement biodegradable packaging mandates worldwide"},
-                {"id": "3", "content": "Create ocean filtration systems at major river mouths"},
-                {"id": "4", "content": "Develop plastic-eating bacteria for deep ocean cleanup"},
-                {"id": "5", "content": "Ban single-use plastics through international agreements"},
-            ]
-        }),
+        content=json.dumps(
+            {
+                "hypotheses": [
+                    {
+                        "id": "1",
+                        "content": "Deploy autonomous cleanup drones with AI-powered navigation",
+                    },
+                    {
+                        "id": "2",
+                        "content": "Implement biodegradable packaging mandates worldwide",
+                    },
+                    {
+                        "id": "3",
+                        "content": "Create ocean filtration systems at major river mouths",
+                    },
+                    {
+                        "id": "4",
+                        "content": "Develop plastic-eating bacteria for deep ocean cleanup",
+                    },
+                    {
+                        "id": "5",
+                        "content": "Ban single-use plastics through international agreements",
+                    },
+                ]
+            }
+        ),
         provider=LLMProvider.GOOGLE,
         model="gemini-1.5-flash",
         cost=0.007,
@@ -316,42 +393,44 @@ async def test_deduction_sequential_small_set(mock_llm_manager, phase_input):
     hypotheses = ["H1 text", "H2 text", "H3 text"]
 
     mock_response = LLMResponse(
-        content=json.dumps({
-            "evaluations": [
-                {
-                    "hypothesis_id": "1",
-                    "scores": {
-                        "impact": 0.8,
-                        "feasibility": 0.7,
-                        "accessibility": 0.6,
-                        "sustainability": 0.75,
-                        "scalability": 0.65,
-                    }
-                },
-                {
-                    "hypothesis_id": "2",
-                    "scores": {
-                        "impact": 0.9,
-                        "feasibility": 0.6,
-                        "accessibility": 0.7,
-                        "sustainability": 0.8,
-                        "scalability": 0.7,
-                    }
-                },
-                {
-                    "hypothesis_id": "3",
-                    "scores": {
-                        "impact": 0.7,
-                        "feasibility": 0.9,
-                        "accessibility": 0.8,
-                        "sustainability": 0.7,
-                        "scalability": 0.75,
-                    }
-                },
-            ],
-            "answer": "Combination approach recommended",
-            "action_plan": ["Step 1", "Step 2", "Step 3"],
-        }),
+        content=json.dumps(
+            {
+                "evaluations": [
+                    {
+                        "hypothesis_id": "1",
+                        "scores": {
+                            "impact": 0.8,
+                            "feasibility": 0.7,
+                            "accessibility": 0.6,
+                            "sustainability": 0.75,
+                            "scalability": 0.65,
+                        },
+                    },
+                    {
+                        "hypothesis_id": "2",
+                        "scores": {
+                            "impact": 0.9,
+                            "feasibility": 0.6,
+                            "accessibility": 0.7,
+                            "sustainability": 0.8,
+                            "scalability": 0.7,
+                        },
+                    },
+                    {
+                        "hypothesis_id": "3",
+                        "scores": {
+                            "impact": 0.7,
+                            "feasibility": 0.9,
+                            "accessibility": 0.8,
+                            "sustainability": 0.7,
+                            "scalability": 0.75,
+                        },
+                    },
+                ],
+                "answer": "Combination approach recommended",
+                "action_plan": ["Step 1", "Step 2", "Step 3"],
+            }
+        ),
         provider=LLMProvider.GOOGLE,
         model="gemini-1.5-flash",
         cost=0.008,
@@ -376,23 +455,25 @@ async def test_deduction_parallel_large_set(mock_llm_manager, phase_input):
 
     # Mock batch responses
     mock_llm_manager.generate.return_value = LLMResponse(
-        content=json.dumps({
-            "evaluations": [
-                {
-                    "hypothesis_id": str(i),
-                    "scores": {
-                        "impact": 0.7,
-                        "feasibility": 0.7,
-                        "accessibility": 0.7,
-                        "sustainability": 0.7,
-                        "scalability": 0.7,
+        content=json.dumps(
+            {
+                "evaluations": [
+                    {
+                        "hypothesis_id": str(i),
+                        "scores": {
+                            "impact": 0.7,
+                            "feasibility": 0.7,
+                            "accessibility": 0.7,
+                            "sustainability": 0.7,
+                            "scalability": 0.7,
+                        },
                     }
-                }
-                for i in range(1, 8)
-            ],
-            "answer": "Evaluation result for large set",
-            "action_plan": ["Action 1", "Action 2"],
-        }),
+                    for i in range(1, 8)
+                ],
+                "answer": "Evaluation result for large set",
+                "action_plan": ["Action 1", "Action 2"],
+            }
+        ),
         provider=LLMProvider.GOOGLE,
         model="gemini-1.5-flash",
         cost=0.012,
@@ -411,32 +492,34 @@ async def test_deduction_structured_scores(mock_llm_manager, phase_input):
     hypotheses = ["H1", "H2"]
 
     mock_response = LLMResponse(
-        content=json.dumps({
-            "evaluations": [
-                {
-                    "hypothesis_id": "1",
-                    "scores": {
-                        "impact": 0.85,
-                        "feasibility": 0.75,
-                        "accessibility": 0.65,
-                        "sustainability": 0.80,
-                        "scalability": 0.70,
-                    }
-                },
-                {
-                    "hypothesis_id": "2",
-                    "scores": {
-                        "impact": 0.90,
-                        "feasibility": 0.80,
-                        "accessibility": 0.70,
-                        "sustainability": 0.85,
-                        "scalability": 0.75,
-                    }
-                },
-            ],
-            "answer": "Test answer",
-            "action_plan": ["Test action"],
-        }),
+        content=json.dumps(
+            {
+                "evaluations": [
+                    {
+                        "hypothesis_id": "1",
+                        "scores": {
+                            "impact": 0.85,
+                            "feasibility": 0.75,
+                            "accessibility": 0.65,
+                            "sustainability": 0.80,
+                            "scalability": 0.70,
+                        },
+                    },
+                    {
+                        "hypothesis_id": "2",
+                        "scores": {
+                            "impact": 0.90,
+                            "feasibility": 0.80,
+                            "accessibility": 0.70,
+                            "sustainability": 0.85,
+                            "scalability": 0.75,
+                        },
+                    },
+                ],
+                "answer": "Test answer",
+                "action_plan": ["Test action"],
+            }
+        ),
         provider=LLMProvider.GOOGLE,
         model="gemini-1.5-flash",
         cost=0.005,
@@ -481,10 +564,22 @@ async def test_deduction_text_score_fallback(mock_llm_manager, phase_input):
     )
     mock_llm_manager.generate.return_value = mock_response
 
-    with patch('mad_spark_alt.core.phase_logic.ScoreParser') as mock_parser:
+    with patch("mad_spark_alt.core.phase_logic.ScoreParser") as mock_parser:
         mock_parser.parse_with_fallback.side_effect = [
-            {"impact": 0.8, "feasibility": 0.7, "accessibility": 0.6, "sustainability": 0.75, "scalability": 0.65},
-            {"impact": 0.9, "feasibility": 0.8, "accessibility": 0.7, "sustainability": 0.85, "scalability": 0.75},
+            {
+                "impact": 0.8,
+                "feasibility": 0.7,
+                "accessibility": 0.6,
+                "sustainability": 0.75,
+                "scalability": 0.65,
+            },
+            {
+                "impact": 0.9,
+                "feasibility": 0.8,
+                "accessibility": 0.7,
+                "sustainability": 0.85,
+                "scalability": 0.75,
+            },
         ]
 
         result = await execute_deduction_phase(phase_input, "Q?", hypotheses)
@@ -498,25 +593,29 @@ async def test_deduction_action_plan_extraction(mock_llm_manager, phase_input):
     hypotheses = ["H1"]
 
     mock_response = LLMResponse(
-        content=json.dumps({
-            "evaluations": [{
-                "hypothesis_id": "1",
-                "scores": {
-                    "impact": 0.7,
-                    "feasibility": 0.7,
-                    "accessibility": 0.7,
-                    "sustainability": 0.7,
-                    "scalability": 0.7,
-                }
-            }],
-            "answer": "Answer text",
-            "action_plan": [
-                "Conduct feasibility study",
-                "Develop prototype",
-                "Test with focus group",
-                "Scale implementation",
-            ],
-        }),
+        content=json.dumps(
+            {
+                "evaluations": [
+                    {
+                        "hypothesis_id": "1",
+                        "scores": {
+                            "impact": 0.7,
+                            "feasibility": 0.7,
+                            "accessibility": 0.7,
+                            "sustainability": 0.7,
+                            "scalability": 0.7,
+                        },
+                    }
+                ],
+                "answer": "Answer text",
+                "action_plan": [
+                    "Conduct feasibility study",
+                    "Develop prototype",
+                    "Test with focus group",
+                    "Scale implementation",
+                ],
+            }
+        ),
         provider=LLMProvider.GOOGLE,
         model="gemini-1.5-flash",
         cost=0.004,
@@ -535,20 +634,24 @@ async def test_deduction_answer_extraction(mock_llm_manager, phase_input):
     hypotheses = ["H1"]
 
     mock_response = LLMResponse(
-        content=json.dumps({
-            "evaluations": [{
-                "hypothesis_id": "1",
-                "scores": {
-                    "impact": 0.7,
-                    "feasibility": 0.7,
-                    "accessibility": 0.7,
-                    "sustainability": 0.7,
-                    "scalability": 0.7,
-                }
-            }],
-            "answer": "The recommended approach is to implement a phased rollout strategy.",
-            "action_plan": ["Action 1"],
-        }),
+        content=json.dumps(
+            {
+                "evaluations": [
+                    {
+                        "hypothesis_id": "1",
+                        "scores": {
+                            "impact": 0.7,
+                            "feasibility": 0.7,
+                            "accessibility": 0.7,
+                            "sustainability": 0.7,
+                            "scalability": 0.7,
+                        },
+                    }
+                ],
+                "answer": "The recommended approach is to implement a phased rollout strategy.",
+                "action_plan": ["Action 1"],
+            }
+        ),
         provider=LLMProvider.GOOGLE,
         model="gemini-1.5-flash",
         cost=0.003,
@@ -566,15 +669,44 @@ async def test_deduction_cost_distribution(mock_llm_manager, phase_input):
     hypotheses = ["H1", "H2", "H3"]
 
     mock_response = LLMResponse(
-        content=json.dumps({
-            "evaluations": [
-                {"hypothesis_id": "1", "scores": {"impact": 0.7, "feasibility": 0.7, "accessibility": 0.7, "sustainability": 0.7, "scalability": 0.7}},
-                {"hypothesis_id": "2", "scores": {"impact": 0.7, "feasibility": 0.7, "accessibility": 0.7, "sustainability": 0.7, "scalability": 0.7}},
-                {"hypothesis_id": "3", "scores": {"impact": 0.7, "feasibility": 0.7, "accessibility": 0.7, "sustainability": 0.7, "scalability": 0.7}},
-            ],
-            "answer": "Answer",
-            "action_plan": ["Action"],
-        }),
+        content=json.dumps(
+            {
+                "evaluations": [
+                    {
+                        "hypothesis_id": "1",
+                        "scores": {
+                            "impact": 0.7,
+                            "feasibility": 0.7,
+                            "accessibility": 0.7,
+                            "sustainability": 0.7,
+                            "scalability": 0.7,
+                        },
+                    },
+                    {
+                        "hypothesis_id": "2",
+                        "scores": {
+                            "impact": 0.7,
+                            "feasibility": 0.7,
+                            "accessibility": 0.7,
+                            "sustainability": 0.7,
+                            "scalability": 0.7,
+                        },
+                    },
+                    {
+                        "hypothesis_id": "3",
+                        "scores": {
+                            "impact": 0.7,
+                            "feasibility": 0.7,
+                            "accessibility": 0.7,
+                            "sustainability": 0.7,
+                            "scalability": 0.7,
+                        },
+                    },
+                ],
+                "answer": "Answer",
+                "action_plan": ["Action"],
+            }
+        ),
         provider=LLMProvider.GOOGLE,
         model="gemini-1.5-flash",
         cost=0.009,
@@ -639,7 +771,10 @@ async def test_induction_example_pattern_2(mock_llm_manager, phase_input):
     )
 
     assert len(result.examples) >= 3
-    assert "tesla" in result.examples[0].lower() or "gigafactory" in result.examples[0].lower()
+    assert (
+        "tesla" in result.examples[0].lower()
+        or "gigafactory" in result.examples[0].lower()
+    )
 
 
 @pytest.mark.asyncio
