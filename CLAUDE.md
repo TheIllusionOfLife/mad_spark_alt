@@ -593,3 +593,12 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **CI Robustness**: Systematic fixes addressed 4 layers: logic → tests → user feedback → type checking
 - **Performance Verified**: 60-70% execution time reduction confirmed for heavy workloads
 - **Production Ready**: All 47 batch-related tests pass, CodeRabbit approved, merged to main
+
+### Orchestrator Delegation Pattern ([PR #115](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/115)) - COMPLETED ✅
+- **Delegation Over Duplication**: When orchestrators share logic, delegate to simpler orchestrator instead of duplicating code
+- **Pattern**: Complex orchestrator creates instances of simple orchestrator, calls methods, aggregates results
+- **Example**: MultiPerspective creates SimpleQADI instances per perspective instead of reimplementing QADI phases
+- **Code Reduction**: Achieved 38% reduction (507→312 lines) by removing 195 lines of duplicate phase logic
+- **TDD Approach**: Write baseline tests first, refactor implementation, update tests to mock delegation
+- **Real API Validation**: Always test with real LLM API to verify no timeouts, truncation, or errors
+- **Mock Pattern**: In tests, mock the delegated class (SimpleQADI) not internal methods that will be removed
