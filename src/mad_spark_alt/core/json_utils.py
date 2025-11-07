@@ -424,26 +424,77 @@ def _fix_common_json_issues(text: str) -> str:
     text = re.sub(r",\s*}", "}", text)
     text = re.sub(r",\s*\]", "]", text)
 
-    # Fix single quotes - only replace when they appear to be string delimiters
-    # This preserves apostrophes within values like "it's a test"
-    def fix_quotes(match: re.Match[str]) -> str:
+    # Try ast.literal_eval first (safest approach for Python-like JSON with single quotes)
+    # This handles apostrophes correctly: {'name': "O'Reilly"} works perfectly
+    try:
+        import ast
+        # literal_eval only works if the text is valid Python literal syntax
+        # This handles single quotes, preserves apostrophes, and is safe
+        obj = ast.literal_eval(text)
+        # Convert back to JSON with double quotes
+        import json as json_mod
+        return json_mod.dumps(obj, ensure_ascii=False)
+    except (ValueError, SyntaxError, MemoryError):
+        # Not valid Python literal, continue with regex-based fixing
+        pass
+
+    # Fix unquoted keys first (before quote fixing to avoid conflicts)
+    text = re.sub(r'(?<!")\b(\w+)\b(?=\s*:)', r'"\1"', text)
+
+    # Remove JavaScript-style comments but preserve content inside strings
+    # This is complex, so we use a simple heuristic: only remove // at line start or after whitespace
+    # AND not inside quoted strings (simple approximation)
+    def remove_comment(match: re.Match[str]) -> str:
+        line = match.group(0)
+        # Count quotes before // to determine if we're inside a string
+        comment_pos = line.find('//')
+        if comment_pos == -1:
+            return line
+
+        # Simple heuristic: count unescaped quotes before //
+        before_comment = line[:comment_pos]
+        quote_count = before_comment.count('"') - before_comment.count('\\"')
+
+        # If odd number of quotes, we're inside a string, keep the comment
+        if quote_count % 2 == 1:
+            return line
+
+        # Even quotes (or zero), we're outside strings, remove comment
+        return line[:comment_pos].rstrip()
+
+    # Process line by line for comment removal
+    lines = text.split('\n')
+    processed_lines = []
+    for line in lines:
+        match = re.match(r'.*', line)
+        if match:
+            processed_lines.append(remove_comment(match))
+        else:
+            processed_lines.append(line)
+    text = '\n'.join(processed_lines)
+
+    # Remove block comments (/* ... */)
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+
+    # Fix single quotes - use more sophisticated approach
+    # Match single-quoted strings, accounting for escaped quotes and apostrophes
+    # Pattern: 'anything except unescaped single quotes'
+    # This still has limitations with complex cases like 'O'Reilly'
+    # For those, we rely on ast.literal_eval above
+    def fix_single_quote_strings(match: re.Match[str]) -> str:
+        full_match = match.group(0)
+        # If the matched content contains apostrophes, skip it
+        # (it's likely part of a larger single-quoted string)
+        if full_match.count("'") > 2:
+            return full_match  # Don't modify complex cases
+
         content = match.group(1)
-        # Escape any double quotes inside the content
+        # Escape any double quotes inside
         content = content.replace('"', '\\"')
         return f'"{content}"'
 
-    # Replace single-quoted strings with double-quoted strings
-    # Matches paired single quotes: 'value' → "value"
-    text = re.sub(r"'([^']*)'", fix_quotes, text)
-
-    # Fix unquoted keys (use negative lookbehind to avoid keys already in quotes)
-    text = re.sub(r'(?<!")\b(\w+)\b(?=\s*:)', r'"\1"', text)
-
-    # Remove JavaScript-style comments, but be careful with URLs
-    # Only remove // comments that are preceded by whitespace or start of line
-    # to avoid breaking URLs like https://example.com
-    text = re.sub(r"(?:^|\s)//.*$", "", text, flags=re.MULTILINE)
-    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    # Only replace simple single-quoted strings (no internal apostrophes)
+    text = re.sub(r"'([^']*)'", fix_single_quote_strings, text)
 
     return text
 

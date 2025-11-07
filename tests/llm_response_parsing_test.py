@@ -410,6 +410,13 @@ class TestExtractAndParseJson:
         assert result["review"] == "it's a test"
         assert result["description"] == "won't fail"
 
+    def test_json_with_apostrophe_in_single_quoted_string(self):
+        """Test single-quoted strings containing apostrophes (e.g. O'Reilly)."""
+        text = "{'name': 'O\\'Reilly', 'company': 'O\\'Brien & Associates'}"
+        result = extract_and_parse_json(text, fix_issues=True)
+        assert result["name"] == "O'Reilly"
+        assert result["company"] == "O'Brien & Associates"
+
     def test_json_with_unquoted_keys(self):
         """Test JSON fixing with unquoted keys."""
         text = '{name: "test", value: 42}'
@@ -435,6 +442,13 @@ class TestExtractAndParseJson:
         result = extract_and_parse_json(text, fix_issues=True)
         assert result["url"] == "https://example.com/path"
         assert result["api"] == "http://api.test.com"
+
+    def test_json_with_comment_slashes_inside_string(self):
+        """Test that // inside string values is preserved."""
+        text = '{"note": "profit // loss backup", "formula": "a // b"}'
+        result = extract_and_parse_json(text, fix_issues=True)
+        assert result["note"] == "profit // loss backup"
+        assert result["formula"] == "a // b"
 
     def test_expected_keys_validation(self):
         """Test validation with expected keys."""
