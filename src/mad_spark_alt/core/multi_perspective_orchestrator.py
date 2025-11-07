@@ -8,6 +8,7 @@ relevant perspectives based on question intent detection.
 import asyncio
 import logging
 import re
+import traceback
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -17,6 +18,11 @@ from .llm_provider import LLMRequest, llm_manager
 from .simple_qadi_orchestrator import SimpleQADIOrchestrator, SimpleQADIResult, HypothesisScore
 
 logger = logging.getLogger(__name__)
+
+# Synthesis LLM hyperparameters
+SYNTHESIS_TEMPERATURE = 0.7
+SYNTHESIS_MAX_TOKENS = 1000
+SYNTHESIS_TOP_P = 0.9
 
 
 @dataclass
@@ -173,7 +179,6 @@ class MultiPerspectiveQADIOrchestrator:
 
         except Exception as e:
             logger.error(f"Failed {perspective.value} perspective analysis: {e}")
-            import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             return None
 
@@ -241,9 +246,9 @@ INTEGRATED ACTION PLAN:
         # Run synthesis LLM call
         request = LLMRequest(
             user_prompt=synthesis_prompt,
-            temperature=0.7,
-            max_tokens=1000,
-            top_p=0.9,
+            temperature=SYNTHESIS_TEMPERATURE,
+            max_tokens=SYNTHESIS_MAX_TOKENS,
+            top_p=SYNTHESIS_TOP_P,
         )
 
         response = await llm_manager.generate(request)

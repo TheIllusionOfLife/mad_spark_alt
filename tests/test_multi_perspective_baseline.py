@@ -1,8 +1,10 @@
 """
-Baseline tests for MultiPerspectiveQADIOrchestrator.
+Unit tests for the refactored MultiPerspectiveQADIOrchestrator.
 
-These tests verify the current implementation behavior before refactoring.
-All tests use mocks to avoid API costs.
+These tests verify that the orchestrator correctly coordinates perspective
+selection, delegates QADI cycle execution to SimpleQADIOrchestrator,
+and synthesizes the results. Mocks are used to isolate the orchestrator's
+logic and avoid external API calls.
 """
 
 import pytest
@@ -404,7 +406,6 @@ class TestMultiPerspectiveBaseline:
 
         # Mock synthesis LLM call
         with patch("mad_spark_alt.core.multi_perspective_orchestrator.llm_manager") as mock_llm:
-            from mad_spark_alt.core.llm_provider import LLMResponse
             mock_llm.generate = AsyncMock()
             mock_llm.generate.return_value = LLMResponse(
                 content="SYNTHESIS: Test\n\nINTEGRATED ACTION PLAN:\n1. A\n2. B",
