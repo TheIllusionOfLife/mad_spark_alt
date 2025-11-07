@@ -8,6 +8,7 @@ combine concepts from two parent ideas into offspring with synergy.
 import json
 import logging
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
@@ -244,8 +245,6 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
         Returns:
             Similarity ratio between 0.0 and 1.0
         """
-        from difflib import SequenceMatcher
-
         # Normalize content for comparison
         norm1 = content1.strip().lower()
         norm2 = content2.strip().lower()
