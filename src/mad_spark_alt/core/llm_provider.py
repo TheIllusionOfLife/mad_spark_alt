@@ -287,11 +287,11 @@ class GoogleProvider(LLMProviderInterface):
             "topP": 0.95,
             "topK": 40,
         }
-        
+
         # Add structured output configuration if provided
         if request.response_schema and request.response_mime_type:
             generation_config["responseMimeType"] = request.response_mime_type
-            generation_config["responseSchema"] = request.response_schema
+            generation_config["responseJsonSchema"] = request.response_schema
         
         payload = {
             "contents": [{"parts": [{"text": full_prompt}]}],
