@@ -87,15 +87,15 @@ class SemanticOperatorCache:
         Returns:
             Cached result (dict with metadata or string based on return_dict) or None if not found/expired
         """
+        # Calculate time values once at the start for DRY principle
+        current_time = time.time()
+        effective_ttl = self._get_effective_ttl(current_time)
+
         # Try exact match first
         exact_key = self._get_cache_key(content, operation_type)
 
         if exact_key in self._cache:
             value, timestamp = self._cache[exact_key]
-
-            # Check if expired (extended session-based TTL)
-            current_time = time.time()
-            effective_ttl = self._get_effective_ttl(current_time)
 
             if current_time - timestamp < effective_ttl:
                 logger.debug(f"Cache exact hit for {operation_type} hash {exact_key[:8]}")
@@ -119,8 +119,6 @@ class SemanticOperatorCache:
             similarity_key = self._get_similarity_key(content)
             if similarity_key in self._similarity_index:
                 # Get all cache keys with this similarity
-                current_time = time.time()  # Define current_time if not already defined
-                effective_ttl = self._get_effective_ttl(current_time)
                 for cache_key in self._similarity_index[similarity_key]:
                     if cache_key in self._cache:
                         cached_value, timestamp = self._cache[cache_key]
