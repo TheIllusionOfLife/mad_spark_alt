@@ -19,6 +19,7 @@ from .interfaces import (
 from .llm_provider import LLMRequest, llm_manager
 from .qadi_prompts import PHASE_HYPERPARAMETERS, QADIPrompts, calculate_hypothesis_score
 from ..utils.text_cleaning import clean_ansi_codes
+from .parsing_utils import HypothesisParser, ScoreParser, ActionPlanParser, ParsedScores
 
 logger = logging.getLogger(__name__)
 
@@ -442,179 +443,20 @@ class SimpleQADIOrchestrator:
                 response = await llm_manager.generate(request)
                 total_cost += response.cost
 
-                # Try to parse as JSON first (structured output)
-                try:
-                    data = json.loads(response.content)
-                    if "hypotheses" in data and isinstance(data["hypotheses"], list):
-                        hypotheses = []
-                        for h in data["hypotheses"]:
-                            if isinstance(h, dict) and "content" in h:
-                                content = h["content"].strip()
-                                if len(content) >= MIN_HYPOTHESIS_LENGTH:
-                                    hypotheses.append(content)
-                        
-                        if len(hypotheses) >= self.num_hypotheses:
-                            logger.debug("Successfully extracted %d hypotheses using structured output", len(hypotheses))
-                            return hypotheses[:self.num_hypotheses], total_cost
-                        else:
-                            logger.warning("Structured output returned insufficient hypotheses: %d", len(hypotheses))
-                except (json.JSONDecodeError, KeyError, TypeError) as e:
-                    logger.debug("JSON parsing failed, falling back to text parsing: %s", e)
-
-                # Fall back to text parsing if structured output fails
-                content = response.content.strip()
-                
-                # Log the actual response for debugging
-                logger.debug("LLM response for abduction phase:\n%s", content)
-                
-                # Clean all ANSI codes using comprehensive cleaning function
-                content = clean_ansi_codes(content)
-                
-                # Initialize hypotheses list for fallback parsing
-                hypotheses = []
-                
-                lines = content.split("\n")
-
-                current_hypothesis = ""
-                current_index = None
-                current_title = ""
-
-                for i, line in enumerate(lines):
-                    line = line.strip()
-                    if not line:
-                        continue
-
-                    # Check if line starts with H1:, H2:, H3:, Approach N:, etc.
-                    # Pattern matches various hypothesis formats after ANSI codes have been stripped
-                    hypothesis_match = re.match(r"^(?:\*\*)?(?:H|Hypothesis\s*|Approach\s*)(\d+)(?:\*\*)?(?:\s*:|\.)\s*(.*)$", line)
-                    
-                    if hypothesis_match:
-                        # Save previous hypothesis if we have one
-                        if current_index is not None and current_hypothesis.strip():
-                            if len(current_hypothesis.strip()) > MIN_HYPOTHESIS_LENGTH:
-                                hypotheses.append(current_hypothesis.strip())
-
-                        # Start new hypothesis
-                        current_index = int(hypothesis_match.group(1))
-                        title_and_content = hypothesis_match.group(2).strip()
-                        
-                        # Remove any remaining bold formatting
-                        title_and_content = re.sub(r'\*\*', '', title_and_content)
-                        
-                        # Check if this line contains just a title in brackets
-                        title_match = re.match(r'^\[([^\]]+)\]$', title_and_content)
-                        if title_match:
-                            # This is just a title, content will follow
-                            current_title = title_match.group(1)
-                            current_hypothesis = ""
-                        else:
-                            # This line contains content
-                            # Remove brackets from the content if they exist
-                            title_and_content = re.sub(r'\[([^\]]+)\]', r'\1', title_and_content)
-                            current_hypothesis = title_and_content
-                    elif current_index is not None:
-                        # Continue building current hypothesis from subsequent lines
-                        # Skip empty lines and lines that are just markdown
-                        if line and not line.startswith("---") and not re.match(r"^\*+$", line):
-                            if current_hypothesis:
-                                current_hypothesis += " " + line
-                            else:
-                                # First content line after title
-                                current_hypothesis = line
-
-                # Don't forget the last hypothesis
-                if current_index is not None and current_hypothesis.strip():
-                    if len(current_hypothesis.strip()) > MIN_HYPOTHESIS_LENGTH:
-                        hypotheses.append(current_hypothesis.strip())
-
-                # Log what was extracted
-                logger.debug("Extracted %d hypotheses: %s", len(hypotheses), hypotheses)
-
-                if len(hypotheses) >= self.num_hypotheses:
-                    # Return exactly the requested number of hypotheses
-                    return hypotheses[:self.num_hypotheses], total_cost
-                
-                # Fallback: Try alternative parsing methods
-                logger.warning(
-                    "Failed to extract enough hypotheses with standard pattern. "
-                    "Got %d hypotheses. Trying fallback parsing...", 
-                    len(hypotheses)
+                # Use parsing_utils for hypothesis extraction
+                hypotheses = HypothesisParser.parse_with_fallback(
+                    response.content,
+                    num_expected=self.num_hypotheses
                 )
-                
-                # Enhanced fallback parsing with multiple format support
-                hypotheses = []
-                current_hypothesis = ""
-                hypothesis_buffer: List[str] = []
-                
-                for line in lines:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    
-                    # Match various hypothesis start patterns
-                    hypothesis_patterns = [
-                        r"^(\d+)[.)]\s*(.+)$",  # "1. Text" or "1) Text"
-                        r"^(?:\*\*)?H(\d+)(?:\*\*)?[:.]\s*(.+)$",  # "H1: Text" or "**H1:** Text"
-                        r"^(?:\*\*)?Hypothesis\s+(\d+)(?:\*\*)?[:.]\s*(.+)$",  # "Hypothesis 1: Text"
-                        r"^(?:\*\*)?Approach\s+(\d+)(?:\*\*)?[:.]\s*(.+)$",    # "Approach 1: Text"
-                        r"^[•\-]\s+(.+)$",    # "• Text" or "- Text" (not * to avoid matching bold)
-                        r"^\*\s+(.+)$",        # "* Text" (single asterisk with space)
-                    ]
-                    
-                    matched = False
-                    for pattern in hypothesis_patterns:
-                        match = re.match(pattern, line, re.IGNORECASE)
-                        if match:
-                            # Save previous hypothesis if we have one
-                            if current_hypothesis.strip() and len(current_hypothesis.strip()) > MIN_HYPOTHESIS_LENGTH:
-                                hypotheses.append(current_hypothesis.strip())
-                            
-                            # Start new hypothesis
-                            if len(match.groups()) == 2:
-                                # Pattern with number (like "1. Text")
-                                hypothesis_num = int(match.group(1)) if match.group(1).isdigit() else len(hypotheses) + 1
-                                if hypothesis_num <= self.num_hypotheses:
-                                    current_hypothesis = match.group(2).strip()
-                                    matched = True
-                            else:
-                                # Pattern without number (like "- Text")
-                                if len(hypotheses) < self.num_hypotheses:
-                                    current_hypothesis = match.group(1).strip()
-                                    matched = True
-                            break
-                    
-                    if not matched and current_hypothesis:
-                        # Continue building current hypothesis (multi-line content)
-                        # But stop if we hit lines that look like explanatory text
-                        if not line.startswith(("These", "This", "The above", "Note:")):
-                            current_hypothesis += " " + line
-                
-                # Don't forget the last hypothesis
-                if current_hypothesis.strip() and len(current_hypothesis.strip()) > MIN_HYPOTHESIS_LENGTH:
-                    hypotheses.append(current_hypothesis.strip())
-                
-                # Additional fallback: try to extract content between common delimiters
-                if len(hypotheses) < self.num_hypotheses:
-                    # Look for sections separated by double newlines
-                    sections = re.split(r'\n\s*\n', content)
-                    for section in sections:
-                        section = section.strip()
-                        if len(section) > 30 and len(hypotheses) < self.num_hypotheses:
-                            # Skip sections that look like headers or metadata
-                            if section.startswith("**Scale:**") or section.startswith("Scale:"):
-                                continue
-                            # Clean up section markers but preserve content
-                            cleaned = re.sub(r'^(?:\d+[.)]\s*|[•\-]\s+|\*\s+|H\d+[:.]\s*)', '', section, flags=re.IGNORECASE)
-                            if len(cleaned.strip()) > MIN_HYPOTHESIS_LENGTH and not any(h == cleaned.strip() for h in hypotheses):
-                                hypotheses.append(cleaned.strip())
-                
+
                 if len(hypotheses) >= self.num_hypotheses:
-                    logger.info("Fallback parsing extracted %d hypotheses, returning %d as requested", len(hypotheses), self.num_hypotheses)
-                    return hypotheses[:self.num_hypotheses], total_cost  # Return requested number
-                    
+                    logger.debug("Successfully extracted %d hypotheses", len(hypotheses))
+                    return hypotheses[:self.num_hypotheses], total_cost
+
                 logger.warning(
-                    "Failed to extract enough hypotheses even with fallback. "
-                    "Response preview:\n%s", content[:500]
+                    "Failed to extract enough hypotheses. Got %d, expected %d. "
+                    "Response preview:\n%s",
+                    len(hypotheses), self.num_hypotheses, response.content[:500]
                 )
 
             except Exception as e:
@@ -782,36 +624,8 @@ class SimpleQADIOrchestrator:
                             ):  # Reasonable answer length
                                 answer = potential_answer
 
-                # Extract action plan - be more flexible
-                action_plan = []
-                plan_match = re.search(
-                    r"Action Plan:?\s*(.+?)$",
-                    content,
-                    re.DOTALL | re.IGNORECASE,
-                )
-                if plan_match:
-                    plan_text = plan_match.group(1).strip()
-                    # Extract numbered items or bullet points
-                    # Updated regex to handle multi-line items better
-                    plan_items = re.findall(
-                        r"(?:^|\n)\s*(?:\d+\.|[-*•])\s*(.+?)(?=(?:\n\s*(?:\d+\.|[-*•]))|$)",
-                        plan_text,
-                        re.DOTALL | re.MULTILINE,
-                    )
-                    action_plan = [
-                        item.strip() 
-                        for item in plan_items 
-                        if item.strip() and len(item.strip()) > 1  # Filter out single character items like '*'
-                    ]
-
-                    # If no items found with bullets/numbers, try splitting by newlines
-                    if not action_plan:
-                        lines = plan_text.split("\n")
-                        action_plan = [
-                            line.strip()
-                            for line in lines
-                            if line.strip() and not line.strip().startswith("#")
-                        ]
+                # Extract action plan using parsing_utils
+                action_plan = ActionPlanParser.parse_with_fallback(content, section_prefix="Action Plan:")
 
                 return {
                     "scores": scores,
@@ -842,126 +656,19 @@ class SimpleQADIOrchestrator:
         self, content: str, hypothesis_num: int
     ) -> HypothesisScore:
         """Parse scores for a specific hypothesis from deduction content."""
-        # Use line-by-line parsing to extract hypothesis section
-        lines = content.split("\n")
-        section_lines = []
-        in_section = False
+        # Use parsing_utils for score extraction
+        parsed_scores = ScoreParser.parse_with_fallback(content, hypothesis_num=hypothesis_num)
 
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-
-            # Check if this is the start of our hypothesis section
-            # Handle various formats: "H1:", "- H1:", "- **H1:**", "Approach 1:", etc.
-            hypothesis_match = re.match(
-                rf"^(?:-\s*)?(?:\*\*)?H{hypothesis_num}[:.](.*?)(?:\*\*)?$", line
-            )
-            # Also check for "Hypothesis 1:" format
-            if not hypothesis_match:
-                hypothesis_match = re.match(
-                    rf"^(?:-\s*)?(?:\*\*)?Hypothesis\s+{hypothesis_num}[:.](.*?)(?:\*\*)?$",
-                    line,
-                    re.IGNORECASE,
-                )
-            # Also check for "Approach 1:" format
-            if not hypothesis_match:
-                hypothesis_match = re.match(
-                    rf"^(?:-\s*)?(?:\*\*)?Approach\s+{hypothesis_num}[:.](.*?)(?:\*\*)?$",
-                    line,
-                    re.IGNORECASE,
-                )
-            if hypothesis_match:
-                in_section = True
-                section_lines.append(hypothesis_match.group(1).strip())
-                continue
-
-            # Check if we've reached the next hypothesis or end section
-            if in_section:
-                if (re.match(rf"^(?:-\s*)?(?:\*\*)?H{hypothesis_num + 1}[:.]", line) or 
-                    re.match(rf"^(?:-\s*)?(?:\*\*)?Approach\s+{hypothesis_num + 1}[:.]", line, re.IGNORECASE) or
-                    re.match(rf"^(?:-\s*)?(?:\*\*)?Hypothesis\s+{hypothesis_num + 1}[:.]", line, re.IGNORECASE) or
-                    line.startswith((ANSWER_PREFIX, ACTION_PLAN_PREFIX))):
-                    break
-                section_lines.append(line)
-
-        if not section_lines:
-            # Log warning and return default scores if parsing fails
-            logger.warning(
-                "Failed to parse scores for hypothesis %d. Using default scores. "
-                "This may indicate the LLM response didn't follow the expected format. "
-                "Content preview: %s...",
-                hypothesis_num,
-                content[:300] if len(content) > 300 else content,
-            )
-            return HypothesisScore(
-                impact=0.5,
-                feasibility=0.5,
-                accessibility=0.5,
-                sustainability=0.5,
-                scalability=0.5,
-                overall=0.5,
-            )
-
-        section = " ".join(section_lines)
-
-        # Extract individual scores with improved robustness
-        def extract_score(criterion: str, text: str) -> float:
-            # Try multiple patterns to handle different formatting
-            # First check for fractional scores (e.g., "8/10")
-            fraction_pattern = rf"{criterion}:\s*(-?[0-9.]+)/(\d+)"
-            fraction_match = re.search(fraction_pattern, text, re.IGNORECASE)
-            if fraction_match:
-                try:
-                    numerator = float(fraction_match.group(1))
-                    denominator = float(fraction_match.group(2))
-                    if denominator > 0:
-                        score = numerator / denominator
-                        return max(0.0, min(1.0, score))
-                except (ValueError, ZeroDivisionError):
-                    pass
-
-            # Other patterns for direct scores - enhanced for markdown and various formats
-            patterns = [
-                rf"\*\*{criterion}:\*\*\s*(-?[0-9.]+)\s*-",          # "**Impact:** 0.8 - explanation"
-                rf"\*\*{criterion}:\*\*\s*(-?[0-9.]+)",              # "**Impact:** 0.8"
-                rf"\*?\s*{criterion}:\s*(-?[0-9.]+)\s*-",            # "* Impact: 0.8 - explanation" or "Impact: 0.8 - explanation"
-                rf"\*?\s*{criterion}:\s*(-?[0-9.]+)",                # "* Impact: 0.8" or "Impact: 0.8"
-                rf"{criterion}\s*-\s*(-?[0-9.]+)",                   # "Impact - 0.8"
-                rf"{criterion}\s*:\s*(-?[0-9.]+)/?",                 # "Impact: 0.8/" or "Impact: 0.8"
-                rf"{criterion}\s*\((-?[0-9.]+)\)",                   # "Impact (0.8)"
-            ]
-
-            for pattern in patterns:
-                match = re.search(pattern, text, re.IGNORECASE)
-                if match:
-                    try:
-                        score = float(match.group(1))
-                        # Ensure score is between 0 and 1
-                        return max(0.0, min(1.0, score))
-                    except (ValueError, TypeError):
-                        continue
-
-            # If no pattern matches, return default
-            return 0.5
-
-        scores = {
-            "impact": extract_score("Impact", section),
-            "feasibility": extract_score("Feasibility", section),
-            "accessibility": extract_score("Accessibility", section),
-            "sustainability": extract_score("Sustainability", section),
-            "scalability": extract_score("Scalability", section),
-        }
-
-        # Calculate overall score
-        overall = calculate_hypothesis_score(scores)
+        # Calculate overall score using QADI formula
+        scores_dict = parsed_scores.to_dict()
+        overall = calculate_hypothesis_score(scores_dict)
 
         return HypothesisScore(
-            impact=scores["impact"],
-            feasibility=scores["feasibility"],
-            accessibility=scores["accessibility"],
-            sustainability=scores["sustainability"],
-            scalability=scores["scalability"],
+            impact=parsed_scores.impact,
+            feasibility=parsed_scores.feasibility,
+            accessibility=parsed_scores.accessibility,
+            sustainability=parsed_scores.sustainability,
+            scalability=parsed_scores.scalability,
             overall=overall,
         )
 

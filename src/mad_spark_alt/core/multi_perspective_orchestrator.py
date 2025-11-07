@@ -18,6 +18,7 @@ from .llm_provider import LLMRequest, llm_manager
 from .multi_perspective_prompts import MultiPerspectivePrompts
 from .qadi_prompts import PHASE_HYPERPARAMETERS, calculate_hypothesis_score
 from .simple_qadi_orchestrator import HypothesisScore, SimpleQADIResult
+from .parsing_utils import ScoreParser
 
 logger = logging.getLogger(__name__)
 
@@ -344,115 +345,19 @@ class MultiPerspectiveQADIOrchestrator:
         self, text: str, hypothesis_num: int
     ) -> HypothesisScore:
         """Extract scores for a specific hypothesis."""
+        # Use parsing_utils for score extraction
+        parsed_scores = ScoreParser.parse_with_fallback(text, hypothesis_num=hypothesis_num)
 
-        # Find the hypothesis section
-        pattern = rf"H{hypothesis_num}:.*?(?=H{hypothesis_num + 1}:|ANSWER:|$)"
-        match = re.search(pattern, text, re.DOTALL)
-
-        if not match:
-            return HypothesisScore(
-                impact=0.5,
-                feasibility=0.5,
-                accessibility=0.5,
-                sustainability=0.5,
-                scalability=0.5,
-                overall=0.5,
-            )
-
-        section = match.group(0)
-
-        # Extract individual scores - flexible matching
-        def extract_score(patterns: List[str], text: str) -> float:
-            for pattern in patterns:
-                match = re.search(pattern, text, re.IGNORECASE)
-                if match:
-                    try:
-                        return float(match.group(1))
-                    except (ValueError, TypeError):
-                        logger.warning(
-                            "Could not parse score from LLM output: '%s'",
-                            match.group(1),
-                        )
-                        pass
-            return 0.5
-
-        # Different patterns for different perspectives
-        scores_dict = {}
-
-        # Try to extract based on common patterns
-        score_patterns = [
-            r":\s*([0-9.]+)\s*-",  # ": 0.8 -"
-            r":\s*([0-9.]+)",  # ": 0.8"
-            r"\(([0-9.]+)\)",  # "(0.8)"
-        ]
-
-        # Map various criteria names to standard ones (matching HypothesisScore fields)
-        criteria_mappings = {
-            "impact": [
-                "impact",
-                "environmental impact",
-                "personal impact",
-                "market impact",
-                "research impact",
-                "societal benefit",
-                "business value",
-                "novelty",
-                "innovation",
-            ],
-            "feasibility": [
-                "feasibility",
-                "implementation feasibility",
-                "implementation complexity",
-                "ease of adoption",
-                "practical application",
-                "implementation speed",
-            ],
-            "accessibility": [
-                "accessibility",
-                "universal applicability",
-                "resource requirements",
-                "cost",
-                "resource efficiency",
-                "time investment",
-                "cost efficiency",
-            ],
-            "sustainability": [
-                "sustainability",
-                "long-term benefits",
-                "maintainability",
-                "ecosystem benefits",
-                "human flourishing",
-            ],
-            "scalability": [
-                "scalability",
-                "growth potential",
-                "scaling potential",
-                "risks",
-                "risk level",
-                "peer acceptance",
-            ],
-        }
-
-        # Extract scores with flexible matching
-        for standard_key, variations in criteria_mappings.items():
-            score = 0.5  # default
-            for variation in variations:
-                patterns = [f"{variation}{p}" for p in score_patterns]
-                extracted = extract_score(patterns, section)
-                if extracted != 0.5:
-                    score = extracted
-                    break
-            scores_dict[standard_key] = score
-
-        # Calculate overall
+        # Calculate overall score using QADI formula
+        scores_dict = parsed_scores.to_dict()
         overall = calculate_hypothesis_score(scores_dict)
 
         return HypothesisScore(
-            impact=scores_dict.get("impact", 0.5),
-            feasibility=scores_dict.get("feasibility", 0.5),
-            accessibility=scores_dict.get("accessibility", 0.5),
-            sustainability=scores_dict.get("sustainability", 0.5),
-            scalability=scores_dict.get("scalability", 0.5),
+            impact=parsed_scores.impact,
+            feasibility=parsed_scores.feasibility,
+            accessibility=parsed_scores.accessibility,
+            sustainability=parsed_scores.sustainability,
+            scalability=parsed_scores.scalability,
             overall=overall,
         )
 

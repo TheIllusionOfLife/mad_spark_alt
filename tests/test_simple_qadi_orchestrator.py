@@ -379,14 +379,15 @@ ANSWER: The answer based on evaluation"""
     def test_hypothesis_score_parsing_with_defaults(self, orchestrator):
         """Test hypothesis score parsing returns defaults on failure."""
         content = "Invalid content without proper formatting"
-        
+
         score = orchestrator._parse_hypothesis_scores(content, 1)
         assert score.impact == 0.5
         assert score.feasibility == 0.5
         assert score.accessibility == 0.5
         assert score.sustainability == 0.5
         assert score.scalability == 0.5
-        assert score.overall == 0.5
+        # Use approximate equality for overall score (floating point precision)
+        assert abs(score.overall - 0.5) < 0.01
 
     def test_hypothesis_score_parsing_fractional(self, orchestrator):
         """Test parsing of fractional scores (e.g., 8/10)."""
