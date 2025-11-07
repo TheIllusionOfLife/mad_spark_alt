@@ -400,6 +400,238 @@ def safe_json_parse_with_validation(
     return parsed_data
 
 
+def _fix_common_json_issues(text: str) -> str:
+    """
+    Fix common JSON formatting issues from LLM responses.
+
+    Handles:
+    - Trailing commas before closing braces/brackets
+    - Single quotes instead of double quotes
+    - Unquoted keys
+    - JavaScript-style comments (// and /* */)
+
+    Args:
+        text: Raw JSON-like text
+
+    Returns:
+        Fixed JSON text
+    """
+    # Remove trailing commas
+    text = re.sub(r",\s*}", "}", text)
+    text = re.sub(r",\s*\]", "]", text)
+
+    # Fix single quotes (be careful with escaped quotes and apostrophes in values)
+    text = text.replace("'", '"')
+
+    # Fix unquoted keys (use negative lookbehind to avoid keys already in quotes)
+    text = re.sub(r'(?<!")\b(\w+)\b(?=\s*:)', r'"\1"', text)
+
+    # Remove comments
+    text = re.sub(r"//.*$", "", text, flags=re.MULTILINE)
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+
+    return text
+
+
+def _extract_with_multiple_keys(
+    data: Dict[str, Any],
+    keys: List[str]
+) -> Optional[Any]:
+    """
+    Try to extract value using multiple possible keys.
+
+    Args:
+        data: Parsed JSON dictionary
+        keys: List of possible keys to try
+
+    Returns:
+        First matching value found, or None
+    """
+    for key in keys:
+        if key in data:
+            return data[key]
+    return None
+
+
+def extract_and_parse_json(
+    text: str,
+    expected_keys: Optional[List[str]] = None,
+    fix_issues: bool = True,
+    fallback: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    One-step JSON extraction, fixing, and parsing with validation.
+
+    This convenience function combines:
+    1. JSON extraction from various formats (markdown, plain text, etc.)
+    2. Common issue fixing (trailing commas, quotes, comments)
+    3. JSON parsing with fallback
+    4. Optional validation for expected keys
+
+    Args:
+        text: Raw text response from LLM
+        expected_keys: Optional list of keys expected in the JSON
+        fix_issues: Whether to attempt fixing common JSON issues
+        fallback: Fallback dictionary if parsing fails
+
+    Returns:
+        Parsed JSON dictionary or fallback
+    """
+    if fallback is None:
+        fallback = {}
+
+    if not text or not isinstance(text, str):
+        return fallback
+
+    # Strategy 1: Try direct parsing first
+    try:
+        data = json.loads(text)
+        if isinstance(data, dict):
+            # If expected_keys provided, validate at least one exists
+            if expected_keys:
+                if _extract_with_multiple_keys(data, expected_keys) is not None:
+                    return data
+            else:
+                return data
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    # Strategy 2: Extract from markdown or surrounding text
+    extracted_json = extract_json_from_response(text)
+    if extracted_json:
+        try:
+            data = json.loads(extracted_json)
+            if isinstance(data, dict):
+                if expected_keys:
+                    if _extract_with_multiple_keys(data, expected_keys) is not None:
+                        return data
+                else:
+                    return data
+        except json.JSONDecodeError:
+            pass
+
+    # Strategy 3: Try fixing common issues and parsing again
+    if fix_issues:
+        fixed_text = _fix_common_json_issues(text)
+        if fixed_text != text:
+            try:
+                data = json.loads(fixed_text)
+                if isinstance(data, dict):
+                    if expected_keys:
+                        if _extract_with_multiple_keys(data, expected_keys) is not None:
+                            return data
+                    else:
+                        return data
+            except json.JSONDecodeError:
+                pass
+
+            # Try extraction after fixing
+            extracted_fixed = extract_json_from_response(fixed_text)
+            if extracted_fixed:
+                try:
+                    data = json.loads(extracted_fixed)
+                    if isinstance(data, dict):
+                        if expected_keys:
+                            if _extract_with_multiple_keys(data, expected_keys) is not None:
+                                return data
+                        else:
+                            return data
+                except json.JSONDecodeError:
+                    pass
+
+    return fallback
+
+
+def parse_ideas_array(
+    text: str,
+    max_ideas: Optional[int] = None,
+    fallback_keys: Optional[List[str]] = None,
+    fallback_ideas: Optional[List[Dict[str, Any]]] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Parse an array of ideas from LLM response with multiple fallback strategies.
+
+    Tries to find ideas using various key names and formats:
+    1. JSON with keys: "ideas", "hypotheses", "questions", "insights"
+    2. Custom keys provided in fallback_keys
+    3. Numbered list extraction (1., 2., 3., etc.)
+    4. Bullet list extraction (-, *, •)
+    5. Fallback list if all parsing fails
+
+    Args:
+        text: Raw text response from LLM
+        max_ideas: Maximum number of ideas to return
+        fallback_keys: Additional keys to try for finding ideas array
+        fallback_ideas: Fallback list if parsing fails
+
+    Returns:
+        List of idea dictionaries
+    """
+    if fallback_ideas is None:
+        fallback_ideas = []
+
+    if not text or not isinstance(text, str):
+        return fallback_ideas
+
+    # Default keys to try
+    default_keys = ["ideas", "hypotheses", "questions", "insights"]
+    if fallback_keys:
+        # Custom keys take priority
+        keys_to_try = fallback_keys + default_keys
+    else:
+        keys_to_try = default_keys
+
+    # Strategy 1: Try to extract and parse JSON with fixing enabled
+    result = extract_and_parse_json(
+        text,
+        expected_keys=keys_to_try,
+        fix_issues=True,
+        fallback={}
+    )
+
+    # Extract ideas array from various possible keys
+    ideas = _extract_with_multiple_keys(result, keys_to_try)
+
+    if isinstance(ideas, list) and len(ideas) > 0:
+        # Apply max_ideas limit if specified
+        if max_ideas is not None:
+            return ideas[:max_ideas]
+        return ideas
+
+    # Strategy 2: Try numbered list extraction
+    # Pattern matches: "1.", "2.", etc. at start of line or after newline
+    numbered_pattern = r"(?:^|\n)\s*(?:\d+\.?|\d+\))\s+(.+?)(?=\n\s*(?:\d+\.?|\d+\))|$)"
+    numbered_matches = re.findall(numbered_pattern, text, re.MULTILINE | re.DOTALL)
+
+    # Strategy 3: Try bullet list extraction
+    # Pattern matches: "-", "*", "•" at start of line
+    bullet_pattern = r"(?:^|\n)\s*[-•*]\s+(.+?)(?=\n\s*[-•*]|$)"
+    bullet_matches = re.findall(bullet_pattern, text, re.MULTILINE | re.DOTALL)
+
+    # Combine all extracted items
+    all_matches = numbered_matches + bullet_matches
+
+    extracted_ideas = []
+    MIN_ITEM_LENGTH = 10  # Filter out too-short items
+
+    for match in all_matches:
+        item_text = match.strip()
+        if len(item_text) >= MIN_ITEM_LENGTH:
+            extracted_ideas.append({
+                "content": item_text,
+                "extracted": True
+            })
+
+    if extracted_ideas:
+        # Apply max_ideas limit
+        if max_ideas is not None:
+            return extracted_ideas[:max_ideas]
+        return extracted_ideas
+
+    # Return fallback if nothing extracted
+    return fallback_ideas
+
+
 def format_llm_cost(cost: float) -> str:
     """
     Format LLM API cost with smart thresholds for better user experience.
