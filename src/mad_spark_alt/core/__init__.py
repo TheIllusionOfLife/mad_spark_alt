@@ -1,5 +1,6 @@
 """Core evaluation system components and idea generation framework."""
 
+from .base_orchestrator import AgentCircuitBreaker, BaseOrchestrator
 from .evaluator import CreativityEvaluator, EvaluationSummary
 from .fast_orchestrator import FastQADIOrchestrator
 from .interfaces import (  # New idea generation interfaces
@@ -64,6 +65,9 @@ except ImportError as e:
     RobustQADICycleResult = SmartQADICycleResult  # type: ignore[misc]
 
 __all__ = [
+    # Base orchestrator
+    "BaseOrchestrator",
+    "AgentCircuitBreaker",
     # Evaluation system
     "CreativityEvaluator",
     "EvaluationSummary",
