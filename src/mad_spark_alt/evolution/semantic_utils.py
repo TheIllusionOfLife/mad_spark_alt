@@ -27,6 +27,16 @@ MAX_SESSION_TTL_EXTENSION = 3600  # Maximum TTL extension in seconds
 # Stop words for similarity matching
 STOP_WORDS = {'the', 'a', 'an', 'and', 'or', 'but', 'by', 'for', 'with', 'to', 'of', 'in', 'on', 'at'}
 
+# Truncation indicator words (words that suggest incomplete text)
+_TRUNCATION_INDICATOR_WORDS = {
+    # Short function words that rarely end sentences
+    'a', 'an', 'the', 'and', 'or', 'but', 'for', 'with', 'to', 'of', 'in', 'on', 'at', 'by', 'is', 'was',
+    # Prepositions that suggest continuation
+    'without', 'within', 'through', 'before', 'after', 'during',
+    # Context-dependent words
+    'previous',  # Often indicates incomplete thought
+}
+
 
 def _prepare_operator_contexts(
     context: Union[Optional[str], EvaluationContext],
@@ -145,17 +155,8 @@ def is_likely_truncated(text: str) -> bool:
             # Check for comma or colon at end (likely truncated)
             if last_word.endswith(',') or last_word.endswith(':'):
                 return True
-            # Check if last word is very short (likely a determiner or preposition)
-            # Common truncation patterns: "the", "a", "an", "and", "or", "with", etc.
-            if len(last_word) <= 3 and last_word.lower() in {'a', 'an', 'the', 'and', 'or',
-                                                              'but', 'for', 'with', 'to', 'of',
-                                                              'in', 'on', 'at', 'by', 'is', 'was'}:
-                return True
-            # Check for other common incomplete endings
-            if last_word.lower() in {'without', 'within', 'through', 'before', 'after', 'during'}:
-                return True
-            # Check if it appears to be mid-word (e.g., "previous" without context)
-            if len(words) >= 3 and last_word == "previous":
+            # Check if last word is a common truncation indicator
+            if last_word.lower() in _TRUNCATION_INDICATOR_WORDS:
                 return True
 
     return False
