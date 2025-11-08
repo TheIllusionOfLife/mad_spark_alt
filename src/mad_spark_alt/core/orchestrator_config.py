@@ -23,7 +23,6 @@ class Strategy(Enum):
     """Orchestration strategy selection."""
 
     SIMPLE = "simple"
-    SMART = "smart"
     MULTI_PERSPECTIVE = "multi_perspective"
 
 
@@ -169,17 +168,3 @@ class OrchestratorConfig:
             num_hypotheses=3
         )
 
-    @classmethod
-    def smart_config(cls) -> "OrchestratorConfig":
-        """
-        Factory: Smart agent selection with circuit breakers.
-
-        Returns:
-            OrchestratorConfig: Configuration for smart orchestration.
-        """
-        return cls(
-            execution_mode=ExecutionMode.SEQUENTIAL,
-            strategy=Strategy.SMART,
-            num_hypotheses=3,
-            enable_robust_timeout=True
-        )

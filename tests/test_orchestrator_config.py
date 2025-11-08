@@ -22,9 +22,8 @@ def test_strategy_enum_values():
     from mad_spark_alt.core.orchestrator_config import Strategy
 
     assert Strategy.SIMPLE.value == "simple"
-    assert Strategy.SMART.value == "smart"
     assert Strategy.MULTI_PERSPECTIVE.value == "multi_perspective"
-    assert len(Strategy) == 3
+    assert len(Strategy) == 2
 
 
 def test_timeout_config_defaults():
@@ -275,23 +274,6 @@ def test_multi_perspective_config_factory():
     config.validate()
 
 
-def test_smart_config_factory():
-    """Test smart_config factory creates correct configuration."""
-    from mad_spark_alt.core.orchestrator_config import (
-        OrchestratorConfig,
-        ExecutionMode,
-        Strategy
-    )
-
-    config = OrchestratorConfig.smart_config()
-
-    assert config.execution_mode == ExecutionMode.SEQUENTIAL
-    assert config.strategy == Strategy.SMART
-    assert config.num_hypotheses == 3
-    assert config.enable_robust_timeout is True
-
-    # Should be valid
-    config.validate()
 
 
 def test_orchestrator_config_mutability():

@@ -2,7 +2,7 @@
 Comprehensive tests for UnifiedQADIOrchestrator.
 
 Following TDD methodology - tests written BEFORE implementation.
-Tests cover all three strategies: Simple, MultiPerspective, Smart.
+Tests cover Simple and MultiPerspective strategies.
 """
 
 import pytest
@@ -1149,8 +1149,3 @@ class TestUnifiedOrchestratorMultiPerspective:
         assert len(result.action_plan) == 2
         assert isinstance(result.synthesized_ideas, list)
         assert len(result.synthesized_ideas) == 1
-
-
-class TestUnifiedOrchestratorSmart:
-    """Tests for Smart strategy - to be implemented."""
-    pass
