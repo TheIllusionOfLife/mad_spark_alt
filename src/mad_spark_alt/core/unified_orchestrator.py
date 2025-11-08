@@ -122,10 +122,8 @@ class UnifiedQADIOrchestrator:
         elif self.config.strategy == Strategy.MULTI_PERSPECTIVE:
             return await self._run_multi_perspective_strategy(problem_statement, context)
         else:
-            raise ValueError(
-                f"Unsupported strategy: {self.config.strategy}. "
-                f"Supported strategies: {', '.join(s.value.upper() for s in Strategy)}"
-            )
+            supported = ", ".join(s.value for s in Strategy)
+            raise ValueError(f"Unsupported strategy: {self.config.strategy}. Supported: {supported}")
 
     async def _run_simple_strategy(
         self,

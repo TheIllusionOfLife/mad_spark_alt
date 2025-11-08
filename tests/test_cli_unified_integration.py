@@ -5,7 +5,7 @@ Verifies that CLI correctly uses UnifiedQADIOrchestrator and maintains backward 
 """
 
 import pytest
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 from mad_spark_alt.core.unified_orchestrator import UnifiedQADIOrchestrator, UnifiedQADIResult
 from mad_spark_alt.core.orchestrator_config import OrchestratorConfig, Strategy, ExecutionMode
 from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIResult
@@ -84,7 +84,7 @@ class TestCLIUnifiedIntegration:
         orchestrator = UnifiedQADIOrchestrator(config=config)
 
         # Run cycle
-        result = await orchestrator.run_qadi_cycle("Test question")
+        await orchestrator.run_qadi_cycle("Test question")
 
         # Verify SimpleQADI was created with correct parameters
         MockSimple.assert_called_once_with(
@@ -191,7 +191,7 @@ class TestCLIUnifiedIntegration:
         config = OrchestratorConfig.simple_config()
         config.temperature_override = 2.5  # Invalid - outside range
 
-        with pytest.raises(ValueError, match="temperature_override must be between 0.0 and 2.0"):
+        with pytest.raises(ValueError, match=r"temperature_override must be between 0\.0 and 2\.0"):
             config.validate()
 
     def test_config_validation_num_hypotheses(self):
