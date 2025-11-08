@@ -361,10 +361,8 @@ class TestGoogleProviderMultimodal:
             multimodal_inputs=[image_input]
         )
 
-        # Mock aiohttp response
-        mock_response = MagicMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={
+        # Mock the safe_aiohttp_request function
+        mock_response_data = {
             "candidates": [{
                 "content": {
                     "parts": [{"text": "This image shows a diagram."}]
@@ -375,9 +373,9 @@ class TestGoogleProviderMultimodal:
                 "candidatesTokenCount": 20,
                 "totalTokenCount": 520
             }
-        })
+        }
 
-        with patch('aiohttp.ClientSession.post', new=AsyncMock(return_value=mock_response)):
+        with patch('mad_spark_alt.core.llm_provider.safe_aiohttp_request', new=AsyncMock(return_value=mock_response_data)):
             response = await self.provider.generate(request)
 
             assert response.content == "This image shows a diagram."
@@ -402,9 +400,7 @@ class TestGoogleProviderMultimodal:
             multimodal_inputs=[doc_input]
         )
 
-        mock_response = MagicMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={
+        mock_response_data = {
             "candidates": [{
                 "content": {
                     "parts": [{"text": "Document summary: Key findings..."}]
@@ -415,9 +411,9 @@ class TestGoogleProviderMultimodal:
                 "candidatesTokenCount": 100,
                 "totalTokenCount": 3100
             }
-        })
+        }
 
-        with patch('aiohttp.ClientSession.post', new=AsyncMock(return_value=mock_response)):
+        with patch('mad_spark_alt.core.llm_provider.safe_aiohttp_request', new=AsyncMock(return_value=mock_response_data)):
             response = await self.provider.generate(request)
 
             assert response.content == "Document summary: Key findings..."
@@ -432,9 +428,7 @@ class TestGoogleProviderMultimodal:
             urls=["https://example.com/article1", "https://example.com/article2"]
         )
 
-        mock_response = MagicMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={
+        mock_response_data = {
             "candidates": [{
                 "content": {
                     "parts": [{"text": "Articles discuss AI trends..."}]
@@ -449,9 +443,9 @@ class TestGoogleProviderMultimodal:
                 {"url": "https://example.com/article1", "status": "success"},
                 {"url": "https://example.com/article2", "status": "success"}
             ]
-        })
+        }
 
-        with patch('aiohttp.ClientSession.post', new=AsyncMock(return_value=mock_response)):
+        with patch('mad_spark_alt.core.llm_provider.safe_aiohttp_request', new=AsyncMock(return_value=mock_response_data)):
             response = await self.provider.generate(request)
 
             assert response.content == "Articles discuss AI trends..."

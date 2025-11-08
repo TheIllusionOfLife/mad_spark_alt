@@ -359,14 +359,8 @@ class GoogleProvider(LLMProviderInterface):
         # Prepare the request payload
         url = f"{self.base_url}/models/{model_config.model_name}:generateContent"
 
-        # Build the prompt from system and user prompts
-        prompt_parts = []
-        if request.system_prompt:
-            prompt_parts.append(f"System: {request.system_prompt}")
-        if request.user_prompt:
-            prompt_parts.append(f"User: {request.user_prompt}")
-
-        full_prompt = "\n\n".join(prompt_parts)
+        # Build contents with multimodal support
+        contents = self._build_contents(request)
 
         # Adjust max_tokens for Gemini 2.5-flash reasoning overhead
         max_output_tokens = request.max_tokens
@@ -388,11 +382,14 @@ class GoogleProvider(LLMProviderInterface):
         if request.response_schema and request.response_mime_type:
             generation_config["responseMimeType"] = request.response_mime_type
             generation_config["responseJsonSchema"] = request.response_schema
-        
+
         payload = {
-            "contents": [{"parts": [{"text": full_prompt}]}],
+            "contents": contents,
             "generationConfig": generation_config,
         }
+
+        # Add URL context tool if URLs provided
+        self._add_url_context_tool(payload, request)
 
         params = {"key": self.api_key}
 
@@ -456,6 +453,27 @@ class GoogleProvider(LLMProviderInterface):
         # Calculate cost based on model pricing
         total_cost = self.calculate_cost(prompt_tokens, completion_tokens, model_config)
 
+        # Parse URL metadata from response
+        url_metadata = self._parse_url_context_metadata(response_data)
+
+        # Count multimodal inputs
+        total_images = None
+        total_pages = None
+        if request.multimodal_inputs:
+            from .multimodal import MultimodalInputType
+
+            total_images = sum(
+                1 for item in request.multimodal_inputs
+                if item.input_type == MultimodalInputType.IMAGE
+            )
+            total_pages = sum(
+                item.page_count or 0 for item in request.multimodal_inputs
+                if item.input_type == MultimodalInputType.DOCUMENT and item.page_count
+            )
+            # Set to None if zero (for clean API)
+            total_images = total_images if total_images > 0 else None
+            total_pages = total_pages if total_pages > 0 else None
+
         return LLMResponse(
             content=content,
             provider=LLMProvider.GOOGLE,
@@ -467,6 +485,9 @@ class GoogleProvider(LLMProviderInterface):
             },
             cost=total_cost,
             response_time=end_time - start_time,
+            url_context_metadata=url_metadata,
+            total_images_processed=total_images,
+            total_pages_processed=total_pages,
         )
 
     def _build_contents(self, request: LLMRequest) -> List[Dict[str, Any]]:
