@@ -248,7 +248,7 @@ class TestGoogleProviderMultimodalIntegration:
         # Should mention something about the URL
         has_url_content = any(word in content_lower for word in ["example", "website", "page", "domain"])
 
-        assert has_image_content or has_url_content, "Response should mention either image or URL content"
+        assert has_image_content and has_url_content, "Response should mention both image and URL content"
 
         print(f"\n✓ Mixed Multimodal Response (cost: ${response.cost:.4f}):")
         print(f"  Image: {response.total_images_processed} processed")

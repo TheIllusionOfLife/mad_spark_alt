@@ -42,7 +42,7 @@ class TestGoogleProviderMultimodal:
         try:
             if self.provider._session:
                 asyncio.get_event_loop().run_until_complete(self.provider.close())
-        except:
+        except Exception:
             pass
 
     # ============================================================================
@@ -216,8 +216,8 @@ class TestGoogleProviderMultimodal:
             mime_type="image/png"
         )
 
-        # Mock the read_file_as_base64 function - patch where it's imported
-        with patch('mad_spark_alt.utils.multimodal_utils.read_file_as_base64') as mock_read:
+        # Mock the read_file_as_base64 function - patch where it's used in llm_provider
+        with patch('mad_spark_alt.core.llm_provider.read_file_as_base64') as mock_read:
             mock_read.return_value = ("mockedbase64data", "image/png")
 
             part = self.provider._create_multimodal_part(input_item)

@@ -15,6 +15,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import aiohttp
@@ -30,7 +31,10 @@ from .retry import (
 from .cost_utils import calculate_llm_cost_from_config, get_model_costs
 
 if TYPE_CHECKING:
-    from .multimodal import MultimodalInput, URLContextMetadata
+    from .multimodal import MultimodalInput, MultimodalInputType, MultimodalSourceType, URLContextMetadata
+
+# Import multimodal utilities at runtime (not TYPE_CHECKING)
+from ..utils.multimodal_utils import read_file_as_base64
 
 logger = logging.getLogger(__name__)
 
@@ -460,15 +464,16 @@ class GoogleProvider(LLMProviderInterface):
         total_images = None
         total_pages = None
         if request.multimodal_inputs:
-            from .multimodal import MultimodalInputType
+            # Import at runtime to avoid circular dependency
+            from .multimodal import MultimodalInputType as MMInputType
 
             total_images = sum(
                 1 for item in request.multimodal_inputs
-                if item.input_type == MultimodalInputType.IMAGE
+                if item.input_type == MMInputType.IMAGE
             )
             total_pages = sum(
                 item.page_count or 0 for item in request.multimodal_inputs
-                if item.input_type == MultimodalInputType.DOCUMENT and item.page_count
+                if item.input_type == MMInputType.DOCUMENT
             )
             # Set to None if zero (for clean API)
             total_images = total_images if total_images > 0 else None
@@ -562,19 +567,18 @@ class GoogleProvider(LLMProviderInterface):
             part = self._create_multimodal_part(image_input)
             # {"inline_data": {"mime_type": "image/png", "data": "base64..."}}
         """
-        from .multimodal import MultimodalSourceType
-        from ..utils.multimodal_utils import read_file_as_base64
+        # Import at runtime to avoid circular dependency
+        from .multimodal import MultimodalSourceType as MMSourceType
 
-        if item.source_type == MultimodalSourceType.BASE64:
+        if item.source_type == MMSourceType.BASE64:
             return {
                 "inline_data": {
                     "mime_type": item.mime_type,
                     "data": item.data
                 }
             }
-        elif item.source_type == MultimodalSourceType.FILE_PATH:
+        elif item.source_type == MMSourceType.FILE_PATH:
             # Read file and convert to base64
-            from pathlib import Path
             base64_data, mime_type = read_file_as_base64(Path(item.data))
             return {
                 "inline_data": {
@@ -582,7 +586,7 @@ class GoogleProvider(LLMProviderInterface):
                     "data": base64_data
                 }
             }
-        elif item.source_type == MultimodalSourceType.FILE_API:
+        elif item.source_type == MMSourceType.FILE_API:
             # Reference uploaded file via File API
             return {
                 "file_data": {
@@ -590,16 +594,12 @@ class GoogleProvider(LLMProviderInterface):
                     "mime_type": item.mime_type
                 }
             }
-        elif item.source_type == MultimodalSourceType.URL:
-            # Gemini can fetch from URLs directly
-            return {
-                "inline_data": {
-                    "mime_type": item.mime_type,
-                    "data": item.data  # URL as data
-                }
-            }
         else:
-            raise ValueError(f"Unsupported source type: {item.source_type}")
+            raise ValueError(
+                f"Unsupported source type: {item.source_type}. "
+                f"Note: URL resources should be passed via request.urls parameter "
+                f"to use Gemini's url_context tool, not as MultimodalInput."
+            )
 
     def _add_url_context_tool(self, payload: Dict[str, Any], request: LLMRequest) -> None:
         """
@@ -639,10 +639,11 @@ class GoogleProvider(LLMProviderInterface):
         if "url_context_metadata" not in response_data:
             return None
 
-        from .multimodal import URLContextMetadata
+        # Import at runtime to avoid circular dependency
+        from .multimodal import URLContextMetadata as URLMeta
 
         return [
-            URLContextMetadata(
+            URLMeta(
                 url=meta["url"],
                 status=meta["status"],
                 error_message=meta.get("error_message")

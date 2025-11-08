@@ -157,7 +157,7 @@ async def test_mixed_multimodal(provider: GoogleProvider):
     has_image_mention = any(word in content_lower for word in ["image", "shape", "blue", "red", "square"])
     has_url_mention = any(word in content_lower for word in ["example", "website", "domain"])
 
-    assert has_image_mention or has_url_mention, \
+    assert has_image_mention and has_url_mention, \
         "❌ Response doesn't mention both inputs"
     assert response.total_images_processed == 1, "❌ Image count incorrect"
     print("✅ Quality checks passed!\n")
