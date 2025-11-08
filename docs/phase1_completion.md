@@ -101,7 +101,7 @@ class LLMRequest(BaseModel):
     # ...
 
     # NEW: Multimodal support
-    multimodal_inputs: Optional[List[Any]] = None
+    multimodal_inputs: Optional[List["MultimodalInput"]] = None
     urls: Optional[List[str]] = None
     tools: Optional[List[Dict[str, Any]]] = None
 
@@ -111,7 +111,7 @@ class LLMResponse(BaseModel):
     # ...
 
     # NEW: Multimodal metadata
-    url_context_metadata: Optional[List[Any]] = None
+    url_context_metadata: Optional[List["URLContextMetadata"]] = None
     total_images_processed: Optional[int] = None
     total_pages_processed: Optional[int] = None
 ```

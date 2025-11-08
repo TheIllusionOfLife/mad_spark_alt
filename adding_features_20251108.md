@@ -175,10 +175,10 @@ uv run mad_spark_alt "Extract key terms and obligations" \
                   ▼
 ┌─────────────────────────────────────────────────┐
 │ LLMRequest (Abstract Interface)                │
-│ - text: str                                     │
-│ - images: List[MultimodalInput]                │
-│ - documents: List[MultimodalInput]             │
-│ - urls: List[str]                              │
+│ - user_prompt: str                              │
+│ - system_prompt: Optional[str]                  │
+│ - multimodal_inputs: Optional[List[MultimodalInput]] │
+│ - urls: Optional[List[str]]                     │
 └─────────────────┬───────────────────────────────┘
                   │
         ┌─────────┴─────────┐

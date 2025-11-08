@@ -96,7 +96,7 @@ def read_file_as_base64(file_path: Path) -> Tuple[str, str]:
     return base64_data, mime_type
 
 
-def validate_url(url: str) -> bool:
+def validate_url(url: str) -> None:
     """
     Validate URL format and scheme.
 
@@ -105,34 +105,38 @@ def validate_url(url: str) -> bool:
     Args:
         url: URL string to validate
 
-    Returns:
-        True if URL is valid, False otherwise
+    Raises:
+        ValueError: If the URL is invalid
 
     Example:
         >>> validate_url("https://example.com/article")
-        True
         >>> validate_url("not a url")
-        False
+        Traceback (most recent call last):
+        ...
+        ValueError: Invalid URL: domain name is missing in 'not a url'
     """
-    if not url:
-        return False
+    if not isinstance(url, str) or not url:
+        raise ValueError("URL must be a non-empty string")
 
     try:
         parsed = urlparse(url)
 
         # Check scheme is http or https
         if parsed.scheme not in ["http", "https"]:
-            return False
+            raise ValueError(
+                f"Invalid URL scheme: '{parsed.scheme}'. "
+                f"Only 'http' and 'https' are supported."
+            )
 
         # Check netloc (domain) is present
         if not parsed.netloc:
-            return False
+            raise ValueError(f"Invalid URL: domain name is missing in '{url}'")
 
-        return True
-
+    except ValueError:
+        # Re-raise ValueError from checks above
+        raise
     except Exception as e:
-        logger.debug(f"URL validation failed for '{url}': {e}")
-        return False
+        raise ValueError(f"URL could not be parsed: '{url}'") from e
 
 
 def get_file_size(file_path: Path) -> int:

@@ -224,21 +224,15 @@ def validate_llm_request(request: LLMRequest) -> None:
 
     # Validate multimodal inputs if present
     if request.multimodal_inputs:
-        # Count images for validation
+        from .multimodal import MultimodalInputType
+
         image_count = 0
         for input_item in request.multimodal_inputs:
-            # Call validate() on each MultimodalInput
-            # (This will raise ValueError if individual input is invalid)
-            if hasattr(input_item, 'validate'):
-                input_item.validate()
+            # This will raise ValueError if the individual input is invalid
+            input_item.validate()
 
-            # Count images
-            if hasattr(input_item, 'input_type'):
-                # Avoid importing MultimodalInputType to prevent circular import
-                # Just check the string value
-                if hasattr(input_item.input_type, 'value'):
-                    if input_item.input_type.value == 'image':
-                        image_count += 1
+            if input_item.input_type == MultimodalInputType.IMAGE:
+                image_count += 1
 
         # Gemini: Max 3600 images per request
         if image_count > 3600:

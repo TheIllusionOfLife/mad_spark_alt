@@ -104,24 +104,31 @@ class TestURLValidation:
 
     def test_validate_url_with_http(self):
         """Test validation accepts HTTP URLs."""
-        assert validate_url("http://example.com") is True
-        assert validate_url("http://example.com/path") is True
+        # Should not raise
+        validate_url("http://example.com")
+        validate_url("http://example.com/path")
 
     def test_validate_url_with_https(self):
         """Test validation accepts HTTPS URLs."""
-        assert validate_url("https://example.com") is True
-        assert validate_url("https://example.com/path?query=value") is True
+        # Should not raise
+        validate_url("https://example.com")
+        validate_url("https://example.com/path?query=value")
 
     def test_validate_url_rejects_invalid_scheme(self):
         """Test validation rejects invalid URL schemes."""
-        assert validate_url("ftp://example.com") is False
-        assert validate_url("file:///path/to/file") is False
+        with pytest.raises(ValueError, match="Invalid URL scheme"):
+            validate_url("ftp://example.com")
+        with pytest.raises(ValueError, match="Invalid URL scheme"):
+            validate_url("file:///path/to/file")
 
     def test_validate_url_rejects_malformed(self):
         """Test validation rejects malformed URLs."""
-        assert validate_url("not a url") is False
-        assert validate_url("") is False
-        assert validate_url("http://") is False
+        with pytest.raises(ValueError, match="Invalid URL scheme"):
+            validate_url("not a url")
+        with pytest.raises(ValueError, match="non-empty string"):
+            validate_url("")
+        with pytest.raises(ValueError, match="domain name is missing"):
+            validate_url("http://")
 
 
 class TestFileSizeCalculation:
