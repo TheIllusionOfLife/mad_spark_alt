@@ -1012,11 +1012,78 @@ We'll add multimodal flags to the main `mad_spark_alt` command by modifying `qad
            return
    ```
 
-2. Add input validation utilities
+2. Add file path resolution and validation utilities
    ```python
    # src/mad_spark_alt/utils/multimodal_utils.py
 
-   def get_pdf_page_count(file_path: str) -> int:
+   from pathlib import Path
+   import os
+
+   def resolve_file_path(file_path: str) -> Path:
+       """
+       Resolve and validate file path with proper expansion.
+
+       Supports:
+       - Relative paths (./file.png, ../file.png, file.png)
+       - Absolute paths (/full/path/to/file.png)
+       - Home directory (~/ or ~user/)
+       - Environment variables ($HOME/file.png)
+
+       Args:
+           file_path: Path string from user input
+
+       Returns:
+           Resolved absolute Path object
+
+       Raises:
+           FileNotFoundError: If file doesn't exist
+           ValueError: If path is a directory, not a file
+       """
+       # Expand ~ and environment variables
+       expanded = os.path.expanduser(os.path.expandvars(file_path))
+
+       # Convert to Path and resolve to absolute
+       path = Path(expanded).resolve()
+
+       # Validate existence
+       if not path.exists():
+           raise FileNotFoundError(
+               f"File not found: {file_path}\n"
+               f"Resolved to: {path}\n"
+               f"Current directory: {Path.cwd()}"
+           )
+
+       # Validate it's a file (not directory)
+       if not path.is_file():
+           raise ValueError(f"Path is not a file: {path}")
+
+       return path
+
+   def validate_file_path(path: Path, max_size_mb: int = 50) -> None:
+       """
+       Validate file is safe to process.
+
+       Args:
+           path: Path object to validate
+           max_size_mb: Maximum file size in MB (default: 50MB)
+
+       Raises:
+           ValueError: If file is too large
+           PermissionError: If file is not readable
+       """
+       # Size check (prevent huge files)
+       size_mb = path.stat().st_size / (1024 * 1024)
+       if size_mb > max_size_mb:
+           raise ValueError(
+               f"File too large: {size_mb:.1f}MB (max {max_size_mb}MB)\n"
+               f"For files >20MB, consider using Gemini File API"
+           )
+
+       # Readable check
+       if not os.access(path, os.R_OK):
+           raise PermissionError(f"Cannot read file: {path}")
+
+   def get_pdf_page_count(file_path: Path) -> Optional[int]:
        """Get page count from PDF file"""
        try:
            import PyPDF2
@@ -1024,7 +1091,6 @@ We'll add multimodal flags to the main `mad_spark_alt` command by modifying `qad
                reader = PyPDF2.PdfReader(f)
                return len(reader.pages)
        except ImportError:
-           # If PyPDF2 not available, return None
            logger.warning("PyPDF2 not installed, cannot count PDF pages")
            return None
        except Exception as e:
@@ -1032,66 +1098,101 @@ We'll add multimodal flags to the main `mad_spark_alt` command by modifying `qad
            return None
    ```
 
-3. Update CLI help and examples
+3. Update CLI help and examples with path flexibility
    ```python
-   # Add to cli.py docstring
+   # Add to qadi_simple.py help text
    """
    Multimodal Examples:
 
-     1. Image Analysis
-        uv run mad_spark_alt "What architectural patterns are used?" --image diagram.png
+     File paths can be:
+     - Relative: diagram.png, ./images/chart.png, ../docs/paper.pdf
+     - Absolute: /Users/name/Downloads/file.png
+     - Home dir: ~/Desktop/screenshot.png, ~/Documents/research.pdf
 
-     2. Document Processing
-        uv run mad_spark_alt "Extract key findings" --document research.pdf
+     1. Image Analysis (relative path)
+        uv run mad_spark_alt "What architectural patterns are used?" \\
+          --image diagram.png
 
-     3. URL Context
-        uv run mad_spark_alt "Compare these approaches" \\
-          --url https://paper1.com --url https://paper2.com
+     2. Image Analysis (home directory)
+        uv run mad_spark_alt "Analyze this screenshot" \\
+          --image ~/Desktop/Screenshot.png
 
-     4. Multi-Modal Combination
-        uv run mad_spark_alt "Explain this data visualization" \\
-          --image chart.png \\
-          --url https://data-source.com \\
-          --context "Focus on trends in Q4 2024"
+     3. Document Processing (Downloads folder)
+        uv run mad_spark_alt "Summarize key findings" \\
+          --document ~/Downloads/research_paper.pdf
 
-     5. Evolution with Images
+     4. Multi-Modal Combination (mixed paths)
+        uv run mad_spark_alt "Analyze competitive landscape" \\
+          --image ~/Desktop/our_product.png \\
+          --image-url https://competitor.com/screenshot.png \\
+          --document ./analysis/market_report.pdf \\
+          --url https://competitor.com/pricing
+
+     5. Project-Organized Files (relative paths)
+        cd my_project
+        uv run mad_spark_alt "Compare designs" \\
+          --image designs/option_a.png \\
+          --image designs/option_b.png \\
+          --document specs/requirements.pdf
+
+     6. Evolution with Images
         uv run mad_spark_alt "Improve this design" \\
-          --image current_design.png \\
+          --image ~/Documents/current_design.png \\
           --evolve --generations 3 --population 5
    """
    ```
 
 **Testing**:
 ```bash
-# Manual CLI testing
+# Manual CLI testing - Test various path types
 
-# Test 1: Single image
+# Test 1: Relative path (current directory)
 uv run mad_spark_alt "Describe this architecture" \
   --image tests/fixtures/architecture.png
 
-# Test 2: Multiple images
+# Test 2: Absolute path
+uv run mad_spark_alt "Analyze this screenshot" \
+  --image /tmp/test_screenshot.png
+
+# Test 3: Home directory expansion
+uv run mad_spark_alt "What's in this image?" \
+  --image ~/Downloads/diagram.png
+
+# Test 4: Multiple images from different locations
 uv run mad_spark_alt "Compare these designs" \
-  --image design_a.png --image design_b.png
+  --image ./design_a.png \
+  --image ~/Desktop/design_b.png \
+  --image /tmp/design_c.png
 
-# Test 3: PDF document
+# Test 5: PDF document (Downloads folder - common use case)
 uv run mad_spark_alt "Summarize key points" \
-  --document paper.pdf
+  --document ~/Downloads/research_paper.pdf
 
-# Test 4: URL context
+# Test 6: URL context only
 uv run mad_spark_alt "What are common patterns?" \
   --url https://example.com/article
 
-# Test 5: Multi-modal combination
+# Test 7: Multi-modal combination (mixed paths)
 uv run mad_spark_alt "Analyze from all sources" \
-  --image chart.png \
-  --document report.pdf \
+  --image ~/Desktop/chart.png \
+  --document ./reports/analysis.pdf \
   --url https://context.com \
   --context "Focus on 2024 trends"
 
-# Test 6: Evolution with image
+# Test 8: Evolution with image (home directory)
 uv run mad_spark_alt "Improve this UI" \
-  --image current_ui.png \
+  --image ~/Documents/current_ui.png \
   --evolve --generations 2 --population 3
+
+# Test 9: File not found error handling
+uv run mad_spark_alt "Test error" \
+  --image nonexistent.png
+# Expected: Clear error message with current directory info
+
+# Test 10: Directory instead of file error
+uv run mad_spark_alt "Test error" \
+  --image ./tests/
+# Expected: Error message indicating path is a directory
 ```
 
 **Success Criteria**:

@@ -179,7 +179,7 @@ def get_pdf_page_count(file_path: Path) -> Optional[int]:
         ...     print("Could not determine page count")
     """
     try:
-        import PyPDF2
+        import PyPDF2  # type: ignore[import-not-found]
 
         with open(file_path, "rb") as f:
             reader = PyPDF2.PdfReader(f)
