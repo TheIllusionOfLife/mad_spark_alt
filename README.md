@@ -105,6 +105,18 @@ uv run mad_spark_alt "Your question" --evolve --traditional
 
 # Use semantic diversity calculation for enhanced idea variety (slower but more accurate)
 uv run mad_spark_alt "Your question" --temperature 2.0 --evolve --generations 2 --population 10 --diversity-method semantic --verbose
+
+# Analyze an image with QADI
+uv run mad-spark evolve "Analyze this design for improvement" --image design.png
+
+# Process a PDF document
+uv run mad-spark evolve "Summarize key findings" --document research.pdf
+
+# Combine multiple modalities
+uv run mad-spark evolve "Compare these approaches" --image chart1.png --image chart2.png --url https://example.com/article
+
+# Multiple documents and URLs
+uv run mad-spark evolve "Synthesize insights" --document report1.pdf --document report2.pdf --url https://source1.com --url https://source2.com
 ```
 
 ## Important: Two Different Commands
