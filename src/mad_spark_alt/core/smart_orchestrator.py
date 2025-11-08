@@ -3,7 +3,20 @@ Smart QADI Orchestrator with automatic LLM agent preference and fallback.
 
 This module extends the basic orchestrator with intelligent agent selection
 that automatically uses LLM agents when available and falls back gracefully.
+
+DEPRECATED: This orchestrator is deprecated and will be removed in v2.0.0.
+Use UnifiedQADIOrchestrator with OrchestratorConfig.simple_config() instead.
+The Smart strategy has been removed in favor of the simpler and more reliable Simple strategy.
 """
+
+import warnings
+warnings.warn(
+    "SmartQADIOrchestrator is deprecated and will be removed in v2.0.0. "
+    "Use UnifiedQADIOrchestrator with OrchestratorConfig.simple_config() instead. "
+    "The Smart strategy has been removed in favor of the simpler and more reliable Simple strategy.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import asyncio
 import logging
