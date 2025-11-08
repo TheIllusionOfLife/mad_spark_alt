@@ -124,7 +124,7 @@ class UnifiedQADIOrchestrator:
         else:
             raise ValueError(
                 f"Unsupported strategy: {self.config.strategy}. "
-                f"Supported strategies: SIMPLE, MULTI_PERSPECTIVE"
+                f"Supported strategies: {', '.join(s.value.upper() for s in Strategy)}"
             )
 
     async def _run_simple_strategy(
