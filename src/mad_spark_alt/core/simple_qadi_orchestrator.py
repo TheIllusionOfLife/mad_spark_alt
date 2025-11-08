@@ -10,7 +10,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from .interfaces import (
     GeneratedIdea,
@@ -28,6 +28,9 @@ from .phase_logic import (
     execute_deduction_phase,
     execute_induction_phase,
 )
+
+if TYPE_CHECKING:
+    from .multimodal import MultimodalInput
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +51,12 @@ class SimpleQADIResult:
     # Metadata
     total_llm_cost: float = 0.0
     phase_results: Dict[str, Any] = field(default_factory=dict)
+
+    # Multimodal metadata
+    multimodal_metadata: Dict[str, Any] = field(default_factory=dict)
+    total_images_processed: int = 0
+    total_pages_processed: int = 0
+    total_urls_processed: int = 0
 
     # For backward compatibility with evolution
     synthesized_ideas: List[GeneratedIdea] = field(default_factory=list)
@@ -83,6 +92,9 @@ class SimpleQADIOrchestrator:
         user_input: str,
         context: Optional[str] = None,
         max_retries: int = 2,
+        multimodal_inputs: Optional[List["MultimodalInput"]] = None,
+        urls: Optional[List[str]] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
     ) -> SimpleQADIResult:
         """
         Run a complete QADI cycle on the user input.
@@ -91,6 +103,9 @@ class SimpleQADIOrchestrator:
             user_input: The user's input (question, statement, topic, etc.)
             context: Optional additional context
             max_retries: Maximum retries per phase on failure
+            multimodal_inputs: Optional multimodal inputs (images, documents)
+            urls: Optional URLs for context retrieval
+            tools: Optional provider-specific tools (e.g., Gemini url_context)
 
         Returns:
             SimpleQADIResult with all phases completed
@@ -118,6 +133,9 @@ class SimpleQADIOrchestrator:
                 llm_manager=llm_manager,
                 context={},
                 max_retries=max_retries,
+                multimodal_inputs=multimodal_inputs,
+                urls=urls,
+                tools=tools,
             )
             questioning_result = await execute_questioning_phase(phase_input)
             result.core_question = questioning_result.core_question
@@ -126,6 +144,11 @@ class SimpleQADIOrchestrator:
                 "question": questioning_result.core_question,
                 "cost": questioning_result.llm_cost,
             }
+
+            # Track multimodal metadata from questioning phase
+            result.multimodal_metadata["questioning"] = questioning_result.multimodal_metadata
+            result.total_images_processed += questioning_result.multimodal_metadata.get("images_processed", 0)
+            result.total_pages_processed += questioning_result.multimodal_metadata.get("pages_processed", 0)
 
             # Phase 2: Abduction - Generate hypotheses
             logger.info("Running Abduction phase")
@@ -141,6 +164,11 @@ class SimpleQADIOrchestrator:
                 "hypotheses": abduction_result.hypotheses,
                 "cost": abduction_result.llm_cost,
             }
+
+            # Track multimodal metadata from abduction phase
+            result.multimodal_metadata["abduction"] = abduction_result.multimodal_metadata
+            result.total_images_processed += abduction_result.multimodal_metadata.get("images_processed", 0)
+            result.total_pages_processed += abduction_result.multimodal_metadata.get("pages_processed", 0)
 
             # Convert hypotheses to GeneratedIdea objects for evolution compatibility
             for i, hypothesis in enumerate(abduction_result.hypotheses):
@@ -175,6 +203,11 @@ class SimpleQADIOrchestrator:
                 "used_parallel": deduction_result.used_parallel,
             }
 
+            # Track multimodal metadata from deduction phase
+            result.multimodal_metadata["deduction"] = deduction_result.multimodal_metadata
+            result.total_images_processed += deduction_result.multimodal_metadata.get("images_processed", 0)
+            result.total_pages_processed += deduction_result.multimodal_metadata.get("pages_processed", 0)
+
             # Phase 4: Induction - Verify answer
             logger.info("Running Induction phase")
             induction_result = await execute_induction_phase(
@@ -191,6 +224,14 @@ class SimpleQADIOrchestrator:
                 "conclusion": induction_result.conclusion,
                 "cost": induction_result.llm_cost,
             }
+
+            # Track multimodal metadata from induction phase
+            result.multimodal_metadata["induction"] = induction_result.multimodal_metadata
+            result.total_images_processed += induction_result.multimodal_metadata.get("images_processed", 0)
+            result.total_pages_processed += induction_result.multimodal_metadata.get("pages_processed", 0)
+
+            # Track total URLs processed
+            result.total_urls_processed = len(urls) if urls else 0
 
         except Exception as e:
             logger.exception("QADI cycle failed: %s", e)
