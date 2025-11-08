@@ -20,13 +20,16 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from ..utils.text_cleaning import clean_ansi_codes
 from .interfaces import GeneratedIdea, ThinkingMethod
 from .llm_provider import LLMRequest, LLMResponse, ModelConfig, llm_manager
 from .parsing_utils import ActionPlanParser, HypothesisParser, ParsedScores, ScoreParser
 from .qadi_prompts import PHASE_HYPERPARAMETERS, QADIPrompts, calculate_hypothesis_score
+
+if TYPE_CHECKING:
+    from .multimodal import MultimodalInput
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +146,9 @@ class PhaseInput:
         model_config: Model configuration (optional, uses defaults if None)
         context: Accumulated results from previous phases
         max_retries: Maximum retry attempts on failure (default: 2)
+        multimodal_inputs: Optional multimodal inputs (images, documents)
+        urls: Optional URLs for context retrieval
+        tools: Optional provider-specific tools (e.g., Gemini url_context)
     """
 
     user_input: str
@@ -150,6 +156,9 @@ class PhaseInput:
     model_config: Optional[ModelConfig] = None
     context: Dict[str, Any] = field(default_factory=dict)
     max_retries: int = 2
+    multimodal_inputs: Optional[List["MultimodalInput"]] = None
+    urls: Optional[List[str]] = None
+    tools: Optional[List[Dict[str, Any]]] = None
 
 
 @dataclass
@@ -179,6 +188,7 @@ class QuestioningResult:
     core_question: str
     llm_cost: float
     raw_response: str
+    multimodal_metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -190,6 +200,7 @@ class AbductionResult:
     raw_response: str
     num_requested: int
     num_generated: int
+    multimodal_metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -202,6 +213,7 @@ class DeductionResult:
     llm_cost: float
     raw_response: str
     used_parallel: bool  # Whether parallel evaluation was used
+    multimodal_metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -212,6 +224,51 @@ class InductionResult:
     conclusion: str
     llm_cost: float
     raw_response: str
+    multimodal_metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+# ============================================================================
+# Multimodal Input Validation
+# ============================================================================
+
+
+def _validate_multimodal_inputs(
+    multimodal_inputs: Optional[List["MultimodalInput"]],
+    urls: Optional[List[str]],
+) -> None:
+    """
+    Validate multimodal inputs before phase execution.
+
+    Args:
+        multimodal_inputs: Multimodal inputs to validate
+        urls: URLs to validate
+
+    Raises:
+        ValueError: If validation fails
+    """
+    # Validate multimodal inputs
+    if multimodal_inputs:
+        for input_item in multimodal_inputs:
+            try:
+                input_item.validate()
+            except ValueError as e:
+                raise ValueError(f"Multimodal input validation failed: {e}")
+
+    # Validate URLs
+    if urls:
+        # Check URL count (Gemini limit: 20 URLs)
+        if len(urls) > 20:
+            raise ValueError(f"Too many URLs: {len(urls)} (max 20)")
+
+        # Validate each URL format
+        for url_str in urls:
+            if not url_str.startswith(("http://", "https://")):
+                raise ValueError(f"Invalid URL: {url_str} (must start with http:// or https://)")
+
+
+# ============================================================================
+# Phase Execution Functions
+# ============================================================================
 
 
 async def execute_questioning_phase(phase_input: PhaseInput) -> QuestioningResult:
