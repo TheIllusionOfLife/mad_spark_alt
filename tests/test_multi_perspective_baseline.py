@@ -303,7 +303,7 @@ class TestMultiPerspectiveBaseline:
         orchestrator = MultiPerspectiveQADIOrchestrator()
 
         # Mock one successful and one failed perspective
-        async def mock_analysis(user_input, perspective):
+        async def mock_analysis(user_input, perspective, multimodal_inputs=None, urls=None, tools=None):
             if perspective == QuestionIntent.TECHNICAL:
                 # Success
                 return SimpleQADIResult(
