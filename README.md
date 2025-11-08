@@ -297,7 +297,7 @@ This implementation significantly reduces "Failed to extract enough hypotheses" 
 #### Recently Completed
 - ✅ **[PR #119]**: Split semantic_operators.py (Step 13) - **Phase 3 Item 1/4 Complete**
   - 1,926 → 62 lines (97% reduction!)
-  - Created 4 focused modules: semantic_utils (210), operator_cache (200), semantic_mutation (903), semantic_crossover (656)
+  - Created 4 focused modules: semantic_utils (262), operator_cache (202), semantic_mutation (903), semantic_crossover (646)
   - Added 26 baseline integration tests, all 779 tests passing
   - Addressed 9 review issues across 3 cycles (gemini-code-assist, coderabbitai×2)
   - Cache keys now include full context with deterministic MD5 hashing
