@@ -482,3 +482,285 @@ def sample_llm_response():
         cost=0.001,
         response_time=0.5,
     )
+
+
+class TestMultimodalLLMRequest:
+    """Test LLMRequest with multimodal inputs."""
+
+    def test_llm_request_with_multimodal_inputs(self):
+        """Test creating LLMRequest with multimodal inputs."""
+        from mad_spark_alt.core.multimodal import (
+            MultimodalInput,
+            MultimodalInputType,
+            MultimodalSourceType,
+        )
+
+        multimodal_input = MultimodalInput(
+            input_type=MultimodalInputType.IMAGE,
+            source_type=MultimodalSourceType.FILE_PATH,
+            data="/path/to/image.png",
+            mime_type="image/png"
+        )
+
+        request = LLMRequest(
+            user_prompt="Describe this image",
+            multimodal_inputs=[multimodal_input]
+        )
+
+        assert request.user_prompt == "Describe this image"
+        assert request.multimodal_inputs is not None
+        assert len(request.multimodal_inputs) == 1
+        assert request.multimodal_inputs[0].input_type == MultimodalInputType.IMAGE
+
+    def test_llm_request_with_urls(self):
+        """Test creating LLMRequest with URLs."""
+        request = LLMRequest(
+            user_prompt="Summarize these sources",
+            urls=["https://example.com/article1", "https://example.com/article2"]
+        )
+
+        assert request.urls is not None
+        assert len(request.urls) == 2
+        assert request.urls[0] == "https://example.com/article1"
+
+    def test_llm_request_with_tools(self):
+        """Test creating LLMRequest with tools."""
+        request = LLMRequest(
+            user_prompt="Test",
+            tools=[{"url_context": {}}]
+        )
+
+        assert request.tools is not None
+        assert len(request.tools) == 1
+        assert "url_context" in request.tools[0]
+
+    def test_llm_request_multimodal_defaults_to_none(self):
+        """Test that multimodal fields default to None for backward compatibility."""
+        request = LLMRequest(user_prompt="Test")
+
+        assert request.multimodal_inputs is None
+        assert request.urls is None
+        assert request.tools is None
+
+    def test_llm_request_validation_max_urls(self):
+        """Test LLMRequest validation rejects >20 URLs."""
+        from mad_spark_alt.core.llm_provider import validate_llm_request
+
+        # Create request with 21 URLs (over limit)
+        urls = [f"https://example.com/page{i}" for i in range(21)]
+        request = LLMRequest(
+            user_prompt="Test",
+            urls=urls
+        )
+
+        with pytest.raises(ValueError, match=r"Too many URLs.*max 20"):
+            validate_llm_request(request)
+
+    def test_llm_request_validation_max_images(self):
+        """Test LLMRequest validation rejects >3600 images."""
+        from mad_spark_alt.core.llm_provider import validate_llm_request
+        from mad_spark_alt.core.multimodal import (
+            MultimodalInput,
+            MultimodalInputType,
+            MultimodalSourceType,
+        )
+
+        # Create request with 3601 images (over limit)
+        images = [
+            MultimodalInput(
+                input_type=MultimodalInputType.IMAGE,
+                source_type=MultimodalSourceType.FILE_PATH,
+                data=f"/path/to/image{i}.png",
+                mime_type="image/png"
+            )
+            for i in range(3601)
+        ]
+
+        request = LLMRequest(
+            user_prompt="Test",
+            multimodal_inputs=images
+        )
+
+        with pytest.raises(ValueError, match=r"Too many images.*max 3600"):
+            validate_llm_request(request)
+
+    def test_llm_request_validation_accepts_20_urls(self):
+        """Test LLMRequest validation accepts exactly 20 URLs."""
+        from mad_spark_alt.core.llm_provider import validate_llm_request
+
+        urls = [f"https://example.com/page{i}" for i in range(20)]
+        request = LLMRequest(
+            user_prompt="Test",
+            urls=urls
+        )
+
+        # Should not raise
+        validate_llm_request(request)
+
+    def test_llm_request_validation_accepts_3600_images(self):
+        """Test LLMRequest validation accepts exactly 3600 images."""
+        from mad_spark_alt.core.llm_provider import validate_llm_request
+        from mad_spark_alt.core.multimodal import (
+            MultimodalInput,
+            MultimodalInputType,
+            MultimodalSourceType,
+        )
+
+        images = [
+            MultimodalInput(
+                input_type=MultimodalInputType.IMAGE,
+                source_type=MultimodalSourceType.FILE_PATH,
+                data=f"/path/to/image{i}.png",
+                mime_type="image/png"
+            )
+            for i in range(3600)
+        ]
+
+        request = LLMRequest(
+            user_prompt="Test",
+            multimodal_inputs=images
+        )
+
+        # Should not raise
+        validate_llm_request(request)
+
+    def test_llm_request_validation_calls_multimodal_validate(self):
+        """Test that LLMRequest validation calls validate() on each MultimodalInput."""
+        from mad_spark_alt.core.llm_provider import validate_llm_request
+        from mad_spark_alt.core.multimodal import (
+            MultimodalInput,
+            MultimodalInputType,
+            MultimodalSourceType,
+        )
+
+        # Create invalid multimodal input (invalid MIME type for image)
+        invalid_input = MultimodalInput(
+            input_type=MultimodalInputType.IMAGE,
+            source_type=MultimodalSourceType.BASE64,
+            data="base64data",
+            mime_type="application/pdf"  # Invalid for image
+        )
+
+        request = LLMRequest(
+            user_prompt="Test",
+            multimodal_inputs=[invalid_input]
+        )
+
+        with pytest.raises(ValueError, match="Unsupported image type"):
+            validate_llm_request(request)
+
+    def test_llm_request_mixed_multimodal_and_urls(self):
+        """Test LLMRequest with both multimodal inputs and URLs."""
+        from mad_spark_alt.core.multimodal import (
+            MultimodalInput,
+            MultimodalInputType,
+            MultimodalSourceType,
+        )
+
+        image = MultimodalInput(
+            input_type=MultimodalInputType.IMAGE,
+            source_type=MultimodalSourceType.FILE_PATH,
+            data="/path/to/image.png",
+            mime_type="image/png"
+        )
+
+        request = LLMRequest(
+            user_prompt="Analyze image and context",
+            multimodal_inputs=[image],
+            urls=["https://example.com/context"]
+        )
+
+        assert request.multimodal_inputs is not None
+        assert len(request.multimodal_inputs) == 1
+        assert request.urls is not None
+        assert len(request.urls) == 1
+
+
+class TestMultimodalLLMResponse:
+    """Test LLMResponse with multimodal metadata."""
+
+    def test_llm_response_with_url_context_metadata(self):
+        """Test LLMResponse with URL context metadata."""
+        from mad_spark_alt.core.multimodal import URLContextMetadata
+
+        url_metadata = [
+            URLContextMetadata(url="https://example.com/1", status="success"),
+            URLContextMetadata(url="https://example.com/2", status="success")
+        ]
+
+        response = LLMResponse(
+            content="Summary of sources",
+            provider=LLMProvider.GOOGLE,
+            model="gemini-2.5-flash",
+            usage={"prompt_tokens": 1000, "completion_tokens": 200},
+            cost=0.01,
+            url_context_metadata=url_metadata
+        )
+
+        assert response.url_context_metadata is not None
+        assert len(response.url_context_metadata) == 2
+        assert response.url_context_metadata[0].status == "success"
+
+    def test_llm_response_with_image_count(self):
+        """Test LLMResponse with total_images_processed."""
+        response = LLMResponse(
+            content="Analysis complete",
+            provider=LLMProvider.GOOGLE,
+            model="gemini-2.5-flash",
+            usage={"prompt_tokens": 500, "completion_tokens": 100},
+            cost=0.005,
+            total_images_processed=3
+        )
+
+        assert response.total_images_processed == 3
+
+    def test_llm_response_with_pages_count(self):
+        """Test LLMResponse with total_pages_processed."""
+        response = LLMResponse(
+            content="Document summary",
+            provider=LLMProvider.GOOGLE,
+            model="gemini-2.5-flash",
+            usage={"prompt_tokens": 10000, "completion_tokens": 500},
+            cost=0.1,
+            total_pages_processed=50
+        )
+
+        assert response.total_pages_processed == 50
+
+    def test_llm_response_multimodal_defaults_to_none(self):
+        """Test that multimodal fields default to None for backward compatibility."""
+        response = LLMResponse(
+            content="Test",
+            provider=LLMProvider.GOOGLE,
+            model="gemini-2.5-flash",
+            usage={},
+            cost=0.0
+        )
+
+        assert response.url_context_metadata is None
+        assert response.total_images_processed is None
+        assert response.total_pages_processed is None
+
+    def test_llm_response_with_all_multimodal_metadata(self):
+        """Test LLMResponse with all multimodal metadata fields."""
+        from mad_spark_alt.core.multimodal import URLContextMetadata
+
+        url_metadata = [
+            URLContextMetadata(url="https://example.com", status="success")
+        ]
+
+        response = LLMResponse(
+            content="Complete analysis",
+            provider=LLMProvider.GOOGLE,
+            model="gemini-2.5-flash",
+            usage={"prompt_tokens": 5000, "completion_tokens": 500},
+            cost=0.05,
+            url_context_metadata=url_metadata,
+            total_images_processed=2,
+            total_pages_processed=10
+        )
+
+        assert response.url_context_metadata is not None
+        assert len(response.url_context_metadata) == 1
+        assert response.total_images_processed == 2
+        assert response.total_pages_processed == 10

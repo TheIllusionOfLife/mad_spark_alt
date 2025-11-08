@@ -15,7 +15,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import aiohttp
 from pydantic import BaseModel, Field
@@ -28,6 +28,9 @@ from .retry import (
     safe_aiohttp_request,
 )
 from .cost_utils import calculate_llm_cost_from_config, get_model_costs
+
+if TYPE_CHECKING:
+    from .multimodal import MultimodalInput, URLContextMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +104,25 @@ class ModelConfig:
 
 
 class LLMRequest(BaseModel):
-    """Request structure for LLM calls."""
+    """
+    Request structure for LLM calls with multimodal support.
+
+    Attributes:
+        system_prompt: Optional system-level instructions
+        user_prompt: User's question or prompt
+        max_tokens: Maximum tokens to generate
+        temperature: Sampling temperature (0.0-2.0)
+        top_p: Nucleus sampling threshold
+        stop_sequences: Optional stop sequences
+        model_configuration: Optional model-specific configuration
+        response_schema: Optional JSON schema for structured output
+        response_mime_type: Optional MIME type for response (e.g., "application/json")
+
+        # Multimodal fields (Phase 1 - Foundation)
+        multimodal_inputs: Optional list of multimodal inputs (images, documents)
+        urls: Optional list of URLs for context retrieval (max 20 for Gemini)
+        tools: Optional provider-specific tools (e.g., Gemini's url_context)
+    """
 
     system_prompt: Optional[str] = None
     user_prompt: str
@@ -113,9 +134,30 @@ class LLMRequest(BaseModel):
     response_schema: Optional[Dict[str, Any]] = None
     response_mime_type: Optional[str] = None
 
+    # NEW: Multimodal support (Phase 1)
+    multimodal_inputs: Optional[List["MultimodalInput"]] = None
+    urls: Optional[List[str]] = None  # For URL context tool
+    tools: Optional[List[Dict[str, Any]]] = None  # Provider-specific tools
+
 
 class LLMResponse(BaseModel):
-    """Response structure from LLM calls."""
+    """
+    Response structure from LLM calls with multimodal metadata.
+
+    Attributes:
+        content: Generated text content
+        provider: LLM provider used
+        model: Model name used
+        usage: Token usage statistics
+        cost: Estimated cost in USD
+        response_time: Response time in seconds
+        metadata: Additional provider-specific metadata
+
+        # Multimodal metadata (Phase 1 - Foundation)
+        url_context_metadata: Optional metadata about URL retrieval status
+        total_images_processed: Optional count of images processed
+        total_pages_processed: Optional count of document pages processed
+    """
 
     content: str
     provider: LLMProvider
@@ -124,6 +166,11 @@ class LLMResponse(BaseModel):
     cost: float = 0.0
     response_time: float = 0.0
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    # NEW: Multimodal metadata (Phase 1)
+    url_context_metadata: Optional[List["URLContextMetadata"]] = None
+    total_images_processed: Optional[int] = None
+    total_pages_processed: Optional[int] = None
 
 
 class EmbeddingRequest(BaseModel):
@@ -138,12 +185,61 @@ class EmbeddingRequest(BaseModel):
 
 class EmbeddingResponse(BaseModel):
     """Response structure from embedding calls."""
-    
+
     embeddings: List[List[float]]  # List of embedding vectors
     model: str
     usage: Dict[str, int] = Field(default_factory=dict)
     cost: float = 0.0
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+def validate_llm_request(request: LLMRequest) -> None:
+    """
+    Validate LLMRequest constraints including multimodal inputs.
+
+    Validates:
+    - URL count (max 20 for Gemini)
+    - Image count (max 3600 for Gemini)
+    - Each MultimodalInput's internal validation
+
+    Args:
+        request: LLMRequest to validate
+
+    Raises:
+        ValueError: If request violates constraints
+
+    Example:
+        request = LLMRequest(user_prompt="Test", urls=[...])
+        try:
+            validate_llm_request(request)
+        except ValueError as e:
+            print(f"Validation failed: {e}")
+    """
+    # Validate URL count (Gemini: max 20 URLs)
+    if request.urls and len(request.urls) > 20:
+        raise ValueError(
+            f"Too many URLs: {len(request.urls)} (max 20). "
+            f"Gemini's url_context tool supports up to 20 URLs per request."
+        )
+
+    # Validate multimodal inputs if present
+    if request.multimodal_inputs:
+        from .multimodal import MultimodalInputType
+
+        image_count = 0
+        for input_item in request.multimodal_inputs:
+            # This will raise ValueError if the individual input is invalid
+            input_item.validate()
+
+            if input_item.input_type == MultimodalInputType.IMAGE:
+                image_count += 1
+
+        # Gemini: Max 3600 images per request
+        if image_count > 3600:
+            raise ValueError(
+                f"Too many images: {image_count} (max 3600). "
+                f"Gemini supports up to 3600 images per request."
+            )
 
 
 class LLMProviderInterface(ABC):
@@ -631,10 +727,21 @@ async def setup_llm_providers(
 def get_google_provider() -> Optional[Any]:
     """
     Get Google LLM provider if available.
-    
+
     Returns:
         Google provider instance or None if not available
     """
     if LLMProvider.GOOGLE in llm_manager.providers:
         return llm_manager.providers[LLMProvider.GOOGLE]
     return None
+
+
+# Rebuild Pydantic models after all imports to resolve forward references
+# This is needed for TYPE_CHECKING imports of MultimodalInput and URLContextMetadata
+try:
+    from .multimodal import MultimodalInput, URLContextMetadata
+    LLMRequest.model_rebuild()
+    LLMResponse.model_rebuild()
+except ImportError:
+    # multimodal module not available (shouldn't happen, but being defensive)
+    pass
