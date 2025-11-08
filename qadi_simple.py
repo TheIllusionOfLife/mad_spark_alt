@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 try:
     from mad_spark_alt.core import setup_llm_providers
     from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
+    from mad_spark_alt.core.unified_orchestrator import UnifiedQADIOrchestrator
+    from mad_spark_alt.core.orchestrator_config import OrchestratorConfig
     from mad_spark_alt.core.terminal_renderer import render_markdown
     from mad_spark_alt.core.qadi_prompts import QADIPrompts
     from mad_spark_alt.core.llm_provider import LLMProvider, llm_manager, get_google_provider
@@ -34,6 +36,8 @@ except ImportError:
     sys.path.insert(0, str(Path(__file__).parent / "src"))
     from mad_spark_alt.core import setup_llm_providers
     from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
+    from mad_spark_alt.core.unified_orchestrator import UnifiedQADIOrchestrator
+    from mad_spark_alt.core.orchestrator_config import OrchestratorConfig
     from mad_spark_alt.core.terminal_renderer import render_markdown
     from mad_spark_alt.core.qadi_prompts import QADIPrompts
     from mad_spark_alt.core.llm_provider import LLMProvider, llm_manager, get_google_provider
