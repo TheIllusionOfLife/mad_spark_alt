@@ -391,15 +391,23 @@ This implementation significantly reduces "Failed to extract enough hypotheses" 
 - Architecture now follows clear patterns: shared infrastructure (base), phase execution (phase_logic), orchestration (orchestrators)
 - **Lesson**: Consistent patterns across refactoring make each subsequent step easier
 
-**Multimodal Phase 1 Foundation (November 08, 2025 05:18 PM JST)**:
+**Multimodal Phase 1 Foundation (2025-11-08)**:
 - ✅ PR #122 merged: Provider-agnostic multimodal data structures and utilities
 - **Completed**: 4 new files (1,222 lines), 3 modified files (+99 lines), 62 new tests (100% pass)
 - **Core Additions**: `MultimodalInput` dataclass, 7 utility functions, extended `LLMRequest`/`LLMResponse`
 - **Key Features**: MIME detection, base64 encoding, URL validation, path resolution, file size checks
-- **Validation**: Max 20MB images, max 1000 pages documents, max 20 URLs, max 3600 images per request
+- **Validation**:
+  - Max 20MB for images.
+  - Max 1000 pages for documents.
+  - Max 20 URLs per request.
+  - Max 3600 images per request.
 - **Test Results**: 850 tests pass, 0 regressions, mypy passes
 - **Next**: Phase 2 - Gemini provider implementation (translate MultimodalInput, URL context tool, metadata parsing)
-- **Learned Patterns**: Pydantic forward references with TYPE_CHECKING + model_rebuild(), GraphQL PR review extraction, systematic feedback processing, API consistency (validators raise ValueError not return bool)
+- **Learned Patterns**:
+  - Pydantic forward references using `TYPE_CHECKING` and `model_rebuild()`.
+  - GraphQL for comprehensive PR review extraction.
+  - Systematic feedback processing by priority.
+  - API consistency: Validators should raise `ValueError`, not return `bool`.
 
 ## License
 
