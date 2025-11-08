@@ -15,7 +15,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import aiohttp
 from pydantic import BaseModel, Field
@@ -28,6 +28,9 @@ from .retry import (
     safe_aiohttp_request,
 )
 from .cost_utils import calculate_llm_cost_from_config, get_model_costs
+
+if TYPE_CHECKING:
+    from .multimodal import MultimodalInput, URLContextMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +135,7 @@ class LLMRequest(BaseModel):
     response_mime_type: Optional[str] = None
 
     # NEW: Multimodal support (Phase 1)
-    multimodal_inputs: Optional[List[Any]] = None  # List[MultimodalInput] (avoiding circular import)
+    multimodal_inputs: Optional[List["MultimodalInput"]] = None
     urls: Optional[List[str]] = None  # For URL context tool
     tools: Optional[List[Dict[str, Any]]] = None  # Provider-specific tools
 
@@ -165,7 +168,7 @@ class LLMResponse(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
     # NEW: Multimodal metadata (Phase 1)
-    url_context_metadata: Optional[List[Any]] = None  # List[URLContextMetadata] (avoiding circular import)
+    url_context_metadata: Optional[List["URLContextMetadata"]] = None
     total_images_processed: Optional[int] = None
     total_pages_processed: Optional[int] = None
 
