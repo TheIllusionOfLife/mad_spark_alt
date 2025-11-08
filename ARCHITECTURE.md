@@ -228,7 +228,9 @@ graph TD
 |-----------|---------------|-----------|--------------|
 | **SimplerQADIOrchestrator** | Main QADI pipeline execution | `qadi_simple.py` | SimpleQADIOrchestrator |
 | **SimpleQADIOrchestrator** | Core QADI implementation | `simple_qadi_orchestrator.py` | LLMProvider, QADIPrompts |
-| **LLMProvider** | Gemini API integration | `llm_provider.py` | google-generativeai |
+| **LLMProvider** | Gemini API integration with multimodal support | `llm_provider.py` | google-generativeai |
+| **MultimodalInput** | Provider-agnostic multimodal data abstraction | `multimodal.py` | None |
+| **MultimodalUtils** | File handling and base64 encoding for multimodal | `multimodal_utils.py` | PIL, PyPDF2 |
 | **JSONUtils** | Unified JSON parsing for LLM responses | `json_utils.py` | None |
 | **GeneticAlgorithm** | Evolution coordination | `genetic_algorithm.py` | FitnessEvaluator, Operators |
 | **FitnessEvaluator** | 5-criteria scoring | `fitness.py` | LLMProvider |
@@ -354,6 +356,87 @@ class MyCustomOrchestrator(BaseOrchestrator):
 - **Easier to test** (shared logic tested once in BaseOrchestrator tests)
 - **Consistent behavior** across all orchestrator implementations
 - **Clear extension point** for new orchestrator types
+
+### Multimodal Support (Phase 2)
+
+**Overview**: The system now supports multimodal inputs (images, documents, URLs) through Gemini API's native capabilities, enabling richer context for QADI analysis.
+
+**Supported Input Types**:
+- **Images**: PNG, JPEG, WebP, HEIC, HEIF (via base64 encoding)
+- **Documents**: PDF files with vision understanding (up to 1000 pages)
+- **URLs**: Native web content fetching via Gemini's `url_context` tool
+
+**Architecture Components**:
+
+1. **MultimodalInput Abstraction** (`core/multimodal.py`)
+   - Provider-agnostic data structure for future multi-provider support
+   - Three source types: `BASE64`, `FILE_PATH`, `FILE_API`
+   - Metadata tracking: `page_count`, `file_size`, `description`
+   - URLContextMetadata for tracking URL retrieval status
+
+2. **GoogleProvider Multimodal Methods** (`core/llm_provider.py`)
+   ```python
+   # 4 new helper methods added after generate():
+   _build_contents(request: LLMRequest) -> List[Dict[str, Any]]
+   _create_multimodal_part(item: MultimodalInput) -> Dict[str, Any]
+   _add_url_context_tool(payload: Dict, request: LLMRequest) -> None
+   _parse_url_context_metadata(response_data: Dict) -> Optional[List[URLContextMetadata]]
+   ```
+
+3. **Multimodal Utilities** (`utils/multimodal_utils.py`)
+   - `read_file_as_base64()`: Converts files to base64 with MIME type detection
+   - `get_image_info()`: Extracts image dimensions and format
+   - `get_pdf_info()`: Extracts PDF page count and metadata
+   - Automatic MIME type detection from file extensions
+
+**Data Flow**:
+```
+User Input (file paths/URLs)
+    ↓
+MultimodalInput objects created
+    ↓
+LLMRequest with multimodal_inputs/urls
+    ↓
+GoogleProvider._build_contents()
+    ├─> _create_multimodal_part() for each input
+    │   ├─> read_file_as_base64() if FILE_PATH
+    │   └─> Creates inline_data or file_data parts
+    └─> _add_url_context_tool() if URLs present
+    ↓
+Gemini API call with contents array
+    ↓
+_parse_url_context_metadata() extracts metadata
+    ↓
+LLMResponse with multimodal metadata
+    ├─> total_images_processed: int
+    ├─> total_pages_processed: int
+    └─> url_context_metadata: List[URLContextMetadata]
+```
+
+**Token Cost Implications**:
+- Images: ~258 tokens per image (fixed cost)
+- PDF pages: ~258 tokens per page
+- URLs: Variable based on fetched content length
+- Cost automatically tracked in `LLMResponse.cost`
+
+**Gemini-Specific Features Used**:
+- `contents` array with `parts` structure (supports mixing text/images/docs)
+- `inline_data` for base64-encoded content
+- `file_data` for File API URIs (50MB files, 48hr retention)
+- `url_context` tool for native URL fetching
+- `url_context_metadata` response field (optional, not always returned)
+
+**Best Practices**:
+- Images before text in `parts` array (Gemini recommendation)
+- Multiple multimodal inputs supported in single request
+- Graceful degradation: URL metadata may be None even when URL is used
+- Backward compatibility: Text-only requests work unchanged
+
+**Testing Strategy**:
+- Unit tests: Mock all file I/O and API calls (18 tests)
+- Integration tests: Real Gemini API calls with fixtures (5 tests)
+- User testing: Verify outputs match expected quality criteria
+- Fixtures: `test_image.png` (2.7KB), `test_document.pdf` (2.7KB, 3 pages)
 
 **Test Coverage**: 49 comprehensive tests covering all BaseOrchestrator functionality
 - Initialization and configuration
