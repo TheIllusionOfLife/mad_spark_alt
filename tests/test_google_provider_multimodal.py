@@ -207,6 +207,8 @@ class TestGoogleProviderMultimodal:
 
     def test_create_multimodal_part_file_path_source(self):
         """Test _create_multimodal_part with FILE_PATH source type."""
+        from pathlib import Path
+
         input_item = MultimodalInput(
             input_type=MultimodalInputType.IMAGE,
             source_type=MultimodalSourceType.FILE_PATH,
@@ -220,7 +222,8 @@ class TestGoogleProviderMultimodal:
 
             part = self.provider._create_multimodal_part(input_item)
 
-            mock_read.assert_called_once_with("/path/to/image.png")
+            # Verify called with Path object (implementation converts string to Path)
+            mock_read.assert_called_once_with(Path("/path/to/image.png"))
             assert "inline_data" in part
             assert part["inline_data"]["mime_type"] == "image/png"
             assert part["inline_data"]["data"] == "mockedbase64data"
