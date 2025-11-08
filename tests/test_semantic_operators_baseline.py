@@ -104,7 +104,13 @@ class TestUtilityFunctions:
         """Test cache key preparation with string context"""
         key = _prepare_cache_key_with_context("base_key", "string context")
 
-        assert key == "base_key"
+        # String contexts should be included in cache key
+        assert key.startswith("base_key||str:")
+        assert "base_key" in key
+
+        # Different string contexts should produce different keys
+        key2 = _prepare_cache_key_with_context("base_key", "different context")
+        assert key != key2
 
     def test_prepare_cache_key_with_evaluation_context(self):
         """Test cache key preparation with EvaluationContext"""

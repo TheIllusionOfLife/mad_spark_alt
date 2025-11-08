@@ -69,7 +69,7 @@ def _prepare_cache_key_with_context(
     context: Union[Optional[str], EvaluationContext]
 ) -> str:
     """
-    Prepare cache key that includes EvaluationContext for context-aware caching.
+    Prepare cache key that includes full context for context-aware caching.
 
     Args:
         base_key: Base cache key (e.g., idea content or parent combination)
@@ -79,11 +79,23 @@ def _prepare_cache_key_with_context(
         Cache key that includes context information if applicable
     """
     if isinstance(context, EvaluationContext):
-        # Include target improvements and current scores in cache key
-        context_hash = hash(frozenset([
-            (k, v) for k, v in context.current_best_scores.items()
-        ] + [tuple(context.target_improvements)]))
+        # Include ALL context fields in cache key for proper differentiation
+        # - original_question: Different questions need different mutations
+        # - target_improvements: Different improvement goals need different approaches
+        # - current_best_scores: Current performance affects mutation strategy
+        # - evaluation_criteria: Different criteria need different optimizations
+        context_parts = [
+            ("question", context.original_question),
+            ("improvements", tuple(sorted(context.target_improvements))),
+            ("scores", tuple(sorted(context.current_best_scores.items()))),
+            ("criteria", tuple(sorted(context.evaluation_criteria)))
+        ]
+        context_hash = hash(frozenset(context_parts))
         return f"{base_key}||ctx:{context_hash}"
+    elif isinstance(context, str):
+        # String contexts also affect prompt generation, must be in cache key
+        string_hash = hash(context)
+        return f"{base_key}||str:{string_hash}"
     else:
         return base_key
 
