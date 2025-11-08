@@ -574,7 +574,8 @@ class GoogleProvider(LLMProviderInterface):
             }
         elif item.source_type == MultimodalSourceType.FILE_PATH:
             # Read file and convert to base64
-            base64_data, mime_type = read_file_as_base64(item.data)
+            from pathlib import Path
+            base64_data, mime_type = read_file_as_base64(Path(item.data))
             return {
                 "inline_data": {
                     "mime_type": mime_type,
