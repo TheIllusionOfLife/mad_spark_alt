@@ -90,11 +90,14 @@ def _prepare_cache_key_with_context(
             ("scores", tuple(sorted(context.current_best_scores.items()))),
             ("criteria", tuple(sorted(context.evaluation_criteria)))
         ]
-        context_hash = hash(frozenset(context_parts))
+        # Use deterministic hashing for consistent cache keys across interpreter restarts
+        normalized = repr(tuple(sorted(context_parts))).encode("utf-8")
+        context_hash = hashlib.md5(normalized).hexdigest()
         return f"{base_key}||ctx:{context_hash}"
     elif isinstance(context, str):
         # String contexts also affect prompt generation, must be in cache key
-        string_hash = hash(context)
+        # Use deterministic hashing for consistent cache keys
+        string_hash = hashlib.md5(context.encode("utf-8")).hexdigest()
         return f"{base_key}||str:{string_hash}"
     else:
         return base_key
