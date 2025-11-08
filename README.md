@@ -24,27 +24,34 @@ Mad Spark Alt now supports multimodal analysis using Gemini's vision and URL con
 
 **Usage via Python API:**
 ```python
+import asyncio
 from mad_spark_alt.core.llm_provider import GoogleProvider, LLMRequest
 from mad_spark_alt.core.multimodal import MultimodalInput, MultimodalInputType, MultimodalSourceType
 
-provider = GoogleProvider(api_key="your-key")
+async def analyze_image():
+    provider = GoogleProvider(api_key="your-key")
 
-# Analyze an image
-image_input = MultimodalInput(
-    input_type=MultimodalInputType.IMAGE,
-    source_type=MultimodalSourceType.FILE_PATH,
-    data="path/to/image.png",
-    mime_type="image/png"
-)
+    # Analyze an image
+    image_input = MultimodalInput(
+        input_type=MultimodalInputType.IMAGE,
+        source_type=MultimodalSourceType.FILE_PATH,
+        data="path/to/image.png",
+        mime_type="image/png"
+    )
 
-request = LLMRequest(
-    user_prompt="Describe this architecture diagram",
-    multimodal_inputs=[image_input]
-)
+    request = LLMRequest(
+        user_prompt="Describe this architecture diagram",
+        multimodal_inputs=[image_input]
+    )
 
-response = await provider.generate(request)
-print(response.content)  # AI description of the image
-print(f"Images processed: {response.total_images_processed}")
+    response = await provider.generate(request)
+    print(response.content)  # AI description of the image
+    print(f"Images processed: {response.total_images_processed}")
+
+    await provider.close()
+
+# Run the async function
+asyncio.run(analyze_image())
 ```
 
 **Example Use Cases:**
