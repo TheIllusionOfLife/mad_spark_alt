@@ -27,7 +27,7 @@ dependencies = [
 
 [project.optional-dependencies]
 multimodal = [
-    "PyPDF2>=3.0.0",  # PDF page counting for document processing
+    "PyPDF2>=3.0.0,<4.0.0",  # PDF page counting for document processing
 ]
 
 [project.scripts]
