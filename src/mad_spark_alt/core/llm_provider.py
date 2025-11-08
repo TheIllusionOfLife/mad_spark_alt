@@ -733,10 +733,21 @@ async def setup_llm_providers(
 def get_google_provider() -> Optional[Any]:
     """
     Get Google LLM provider if available.
-    
+
     Returns:
         Google provider instance or None if not available
     """
     if LLMProvider.GOOGLE in llm_manager.providers:
         return llm_manager.providers[LLMProvider.GOOGLE]
     return None
+
+
+# Rebuild Pydantic models after all imports to resolve forward references
+# This is needed for TYPE_CHECKING imports of MultimodalInput and URLContextMetadata
+try:
+    from .multimodal import MultimodalInput, URLContextMetadata
+    LLMRequest.model_rebuild()
+    LLMResponse.model_rebuild()
+except ImportError:
+    # multimodal module not available (shouldn't happen, but being defensive)
+    pass
