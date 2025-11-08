@@ -469,6 +469,165 @@ class GoogleProvider(LLMProviderInterface):
             response_time=end_time - start_time,
         )
 
+    def _build_contents(self, request: LLMRequest) -> List[Dict[str, Any]]:
+        """
+        Build Gemini contents array from multimodal inputs.
+
+        Order (per Gemini best practices):
+        1. Multimodal inputs (images/documents) - if single item, before text
+        2. Text prompt (system + user combined)
+        3. URLs included in text if url_context tool is used
+
+        Args:
+            request: LLMRequest with potential multimodal inputs
+
+        Returns:
+            List with single dict: {"role": "user", "parts": [...]}
+
+        Example:
+            contents = self._build_contents(request)
+            # [{"role": "user", "parts": [
+            #     {"inline_data": {"mime_type": "image/png", "data": "..."}},
+            #     {"text": "Analyze this image"}
+            # ]}]
+        """
+        parts = []
+
+        # Add multimodal inputs first (Gemini best practice)
+        if request.multimodal_inputs:
+            for item in request.multimodal_inputs:
+                part = self._create_multimodal_part(item)
+                parts.append(part)
+
+        # Build text prompt (combine system + user)
+        prompt_parts = []
+        if request.system_prompt:
+            prompt_parts.append(f"System: {request.system_prompt}")
+        if request.user_prompt:
+            prompt_parts.append(f"User: {request.user_prompt}")
+
+        full_prompt = "\n\n".join(prompt_parts)
+
+        # If URLs are provided, include them in the text for url_context tool
+        if request.urls:
+            urls_text = "\n\nRelevant URLs:\n" + "\n".join(f"- {url}" for url in request.urls)
+            full_prompt += urls_text
+
+        # Add text prompt as final part
+        parts.append({"text": full_prompt})
+
+        return [{"role": "user", "parts": parts}]
+
+    def _create_multimodal_part(self, item: "MultimodalInput") -> Dict[str, Any]:
+        """
+        Create Gemini part from MultimodalInput.
+
+        Handles different source types:
+        - BASE64: Use inline_data format
+        - FILE_PATH: Read file, convert to base64, use inline_data
+        - FILE_API: Use file_data format with file_uri
+        - URL: Use inline_data with URL (Gemini fetches)
+
+        Args:
+            item: MultimodalInput to convert
+
+        Returns:
+            Gemini part dict (inline_data or file_data format)
+
+        Raises:
+            ValueError: If source_type is unsupported
+
+        Example:
+            part = self._create_multimodal_part(image_input)
+            # {"inline_data": {"mime_type": "image/png", "data": "base64..."}}
+        """
+        from .multimodal import MultimodalSourceType
+        from ..utils.multimodal_utils import read_file_as_base64
+
+        if item.source_type == MultimodalSourceType.BASE64:
+            return {
+                "inline_data": {
+                    "mime_type": item.mime_type,
+                    "data": item.data
+                }
+            }
+        elif item.source_type == MultimodalSourceType.FILE_PATH:
+            # Read file and convert to base64
+            base64_data, mime_type = read_file_as_base64(item.data)
+            return {
+                "inline_data": {
+                    "mime_type": mime_type,
+                    "data": base64_data
+                }
+            }
+        elif item.source_type == MultimodalSourceType.FILE_API:
+            # Reference uploaded file via File API
+            return {
+                "file_data": {
+                    "file_uri": item.data,
+                    "mime_type": item.mime_type
+                }
+            }
+        elif item.source_type == MultimodalSourceType.URL:
+            # Gemini can fetch from URLs directly
+            return {
+                "inline_data": {
+                    "mime_type": item.mime_type,
+                    "data": item.data  # URL as data
+                }
+            }
+        else:
+            raise ValueError(f"Unsupported source type: {item.source_type}")
+
+    def _add_url_context_tool(self, payload: Dict[str, Any], request: LLMRequest) -> None:
+        """
+        Add url_context tool to payload if URLs are provided.
+
+        Modifies payload in-place to add tools array with url_context.
+
+        Args:
+            payload: Gemini API payload dict (modified in-place)
+            request: LLMRequest with potential URLs
+
+        Example:
+            payload = {"contents": [...], "generationConfig": {...}}
+            self._add_url_context_tool(payload, request)
+            # payload now has: {"tools": [{"url_context": {}}], ...}
+        """
+        if request.urls:
+            payload["tools"] = [{"url_context": {}}]
+
+    def _parse_url_context_metadata(
+        self,
+        response_data: Dict[str, Any]
+    ) -> Optional[List["URLContextMetadata"]]:
+        """
+        Parse url_context_metadata from Gemini response.
+
+        Args:
+            response_data: Raw Gemini API response dict
+
+        Returns:
+            List of URLContextMetadata objects, or None if no metadata
+
+        Example:
+            metadata = self._parse_url_context_metadata(response)
+            # [URLContextMetadata(url="...", status="success"), ...]
+        """
+        if "url_context_metadata" not in response_data:
+            return None
+
+        from .multimodal import URLContextMetadata
+
+        return [
+            URLContextMetadata(
+                url=meta["url"],
+                status=meta["status"],
+                error_message=meta.get("error_message")
+            )
+            for meta in response_data["url_context_metadata"]
+        ]
+
     def get_available_models(self) -> List[ModelConfig]:
         """Get available Google models.
         
