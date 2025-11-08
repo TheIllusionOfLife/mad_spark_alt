@@ -56,16 +56,16 @@ Transform Mad Spark Alt from a text-only QADI system to a **multimodal reasoning
 **Use Cases**:
 ```bash
 # Research synthesis
-mad-spark qadi "Generate hypotheses about practical applications" \
+uv run mad_spark_alt "Generate hypotheses about practical applications" \
   --url https://arxiv.org/pdf/2303.12712.pdf
 
 # Competitive analysis
-mad-spark qadi "Compare feature sets and pricing" \
+uv run mad_spark_alt "Compare feature sets and pricing" \
   --url https://competitor-a.com/pricing \
   --url https://competitor-b.com/pricing
 
 # Documentation-driven development
-mad-spark qadi "How can we implement this API?" \
+uv run mad_spark_alt "How can we implement this API?" \
   --url https://api.stripe.com/docs/payments
 ```
 
@@ -95,19 +95,19 @@ mad-spark qadi "How can we implement this API?" \
 **Use Cases**:
 ```bash
 # Architecture review
-mad-spark qadi "Suggest improvements to this system design" \
+uv run mad_spark_alt "Suggest improvements to this system design" \
   --image architecture_diagram.png
 
 # Product comparison
-mad-spark qadi "What differentiates these products?" \
+uv run mad_spark_alt "What differentiates these products?" \
   --image product_a.jpg --image product_b.jpg
 
 # Data visualization analysis
-mad-spark qadi "Identify trends and anomalies" \
+uv run mad_spark_alt "Identify trends and anomalies" \
   --image sales_chart.png
 
 # Real-world problem solving
-mad-spark qadi "How can we improve traffic flow at this intersection?" \
+uv run mad_spark_alt "How can we improve traffic flow at this intersection?" \
   --image intersection_photo.jpg
 ```
 
@@ -140,19 +140,19 @@ mad-spark qadi "How can we improve traffic flow at this intersection?" \
 **Use Cases**:
 ```bash
 # Research paper analysis
-mad-spark qadi "Summarize methodology and key findings" \
+uv run mad_spark_alt "Summarize methodology and key findings" \
   --document research_paper.pdf
 
 # Technical specification review
-mad-spark qadi "Identify potential implementation challenges" \
+uv run mad_spark_alt "Identify potential implementation challenges" \
   --document api_spec.pdf
 
 # Multi-document synthesis
-mad-spark qadi "Compare approaches across these papers" \
+uv run mad_spark_alt "Compare approaches across these papers" \
   --document paper1.pdf --document paper2.pdf --document paper3.pdf
 
 # Contract analysis
-mad-spark qadi "Extract key terms and obligations" \
+uv run mad_spark_alt "Extract key terms and obligations" \
   --document contract.pdf
 ```
 
@@ -800,14 +800,19 @@ async def test_simple_qadi_with_urls():
 
 **Goal**: Expose multimodal features via CLI with intuitive flags.
 
-**Tasks**:
-1. Add CLI flags to `qadi` command
-   ```python
-   # src/mad_spark_alt/cli.py
+**CRITICAL NOTE**: The system has TWO CLI entry points:
+- **`mad_spark_alt`** (primary QADI command) - This is what we'll modify
+- **`mad-spark`** (evaluation CLI with subcommands) - Not modified for multimodal
 
-   @click.command()
-   @click.argument("user_input", required=False)
-   @click.option("--context", "-c", help="Additional text context")
+We'll add multimodal flags to the main `mad_spark_alt` command by modifying `qadi_simple.py`.
+
+**Tasks**:
+1. Add CLI flags to main `mad_spark_alt` command
+   ```python
+   # qadi_simple.py (which mad_spark_alt delegates to)
+
+   parser.add_argument("user_input", help="Your question or prompt")
+   parser.add_argument("--context", "-c", help="Additional text context")
 
    # NEW: Multimodal input flags
    @click.option(
@@ -856,24 +861,24 @@ async def test_simple_qadi_with_urls():
        Examples:
 
          Analyze an architecture diagram:
-           mad-spark qadi "Suggest improvements" --image diagram.png
+           uv run mad_spark_alt "Suggest improvements" --image diagram.png
 
          Compare product screenshots:
-           mad-spark qadi "What differentiates these?" --image a.jpg --image b.jpg
+           uv run mad_spark_alt "What differentiates these?" --image a.jpg --image b.jpg
 
          Research paper analysis:
-           mad-spark qadi "Summarize methodology" --document paper.pdf
+           uv run mad_spark_alt "Summarize methodology" --document paper.pdf
 
          Web context synthesis:
-           mad-spark qadi "Compare approaches" --url https://... --url https://...
+           uv run mad_spark_alt "Compare approaches" --url https://... --url https://...
 
          Multi-modal combination:
-           mad-spark qadi "Explain this" --image chart.png --url https://context.com
+           uv run mad_spark_alt "Explain this" --image chart.png --url https://context.com
        """
        # Validation
        if not user_input and not image and not image_url and not document:
            console.print("[red]Error: Provide a question or multimodal input[/red]")
-           console.print("Try: mad-spark qadi --help")
+           console.print("Try: uv run mad_spark_alt --help")
            return
 
        # Build multimodal inputs
@@ -1034,23 +1039,23 @@ async def test_simple_qadi_with_urls():
    Multimodal Examples:
 
      1. Image Analysis
-        mad-spark qadi "What architectural patterns are used?" --image diagram.png
+        uv run mad_spark_alt "What architectural patterns are used?" --image diagram.png
 
      2. Document Processing
-        mad-spark qadi "Extract key findings" --document research.pdf
+        uv run mad_spark_alt "Extract key findings" --document research.pdf
 
      3. URL Context
-        mad-spark qadi "Compare these approaches" \\
+        uv run mad_spark_alt "Compare these approaches" \\
           --url https://paper1.com --url https://paper2.com
 
      4. Multi-Modal Combination
-        mad-spark qadi "Explain this data visualization" \\
+        uv run mad_spark_alt "Explain this data visualization" \\
           --image chart.png \\
           --url https://data-source.com \\
           --context "Focus on trends in Q4 2024"
 
      5. Evolution with Images
-        mad-spark qadi "Improve this design" \\
+        uv run mad_spark_alt "Improve this design" \\
           --image current_design.png \\
           --evolve --generations 3 --population 5
    """
@@ -1061,30 +1066,30 @@ async def test_simple_qadi_with_urls():
 # Manual CLI testing
 
 # Test 1: Single image
-uv run mad-spark qadi "Describe this architecture" \
+uv run mad_spark_alt "Describe this architecture" \
   --image tests/fixtures/architecture.png
 
 # Test 2: Multiple images
-uv run mad-spark qadi "Compare these designs" \
+uv run mad_spark_alt "Compare these designs" \
   --image design_a.png --image design_b.png
 
 # Test 3: PDF document
-uv run mad-spark qadi "Summarize key points" \
+uv run mad_spark_alt "Summarize key points" \
   --document paper.pdf
 
 # Test 4: URL context
-uv run mad-spark qadi "What are common patterns?" \
+uv run mad_spark_alt "What are common patterns?" \
   --url https://example.com/article
 
 # Test 5: Multi-modal combination
-uv run mad-spark qadi "Analyze from all sources" \
+uv run mad_spark_alt "Analyze from all sources" \
   --image chart.png \
   --document report.pdf \
   --url https://context.com \
   --context "Focus on 2024 trends"
 
 # Test 6: Evolution with image
-uv run mad-spark qadi "Improve this UI" \
+uv run mad_spark_alt "Improve this UI" \
   --image current_ui.png \
   --evolve --generations 2 --population 3
 ```
