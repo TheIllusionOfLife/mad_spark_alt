@@ -22,13 +22,13 @@ Transform Mad Spark Alt from a text-only QADI system to a **multimodal reasoning
 
 **Gemini Lock-in**: Implementing these features creates **strong coupling to Google's Gemini API**. While OpenAI, Anthropic, and other providers offer similar capabilities, their APIs differ significantly:
 
-| Feature | Gemini | OpenAI GPT-4V | Anthropic Claude 3.5 |
-|---------|--------|---------------|----------------------|
-| **URL Context** | Native tool (`url_context`) | Manual fetch required | Manual fetch required |
-| **Image Input** | Inline data + File API | Inline base64 + URLs | Inline base64 only |
-| **Document Processing** | Native PDF vision (1000 pages) | Vision API (limited pages) | PDF via conversion |
-| **Request Structure** | `contents` array with parts | `messages` with `image_url` | `messages` with base64 |
-| **File API** | Yes (50MB, 48hr retention) | No (inline only) | No (inline only) |
+| Feature                  | Gemini                            | OpenAI GPT-4V              | Anthropic Claude 3.5     |
+| ------------------------ | --------------------------------- | -------------------------- | ------------------------ |
+| **URL Context**          | Native tool (`url_context`)       | Manual fetch required      | Manual fetch required    |
+| **Image Input**          | Inline data + File API            | Inline base64 + URLs       | Inline base64 only       |
+| **Document Processing**  | Native PDF vision (1000 pages)    | Vision API (limited pages) | PDF via conversion       |
+| **Request Structure**    | `contents` array with parts       | `messages` with `image_url`| `messages` with base64   |
+| **File API**             | Yes (50MB, 48hr retention)        | No (inline only)           | No (inline only)         |
 
 **Decision**: Accept Gemini lock-in for v1.0, design abstraction layer for future multi-provider support.
 
