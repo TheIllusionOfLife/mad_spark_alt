@@ -66,7 +66,6 @@ class UnifiedQADIOrchestrator:
     Strategies:
     - SIMPLE: Basic QADI cycle with hypothesis generation and evaluation
     - MULTI_PERSPECTIVE: Multi-perspective analysis with synthesis
-    - SMART: Smart agent selection with circuit breakers
 
     Execution Modes:
     - SEQUENTIAL: Process phases one at a time
@@ -122,10 +121,9 @@ class UnifiedQADIOrchestrator:
             return await self._run_simple_strategy(problem_statement, context)
         elif self.config.strategy == Strategy.MULTI_PERSPECTIVE:
             return await self._run_multi_perspective_strategy(problem_statement, context)
-        elif self.config.strategy == Strategy.SMART:
-            return await self._run_smart_strategy(problem_statement, context, cycle_config)
         else:
-            raise ValueError(f"Unsupported strategy: {self.config.strategy}")
+            supported = ", ".join(s.value for s in Strategy)
+            raise ValueError(f"Unsupported strategy: {self.config.strategy}. Supported: {supported}")
 
     async def _run_simple_strategy(
         self,
@@ -293,27 +291,3 @@ class UnifiedQADIOrchestrator:
 
         # Convert to unified result
         return self._convert_multi_perspective_result(mp_result, problem_statement)
-
-    async def _run_smart_strategy(
-        self,
-        problem_statement: str,
-        context: Optional[str] = None,
-        cycle_config: Optional[Dict[str, Any]] = None
-    ) -> UnifiedQADIResult:
-        """
-        Run Smart strategy with agent selection.
-
-        To be implemented in next phase.
-
-        Args:
-            problem_statement: The question to analyze
-            context: Optional context
-            cycle_config: Optional runtime configuration
-
-        Returns:
-            UnifiedQADIResult: Results from smart orchestration
-
-        Raises:
-            NotImplementedError: Not yet implemented
-        """
-        raise NotImplementedError("Smart strategy not yet implemented")

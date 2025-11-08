@@ -106,6 +106,71 @@ The following orchestrators have been removed as of v2.0.0 (2025-11-07):
 **Date**: 2025-11-07
 **Reason**: Consolidation to reduce duplication and maintenance burden
 
+---
+
+## SmartQADIOrchestrator (Deprecated: 2025-11-08)
+
+### Status
+- **Deprecated as of**: 2025-11-08
+- **Removal planned for**: v2.0.0
+- **Replacement**: `UnifiedQADIOrchestrator` with `OrchestratorConfig.simple_config()`
+
+### Reason for Deprecation
+The Smart strategy has been removed from UnifiedQADIOrchestrator in favor of the simpler and more reliable Simple strategy. The Smart agent selection added complexity without providing clear benefits over the Simple approach.
+
+### Migration Path
+
+#### Before (Deprecated):
+```python
+from mad_spark_alt.core import SmartQADIOrchestrator, smart_registry
+
+orchestrator = SmartQADIOrchestrator(
+    registry=smart_registry,
+    auto_setup=True
+)
+
+result = await orchestrator.run_qadi_cycle("How can we improve efficiency?")
+```
+
+#### After (Recommended):
+```python
+from mad_spark_alt.core import UnifiedQADIOrchestrator, OrchestratorConfig
+
+# Create config with simple strategy
+config = OrchestratorConfig.simple_config()
+config.temperature_override = 1.2  # Optional customization
+config.num_hypotheses = 5  # Optional customization
+
+orchestrator = UnifiedQADIOrchestrator(config=config)
+
+result = await orchestrator.run_qadi_cycle("How can we improve efficiency?")
+```
+
+#### Alternative (Direct SimpleQADI):
+```python
+from mad_spark_alt.core import SimpleQADIOrchestrator
+
+orchestrator = SimpleQADIOrchestrator(
+    temperature_override=1.2,
+    num_hypotheses=5
+)
+
+result = await orchestrator.run_qadi_cycle("How can we improve efficiency?")
+```
+
+### Why This Is Better
+- ✅ Simpler architecture - fewer moving parts
+- ✅ More reliable - no agent selection complexity
+- ✅ Better maintained - focus on one strategy
+- ✅ Easier to test - deterministic behavior
+- ✅ Same quality results - Simple strategy is proven effective
+
+### Breaking Changes
+- `Strategy.SMART` enum value removed from `OrchestratorConfig`
+- `OrchestratorConfig.smart_config()` factory method removed
+- `UnifiedQADIOrchestrator` no longer supports Smart strategy
+- Import of `SmartQADIOrchestrator` triggers deprecation warning
+
 ## CLI Flag Changes
 
 ### Removed Flags
