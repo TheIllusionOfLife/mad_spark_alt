@@ -6,7 +6,10 @@ configuration-driven implementation.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .multimodal import MultimodalInput
 
 # Default score for hypotheses when score object is unavailable
 DEFAULT_HYPOTHESIS_SCORE = 0.5
@@ -57,6 +60,12 @@ class UnifiedQADIResult:
     phase_results: Dict[str, Any] = field(default_factory=dict)
     execution_metadata: Dict[str, Any] = field(default_factory=dict)
 
+    # Multimodal metadata
+    multimodal_metadata: Dict[str, Any] = field(default_factory=dict)
+    total_images_processed: int = 0
+    total_pages_processed: int = 0
+    total_urls_processed: int = 0
+
 
 class UnifiedQADIOrchestrator:
     """
@@ -100,7 +109,10 @@ class UnifiedQADIOrchestrator:
         self,
         problem_statement: str,
         context: Optional[str] = None,
-        cycle_config: Optional[Dict[str, Any]] = None
+        cycle_config: Optional[Dict[str, Any]] = None,
+        multimodal_inputs: Optional[List["MultimodalInput"]] = None,
+        urls: Optional[List[str]] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
     ) -> UnifiedQADIResult:
         """
         Run QADI cycle using configured strategy.
@@ -109,6 +121,9 @@ class UnifiedQADIOrchestrator:
             problem_statement: The question or problem to analyze
             context: Optional context from previous analyses
             cycle_config: Optional runtime configuration overrides
+            multimodal_inputs: Optional multimodal inputs (images, documents)
+            urls: Optional URLs for context retrieval
+            tools: Optional provider-specific tools (e.g., Gemini url_context)
 
         Returns:
             UnifiedQADIResult: Results from the analysis
@@ -118,9 +133,13 @@ class UnifiedQADIOrchestrator:
         """
         # Strategy dispatch
         if self.config.strategy == Strategy.SIMPLE:
-            return await self._run_simple_strategy(problem_statement, context)
+            return await self._run_simple_strategy(
+                problem_statement, context, multimodal_inputs, urls, tools
+            )
         elif self.config.strategy == Strategy.MULTI_PERSPECTIVE:
-            return await self._run_multi_perspective_strategy(problem_statement, context)
+            return await self._run_multi_perspective_strategy(
+                problem_statement, context, multimodal_inputs, urls, tools
+            )
         else:
             supported = ", ".join(s.value for s in Strategy)
             raise ValueError(f"Unsupported strategy: {self.config.strategy}. Supported: {supported}")
@@ -128,7 +147,10 @@ class UnifiedQADIOrchestrator:
     async def _run_simple_strategy(
         self,
         problem_statement: str,
-        context: Optional[str] = None
+        context: Optional[str] = None,
+        multimodal_inputs: Optional[List["MultimodalInput"]] = None,
+        urls: Optional[List[str]] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
     ) -> UnifiedQADIResult:
         """
         Run Simple QADI strategy.
@@ -138,6 +160,9 @@ class UnifiedQADIOrchestrator:
         Args:
             problem_statement: The question to analyze
             context: Optional context
+            multimodal_inputs: Optional multimodal inputs (images, documents)
+            urls: Optional URLs for context retrieval
+            tools: Optional provider-specific tools
 
         Returns:
             UnifiedQADIResult: Results converted from SimpleQADIResult
@@ -148,11 +173,14 @@ class UnifiedQADIOrchestrator:
             num_hypotheses=self.config.num_hypotheses
         )
 
-        # Run QADI cycle
+        # Run QADI cycle with multimodal support
         simple_result = await simple_orch.run_qadi_cycle(
             problem_statement,
             context=context,
-            max_retries=self.config.timeout_config.max_retries
+            max_retries=self.config.timeout_config.max_retries,
+            multimodal_inputs=multimodal_inputs,
+            urls=urls,
+            tools=tools,
         )
 
         # Convert to unified result
@@ -181,7 +209,11 @@ class UnifiedQADIOrchestrator:
             total_llm_cost=simple_result.total_llm_cost,
             phase_results=simple_result.phase_results,
             synthesized_ideas=simple_result.synthesized_ideas,
-            execution_metadata={}
+            execution_metadata={},
+            multimodal_metadata=simple_result.multimodal_metadata,
+            total_images_processed=simple_result.total_images_processed,
+            total_pages_processed=simple_result.total_pages_processed,
+            total_urls_processed=simple_result.total_urls_processed,
         )
 
     def _convert_multi_perspective_result(
@@ -246,13 +278,20 @@ class UnifiedQADIOrchestrator:
                 "primary_intent": mp_result.primary_intent.value,
                 "intent_confidence": mp_result.intent_confidence
             },
-            execution_metadata={}
+            execution_metadata={},
+            multimodal_metadata=mp_result.multimodal_metadata,
+            total_images_processed=mp_result.total_images_processed,
+            total_pages_processed=mp_result.total_pages_processed,
+            total_urls_processed=mp_result.total_urls_processed,
         )
 
     async def _run_multi_perspective_strategy(
         self,
         problem_statement: str,
-        context: Optional[str] = None
+        context: Optional[str] = None,
+        multimodal_inputs: Optional[List["MultimodalInput"]] = None,
+        urls: Optional[List[str]] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
     ) -> UnifiedQADIResult:
         """
         Run Multi-Perspective strategy.
@@ -262,6 +301,9 @@ class UnifiedQADIOrchestrator:
         Args:
             problem_statement: The question to analyze
             context: Optional context (not used by MP orchestrator)
+            multimodal_inputs: Optional multimodal inputs (images, documents)
+            urls: Optional URLs for context retrieval
+            tools: Optional provider-specific tools
 
         Returns:
             UnifiedQADIResult: Results converted from MultiPerspectiveQADIResult
@@ -282,11 +324,14 @@ class UnifiedQADIOrchestrator:
         # Use configured max_perspectives
         max_perspectives = self.config.max_perspectives
 
-        # Run multi-perspective analysis
+        # Run multi-perspective analysis with multimodal support
         mp_result = await mp_orch.run_multi_perspective_analysis(
             problem_statement,
             max_perspectives=max_perspectives,
-            force_perspectives=force_perspectives
+            force_perspectives=force_perspectives,
+            multimodal_inputs=multimodal_inputs,
+            urls=urls,
+            tools=tools,
         )
 
         # Convert to unified result
