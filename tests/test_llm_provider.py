@@ -553,7 +553,7 @@ class TestMultimodalLLMRequest:
             urls=urls
         )
 
-        with pytest.raises(ValueError, match="Too many URLs.*max 20"):
+        with pytest.raises(ValueError, match=r"Too many URLs.*max 20"):
             validate_llm_request(request)
 
     def test_llm_request_validation_max_images(self):
@@ -581,7 +581,7 @@ class TestMultimodalLLMRequest:
             multimodal_inputs=images
         )
 
-        with pytest.raises(ValueError, match="Too many images.*max 3600"):
+        with pytest.raises(ValueError, match=r"Too many images.*max 3600"):
             validate_llm_request(request)
 
     def test_llm_request_validation_accepts_20_urls(self):

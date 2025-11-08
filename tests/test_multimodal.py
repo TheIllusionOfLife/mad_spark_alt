@@ -263,7 +263,7 @@ class TestMultimodalInputValidation:
             page_count=1001  # Over limit
         )
 
-        with pytest.raises(ValueError, match="Document too long.*1001 pages"):
+        with pytest.raises(ValueError, match=r"Document too long.*1001 pages"):
             input_item.validate()
 
     def test_validate_document_accepts_1000_pages(self):

@@ -94,7 +94,7 @@ class URLContextMetadata:
 
     Attributes:
         url: The URL that was fetched
-        status: Retrieval status - "success", "failed", or "blocked"
+        status: Retrieval status - "success", "failed", "blocked"
         error_message: Optional error description if status is not "success"
 
     Example:
@@ -119,6 +119,26 @@ class URLContextMetadata:
     url: str
     status: Literal["success", "failed", "blocked"]
     error_message: Optional[str] = None
+
+
+# Validation constants for MultimodalInput
+MAX_INLINE_IMAGE_SIZE_BYTES = 20 * 1024 * 1024  # 20MB for BASE64 encoding
+MAX_DOCUMENT_PAGES = 1000  # Gemini max pages per request
+
+VALID_IMAGE_MIME_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+]
+
+VALID_DOCUMENT_MIME_TYPES = [
+    "application/pdf",
+    "text/plain",
+    "text/markdown",
+    "text/html",
+]
 
 
 @dataclass
@@ -210,24 +230,17 @@ class MultimodalInput:
         """
         # Gemini: 20MB limit for inline encoding
         if self.source_type == MultimodalSourceType.BASE64:
-            if self.file_size and self.file_size > 20 * 1024 * 1024:
+            if self.file_size and self.file_size > MAX_INLINE_IMAGE_SIZE_BYTES:
                 raise ValueError(
                     f"Image too large for inline: {self.file_size} bytes (max 20MB). "
                     f"Consider using File API for larger files."
                 )
 
         # Validate MIME type
-        valid_image_types = [
-            "image/jpeg",
-            "image/png",
-            "image/webp",
-            "image/heic",
-            "image/heif",
-        ]
-        if self.mime_type not in valid_image_types:
+        if self.mime_type not in VALID_IMAGE_MIME_TYPES:
             raise ValueError(
                 f"Unsupported image type: {self.mime_type}. "
-                f"Supported: {', '.join(valid_image_types)}"
+                f"Supported: {', '.join(VALID_IMAGE_MIME_TYPES)}"
             )
 
     def _validate_document(self) -> None:
@@ -242,7 +255,7 @@ class MultimodalInput:
             ValueError: If document constraints are violated
         """
         # Gemini: Max 1000 pages per request
-        if self.page_count and self.page_count > 1000:
+        if self.page_count and self.page_count > MAX_DOCUMENT_PAGES:
             raise ValueError(
                 f"Document too long: {self.page_count} pages (max 1000). "
                 f"Consider splitting into multiple documents."
@@ -250,14 +263,8 @@ class MultimodalInput:
 
         # Gemini primarily supports PDF for vision understanding
         # Other formats are text-extracted only
-        valid_document_types = [
-            "application/pdf",
-            "text/plain",
-            "text/markdown",
-            "text/html",
-        ]
-        if self.mime_type not in valid_document_types:
+        if self.mime_type not in VALID_DOCUMENT_MIME_TYPES:
             raise ValueError(
                 f"Unsupported document type: {self.mime_type}. "
-                f"Supported: {', '.join(valid_document_types)}"
+                f"Supported: {', '.join(VALID_DOCUMENT_MIME_TYPES)}"
             )
