@@ -300,11 +300,11 @@ class EvolutionResult:
             "evolution_metrics": self.evolution_metrics,
             "fitness_progression": [
                 {
-                    "generation": i,
+                    "generation": snapshot.generation,
                     "best_fitness": snapshot.best_fitness,
                     "avg_fitness": snapshot.average_fitness,
                 }
-                for i, snapshot in enumerate(self.generation_snapshots)
+                for snapshot in self.generation_snapshots
             ],
         }
 

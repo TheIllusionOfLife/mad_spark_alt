@@ -52,6 +52,7 @@ from .evolution import (
 )
 from .evolution.interfaces import EvolutionResult, IndividualFitness
 from .layers.quantitative import DiversityEvaluator, QualityEvaluator
+from .utils.export_utils import export_to_json, export_to_markdown
 from .utils.text_cleaning import clean_ansi_codes
 
 console = Console()
@@ -910,8 +911,6 @@ async def _run_qadi_analysis(
 
         # Export results if output file specified
         if output_file:
-            from .utils.export_utils import export_to_json, export_to_markdown
-
             try:
                 if export_format.lower() == 'md':
                     export_to_markdown(result, output_file, evolution_result=evolution_result)
