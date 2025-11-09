@@ -602,3 +602,13 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **TDD Approach**: Write baseline tests first, refactor implementation, update tests to mock delegation
 - **Real API Validation**: Always test with real LLM API to verify no timeouts, truncation, or errors
 - **Mock Pattern**: In tests, mock the delegated class (SimpleQADI) not internal methods that will be removed
+
+### Unified CLI Architecture ([PR #126](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/126)) - COMPLETED ✅
+- **Single Command Entry Point**: Consolidated `mad-spark` and `qadi_simple.py` into unified `msa` command
+- **Default QADI Behavior**: Running `msa "question"` directly executes QADI analysis without subcommand
+- **Evolution as Flag**: Changed from `msa evolve --generations 3` to `msa "question" --evolve --generations 3`
+- **Code Reduction**: Net -4,164 lines (-6,681 deleted, +2,517 added) while preserving all functionality
+- **Click Subcommand Pattern**: Manual dispatch needed when optional argument + subcommands coexist (see core-patterns.md #38)
+- **LLM Provider Init**: Must initialize providers BEFORE manual subcommand invocation (early return bypasses normal flow)
+- **Traditional Flag Respect**: EvolutionConfig must check `--traditional` flag to disable semantic operators (`use_semantic=not traditional`)
+- **Migration Guide**: Comprehensive docs/CLI_MIGRATION.md provides before/after examples for all commands
