@@ -7,7 +7,7 @@ Provides functions to export QADI and evolution results to JSON and Markdown for
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Union
 
 from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIResult
 from mad_spark_alt.core.unified_orchestrator import UnifiedQADIResult
@@ -38,7 +38,7 @@ def export_to_json(
     filepath.parent.mkdir(parents=True, exist_ok=True)
 
     # Build export data
-    export_data = {}
+    export_data: Dict[str, Any] = {}
 
     if evolution_result is not None:
         # If evolution results included, structure with both sections
