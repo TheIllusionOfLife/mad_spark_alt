@@ -326,10 +326,10 @@ async def execute_questioning_phase(phase_input: PhaseInput) -> QuestioningResul
 
             # Extract multimodal metadata from response
             multimodal_metadata = {
-                "images_processed": getattr(response, "total_images_processed", 0) or 0,
-                "pages_processed": getattr(response, "total_pages_processed", 0) or 0,
+                "images_processed": response.total_images_processed or 0,
+                "pages_processed": response.total_pages_processed or 0,
                 "urls_processed": len(phase_input.urls) if phase_input.urls else 0,
-                "url_context_metadata": getattr(response, "url_context_metadata", None),
+                "url_context_metadata": response.url_context_metadata,
             }
 
             # Extract the core question
@@ -451,10 +451,10 @@ async def execute_abduction_phase(
 
             # Extract multimodal metadata from response
             multimodal_metadata = {
-                "images_processed": getattr(response, "total_images_processed", 0) or 0,
-                "pages_processed": getattr(response, "total_pages_processed", 0) or 0,
+                "images_processed": response.total_images_processed or 0,
+                "pages_processed": response.total_pages_processed or 0,
                 "urls_processed": len(phase_input.urls) if phase_input.urls else 0,
-                "url_context_metadata": getattr(response, "url_context_metadata", None),
+                "url_context_metadata": response.url_context_metadata,
             }
 
             # Use parsing_utils for hypothesis extraction
@@ -596,10 +596,10 @@ async def execute_deduction_phase(
 
             # Extract multimodal metadata from response
             multimodal_metadata = {
-                "images_processed": getattr(response, "total_images_processed", 0) or 0,
-                "pages_processed": getattr(response, "total_pages_processed", 0) or 0,
+                "images_processed": response.total_images_processed or 0,
+                "pages_processed": response.total_pages_processed or 0,
                 "urls_processed": len(phase_input.urls) if phase_input.urls else 0,
-                "url_context_metadata": getattr(response, "url_context_metadata", None),
+                "url_context_metadata": response.url_context_metadata,
             }
 
             # Try to parse as JSON first (structured output)
@@ -812,10 +812,10 @@ async def execute_induction_phase(
 
             # Extract multimodal metadata from response
             multimodal_metadata = {
-                "images_processed": getattr(response, "total_images_processed", 0) or 0,
-                "pages_processed": getattr(response, "total_pages_processed", 0) or 0,
+                "images_processed": response.total_images_processed or 0,
+                "pages_processed": response.total_pages_processed or 0,
                 "urls_processed": len(phase_input.urls) if phase_input.urls else 0,
-                "url_context_metadata": getattr(response, "url_context_metadata", None),
+                "url_context_metadata": response.url_context_metadata,
             }
 
             # Extract verification examples using pattern matching
