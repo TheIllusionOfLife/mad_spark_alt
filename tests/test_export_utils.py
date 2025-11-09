@@ -234,11 +234,9 @@ class TestMarkdownExport:
 
         content = filepath.read_text()
 
-        assert "Strategy: multi_perspective" in content
-        assert "Execution Mode: parallel" in content
-        assert "Perspectives:" in content
-        assert "technical" in content
-        assert "business" in content
+        assert "**Strategy:** multi_perspective" in content
+        assert "**Execution Mode:** parallel" in content
+        assert "**Perspectives:** technical, business" in content
 
     def test_export_with_evolution_results(self, tmp_path):
         """Test exporting with evolution data in Markdown."""
@@ -300,8 +298,8 @@ class TestMarkdownExport:
         assert "# QADI Analysis Results" in content
         assert "## Evolution Results" in content
         assert "Best evolved idea" in content
-        assert "Total Generations: 2" in content
-        assert "Execution Time: 60.0s" in content
+        assert "**Total Generations:** 2" in content
+        assert "**Execution Time:** 60.0s" in content
         assert "### Fitness Progression" in content
 
     def test_markdown_hypothesis_scores_formatting(self, tmp_path):
