@@ -286,6 +286,28 @@ class EvolutionResult:
         )
         return [ind.idea for ind in sorted_population[:n]]
 
+    def to_export_dict(self) -> Dict[str, Any]:
+        """
+        Convert to user-facing export format.
+
+        Returns:
+            Dictionary with evolution results in exportable format
+        """
+        return {
+            "best_ideas": [idea.content for idea in self.best_ideas],
+            "total_generations": self.total_generations,
+            "execution_time": self.execution_time,
+            "evolution_metrics": self.evolution_metrics,
+            "fitness_progression": [
+                {
+                    "generation": snapshot.generation,
+                    "best_fitness": snapshot.best_fitness,
+                    "avg_fitness": snapshot.average_fitness,
+                }
+                for snapshot in self.generation_snapshots
+            ],
+        }
+
 
 class GeneticOperatorInterface(ABC):
     """Interface for genetic operators."""

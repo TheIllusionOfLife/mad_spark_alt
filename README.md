@@ -127,6 +127,67 @@ msa "Compare these approaches" --image chart1.png --image chart2.png --url https
 msa "Synthesize insights" --document report1.pdf --document report2.pdf --url https://source1.com --url https://source2.com
 ```
 
+### Export Results
+
+Save analysis results to files for later review, sharing, or integration with other tools:
+
+```bash
+# Export QADI analysis to JSON (default format)
+msa "How can we improve remote work?" --output results.json
+
+# Export to Markdown format
+msa "How can we improve remote work?" --output report.md --format md
+
+# Export QADI + Evolution results
+msa "Create sustainable urban transportation" --evolve --output analysis.json
+
+# Export with explicit format selection
+msa "Your question" --output results.json --format json
+
+# Evolution results include both QADI analysis and genetic algorithm outputs
+msa "Design innovative recycling systems" --evolve --generations 3 --population 8 --output full_analysis.json
+```
+
+**Export Formats:**
+
+- **JSON**: Machine-readable, includes all metadata and scores
+  - QADI sections: core_question, hypotheses, hypothesis_scores, final_answer, action_plan, verification_examples, verification_conclusion
+  - Evolution sections: best_ideas, fitness_progression, evolution_metrics
+  - Metadata: LLM costs, processing statistics, timestamps
+
+- **Markdown**: Human-readable, formatted for documentation
+  - Headers and sections for easy navigation
+  - Score tables with visual formatting
+  - Action plans as numbered lists
+  - Evolution results with fitness progression tables
+
+**Output Structure Example (JSON with Evolution):**
+```json
+{
+  "qadi_analysis": {
+    "core_question": "...",
+    "hypotheses": ["H1", "H2", "H3"],
+    "hypothesis_scores": [...],
+    "final_answer": "...",
+    "action_plan": [...],
+    "verification_examples": [...],
+    "verification_conclusion": "...",
+    "metadata": {...}
+  },
+  "evolution_results": {
+    "best_ideas": ["Evolved idea 1", "Evolved idea 2"],
+    "total_generations": 3,
+    "execution_time": 120.5,
+    "fitness_progression": [
+      {"generation": 0, "best_fitness": 0.75, "avg_fitness": 0.68},
+      {"generation": 1, "best_fitness": 0.82, "avg_fitness": 0.74}
+    ],
+    "evolution_metrics": {...}
+  },
+  "exported_at": "2025-11-09T09:28:17.550850+00:00"
+}
+```
+
 ## Command Reference
 
 The main command is **`msa`** (short for Mad Spark Alt), which provides QADI analysis by default:

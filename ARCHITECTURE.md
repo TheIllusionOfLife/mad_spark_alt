@@ -232,6 +232,7 @@ graph TD
 | **MultimodalInput** | Provider-agnostic multimodal data abstraction | `multimodal.py` | None |
 | **MultimodalUtils** | File handling and base64 encoding for multimodal | `multimodal_utils.py` | PIL, PyPDF2 |
 | **JSONUtils** | Unified JSON parsing for LLM responses | `json_utils.py` | None |
+| **ExportUtils** | Result serialization and file export | `export_utils.py` | None |
 | **GeneticAlgorithm** | Evolution coordination | `genetic_algorithm.py` | FitnessEvaluator, Operators |
 | **FitnessEvaluator** | 5-criteria scoring | `fitness.py` | LLMProvider |
 | **SemanticOperators** | LLM-powered mutations | `semantic_operators.py` | LLMProvider |
@@ -271,6 +272,98 @@ msa evaluate "text"              # Evaluate creativity
 - Default subcommand pattern for QADI
 - Shares code with evaluation CLI for consistency
 - Multimodal input support via `--image`, `--document`, `--url` flags
+
+### Result Export System
+
+**Purpose**: Persist QADI analysis and evolution results to files for review, sharing, and integration with other tools.
+
+**Supported Formats**:
+- **JSON**: Machine-readable, complete metadata
+- **Markdown**: Human-readable, formatted documentation
+
+**CLI Integration**:
+```bash
+# Export QADI results
+msa "Your question" --output results.json          # JSON (default)
+msa "Your question" --output report.md --format md # Markdown
+
+# Export QADI + Evolution results
+msa "Your question" --evolve --output analysis.json
+```
+
+**Architecture**:
+
+```mermaid
+graph LR
+    Result[QADI/Evolution Result] --> Serializer[Serialization Layer]
+    Serializer --> JSON[to_dict/to_export_dict]
+    JSON --> ExportJSON[export_to_json]
+    JSON --> ExportMD[export_to_markdown]
+    ExportJSON --> File1[results.json]
+    ExportMD --> File2[report.md]
+```
+
+**Implementation Components**:
+
+| Component | File | Responsibility |
+|-----------|------|----------------|
+| `SimpleQADIResult.to_dict()` | `simple_qadi_orchestrator.py` | Serialize QADI analysis |
+| `UnifiedQADIResult.to_dict()` | `unified_orchestrator.py` | Serialize unified analysis |
+| `EvolutionResult.to_export_dict()` | `evolution/interfaces.py` | Serialize evolution results |
+| `export_to_json()` | `utils/export_utils.py` | Write JSON with metadata |
+| `export_to_markdown()` | `utils/export_utils.py` | Format Markdown report |
+
+**Export Structure**:
+
+```python
+# QADI Only Export
+{
+  "core_question": "...",
+  "hypotheses": [...],
+  "hypothesis_scores": [...],
+  "final_answer": "...",
+  "action_plan": [...],
+  "verification_examples": [...],
+  "verification_conclusion": "...",
+  "metadata": {
+    "total_llm_cost": 0.0082,
+    "total_images_processed": 0,
+    "total_pages_processed": 0,
+    "total_urls_processed": 0
+  },
+  "synthesized_ideas": [...],
+  "exported_at": "2025-11-09T09:28:17+00:00"
+}
+
+# QADI + Evolution Export
+{
+  "qadi_analysis": { ... },  # Full QADI result above
+  "evolution_results": {
+    "best_ideas": ["Idea 1", "Idea 2"],
+    "total_generations": 3,
+    "execution_time": 120.5,
+    "fitness_progression": [
+      {"generation": 0, "best_fitness": 0.75, "avg_fitness": 0.68},
+      {"generation": 1, "best_fitness": 0.82, "avg_fitness": 0.74}
+    ],
+    "evolution_metrics": {...}
+  },
+  "exported_at": "2025-11-09T09:28:17+00:00"
+}
+```
+
+**Design Decisions**:
+- **Two-Layer Serialization**: Results have `to_dict()` for internal use, export utilities add timestamps and formatting
+- **Optional Evolution**: Evolution results included only when `--evolve` flag used
+- **Timestamp Control**: JSON exports include `exported_at` by default, can be disabled
+- **Parent Directory Creation**: Export utilities automatically create parent directories
+- **Enum Handling**: All enums serialized to lowercase string values (e.g., `ThinkingMethod.ABDUCTION` → `"abduction"`)
+
+**Test Coverage**:
+- Unit tests for all serialization methods (14 tests)
+- Export utility tests (14 tests)
+- CLI integration tests (7 tests)
+- Real API validation with 3 scenarios (basic QADI, QADI markdown, QADI + evolution)
 
 ### Orchestrator Hierarchy (Verified)
 

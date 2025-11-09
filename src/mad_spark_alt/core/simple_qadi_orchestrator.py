@@ -61,6 +61,37 @@ class SimpleQADIResult:
     # For backward compatibility with evolution
     synthesized_ideas: List[GeneratedIdea] = field(default_factory=list)
 
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert result to JSON-serializable dictionary.
+
+        Returns:
+            Dictionary containing all result data in serializable format
+        """
+        return {
+            "core_question": self.core_question,
+            "hypotheses": self.hypotheses,
+            "hypothesis_scores": [score.to_dict() for score in self.hypothesis_scores],
+            "final_answer": self.final_answer,
+            "action_plan": self.action_plan,
+            "verification_examples": self.verification_examples,
+            "verification_conclusion": self.verification_conclusion,
+            "metadata": {
+                "total_llm_cost": self.total_llm_cost,
+                "total_images_processed": self.total_images_processed,
+                "total_pages_processed": self.total_pages_processed,
+                "total_urls_processed": self.total_urls_processed,
+            },
+            "synthesized_ideas": [
+                {
+                    "content": idea.content,
+                    "thinking_method": idea.thinking_method.value,
+                    "confidence_score": idea.confidence_score if idea.confidence_score is not None else 0.5,
+                }
+                for idea in self.synthesized_ideas
+            ],
+        }
+
 
 class SimpleQADIOrchestrator:
     """

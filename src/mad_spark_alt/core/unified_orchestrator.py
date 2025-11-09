@@ -66,6 +66,57 @@ class UnifiedQADIResult:
     total_pages_processed: int = 0
     total_urls_processed: int = 0
 
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert result to JSON-serializable dictionary.
+
+        Returns:
+            Dictionary containing all result data in serializable format
+        """
+        result_dict: Dict[str, Any] = {
+            "strategy_used": self.strategy_used.value,
+            "execution_mode": self.execution_mode.value,
+            "core_question": self.core_question,
+            "hypotheses": self.hypotheses,
+            "final_answer": self.final_answer,
+            "action_plan": self.action_plan,
+            "metadata": {
+                "total_llm_cost": self.total_llm_cost,
+                "total_images_processed": self.total_images_processed,
+                "total_pages_processed": self.total_pages_processed,
+                "total_urls_processed": self.total_urls_processed,
+            },
+            "synthesized_ideas": [
+                {
+                    "content": idea.content,
+                    "thinking_method": idea.thinking_method.value,
+                    "confidence_score": idea.confidence_score if idea.confidence_score is not None else 0.5,
+                }
+                for idea in self.synthesized_ideas
+            ],
+        }
+
+        # Add optional fields if present
+        if self.hypothesis_scores is not None:
+            result_dict["hypothesis_scores"] = [score.to_dict() for score in self.hypothesis_scores]
+
+        if self.verification_examples is not None:
+            result_dict["verification_examples"] = self.verification_examples
+
+        if self.verification_conclusion is not None:
+            result_dict["verification_conclusion"] = self.verification_conclusion
+
+        if self.perspectives_used is not None:
+            result_dict["perspectives_used"] = self.perspectives_used
+
+        if self.synthesized_answer is not None:
+            result_dict["synthesized_answer"] = self.synthesized_answer
+
+        if self.agent_types is not None:
+            result_dict["agent_types"] = self.agent_types
+
+        return result_dict
+
 
 class UnifiedQADIOrchestrator:
     """

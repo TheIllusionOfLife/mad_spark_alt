@@ -52,6 +52,7 @@ from .evolution import (
 )
 from .evolution.interfaces import EvolutionResult, IndividualFitness
 from .layers.quantitative import DiversityEvaluator, QualityEvaluator
+from .utils.export_utils import export_to_json, export_to_markdown
 from .utils.text_cleaning import clean_ansi_codes
 
 console = Console()
@@ -511,6 +512,9 @@ class SimplerQADIOrchestrator(SimpleQADIOrchestrator):
 @click.option('--document', '-d', multiple=True, type=click.Path(exists=True),
               help='Path to document file(s) to include in analysis (PDF supported)')
 @click.option('--url', '-u', multiple=True, help='URL(s) for context retrieval (max 20)')
+@click.option('--output', '-o', type=click.Path(), help='Export results to file (JSON or Markdown)')
+@click.option('--format', 'export_format', type=click.Choice(['json', 'md'], case_sensitive=False),
+              default='json', help='Export format: json or md (default: json)')
 @click.argument('input', required=False)
 def main(
     ctx: click.Context,
@@ -524,6 +528,8 @@ def main(
     image: tuple,
     document: tuple,
     url: tuple,
+    output: Optional[str],
+    export_format: str,
     input: Optional[str],
 ) -> None:
     """Mad Spark Alt - QADI Analysis & AI Creativity Evaluation System
@@ -636,7 +642,9 @@ def main(
             diversity_method=diversity_method,
             image_paths=image,
             document_paths=document,
-            urls=url
+            urls=url,
+            output_file=output,
+            export_format=export_format
         )
     else:
         # Subcommand will be invoked
@@ -676,7 +684,9 @@ def _run_qadi_sync(
     diversity_method: str = "jaccard",
     image_paths: tuple = (),
     document_paths: tuple = (),
-    urls: tuple = ()
+    urls: tuple = (),
+    output_file: Optional[str] = None,
+    export_format: str = "json"
 ) -> None:
     """Synchronous wrapper for QADI analysis - handles event loop properly."""
     asyncio.run(_run_qadi_analysis(
@@ -690,7 +700,9 @@ def _run_qadi_sync(
         diversity_method=diversity_method,
         image_paths=image_paths,
         document_paths=document_paths,
-        urls=urls
+        urls=urls,
+        output_file=output_file,
+        export_format=export_format
     ))
 
 
@@ -705,7 +717,9 @@ async def _run_qadi_analysis(
     diversity_method: str = "jaccard",
     image_paths: tuple = (),
     document_paths: tuple = (),
-    urls: tuple = ()
+    urls: tuple = (),
+    output_file: Optional[str] = None,
+    export_format: str = "json"
 ) -> None:
     """Run QADI analysis with simplified Phase 1 and optional evolution."""
 
@@ -888,11 +902,27 @@ async def _run_qadi_analysis(
             print(f"⏱️  Time: {elapsed_time:.1f}s | 💰 Cost: ${result.total_llm_cost:.4f}")
 
         # Evolution phase if requested
+        evolution_result = None
         if evolve and result.synthesized_ideas:
-            await _run_evolution(
+            evolution_result = await _run_evolution(
                 result, user_input, elapsed_time, generations, population,
                 traditional, diversity_method, verbose
             )
+
+        # Export results if output file specified
+        if output_file:
+            try:
+                if export_format.lower() == 'md':
+                    export_to_markdown(result, output_file, evolution_result=evolution_result)
+                else:  # default to json
+                    export_to_json(result, output_file, evolution_result=evolution_result)
+
+                print(f"\n💾 Results exported to: {output_file}")
+            except Exception as export_error:
+                print(f"\n⚠️  Export failed: {export_error}")
+                if verbose:
+                    import traceback
+                    traceback.print_exc()
 
     except Exception as e:
         print(f"\n❌ Error: {e}")
@@ -910,8 +940,12 @@ async def _run_evolution(
     traditional: bool,
     diversity_method: str,
     verbose: bool,
-) -> None:
-    """Run evolution phase after QADI analysis."""
+) -> Optional[EvolutionResult]:
+    """Run evolution phase after QADI analysis.
+
+    Returns:
+        EvolutionResult if successful, None if failed or timed out
+    """
     print("\n" + "═" * 50)
     print(f"🧬 Evolving ideas ({generations} generations, {population} population)...")
     print("─" * 50)
@@ -1016,7 +1050,7 @@ async def _run_evolution(
             print(f"\n❌ Evolution timed out after {evolution_time:.1f}s")
             print("💡 Try reducing --generations or --population for faster results")
             print("   Example: --evolve --generations 2 --population 5")
-            return
+            return None
 
         if evolution_result.success:
             print(f"\n✅ Evolution completed in {evolution_time:.1f}s")
@@ -1028,14 +1062,18 @@ async def _run_evolution(
             total_time = qadi_time + evolution_time
             print("\n" + "═" * 50)
             print(f"⏱️  Total time: {total_time:.1f}s | 💰 Total cost: ${qadi_result.total_llm_cost:.4f}")
+
+            return evolution_result
         else:
             print(f"\n❌ Evolution failed: {evolution_result.error_message}")
+            return None
 
     except Exception as e:
         print(f"\n❌ Evolution error: {e}")
         if verbose:
             import traceback
             traceback.print_exc()
+        return None
     finally:
         evolution_logger.setLevel(original_level)
 
