@@ -226,7 +226,7 @@ graph TD
 
 | Component | Responsibility | Key Files | Dependencies |
 |-----------|---------------|-----------|--------------|
-| **SimplerQADIOrchestrator** | Main QADI pipeline execution | `qadi_simple.py` | SimpleQADIOrchestrator |
+| **Unified CLI (msa)** | Main QADI pipeline execution | `unified_cli.py` | SimpleQADIOrchestrator |
 | **SimpleQADIOrchestrator** | Core QADI implementation | `simple_qadi_orchestrator.py` | LLMProvider, QADIPrompts |
 | **LLMProvider** | Gemini API integration with multimodal support | `llm_provider.py` | google-generativeai |
 | **MultimodalInput** | Provider-agnostic multimodal data abstraction | `multimodal.py` | None |
@@ -906,9 +906,9 @@ mad_spark_alt/
 │   │   ├── operators.py                # Traditional operators
 │   │   └── semantic_operators.py       # LLM operators
 │   ├── agents/                  # QADI phase agents (legacy)
+│   ├── unified_cli.py           # Unified CLI entry point (msa command)
 │   └── utils/                   # Shared utilities
 ├── tests/                       # Test suite
-├── qadi_simple.py              # Main entry point
 ├── ARCHITECTURE.md             # This document
 ├── CLAUDE.md                   # AI assistant instructions
 └── README.md                   # User documentation
@@ -916,4 +916,4 @@ mad_spark_alt/
 
 ---
 
-*This architecture document represents the current state of the Mad Spark Alt system as of August 2025. It should be updated whenever significant architectural changes are made.*
+*This architecture document represents the current state of the Mad Spark Alt system as of November 2025. It should be updated whenever significant architectural changes are made.*
