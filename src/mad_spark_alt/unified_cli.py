@@ -561,18 +561,20 @@ def main(
     # CRITICAL FIX: Check if input is actually a subcommand name that Click failed to recognize
     # This happens because Click processes arguments before recognizing subcommands
     if input is not None and ctx.invoked_subcommand is None:
-        # Get all registered subcommand names
-        subcommand_names = list(ctx.command.commands.keys())
-        # Normalize: check both underscore and hyphenated forms
-        input_normalized = input.replace('-', '_')
+        # Check if command is a Group (has subcommands)
+        if isinstance(ctx.command, click.Group):
+            # Get all registered subcommand names
+            subcommand_names = list(ctx.command.commands.keys())
+            # Normalize: check both underscore and hyphenated forms
+            input_normalized = input.replace('-', '_')
 
-        # If input matches a subcommand, manually invoke it
-        for cmd_name in subcommand_names:
-            if input == cmd_name or input_normalized == cmd_name or input == cmd_name.replace('_', '-'):
-                # Found matching subcommand - invoke it manually
-                subcommand = ctx.command.commands[cmd_name]
-                ctx.invoke(subcommand)
-                return
+            # If input matches a subcommand, manually invoke it
+            for cmd_name in subcommand_names:
+                if input == cmd_name or input_normalized == cmd_name or input == cmd_name.replace('_', '-'):
+                    # Found matching subcommand - invoke it manually
+                    subcommand = ctx.command.commands[cmd_name]
+                    ctx.invoke(subcommand)
+                    return
 
     if ctx.invoked_subcommand is None:
         # Default QADI analysis command
