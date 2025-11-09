@@ -1353,13 +1353,16 @@ def _display_table_results(
     """Display results in table format."""
 
     # Summary panel
+    overall_score = summary.get_overall_creativity_score()
+    overall_score_str = f"{overall_score:.3f}" if overall_score is not None else "N/A"
+
     summary_text = f"""
     [bold]Evaluation Summary[/bold]
 
     • Total outputs: {summary.total_outputs}
     • Total evaluators: {summary.total_evaluators}
     • Execution time: {summary.execution_time:.2f}s
-    • Overall creativity score: {summary.get_overall_creativity_score():.3f}
+    • Overall creativity score: {overall_score_str}
     """
 
     console.print(Panel(summary_text, title="Results", expand=False))
