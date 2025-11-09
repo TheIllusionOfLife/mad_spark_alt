@@ -499,7 +499,6 @@ class SimplerQADIOrchestrator(SimpleQADIOrchestrator):
 
 @click.group(invoke_without_command=True)
 @click.pass_context
-@click.argument('input', required=False)
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging and detailed output')
 @click.option('--temperature', '-t', type=click.FloatRange(0.0, 2.0), help='Temperature for hypothesis generation (0.0-2.0, default: 0.8)')
 @click.option('--evolve', '-e', is_flag=True, help='Evolve ideas using genetic algorithm after QADI analysis')
@@ -513,9 +512,9 @@ class SimplerQADIOrchestrator(SimpleQADIOrchestrator):
 @click.option('--document', '-d', multiple=True, type=click.Path(exists=True),
               help='Path to document file(s) to include in analysis (PDF supported)')
 @click.option('--url', '-u', multiple=True, help='URL(s) for context retrieval (max 20)')
+@click.argument('input', required=False)
 def main(
     ctx: click.Context,
-    input: Optional[str],
     verbose: bool,
     temperature: Optional[float],
     evolve: bool,
@@ -526,6 +525,7 @@ def main(
     image: tuple,
     document: tuple,
     url: tuple,
+    input: Optional[str],
 ) -> None:
     """Mad Spark Alt - QADI Analysis & AI Creativity Evaluation System
 
@@ -557,6 +557,22 @@ def main(
 
     # Initialize Google LLM provider if API key is available
     google_key = os.getenv("GOOGLE_API_KEY")
+
+    # CRITICAL FIX: Check if input is actually a subcommand name that Click failed to recognize
+    # This happens because Click processes arguments before recognizing subcommands
+    if input is not None and ctx.invoked_subcommand is None:
+        # Get all registered subcommand names
+        subcommand_names = list(ctx.command.commands.keys())
+        # Normalize: check both underscore and hyphenated forms
+        input_normalized = input.replace('-', '_')
+
+        # If input matches a subcommand, manually invoke it
+        for cmd_name in subcommand_names:
+            if input == cmd_name or input_normalized == cmd_name or input == cmd_name.replace('_', '-'):
+                # Found matching subcommand - invoke it manually
+                subcommand = ctx.command.commands[cmd_name]
+                ctx.invoke(subcommand)
+                return
 
     if ctx.invoked_subcommand is None:
         # Default QADI analysis command

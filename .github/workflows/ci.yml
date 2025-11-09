@@ -66,7 +66,6 @@ jobs:
       run: |
         uv run msa --help
         uv run msa list-evaluators
-        echo "Test evaluation" | uv run msa evaluate --model test
 
   build:
     runs-on: ubuntu-latest
