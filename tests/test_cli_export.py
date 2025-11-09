@@ -25,6 +25,8 @@ def runner():
 @pytest.fixture
 def mock_qadi_result():
     """Mock QADI result for testing."""
+    from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
+
     return SimpleQADIResult(
         core_question="How to improve productivity?",
         hypotheses=["Time management", "Automation", "Focus techniques"],
@@ -38,15 +40,50 @@ def mock_qadi_result():
         verification_examples=["Case study: Developer productivity increased 40%"],
         verification_conclusion="Proven effective across multiple domains.",
         total_llm_cost=0.0082,
+        synthesized_ideas=[
+            GeneratedIdea(
+                content="Time management",
+                thinking_method=ThinkingMethod.ABDUCTION,
+                agent_name="Agent",
+                generation_prompt="Prompt",
+            ),
+            GeneratedIdea(
+                content="Automation",
+                thinking_method=ThinkingMethod.ABDUCTION,
+                agent_name="Agent",
+                generation_prompt="Prompt",
+            ),
+        ],
     )
 
 
 @pytest.fixture
 def mock_evolution_result():
     """Mock evolution result for testing."""
+    from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
+    from mad_spark_alt.evolution.interfaces import IndividualFitness
+
+    idea = GeneratedIdea(
+        content="Evolved idea",
+        thinking_method=ThinkingMethod.ABDUCTION,
+        agent_name="Agent",
+        generation_prompt="Prompt",
+    )
+
+    # Create a mock individual with fitness
+    individual = IndividualFitness(
+        idea=idea,
+        impact=0.8,
+        feasibility=0.8,
+        accessibility=0.8,
+        sustainability=0.8,
+        scalability=0.8,
+        overall_fitness=0.8,
+    )
+
     return EvolutionResult(
-        final_population=[],
-        best_ideas=[],
+        final_population=[individual],  # Non-empty for success=True
+        best_ideas=[idea],
         generation_snapshots=[],
         total_generations=3,
         execution_time=90.0,
@@ -57,13 +94,12 @@ def mock_evolution_result():
 class TestCLIExportJSON:
     """Test JSON export via CLI."""
 
-    @pytest.mark.asyncio
-    async def test_export_json_with_output_flag(self, runner, tmp_path, mock_qadi_result):
+    def test_export_json_with_output_flag(self, runner, tmp_path, mock_qadi_result):
         """Test that --output flag exports results to JSON file."""
         output_file = tmp_path / "test_output.json"
 
         # Mock the orchestrator
-        with patch('mad_spark_alt.unified_cli.SimpleQADIOrchestrator') as mock_orch_class:
+        with patch('mad_spark_alt.unified_cli.SimplerQADIOrchestrator') as mock_orch_class:
             mock_orch = AsyncMock()
             mock_orch.run_qadi_cycle.return_value = mock_qadi_result
             mock_orch_class.return_value = mock_orch
@@ -73,7 +109,7 @@ class TestCLIExportJSON:
                 with patch.dict('os.environ', {'GOOGLE_API_KEY': 'test-key'}):
                     result = runner.invoke(
                         main,
-                        ['Test question', '--output', str(output_file), '--format', 'json'],
+                        ['--output', str(output_file), '--format', 'json', 'Test question'],
                         catch_exceptions=False
                     )
 
@@ -91,12 +127,12 @@ class TestCLIExportJSON:
         assert len(data["hypotheses"]) == 3
         assert data["final_answer"] == "Combine time management with automation and focus techniques."
 
-    @pytest.mark.asyncio
-    async def test_export_json_default_format(self, runner, tmp_path, mock_qadi_result):
+    
+    def test_export_json_default_format(self, runner, tmp_path, mock_qadi_result):
         """Test that JSON is default format when --output is specified."""
         output_file = tmp_path / "output.json"
 
-        with patch('mad_spark_alt.unified_cli.SimpleQADIOrchestrator') as mock_orch_class:
+        with patch('mad_spark_alt.unified_cli.SimplerQADIOrchestrator') as mock_orch_class:
             mock_orch = AsyncMock()
             mock_orch.run_qadi_cycle.return_value = mock_qadi_result
             mock_orch_class.return_value = mock_orch
@@ -105,19 +141,19 @@ class TestCLIExportJSON:
                 with patch.dict('os.environ', {'GOOGLE_API_KEY': 'test-key'}):
                     result = runner.invoke(
                         main,
-                        ['Test question', '--output', str(output_file)],
+                        ['--output', str(output_file), 'Test question'],
                         catch_exceptions=False
                     )
 
         assert result.exit_code == 0
         assert output_file.exists()
 
-    @pytest.mark.asyncio
-    async def test_export_json_with_evolution(self, runner, tmp_path, mock_qadi_result, mock_evolution_result):
+    
+    def test_export_json_with_evolution(self, runner, tmp_path, mock_qadi_result, mock_evolution_result):
         """Test exporting QADI + evolution results to JSON."""
         output_file = tmp_path / "evolution_output.json"
 
-        with patch('mad_spark_alt.unified_cli.SimpleQADIOrchestrator') as mock_orch_class:
+        with patch('mad_spark_alt.unified_cli.SimplerQADIOrchestrator') as mock_orch_class:
             mock_orch = AsyncMock()
             mock_orch.run_qadi_cycle.return_value = mock_qadi_result
             mock_orch_class.return_value = mock_orch
@@ -127,13 +163,14 @@ class TestCLIExportJSON:
                 mock_ga.evolve = AsyncMock(return_value=mock_evolution_result)
                 mock_ga_class.return_value = mock_ga
 
-                with patch('mad_spark_alt.unified_cli.setup_llm_providers', new_callable=AsyncMock):
-                    with patch.dict('os.environ', {'GOOGLE_API_KEY': 'test-key'}):
-                        result = runner.invoke(
-                            main,
-                            ['Test', '--evolve', '--output', str(output_file), '--format', 'json'],
-                            catch_exceptions=False
-                        )
+                with patch('mad_spark_alt.unified_cli.get_google_provider', return_value=MagicMock()):
+                    with patch('mad_spark_alt.unified_cli.setup_llm_providers', new_callable=AsyncMock):
+                        with patch.dict('os.environ', {'GOOGLE_API_KEY': 'test-key'}):
+                            result = runner.invoke(
+                                main,
+                                ['--evolve', '--output', str(output_file), '--format', 'json', 'Test'],
+                                catch_exceptions=False
+                            )
 
         assert result.exit_code == 0
         assert output_file.exists()
@@ -150,12 +187,12 @@ class TestCLIExportJSON:
 class TestCLIExportMarkdown:
     """Test Markdown export via CLI."""
 
-    @pytest.mark.asyncio
-    async def test_export_markdown_with_format_flag(self, runner, tmp_path, mock_qadi_result):
+    
+    def test_export_markdown_with_format_flag(self, runner, tmp_path, mock_qadi_result):
         """Test that --format md exports results to Markdown file."""
         output_file = tmp_path / "test_output.md"
 
-        with patch('mad_spark_alt.unified_cli.SimpleQADIOrchestrator') as mock_orch_class:
+        with patch('mad_spark_alt.unified_cli.SimplerQADIOrchestrator') as mock_orch_class:
             mock_orch = AsyncMock()
             mock_orch.run_qadi_cycle.return_value = mock_qadi_result
             mock_orch_class.return_value = mock_orch
@@ -164,7 +201,7 @@ class TestCLIExportMarkdown:
                 with patch.dict('os.environ', {'GOOGLE_API_KEY': 'test-key'}):
                     result = runner.invoke(
                         main,
-                        ['Test question', '--output', str(output_file), '--format', 'md'],
+                        ['--output', str(output_file), '--format', 'md', 'Test question'],
                         catch_exceptions=False
                     )
 
@@ -177,12 +214,12 @@ class TestCLIExportMarkdown:
         assert "## Core Question" in content
         assert "How to improve productivity?" in content
 
-    @pytest.mark.asyncio
-    async def test_export_markdown_with_evolution(self, runner, tmp_path, mock_qadi_result, mock_evolution_result):
+    
+    def test_export_markdown_with_evolution(self, runner, tmp_path, mock_qadi_result, mock_evolution_result):
         """Test exporting QADI + evolution to Markdown."""
         output_file = tmp_path / "evolution_output.md"
 
-        with patch('mad_spark_alt.unified_cli.SimpleQADIOrchestrator') as mock_orch_class:
+        with patch('mad_spark_alt.unified_cli.SimplerQADIOrchestrator') as mock_orch_class:
             mock_orch = AsyncMock()
             mock_orch.run_qadi_cycle.return_value = mock_qadi_result
             mock_orch_class.return_value = mock_orch
@@ -192,13 +229,14 @@ class TestCLIExportMarkdown:
                 mock_ga.evolve = AsyncMock(return_value=mock_evolution_result)
                 mock_ga_class.return_value = mock_ga
 
-                with patch('mad_spark_alt.unified_cli.setup_llm_providers', new_callable=AsyncMock):
-                    with patch.dict('os.environ', {'GOOGLE_API_KEY': 'test-key'}):
-                        result = runner.invoke(
-                            main,
-                            ['Test', '--evolve', '--output', str(output_file), '--format', 'md'],
-                            catch_exceptions=False
-                        )
+                with patch('mad_spark_alt.unified_cli.get_google_provider', return_value=MagicMock()):
+                    with patch('mad_spark_alt.unified_cli.setup_llm_providers', new_callable=AsyncMock):
+                        with patch.dict('os.environ', {'GOOGLE_API_KEY': 'test-key'}):
+                            result = runner.invoke(
+                                main,
+                                ['--evolve', '--output', str(output_file), '--format', 'md', 'Test'],
+                                catch_exceptions=False
+                            )
 
         assert result.exit_code == 0
         assert output_file.exists()
@@ -212,25 +250,25 @@ class TestCLIExportMarkdown:
 class TestCLIExportValidation:
     """Test export validation and error handling."""
 
-    @pytest.mark.asyncio
-    async def test_invalid_format_rejected(self, runner):
+    
+    def test_invalid_format_rejected(self, runner):
         """Test that invalid format option is rejected."""
         with patch.dict('os.environ', {'GOOGLE_API_KEY': 'test-key'}):
             result = runner.invoke(
                 main,
-                ['Test', '--output', 'output.txt', '--format', 'txt'],
+                ['--output', 'output.txt', '--format', 'txt', 'Test'],
             )
 
         # Should fail with invalid choice error
         assert result.exit_code != 0
         assert "txt" in result.output or "Invalid value" in result.output
 
-    @pytest.mark.asyncio
-    async def test_output_creates_parent_directories(self, runner, tmp_path, mock_qadi_result):
+    
+    def test_output_creates_parent_directories(self, runner, tmp_path, mock_qadi_result):
         """Test that export creates parent directories if needed."""
         output_file = tmp_path / "subdir1" / "subdir2" / "output.json"
 
-        with patch('mad_spark_alt.unified_cli.SimpleQADIOrchestrator') as mock_orch_class:
+        with patch('mad_spark_alt.unified_cli.SimplerQADIOrchestrator') as mock_orch_class:
             mock_orch = AsyncMock()
             mock_orch.run_qadi_cycle.return_value = mock_qadi_result
             mock_orch_class.return_value = mock_orch
@@ -239,7 +277,7 @@ class TestCLIExportValidation:
                 with patch.dict('os.environ', {'GOOGLE_API_KEY': 'test-key'}):
                     result = runner.invoke(
                         main,
-                        ['Test', '--output', str(output_file)],
+                        ['--output', str(output_file), 'Test'],
                         catch_exceptions=False
                     )
 
