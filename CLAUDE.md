@@ -287,7 +287,7 @@ print(f'Available methods: {list(registry._agents.keys())}')
 
 ### Dynamic Hypothesis Generation (PR #67)
 - **Pattern**: Pass population size as `num_hypotheses` parameter through orchestrator hierarchy
-- **Implementation**: `SimplerQADIOrchestrator(num_hypotheses=population if evolve else 3)`
+- **Implementation**: `SimpleQADIOrchestrator(num_hypotheses=population if evolve else 3)`
 - **Timeout Scaling**: Base 90s + (generations × population + population) × 5s, capped at 900s
 - **Display Pattern**: Show requested population with clarification when actual differs
 - **Test Synchronization**: Extract timeout calculations to module level to prevent divergence

@@ -173,7 +173,6 @@ graph TD
     end
 
     subgraph "Orchestration Layer"
-        SO[SimplerQADIOrchestrator]
         SMO[SimpleQADIOrchestrator]
         Other[Other Orchestrators]
     end
@@ -369,8 +368,7 @@ graph LR
 
 ```
 Production Use:
-└── SimplerQADIOrchestrator (extends SimpleQADIOrchestrator)
-    └── SimpleQADIOrchestrator (standalone, main implementation)
+└── SimpleQADIOrchestrator (main implementation, used by CLI and SDK)
 
 Legacy/Experimental:
 ├── SmartQADIOrchestrator (agent-based, has timeout issues)
@@ -968,7 +966,7 @@ def test_evolution_timeout():
 | Term | Definition |
 |------|------------|
 | **QADI** | Question → Abduction → Deduction → Induction methodology |
-| **SimplerQADIOrchestrator** | Main orchestrator with simplified Phase 1 |
+| **SimpleQADIOrchestrator** | Main orchestrator implementing full QADI cycle |
 | **Semantic Operators** | LLM-powered genetic operations for meaningful mutations |
 | **Fitness Score** | Weighted evaluation across 5 criteria |
 | **Structured Output** | Gemini's responseSchema for guaranteed JSON |
