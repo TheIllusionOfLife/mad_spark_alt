@@ -246,7 +246,8 @@ class TestScriptIntegration:
 
             # Optional: check content
             content = output_file_path.read_text()
-            assert "usage: mad_spark_alt" in content.lower()
+            # After CLI consolidation, command is now 'msa'
+            assert "usage: msa" in content.lower() or "mad spark alt" in content.lower()
 
         finally:
             # 4. Clean up the created output file
