@@ -957,6 +957,11 @@ async def _run_evolution(
         # Configure evolution
         mutation_rate = 0.5 if actual_population <= 3 else 0.3
 
+        # Configure semantic operators based on --traditional flag
+        use_semantic = not traditional
+        # Set threshold to 0.0 when disabled (prevents semantic ops from triggering)
+        semantic_threshold = 0.9 if use_semantic else 0.0
+
         config = EvolutionConfig(
             population_size=actual_population,
             generations=generations,
@@ -966,8 +971,8 @@ async def _run_evolution(
             selection_strategy=SelectionStrategy.TOURNAMENT,
             parallel_evaluation=True,
             max_parallel_evaluations=min(8, actual_population),
-            use_semantic_operators=True,
-            semantic_operator_threshold=0.9,
+            use_semantic_operators=use_semantic,
+            semantic_operator_threshold=semantic_threshold,
             diversity_method=DiversityMethod.SEMANTIC if diversity_method.lower() == "semantic" else DiversityMethod.JACCARD,
         )
 
