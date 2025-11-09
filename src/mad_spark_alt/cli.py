@@ -583,6 +583,26 @@ def _summary_to_dict(summary: EvaluationSummary) -> Dict[str, Any]:
     default="jaccard",
     help="Diversity calculation method: jaccard (fast, word-based) or semantic (slower, embedding-based with Gemini API)"
 )
+@click.option(
+    "--image",
+    "-i",
+    multiple=True,
+    type=click.Path(exists=True),
+    help="Path to image file(s) to include in analysis (PNG, JPEG, GIF, WEBP supported)"
+)
+@click.option(
+    "--document",
+    "-d",
+    multiple=True,
+    type=click.Path(exists=True),
+    help="Path to document file(s) to include in analysis (PDF supported)"
+)
+@click.option(
+    "--url",
+    "-u",
+    multiple=True,
+    help="URL(s) for context retrieval (max 20)"
+)
 def evolve(
     problem: str,
     context: Optional[str],
@@ -592,6 +612,9 @@ def evolve(
     output: Optional[str],
     traditional: bool,
     diversity_method: str,
+    image: tuple,
+    document: tuple,
+    url: tuple,
 ) -> None:
     """Evolve ideas using QADI methodology + Genetic Algorithm.
 
@@ -601,6 +624,8 @@ def evolve(
       mad-spark evolve "Climate solutions" --generations 2
       mad-spark evolve "New product ideas" --temperature 1.5
       mad-spark evolve "AI applications" --diversity-method semantic
+      mad-spark evolve "Analyze this design" --image design.png
+      mad-spark evolve "Summarize this report" --document report.pdf --url https://example.com
     """
     import os
 
@@ -649,7 +674,8 @@ def evolve(
     # Run the evolution pipeline
     asyncio.run(
         _run_evolution_pipeline(
-            problem, context, generations, population, temperature, output, traditional, diversity_method
+            problem, context, generations, population, temperature, output, traditional, diversity_method,
+            image, document, url
         )
     )
 
@@ -663,8 +689,63 @@ async def _run_evolution_pipeline(
     output_file: Optional[str],
     traditional: bool,
     diversity_method: str,
+    image_paths: tuple,
+    document_paths: tuple,
+    urls: tuple,
 ) -> None:
     """Run the evolution pipeline with progress tracking."""
+    from .core.multimodal import MultimodalInput, MultimodalInputType, MultimodalSourceType
+    import mimetypes
+
+    # Process multimodal inputs
+    multimodal_inputs = []
+
+    # Process images
+    for img_path in image_paths:
+        mime_type, _ = mimetypes.guess_type(img_path)
+        if not mime_type or not mime_type.startswith("image/"):
+            mime_type = "image/png"  # Default to PNG
+
+        img_size = Path(img_path).stat().st_size
+        multimodal_inputs.append(
+            MultimodalInput(
+                input_type=MultimodalInputType.IMAGE,
+                source_type=MultimodalSourceType.FILE_PATH,
+                data=str(Path(img_path).absolute()),
+                mime_type=mime_type,
+                file_size=img_size,
+            )
+        )
+
+    # Process documents
+    for doc_path in document_paths:
+        mime_type, _ = mimetypes.guess_type(doc_path)
+
+        # Validate document type - currently only PDF supported
+        if mime_type != "application/pdf":
+            # Check if file has .pdf extension as fallback
+            if not doc_path.lower().endswith('.pdf'):
+                raise ValueError(
+                    f"Unsupported document type for {doc_path}. "
+                    f"Only PDF files are currently supported. "
+                    f"Detected type: {mime_type or 'unknown'}"
+                )
+            # Use PDF mime type if extension is .pdf but type couldn't be determined
+            mime_type = "application/pdf"
+
+        doc_size = Path(doc_path).stat().st_size
+        multimodal_inputs.append(
+            MultimodalInput(
+                input_type=MultimodalInputType.DOCUMENT,
+                source_type=MultimodalSourceType.FILE_PATH,
+                data=str(Path(doc_path).absolute()),
+                mime_type=mime_type,
+                file_size=doc_size,
+            )
+        )
+
+    # Convert URLs tuple to list
+    url_list = list(urls) if urls else None
 
     with Progress(
         SpinnerColumn(),
@@ -685,6 +766,8 @@ async def _run_evolution_pipeline(
                 orchestrator.run_qadi_cycle(
                     user_input=problem,
                     context=context,
+                    multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
+                    urls=url_list,
                 ),
                 timeout=90.0,
             )
@@ -702,6 +785,17 @@ async def _run_evolution_pipeline(
             console.print(
                 f"[dim]💰 LLM Cost: {format_llm_cost(qadi_result.total_llm_cost)}[/dim]"
             )
+
+            # Display multimodal processing stats if any were processed
+            if qadi_result.total_images_processed > 0 or qadi_result.total_pages_processed > 0 or qadi_result.total_urls_processed > 0:
+                multimodal_stats = []
+                if qadi_result.total_images_processed > 0:
+                    multimodal_stats.append(f"{qadi_result.total_images_processed} images")
+                if qadi_result.total_pages_processed > 0:
+                    multimodal_stats.append(f"{qadi_result.total_pages_processed} pages")
+                if qadi_result.total_urls_processed > 0:
+                    multimodal_stats.append(f"{qadi_result.total_urls_processed} URLs")
+                console.print(f"[dim]📎 Processed: {', '.join(multimodal_stats)}[/dim]")
 
             # Phase 2: Evolution
             evolution_task = progress.add_task(

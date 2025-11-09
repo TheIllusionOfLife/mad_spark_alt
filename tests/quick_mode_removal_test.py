@@ -90,7 +90,10 @@ class TestCheckpointFrequency:
                 mock_orch_class.return_value = mock_orch
                 mock_orch.run_qadi_cycle.return_value = MagicMock(
                     synthesized_ideas=[MagicMock(content="test", metadata={})],
-                    total_llm_cost=0.01
+                    total_llm_cost=0.01,
+                    total_images_processed=0,
+                    total_pages_processed=0,
+                    total_urls_processed=0,
                 )
                 
                 # Run the pipeline
@@ -102,7 +105,10 @@ class TestCheckpointFrequency:
                     temperature=None,
                     output_file=None,
                     traditional=False,
-                    diversity_method="jaccard"
+                    diversity_method="jaccard",
+                    image_paths=(),
+                    document_paths=(),
+                    urls=(),
                 )
                 
                 # Verify GeneticAlgorithm was created with correct checkpoint config

@@ -10,9 +10,12 @@ import logging
 import re
 import traceback
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from .intent_detector import IntentDetector, QuestionIntent
+
+if TYPE_CHECKING:
+    from .multimodal import MultimodalInput
 from .interfaces import GeneratedIdea, ThinkingMethod
 from .llm_provider import LLMRequest, llm_manager
 from .simple_qadi_orchestrator import SimpleQADIOrchestrator, SimpleQADIResult, HypothesisScore
@@ -55,6 +58,12 @@ class MultiPerspectiveQADIResult:
     total_llm_cost: float = 0.0
     perspectives_used: List[QuestionIntent] = field(default_factory=list)
 
+    # Multimodal metadata
+    multimodal_metadata: Dict[str, Any] = field(default_factory=dict)
+    total_images_processed: int = 0
+    total_pages_processed: int = 0
+    total_urls_processed: int = 0
+
     # For backward compatibility
     synthesized_ideas: List[GeneratedIdea] = field(default_factory=list)
 
@@ -85,6 +94,9 @@ class MultiPerspectiveQADIOrchestrator:
         user_input: str,
         max_perspectives: int = 3,
         force_perspectives: Optional[List[QuestionIntent]] = None,
+        multimodal_inputs: Optional[List["MultimodalInput"]] = None,
+        urls: Optional[List[str]] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
     ) -> MultiPerspectiveQADIResult:
         """
         Run multi-perspective QADI analysis.
@@ -93,6 +105,9 @@ class MultiPerspectiveQADIOrchestrator:
             user_input: The user's question or input
             max_perspectives: Maximum number of perspectives to analyze
             force_perspectives: Optional list of perspectives to use (overrides detection)
+            multimodal_inputs: Optional multimodal inputs (images, documents)
+            urls: Optional URLs for context retrieval
+            tools: Optional provider-specific tools (e.g., Gemini url_context)
 
         Returns:
             MultiPerspectiveQADIResult with analysis from multiple perspectives
@@ -117,7 +132,9 @@ class MultiPerspectiveQADIOrchestrator:
         # Run QADI for each perspective in parallel
         perspective_tasks = []
         for perspective in perspectives:
-            task = self._run_perspective_analysis(user_input, perspective)
+            task = self._run_perspective_analysis(
+                user_input, perspective, multimodal_inputs, urls, tools
+            )
             perspective_tasks.append(task)
 
         perspective_results = await asyncio.gather(*perspective_tasks)
@@ -138,6 +155,19 @@ class MultiPerspectiveQADIOrchestrator:
         total_cost = sum(pr.result.total_llm_cost for pr in scored_results)
         total_cost += synthesized.get("synthesis_cost", 0.0)
 
+        # Aggregate multimodal metadata from all perspectives
+        multimodal_metadata = {}
+        total_images = 0
+        total_pages = 0
+        total_urls = 0
+
+        for pr in scored_results:
+            perspective_key = pr.perspective.value
+            multimodal_metadata[perspective_key] = pr.result.multimodal_metadata
+            total_images += pr.result.total_images_processed
+            total_pages += pr.result.total_pages_processed
+            total_urls += pr.result.total_urls_processed
+
         # Create combined result
         return MultiPerspectiveQADIResult(
             primary_intent=primary_intent,
@@ -149,11 +179,20 @@ class MultiPerspectiveQADIOrchestrator:
             best_hypothesis=synthesized["best_hypothesis"],
             total_llm_cost=total_cost,
             perspectives_used=perspectives,
+            multimodal_metadata=multimodal_metadata,
+            total_images_processed=total_images,
+            total_pages_processed=total_pages,
+            total_urls_processed=total_urls,
             synthesized_ideas=self._collect_all_ideas(scored_results),
         )
 
     async def _run_perspective_analysis(
-        self, user_input: str, perspective: QuestionIntent
+        self,
+        user_input: str,
+        perspective: QuestionIntent,
+        multimodal_inputs: Optional[List["MultimodalInput"]] = None,
+        urls: Optional[List[str]] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
     ) -> Optional[SimpleQADIResult]:
         """
         Run QADI analysis from a single perspective.
@@ -172,8 +211,13 @@ class MultiPerspectiveQADIOrchestrator:
             # Augment question with perspective context
             perspective_question = f"From a {perspective.value} perspective: {user_input}"
 
-            # Run QADI cycle (delegates to phase_logic)
-            result = await orchestrator.run_qadi_cycle(perspective_question)
+            # Run QADI cycle (delegates to phase_logic) with multimodal support
+            result = await orchestrator.run_qadi_cycle(
+                perspective_question,
+                multimodal_inputs=multimodal_inputs,
+                urls=urls,
+                tools=tools,
+            )
 
             return result
 

@@ -20,13 +20,16 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from ..utils.text_cleaning import clean_ansi_codes
 from .interfaces import GeneratedIdea, ThinkingMethod
 from .llm_provider import LLMRequest, LLMResponse, ModelConfig, llm_manager
 from .parsing_utils import ActionPlanParser, HypothesisParser, ParsedScores, ScoreParser
 from .qadi_prompts import PHASE_HYPERPARAMETERS, QADIPrompts, calculate_hypothesis_score
+
+if TYPE_CHECKING:
+    from .multimodal import MultimodalInput
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +146,9 @@ class PhaseInput:
         model_config: Model configuration (optional, uses defaults if None)
         context: Accumulated results from previous phases
         max_retries: Maximum retry attempts on failure (default: 2)
+        multimodal_inputs: Optional multimodal inputs (images, documents)
+        urls: Optional URLs for context retrieval
+        tools: Optional provider-specific tools (e.g., Gemini url_context)
     """
 
     user_input: str
@@ -150,6 +156,9 @@ class PhaseInput:
     model_config: Optional[ModelConfig] = None
     context: Dict[str, Any] = field(default_factory=dict)
     max_retries: int = 2
+    multimodal_inputs: Optional[List["MultimodalInput"]] = None
+    urls: Optional[List[str]] = None
+    tools: Optional[List[Dict[str, Any]]] = None
 
 
 @dataclass
@@ -179,6 +188,7 @@ class QuestioningResult:
     core_question: str
     llm_cost: float
     raw_response: str
+    multimodal_metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -190,6 +200,7 @@ class AbductionResult:
     raw_response: str
     num_requested: int
     num_generated: int
+    multimodal_metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -202,6 +213,7 @@ class DeductionResult:
     llm_cost: float
     raw_response: str
     used_parallel: bool  # Whether parallel evaluation was used
+    multimodal_metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -212,6 +224,51 @@ class InductionResult:
     conclusion: str
     llm_cost: float
     raw_response: str
+    multimodal_metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+# ============================================================================
+# Multimodal Input Validation
+# ============================================================================
+
+
+def _validate_multimodal_inputs(
+    multimodal_inputs: Optional[List["MultimodalInput"]],
+    urls: Optional[List[str]],
+) -> None:
+    """
+    Validate multimodal inputs before phase execution.
+
+    Args:
+        multimodal_inputs: Multimodal inputs to validate
+        urls: URLs to validate
+
+    Raises:
+        ValueError: If validation fails
+    """
+    # Validate multimodal inputs
+    if multimodal_inputs:
+        for input_item in multimodal_inputs:
+            try:
+                input_item.validate()
+            except ValueError as e:
+                raise ValueError(f"Multimodal input validation failed: {e}")
+
+    # Validate URLs
+    if urls:
+        # Check URL count (Gemini limit: 20 URLs)
+        if len(urls) > 20:
+            raise ValueError(f"Too many URLs: {len(urls)} (max 20)")
+
+        # Validate each URL format
+        for url_str in urls:
+            if not url_str.startswith(("http://", "https://")):
+                raise ValueError(f"Invalid URL: {url_str} (must start with http:// or https://)")
+
+
+# ============================================================================
+# Phase Execution Functions
+# ============================================================================
 
 
 async def execute_questioning_phase(phase_input: PhaseInput) -> QuestioningResult:
@@ -230,14 +287,26 @@ async def execute_questioning_phase(phase_input: PhaseInput) -> QuestioningResul
     Raises:
         RuntimeError: If question extraction fails after max_retries
     """
+    # Validate multimodal inputs before processing
+    if phase_input.multimodal_inputs or phase_input.urls:
+        _validate_multimodal_inputs(phase_input.multimodal_inputs, phase_input.urls)
+
     # Constants for parsing
     QUESTION_PREFIX = "Q:"
 
     prompts = QADIPrompts()
     prompt = prompts.get_questioning_prompt(phase_input.user_input)
+
+    # Add multimodal context to prompt if present
+    if phase_input.multimodal_inputs:
+        prompt += f"\n\n[Context: {len(phase_input.multimodal_inputs)} multimodal input(s) provided for analysis]"
+    if phase_input.urls:
+        prompt += f"\n[Context: {len(phase_input.urls)} URL(s) provided for additional context]"
+
     hyperparams = PHASE_HYPERPARAMETERS["questioning"]
     total_cost = 0.0
     raw_response = ""
+    multimodal_metadata: Dict[str, Any] = {}
 
     for attempt in range(phase_input.max_retries + 1):
         try:
@@ -246,11 +315,22 @@ async def execute_questioning_phase(phase_input: PhaseInput) -> QuestioningResul
                 temperature=hyperparams["temperature"],
                 max_tokens=int(hyperparams["max_tokens"]),
                 top_p=hyperparams.get("top_p", 0.9),
+                multimodal_inputs=phase_input.multimodal_inputs,
+                urls=phase_input.urls,
+                tools=phase_input.tools,
             )
 
             response = await phase_input.llm_manager.generate(request)
             total_cost += response.cost
             raw_response = response.content
+
+            # Extract multimodal metadata from response
+            multimodal_metadata = {
+                "images_processed": response.total_images_processed or 0,
+                "pages_processed": response.total_pages_processed or 0,
+                "urls_processed": len(phase_input.urls) if phase_input.urls else 0,
+                "url_context_metadata": response.url_context_metadata,
+            }
 
             # Extract the core question
             content = clean_ansi_codes(response.content.strip())
@@ -260,6 +340,7 @@ async def execute_questioning_phase(phase_input: PhaseInput) -> QuestioningResul
                     core_question=match.group(1).strip(),
                     llm_cost=total_cost,
                     raw_response=raw_response,
+                    multimodal_metadata=multimodal_metadata,
                 )
             # Fallback: use the whole response if no Q: prefix
             # Safe removal of prefix only from start of string
@@ -268,11 +349,13 @@ async def execute_questioning_phase(phase_input: PhaseInput) -> QuestioningResul
                     core_question=content[len(QUESTION_PREFIX) :].strip(),
                     llm_cost=total_cost,
                     raw_response=raw_response,
+                    multimodal_metadata=multimodal_metadata,
                 )
             return QuestioningResult(
                 core_question=content.strip(),
                 llm_cost=total_cost,
                 raw_response=raw_response,
+                multimodal_metadata=multimodal_metadata,
             )
 
         except Exception as e:
@@ -322,10 +405,21 @@ async def execute_abduction_phase(
     Raises:
         RuntimeError: If hypothesis generation fails after max_retries (unless max_retries=0)
     """
+    # Validate multimodal inputs before processing
+    if phase_input.multimodal_inputs or phase_input.urls:
+        _validate_multimodal_inputs(phase_input.multimodal_inputs, phase_input.urls)
+
     prompts = QADIPrompts()
     prompt = prompts.get_abduction_prompt(
         phase_input.user_input, core_question, num_hypotheses
     )
+
+    # Add multimodal context to prompt if present
+    if phase_input.multimodal_inputs:
+        prompt += f"\n\n[Context: Consider the {len(phase_input.multimodal_inputs)} multimodal input(s) when generating hypotheses]"
+    if phase_input.urls:
+        prompt += f"\n[Context: Reference the content from {len(phase_input.urls)} URL(s) provided]"
+
     hyperparams = PHASE_HYPERPARAMETERS["abduction"].copy()
 
     # Apply temperature override if provided
@@ -334,6 +428,7 @@ async def execute_abduction_phase(
 
     total_cost = 0.0
     raw_response = ""
+    multimodal_metadata: Dict[str, Any] = {}
 
     for attempt in range(phase_input.max_retries + 1):
         try:
@@ -345,11 +440,22 @@ async def execute_abduction_phase(
                 top_p=hyperparams.get("top_p", 0.95),
                 response_schema=_get_hypothesis_generation_schema(),
                 response_mime_type="application/json",
+                multimodal_inputs=phase_input.multimodal_inputs,
+                urls=phase_input.urls,
+                tools=phase_input.tools,
             )
 
             response = await phase_input.llm_manager.generate(request)
             total_cost += response.cost
             raw_response = response.content
+
+            # Extract multimodal metadata from response
+            multimodal_metadata = {
+                "images_processed": response.total_images_processed or 0,
+                "pages_processed": response.total_pages_processed or 0,
+                "urls_processed": len(phase_input.urls) if phase_input.urls else 0,
+                "url_context_metadata": response.url_context_metadata,
+            }
 
             # Use parsing_utils for hypothesis extraction
             hypotheses = HypothesisParser.parse_with_fallback(
@@ -364,6 +470,7 @@ async def execute_abduction_phase(
                     raw_response=raw_response,
                     num_requested=num_hypotheses,
                     num_generated=len(hypotheses[:num_hypotheses]),
+                    multimodal_metadata=multimodal_metadata,
                 )
 
             logger.warning(
@@ -390,6 +497,7 @@ async def execute_abduction_phase(
                         raw_response=raw_response,
                         num_requested=num_hypotheses,
                         num_generated=0,
+                        multimodal_metadata=multimodal_metadata,
                     )
                 raise RuntimeError(
                     f"Failed to generate hypotheses after {phase_input.max_retries + 1} attempts. "
@@ -406,6 +514,7 @@ async def execute_abduction_phase(
             raw_response=raw_response,
             num_requested=num_hypotheses,
             num_generated=0,
+            multimodal_metadata=multimodal_metadata,
         )
     raise RuntimeError("Failed to generate hypotheses")
 
@@ -435,6 +544,10 @@ async def execute_deduction_phase(
     Raises:
         RuntimeError: If evaluation fails after max_retries
     """
+    # Validate multimodal inputs before processing
+    if phase_input.multimodal_inputs or phase_input.urls:
+        _validate_multimodal_inputs(phase_input.multimodal_inputs, phase_input.urls)
+
     # Check if parallel evaluation needed
     if len(hypotheses) > 5:
         # For now, use sequential (parallel implementation can be added later)
@@ -447,10 +560,18 @@ async def execute_deduction_phase(
     prompt = prompts.get_deduction_prompt(
         phase_input.user_input, core_question, hypotheses_text
     )
+
+    # Add multimodal context to prompt if present
+    if phase_input.multimodal_inputs:
+        prompt += f"\n\n[Context: Use the {len(phase_input.multimodal_inputs)} multimodal input(s) as evidence when evaluating hypotheses]"
+    if phase_input.urls:
+        prompt += f"\n[Context: Consider information from {len(phase_input.urls)} URL(s) in your evaluation]"
+
     hyperparams = PHASE_HYPERPARAMETERS["deduction"]
 
     total_cost = 0.0
     raw_response = ""
+    multimodal_metadata: Dict[str, Any] = {}
 
     for attempt in range(phase_input.max_retries + 1):
         try:
@@ -463,12 +584,23 @@ async def execute_deduction_phase(
                 top_p=hyperparams.get("top_p", 0.9),
                 response_schema=schema,
                 response_mime_type="application/json",
+                multimodal_inputs=phase_input.multimodal_inputs,
+                urls=phase_input.urls,
+                tools=phase_input.tools,
             )
 
             response = await phase_input.llm_manager.generate(request)
             total_cost += response.cost
             raw_response = response.content
             content = clean_ansi_codes(response.content.strip())
+
+            # Extract multimodal metadata from response
+            multimodal_metadata = {
+                "images_processed": response.total_images_processed or 0,
+                "pages_processed": response.total_pages_processed or 0,
+                "urls_processed": len(phase_input.urls) if phase_input.urls else 0,
+                "url_context_metadata": response.url_context_metadata,
+            }
 
             # Try to parse as JSON first (structured output)
             try:
@@ -521,6 +653,7 @@ async def execute_deduction_phase(
                     llm_cost=total_cost,
                     raw_response=raw_response,
                     used_parallel=False,
+                    multimodal_metadata=multimodal_metadata,
                 )
 
             except (json.JSONDecodeError, KeyError, TypeError) as e:
@@ -594,6 +727,7 @@ async def execute_deduction_phase(
                 llm_cost=total_cost,
                 raw_response=raw_response,
                 used_parallel=False,
+                multimodal_metadata=multimodal_metadata,
             )
 
         except Exception as e:
@@ -638,14 +772,26 @@ async def execute_induction_phase(
     Raises:
         RuntimeError: If verification fails after max_retries
     """
+    # Validate multimodal inputs before processing
+    if phase_input.multimodal_inputs or phase_input.urls:
+        _validate_multimodal_inputs(phase_input.multimodal_inputs, phase_input.urls)
+
     CONCLUSION_PREFIX = "Conclusion:"
 
     prompts = QADIPrompts()
     prompt = prompts.get_induction_prompt(phase_input.user_input, core_question, answer)
+
+    # Add multimodal context to prompt if present
+    if phase_input.multimodal_inputs:
+        prompt += f"\n\n[Context: Verify using evidence from the {len(phase_input.multimodal_inputs)} multimodal input(s)]"
+    if phase_input.urls:
+        prompt += f"\n[Context: Draw examples from the content in {len(phase_input.urls)} URL(s)]"
+
     hyperparams = PHASE_HYPERPARAMETERS["induction"]
 
     total_cost = 0.0
     raw_response = ""
+    multimodal_metadata: Dict[str, Any] = {}
 
     for attempt in range(phase_input.max_retries + 1):
         try:
@@ -654,12 +800,23 @@ async def execute_induction_phase(
                 temperature=hyperparams["temperature"],
                 max_tokens=int(hyperparams["max_tokens"]),
                 top_p=hyperparams.get("top_p", 0.9),
+                multimodal_inputs=phase_input.multimodal_inputs,
+                urls=phase_input.urls,
+                tools=phase_input.tools,
             )
 
             response = await phase_input.llm_manager.generate(request)
             total_cost += response.cost
             raw_response = response.content
             content = clean_ansi_codes(response.content.strip())
+
+            # Extract multimodal metadata from response
+            multimodal_metadata = {
+                "images_processed": response.total_images_processed or 0,
+                "pages_processed": response.total_pages_processed or 0,
+                "urls_processed": len(phase_input.urls) if phase_input.urls else 0,
+                "url_context_metadata": response.url_context_metadata,
+            }
 
             # Extract verification examples using pattern matching
             examples = []
@@ -771,6 +928,7 @@ async def execute_induction_phase(
                 conclusion=conclusion,
                 llm_cost=total_cost,
                 raw_response=raw_response,
+                multimodal_metadata=multimodal_metadata,
             )
 
         except Exception as e:

@@ -96,3 +96,6 @@ profile_*.py
 
 # Output files from timeout workaround scripts
 outputs/
+
+# Test multimodal data (local testing only)
+test_multimodal_data/

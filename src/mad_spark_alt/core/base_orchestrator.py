@@ -13,6 +13,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Type
 
+from typing import TYPE_CHECKING
+
 from .interfaces import (
     GeneratedIdea,
     IdeaGenerationRequest,
@@ -21,6 +23,9 @@ from .interfaces import (
     ThinkingMethod,
 )
 from .smart_registry import SmartAgentRegistry, smart_registry
+
+if TYPE_CHECKING:
+    from .multimodal import MultimodalInput
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +144,9 @@ class BaseOrchestrator(ABC):
         problem_statement: str,
         context: Optional[str] = None,
         cycle_config: Optional[Dict[str, Any]] = None,
+        multimodal_inputs: Optional[List["MultimodalInput"]] = None,
+        urls: Optional[List[str]] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
     ) -> Any:
         """
         Execute complete QADI cycle.
@@ -150,6 +158,9 @@ class BaseOrchestrator(ABC):
             problem_statement: The problem or challenge to address
             context: Optional additional context
             cycle_config: Configuration for the cycle execution
+            multimodal_inputs: Optional multimodal inputs (images, documents)
+            urls: Optional URLs for context retrieval
+            tools: Optional provider-specific tools (e.g., Gemini url_context)
 
         Returns:
             Result object (type depends on subclass implementation)
