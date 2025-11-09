@@ -571,6 +571,22 @@ def main(
             # If input matches a subcommand, manually invoke it with proper argument parsing
             for cmd_name in subcommand_names:
                 if input == cmd_name or input_normalized == cmd_name or input == cmd_name.replace('_', '-'):
+                    # Initialize LLM provider BEFORE invoking subcommand
+                    # (some subcommands like evaluate may need LLM providers)
+                    if google_key:
+                        async def init_llm() -> None:
+                            await setup_llm_providers(google_api_key=google_key)
+
+                        try:
+                            asyncio.run(init_llm())
+                        except RuntimeError:
+                            # Already in event loop - skip initialization
+                            if verbose:
+                                console.print("[yellow]Warning: Cannot initialize LLM providers in running event loop[/yellow]")
+                        except Exception as e:
+                            if verbose:
+                                console.print(f"[yellow]Warning: Failed to initialize LLM providers: {e}[/yellow]")
+
                     # Found matching subcommand - create new context to parse remaining args
                     subcommand = ctx.command.commands[cmd_name]
                     # Use make_context to parse remaining CLI tokens (ctx.args contains unparsed args)
