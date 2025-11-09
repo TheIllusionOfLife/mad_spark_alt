@@ -69,14 +69,13 @@ def _get_semantic_operator_status() -> str:
 
 
 def _format_idea_for_display(
-    content: str, max_length: int = 200, wrap_lines: bool = False
+    content: str, max_length: int = 200
 ) -> str:
     """Format idea content for display with smart truncation.
 
     Args:
         content: The idea content to format
         max_length: Maximum length before truncation
-        wrap_lines: Whether to support multi-line display
 
     Returns:
         Formatted content string
