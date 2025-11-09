@@ -30,7 +30,8 @@ Mad Spark Alt is an AI-powered idea generation system implementing the QADI (Que
 - **Genetic Evolution**: Optional idea optimization through evolutionary algorithms
 - **Performance Optimized**: Batch operations provide 60-70% performance improvement
 - **Cost Aware**: Built-in token tracking and cost calculation
-- **CLI First**: Command-line interface for developer-friendly interaction
+- **Unified CLI**: Single `msa` command with default QADI behavior and subcommands
+- **Multimodal Support**: Analyze images, PDFs, and URLs alongside text
 
 ### What This Document Provides
 - Complete system architecture with verified component relationships
@@ -168,16 +169,15 @@ graph TB
 ```mermaid
 graph TD
     subgraph "Entry Points"
-        CLI[mad_spark_alt CLI]
-        QS[qadi_simple.py]
+        CLI[msa CLI - Unified Command]
     end
-    
+
     subgraph "Orchestration Layer"
         SO[SimplerQADIOrchestrator]
         SMO[SimpleQADIOrchestrator]
         Other[Other Orchestrators]
     end
-    
+
     subgraph "Core Services"
         LLM[LLM Provider]
         COST[Cost Tracker]
@@ -238,6 +238,39 @@ graph TD
 | **DiversityCalculator** | Population diversity metrics | `diversity_calculator.py` | Jaccard/Gemini |
 | **TerminalRenderer** | Rich markdown output | `terminal_renderer.py` | rich library |
 | **CostTracker** | Token usage monitoring | `cost_utils.py` | ModelConfig |
+
+### CLI Architecture
+
+**Unified Command**: The system provides a single `msa` (Mad Spark Alt) command with default QADI behavior.
+
+**Entry Point**: `src/mad_spark_alt/unified_cli.py`
+- Registered as `msa` in pyproject.toml console_scripts
+- Default behavior: QADI analysis (no subcommand required)
+- Subcommands: `list-evaluators`, `evaluate`
+
+**CLI Design Pattern**:
+```python
+# Default: QADI analysis
+msa "Your question"              # Runs QADI by default
+
+# With evolution
+msa "Your question" --evolve     # Add genetic optimization
+
+# Multimodal
+msa "Analyze this" --image file.png --url https://example.com
+
+# Subcommands
+msa list-evaluators              # List available evaluators
+msa evaluate "text"              # Evaluate creativity
+```
+
+**Migration from Dual CLI**: Previously had `mad_spark_alt` and `mad-spark` commands. Now unified under `msa`.
+
+**Implementation**:
+- Uses Click for argument parsing
+- Default subcommand pattern for QADI
+- Shares code with evaluation CLI for consistency
+- Multimodal input support via `--image`, `--document`, `--url` flags
 
 ### Orchestrator Hierarchy (Verified)
 
@@ -467,7 +500,7 @@ sequenceDiagram
     participant LLM
     participant Renderer
     
-    User->>CLI: mad_spark_alt "question"
+    User->>CLI: msa "question"
     CLI->>Orchestrator: run_qadi_cycle()
     
     Note over Orchestrator: Phase 1: Question
@@ -673,7 +706,7 @@ uv sync  # or: pip install -e .
 echo "GOOGLE_API_KEY=your_key_here" > .env
 
 # 4. Verify installation
-uv run mad_spark_alt --help
+msa --help  # or: uv run msa --help
 ```
 
 ### CI/CD Pipeline
