@@ -521,21 +521,21 @@ def main(ctx, input, verbose, temperature, evolve, generations, population, trad
     Examples:
 
       # Basic QADI analysis
-      mad-spark "How can we reduce food waste?"
+      msa "How can we reduce food waste?"
 
       # QADI with evolution
-      mad-spark "Improve remote work" --evolve --generations 3
+      msa "Improve remote work" --evolve --generations 3
 
       # With multimodal inputs
-      mad-spark "Analyze this design" --image design.png
+      msa "Analyze this design" --image design.png
 
       # With temperature control
-      mad-spark "New product ideas" --temperature 1.5
+      msa "New product ideas" --temperature 1.5
 
     Use subcommands for evaluation features:
 
-      mad-spark evaluate "text to evaluate"
-      mad-spark list-evaluators
+      msa evaluate "text to evaluate"
+      msa list-evaluators
     """
     # Load environment variables
     load_env_file()
@@ -556,13 +556,13 @@ def main(ctx, input, verbose, temperature, evolve, generations, population, trad
             if population < 2 or population > 10:
                 console.print(f"[red]Error: Population size must be between 2 and 10 (got {population})[/red]")
                 console.print("\n[yellow]Valid range:[/yellow] 2 to 10")
-                console.print("Example: mad-spark \"Your question\" --evolve --population 5")
+                console.print("Example: msa \"Your question\" --evolve --population 5")
                 ctx.exit(1)
 
             if generations < 2 or generations > 5:
                 console.print(f"[red]Error: Generations must be between 2 and 5 (got {generations})[/red]")
                 console.print("\n[yellow]Valid range:[/yellow] 2 to 5")
-                console.print("Example: mad-spark \"Your question\" --evolve --generations 3")
+                console.print("Example: msa \"Your question\" --evolve --generations 3")
                 ctx.exit(1)
 
         # Check API key
@@ -1112,11 +1112,11 @@ def list_evaluators() -> None:
     console.print(table)
     console.print("\n[bold]Usage Examples:[/bold]")
     console.print("  # Use a single evaluator:")
-    console.print("  mad-spark evaluate 'text' --evaluators diversity_evaluator")
+    console.print("  msa evaluate 'text' --evaluators diversity_evaluator")
     console.print("\n  # Use multiple evaluators:")
-    console.print("  mad-spark evaluate 'text' --evaluators diversity_evaluator,quality_evaluator")
+    console.print("  msa evaluate 'text' --evaluators diversity_evaluator,quality_evaluator")
     console.print("\n  # Use all evaluators (default):")
-    console.print("  mad-spark evaluate 'text'")
+    console.print("  msa evaluate 'text'")
 
 
 @main.command()

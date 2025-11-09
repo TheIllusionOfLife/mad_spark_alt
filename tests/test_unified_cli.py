@@ -181,15 +181,23 @@ class TestUnifiedCLIEvolution:
 class TestUnifiedCLISubcommands:
     """Test explicit subcommands."""
 
-    def test_evolve_subcommand_exists(self):
-        """Evolve subcommand should be available."""
+    def test_evolve_is_flag_not_subcommand(self):
+        """Evolution should be accessed via --evolve flag, not 'evolve' subcommand."""
         from mad_spark_alt.unified_cli import main
 
         runner = CliRunner()
-        result = runner.invoke(main, ['evolve', '--help'])
 
+        # Check that --help shows --evolve flag
+        result = runner.invoke(main, ['--help'])
         assert result.exit_code == 0
-        assert 'evolve' in result.output.lower() or 'Evolution' in result.output
+        assert '--evolve' in result.output
+
+        # Check that 'evolve' as a word in help is described as a flag, not subcommand
+        # The help should NOT list "evolve" as a command like "evaluate" or "list-evaluators"
+        assert 'Commands:' in result.output
+        commands_section = result.output.split('Commands:')[1] if 'Commands:' in result.output else ""
+        # 'evolve' should NOT appear in the commands section
+        assert 'evolve' not in commands_section.lower() or '--evolve' in result.output
 
     def test_evaluate_subcommand_exists(self):
         """Evaluate subcommand should be available."""
