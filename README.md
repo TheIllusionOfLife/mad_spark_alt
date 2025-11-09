@@ -374,7 +374,7 @@ See the `run_nohup.sh` script for our solution to terminal timeout issues.
 - **[CLAUDE.md](CLAUDE.md)** - AI assistant instructions and development patterns
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** - Architecture, API reference, contribution guide
 - **[RESEARCH.md](RESEARCH.md)** - QADI methodology background
-- **[SESSION_HANDOVER.md](SESSION_HANDOVER.md)** - Development history and learnings
+- **[session_handover.md](session_handover.md)** - Development history and learnings
 - **[STRUCTURED_OUTPUT.md](docs/STRUCTURED_OUTPUT.md)** - Gemini structured output implementation
 - **[docs/](docs/)** - Additional documentation including CLI usage, examples, and API reference
 
@@ -383,11 +383,12 @@ See the `run_nohup.sh` script for our solution to terminal timeout issues.
 ### Current Priorities
 
 **Active Development:**
-1. **Result Export & Persistence** - Add `--output` flag to main `mad_spark_alt` command for saving analysis results
-2. **Performance Optimization: Diversity Calculation** - Reduce O(n²) complexity to enable larger population sizes
-3. **Directed Evolution Mode** - Intelligent evolution with targeted mutations and multi-stage strategies
+1. **Performance Optimization: Diversity Calculation** - Reduce O(n²) complexity to enable larger population sizes
+2. **Directed Evolution Mode** - Intelligent evolution with targeted mutations and multi-stage strategies
 
 **Recently Completed:**
+- ✅ **Result Export & Persistence** (PR #130) - JSON/Markdown export with security validation
+- ✅ **Unified CLI Architecture** (PR #126) - Single `msa` command with -4,164 lines reduction
 - ✅ **Phase 1 Performance Optimizations** (PR #97) - 60-70% execution time improvement through batch operations
 - ✅ **Semantic Diversity Calculator** (PR #93) - Gemini embeddings for true semantic understanding
 - ✅ **Structured Output Implementation** (PR #71) - Reliable parsing with Gemini's responseSchema
@@ -414,197 +415,24 @@ This implementation significantly reduces "Failed to extract enough hypotheses" 
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development setup, contribution guide, and testing
 - **[RESEARCH.md](RESEARCH.md)** - QADI methodology and academic background
 - **[CLAUDE.md](CLAUDE.md)** - AI assistant development patterns and learned practices
-- **[SESSION_HANDOVER.md](SESSION_HANDOVER.md)** - Development progress, learnings, and future roadmap
+- **[session_handover.md](session_handover.md)** - Development progress, learnings, and future roadmap
 - **[DEPRECATED.md](DEPRECATED.md)** - Deprecated features and migration notes
 - **[docs/](docs/)** - API reference, CLI usage, code examples, and detailed guides
 
-## Session Handover
+## Session Status
 
-### Last Updated: November 08, 2025 11:46 AM JST
+**Last Updated**: November 09, 2025 11:20 PM JST
 
-#### Recently Completed
-- ✅ **[PR #119]**: Split semantic_operators.py (Step 13) - **Phase 3 Item 1/4 Complete**
-  - 1,926 → 62 lines (97% reduction!)
-  - Created 4 focused modules: semantic_utils (262), operator_cache (202), semantic_mutation (903), semantic_crossover (646)
-  - Added 26 baseline integration tests, all 779 tests passing
-  - Addressed 9 review issues across 3 cycles (gemini-code-assist, coderabbitai×2)
-  - Cache keys now include full context with deterministic MD5 hashing
+**Recent Highlights**:
+- ✅ PR #130: Result Export & Persistence System (844/844 tests passing)
+- ✅ PR #126: Unified CLI Architecture (-4,164 lines)
+- ✅ All CI checks passing, system stable
 
-- ✅ **[PR #118]**: UnifiedQADIOrchestrator MultiPerspective strategy (Step 11b)
-- ✅ **[PR #117]**: UnifiedQADIOrchestrator Simple strategy (Step 11a)
-- ✅ **[PR #115]**: MultiPerspective Refactoring (507→312 lines, -38%)
-  - Phase 2 now **100% complete** (6/6 items)
+**Next Priorities**:
+- Performance Optimization: Diversity Calculation
+- Directed Evolution Mode
 
-- ✅ **[PR #114]**: Removed legacy orchestrators (738 lines)
-  - Deleted enhanced_orchestrator.py, robust_orchestrator.py, fast_orchestrator.py
-  - Updated examples to use SmartQADIOrchestrator
-  - Phase 2 Item 10 complete
-
-- ✅ **[PR #112]**: BaseOrchestrator infrastructure implementation (Step 7)
-  - Created abstract base class with circuit breaker pattern
-  - Added shared orchestration logic (context building, error handling)
-  - 468 lines, 49 comprehensive tests passing
-
-- ✅ **[PR #111]**: Phase logic extraction (Step 6)
-  - Extracted all 4 QADI phases to standalone module (791 lines)
-  - Reduced SimpleQADI from 1,003 → 221 lines
-  - Clear separation of orchestration from phase logic
-
-#### Refactoring Plan Progress (79% Complete)
-**Reference**: See `refactoring_plan_20251106.md` for detailed plan
-
-**Phase 1**: ✅ **100% Complete** (4/4 items)
-- All quick wins implemented and merged
-
-**Phase 2**: ✅ **100% Complete** (6/6 items)
-- ✅ Items 5-8: Parsing utils, phase logic, base orchestrator, SimpleQADI refactored
-- ✅ Item 9: MultiPerspective refactored (507 → 312 lines, 38% reduction)
-- ✅ Item 10: Legacy orchestrators removed (738 lines)
-
-**Phase 3**: ⏳ **In Progress** (1/4 items, 25%)
-- ✅ Item 13: semantic_operators.py split (1,926 → 62 lines, 97% reduction!) - **COMPLETED 2025-11-08**
-- ❌ Items 11-12, 14: Unified orchestrator, config system, deprecations - **TODO**
-
-#### Next Priority Tasks
-
-1. **[NEXT - Phase 3] Create Unified Orchestrator (Step 11)**
-   - **Source**: refactoring_plan_20251106.md lines 854-919
-   - **Context**: Single orchestrator with config-based behavior selection
-   - **Dependencies**: Phase 2 complete ✅
-   - **Estimate**: 3 days
-   - **Note**: Phase 2 is now complete, ready to start Phase 3
-
-2. **[Phase 3] Extract Config System (Step 12)**
-   - **Source**: refactoring_plan_20251106.md
-   - **Context**: Centralized configuration management
-   - **Depends on**: Step 11 complete
-   - **Estimate**: 2 days
-
-3. **[Phase 3] Deprecate Old Orchestrators (Step 14)**
-   - **Source**: refactoring_plan_20251106.md
-   - **Context**: Add deprecation warnings to orchestrators replaced by Unified Orchestrator
-   - **Depends on**: Step 11 complete
-   - **Estimate**: 1 day
-
-#### Known Issues / Blockers
-- None - Phase 2 complete, ready for Phase 3
-
-#### Session Learnings
-
-**PR #119: Multi-Cycle Review Process (2025-11-08)**:
-- Addressed 9 issues across 3 review cycles (gemini-code-assist, coderabbitai×2)
-- Systematic priority handling: HIGH (cache TTL) → MEDIUM (DRY violations, imports, constants) → NITPICK (deterministic hashing) → DOCS (status clarity)
-- All 3 sources extracted for every reviewer: comments, review bodies, line comments
-- Real API testing validated refactoring preserved functionality
-- **Lesson**: Multiple review cycles are normal for large refactorings - address feedback systematically by priority
-
-**Semantic Operators Refactoring (2025-11-08)**:
-- Split 1,926-line monolithic file into 4 focused modules (97% reduction in main file)
-- TDD approach: 26 baseline tests before refactoring, all 779 tests passing after
-- 100% backward compatibility via re-export module pattern
-- Cache key improvements: full context inclusion + deterministic MD5 hashing
-- **Lesson**: Re-export modules enable aggressive refactoring while maintaining compatibility
-
-**Refactoring Delegation Pattern (2025-11-07 to 2025-11-08)**:
-- MultiPerspective refactoring achieved 38% code reduction (507→312 lines)
-- TDD approach: baseline tests first, then refactor, then update tests for new architecture
-- Delegation pattern: `_run_perspective_analysis()` creates SimpleQADI instances per perspective
-- Removed 195 lines of duplicate QADI phase logic by delegating to SimpleQADI
-- Real API testing validated no regressions (timeouts, truncation, errors)
-- **Lesson**: Write comprehensive tests before refactoring to catch regressions early
-
-**Phase 2 Completion (2025-11-07 to 2025-11-08)**:
-- All 6 Phase 2 items complete: parsing utils, phase logic, base orchestrator, SimpleQADI, MultiPerspective, legacy removal
-- Total lines removed in Phase 2: ~2,600+ lines across 6 PRs
-- Architecture now follows clear patterns: shared infrastructure (base), phase execution (phase_logic), orchestration (orchestrators)
-- **Lesson**: Consistent patterns across refactoring make each subsequent step easier
-
-**Multimodal Phase 1 Foundation (2025-11-08)**:
-- ✅ PR #122 merged: Provider-agnostic multimodal data structures and utilities
-- **Completed**: 4 new files (1,222 lines), 3 modified files (+99 lines), 62 new tests (100% pass)
-- **Core Additions**: `MultimodalInput` dataclass, 7 utility functions, extended `LLMRequest`/`LLMResponse`
-- **Key Features**: MIME detection, base64 encoding, URL validation, path resolution, file size checks
-- **Validation**:
-  - Max 20MB for images.
-  - Max 1000 pages for documents.
-  - Max 20 URLs per request.
-  - Max 3600 images per request.
-- **Test Results**: 850 tests pass, 0 regressions, mypy passes
-- **Learned Patterns**:
-  - Pydantic forward references using `TYPE_CHECKING` and `model_rebuild()`.
-  - GraphQL for comprehensive PR review extraction.
-  - Systematic feedback processing by priority.
-  - API consistency: Validators should raise `ValueError`, not return `bool`.
-
-## Session Handover
-
-### Last Updated: November 09, 2025 03:46 PM JST
-
-#### Recently Completed
-
-- ✅ **[PR #126]**: Unified CLI Consolidation
-  - **Achievement**: Consolidated two CLI systems (`mad-spark` + `qadi_simple.py`) into single `msa` command
-  - **Code Reduction**: Net -4,164 lines (-6,681 deleted, +2,517 added) while preserving all functionality
-  - **Architecture**: Default QADI behavior, evolution as flag, all multimodal features preserved
-  - **Critical Fixes**: Click subcommand recognition, LLM provider initialization order, semantic operator flag respect
-  - **Documentation**: Comprehensive migration guide in `docs/CLI_MIGRATION.md`
-  - **Test Coverage**: 237 test cases, 99.7% passing (820/856 total tests)
-
-- ✅ **[PR #125]**: Phase 3 - QADI Orchestrator Multimodal Integration
-  - Integrated multimodal support into QADI orchestration layer
-  - Enhanced SimpleQADIOrchestrator with image, document, and URL processing
-
-- ✅ **[PR #124]**: Phase 2 - Gemini Provider Multimodal Support
-  - Implemented Gemini API multimodal features
-  - Added support for images, PDFs, and URL context retrieval
-
-- ✅ **[PR #122]**: Phase 1 - Multimodal Foundation & Data Structures
-  - Established multimodal data structures and interfaces
-  - Foundation for image, document, and URL processing
-
-#### Next Priority Tasks
-
-1. **[Optional Enhancement] Test Coverage for Multimodal Edge Cases**
-   - Source: PR #126 test analysis shows 99.7% passing (820/856 tests)
-   - Context: 36 failing tests mentioned in PR likely due to import path changes
-   - Approach: Run `grep -r "mad_spark_alt.cli" tests/ | grep -v unified_cli` to identify legacy imports
-   - Estimate: 1-2 hours to update test imports and verify all pass
-
-2. **[Documentation] Architecture Documentation Update**
-   - Source: CodeRabbit review feedback
-   - Context: `ARCHITECTURE.md:229` still references deleted `qadi_simple.py` instead of `unified_cli.py`
-   - Approach: Update architecture diagrams and file references to reflect unified CLI
-   - Estimate: 30 minutes
-
-3. **[Code Quality] Remove Unused Parameters**
-   - Source: CodeRabbit minor issue
-   - Context: `wrap_lines` parameter in `_format_idea_for_display` (line 72) is never used
-   - Approach: Remove parameter or implement functionality if intended
-   - Estimate: 15 minutes
-
-4. **[Optional] CLI File Size Reduction**
-   - Source: CodeRabbit suggestion
-   - Context: `unified_cli.py` is 1,478 lines (large but manageable)
-   - Decision Point: Consider splitting if it becomes harder to maintain
-   - Approach: Could separate QADI logic, evolution logic, and evaluation logic into modules
-   - Estimate: 3-4 hours for comprehensive refactoring (only if needed)
-
-5. **[Future Enhancement] Enhanced Error Messages**
-   - Source: CodeRabbit suggestion
-   - Context: Could add suggestions for common mistakes and link to migration guide
-   - Approach: Add helper text when old commands detected (e.g., `mad-spark` → suggest `msa`)
-   - Estimate: 1-2 hours
-
-#### Known Issues / Blockers
-
-None currently. All CI checks passing, CodeRabbit approved, system stable.
-
-#### Session Learnings
-
-- **Click Framework Limitation**: When using `@click.group(invoke_without_command=True)` with optional `@click.argument()`, Click processes arguments before subcommands, causing ambiguity. Solution requires manual subcommand dispatch with proper argument parsing.
-- **LLM Provider Initialization Order**: Manual subcommand dispatch returns early, bypassing normal initialization flow. Must initialize providers BEFORE subcommand invocation.
-- **EvolutionConfig Flag Respect**: Config parameters must respect CLI flags - `use_semantic_operators` must be set to `not traditional`, not hardcoded to `True`.
-- **Net Code Reduction as Quality Metric**: The -4,164 line reduction while preserving functionality demonstrates successful consolidation and DRY principles.
+For complete session details, see **[session_handover.md](session_handover.md)**.
 
 ## License
 
