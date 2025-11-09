@@ -14,6 +14,48 @@ from mad_spark_alt.core.unified_orchestrator import UnifiedQADIResult
 from mad_spark_alt.evolution.interfaces import EvolutionResult
 
 
+def _validate_export_path(filepath: Path) -> Path:
+    """
+    Validate export file path to prevent directory traversal attacks.
+
+    Args:
+        filepath: Path to validate
+
+    Returns:
+        Resolved absolute path
+
+    Raises:
+        ValueError: If path contains directory traversal patterns or attempts
+                   to write outside allowed directories
+    """
+    try:
+        # Resolve to absolute path (handles .. and symlinks)
+        resolved_path = filepath.resolve()
+
+        # Check for suspicious patterns in the original path string
+        path_str = str(filepath)
+        if ".." in path_str:
+            raise ValueError(
+                f"Path traversal detected: '{filepath}'. "
+                "Paths containing '..' are not allowed."
+            )
+
+        # Ensure we're not trying to write to system directories
+        # Use resolved path to handle symlinks (e.g., /etc -> /private/etc on macOS)
+        resolved_str = str(resolved_path)
+        restricted_dirs = ["/etc", "/private/etc", "/sys", "/proc", "/dev", "/boot", "/System"]
+        for restricted in restricted_dirs:
+            if resolved_str.startswith(restricted):
+                raise ValueError(
+                    f"Cannot write to restricted directory: {resolved_path}"
+                )
+
+        return resolved_path
+
+    except (OSError, RuntimeError) as e:
+        raise ValueError(f"Invalid file path: {filepath}. Error: {e}") from e
+
+
 def export_to_json(
     result: Union[SimpleQADIResult, UnifiedQADIResult],
     filepath: Union[str, Path],
@@ -30,12 +72,16 @@ def export_to_json(
         timestamp: Whether to include export timestamp
 
     Raises:
+        ValueError: If path is invalid or contains directory traversal
         OSError: If file cannot be written
     """
     filepath = Path(filepath)
 
+    # Validate path to prevent directory traversal attacks
+    validated_path = _validate_export_path(filepath)
+
     # Create parent directories if they don't exist
-    filepath.parent.mkdir(parents=True, exist_ok=True)
+    validated_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Build export data
     export_data: Dict[str, Any] = {}
@@ -53,7 +99,7 @@ def export_to_json(
         export_data["exported_at"] = datetime.now(timezone.utc).isoformat()
 
     # Write to file with pretty formatting
-    with open(filepath, "w", encoding="utf-8") as f:
+    with open(validated_path, "w", encoding="utf-8") as f:
         json.dump(export_data, f, indent=2, ensure_ascii=False)
 
 
@@ -71,12 +117,16 @@ def export_to_markdown(
         evolution_result: Optional evolution results to include
 
     Raises:
+        ValueError: If path is invalid or contains directory traversal
         OSError: If file cannot be written
     """
     filepath = Path(filepath)
 
+    # Validate path to prevent directory traversal attacks
+    validated_path = _validate_export_path(filepath)
+
     # Create parent directories if they don't exist
-    filepath.parent.mkdir(parents=True, exist_ok=True)
+    validated_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Build markdown content
     lines = []
@@ -210,7 +260,7 @@ def export_to_markdown(
         lines.append(f"**URLs Processed:** {result.total_urls_processed}")
 
     # Write to file
-    with open(filepath, "w", encoding="utf-8") as f:
+    with open(validated_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
 

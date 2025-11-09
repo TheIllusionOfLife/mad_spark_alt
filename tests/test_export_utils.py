@@ -368,3 +368,88 @@ class TestFilenameGeneration:
         # Invalid format should raise error
         with pytest.raises(ValueError, match="Unsupported format"):
             generate_export_filename("txt")
+
+
+class TestPathValidation:
+    """Test path validation security features."""
+
+    def test_rejects_path_traversal_with_dotdot(self, tmp_path):
+        """Test that paths with .. are rejected."""
+        result = SimpleQADIResult(
+            core_question="Test",
+            hypotheses=["H1"],
+            hypothesis_scores=[HypothesisScore(0.5, 0.5, 0.5, 0.5, 0.5, 0.5)],
+            final_answer="Answer",
+            action_plan=["Step 1"],
+            verification_examples=["Example 1"],
+            verification_conclusion="Conclusion",
+            total_llm_cost=0.01,
+            synthesized_ideas=[],
+        )
+
+        # Attempt path traversal with ..
+        malicious_path = tmp_path / ".." / "etc" / "passwd"
+
+        with pytest.raises(ValueError, match="Path traversal detected"):
+            export_to_json(result, malicious_path)
+
+    def test_rejects_writing_to_system_directories(self, tmp_path):
+        """Test that writing to system directories is rejected."""
+        result = SimpleQADIResult(
+            core_question="Test",
+            hypotheses=["H1"],
+            hypothesis_scores=[HypothesisScore(0.5, 0.5, 0.5, 0.5, 0.5, 0.5)],
+            final_answer="Answer",
+            action_plan=["Step 1"],
+            verification_examples=["Example 1"],
+            verification_conclusion="Conclusion",
+            total_llm_cost=0.01,
+            synthesized_ideas=[],
+        )
+
+        # Attempt to write to /etc
+        system_path = Path("/etc/malicious.json")
+
+        with pytest.raises(ValueError, match="Cannot write to restricted directory"):
+            export_to_json(result, system_path)
+
+    def test_allows_valid_relative_paths(self, tmp_path):
+        """Test that valid relative paths without .. work correctly."""
+        result = SimpleQADIResult(
+            core_question="Test",
+            hypotheses=["H1"],
+            hypothesis_scores=[HypothesisScore(0.5, 0.5, 0.5, 0.5, 0.5, 0.5)],
+            final_answer="Answer",
+            action_plan=["Step 1"],
+            verification_examples=["Example 1"],
+            verification_conclusion="Conclusion",
+            total_llm_cost=0.01,
+            synthesized_ideas=[],
+        )
+
+        # Valid relative path (no ..)
+        valid_path = tmp_path / "subdir" / "output.json"
+
+        # Should succeed
+        export_to_json(result, valid_path)
+        assert valid_path.exists()
+
+    def test_markdown_export_validates_paths(self, tmp_path):
+        """Test that markdown export also validates paths."""
+        result = SimpleQADIResult(
+            core_question="Test",
+            hypotheses=["H1"],
+            hypothesis_scores=[HypothesisScore(0.5, 0.5, 0.5, 0.5, 0.5, 0.5)],
+            final_answer="Answer",
+            action_plan=["Step 1"],
+            verification_examples=["Example 1"],
+            verification_conclusion="Conclusion",
+            total_llm_cost=0.01,
+            synthesized_ideas=[],
+        )
+
+        # Attempt path traversal
+        malicious_path = tmp_path / ".." / "etc" / "passwd"
+
+        with pytest.raises(ValueError, match="Path traversal detected"):
+            export_to_markdown(result, malicious_path)
