@@ -8,7 +8,7 @@ from pathlib import Path
 from click.testing import CliRunner
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from mad_spark_alt.cli import main
+from mad_spark_alt.unified_cli import main
 from mad_spark_alt.core.multimodal import MultimodalInput, MultimodalInputType, MultimodalSourceType
 
 

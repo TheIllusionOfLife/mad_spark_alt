@@ -7,7 +7,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from click.testing import CliRunner
 
-from mad_spark_alt.cli import main
+from mad_spark_alt.unified_cli import main
 from mad_spark_alt.core.interfaces import (
     EvaluationRequest,
     ModelOutput,
@@ -125,14 +125,14 @@ class TestEvaluatorFiltering:
         self, cli_runner, mock_evaluator_registry, mock_evaluation_result
     ):
         """Test that single evaluator can be selected via --evaluators flag."""
-        with patch("mad_spark_alt.cli.CreativityEvaluator") as mock_evaluator_class:
+        with patch("mad_spark_alt.unified_cli.CreativityEvaluator") as mock_evaluator_class:
             mock_evaluator = AsyncMock()
             mock_evaluator.evaluate.return_value = mock_evaluation_result
             mock_evaluator_class.return_value = mock_evaluator
 
             result = cli_runner.invoke(
                 main,
-                ["evaluate", "test text", "--evaluators", "novelty_evaluator"],
+                ["evaluate", "--evaluators", "novelty_evaluator", "test text"],
             )
 
             assert result.exit_code == 0, f"CLI failed: {result.output}"
@@ -148,7 +148,7 @@ class TestEvaluatorFiltering:
         self, cli_runner, mock_evaluator_registry, mock_evaluation_result
     ):
         """Test that multiple evaluators can be selected via --evaluators flag."""
-        with patch("mad_spark_alt.cli.CreativityEvaluator") as mock_evaluator_class:
+        with patch("mad_spark_alt.unified_cli.CreativityEvaluator") as mock_evaluator_class:
             mock_evaluator = AsyncMock()
             mock_evaluator.evaluate.return_value = mock_evaluation_result
             mock_evaluator_class.return_value = mock_evaluator
@@ -157,9 +157,9 @@ class TestEvaluatorFiltering:
                 main,
                 [
                     "evaluate",
-                    "test text",
                     "--evaluators",
                     "novelty_evaluator,diversity_evaluator",
+                    "test text",
                 ],
             )
 
@@ -178,7 +178,7 @@ class TestEvaluatorFiltering:
         """Test that invalid evaluator names produce helpful error messages."""
         result = cli_runner.invoke(
             main,
-            ["evaluate", "test text", "--evaluators", "fake_evaluator"],
+            ["evaluate", "--evaluators", "fake_evaluator", "test text"],
         )
 
         assert result.exit_code != 0, "Should fail with invalid evaluator"
@@ -190,7 +190,7 @@ class TestEvaluatorFiltering:
         self, cli_runner, mock_evaluator_registry, mock_evaluation_result
     ):
         """Test backward compatibility: no flag means use all evaluators."""
-        with patch("mad_spark_alt.cli.CreativityEvaluator") as mock_evaluator_class:
+        with patch("mad_spark_alt.unified_cli.CreativityEvaluator") as mock_evaluator_class:
             mock_evaluator = AsyncMock()
             mock_evaluator.evaluate.return_value = mock_evaluation_result
             mock_evaluator_class.return_value = mock_evaluator
@@ -210,7 +210,7 @@ class TestEvaluatorFiltering:
         self, cli_runner, mock_evaluator_registry, mock_evaluation_result
     ):
         """Test that evaluator names are trimmed of whitespace."""
-        with patch("mad_spark_alt.cli.CreativityEvaluator") as mock_evaluator_class:
+        with patch("mad_spark_alt.unified_cli.CreativityEvaluator") as mock_evaluator_class:
             mock_evaluator = AsyncMock()
             mock_evaluator.evaluate.return_value = mock_evaluation_result
             mock_evaluator_class.return_value = mock_evaluator

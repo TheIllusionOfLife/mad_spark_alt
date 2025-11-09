@@ -78,79 +78,83 @@ uv sync  # Or: pip install -e .
 echo "GOOGLE_API_KEY=your_key_here" > .env
 ```
 
-### Default Command (Recommended)
+### Basic Usage (Short Alias)
 
 ```bash
-# Simple, clear analysis with improved Phase 1
-uv run mad_spark_alt "How can we reduce plastic waste?"
+# Simple QADI analysis (default command)
+msa "How can we reduce plastic waste?"
 
-# Add genetic evolution to optimize ideas (uses semantic operators by default)
-uv run mad_spark_alt "How can we reduce plastic waste?" --evolve
+# With genetic evolution
+msa "How can we reduce plastic waste?" --evolve
 
 # Display help
-uv run mad_spark_alt --help
+msa --help
+```
+
+### Using with uv run
+
+```bash
+# If msa alias doesn't work, use full command
+uv run msa "How can we reduce plastic waste?"
+uv run msa "Your question" --evolve
 ```
 
 ### Advanced Options
 
 ```bash
 # Temperature control (creativity level)
-uv run mad_spark_alt "Your question" --temperature 1.2
+msa "Your question" --temperature 1.2
 
 # Customize evolution parameters (generations = 2, population = 5 by default)
-uv run mad_spark_alt "Your question" --evolve --generations 3 --population 8
+msa "Your question" --evolve --generations 3 --population 8
 
 # Use traditional operators for faster evolution
-uv run mad_spark_alt "Your question" --evolve --traditional
+msa "Your question" --evolve --traditional
 
-# Use semantic diversity calculation for enhanced idea variety (slower but more accurate)
-uv run mad_spark_alt "Your question" --temperature 2.0 --evolve --generations 2 --population 10 --diversity-method semantic --verbose
+# Use semantic diversity calculation for enhanced idea variety
+msa "Your question" --temperature 2.0 --evolve --generations 2 --population 10 --diversity-method semantic --verbose
 
 # Analyze an image with QADI
-uv run mad-spark evolve "Analyze this design for improvement" --image design.png
+msa "Analyze this design for improvement" --image design.png
 
 # Process a PDF document
-uv run mad-spark evolve "Summarize key findings" --document research.pdf
+msa "Summarize key findings" --document research.pdf
 
 # Combine multiple modalities
-uv run mad-spark evolve "Compare these approaches" --image chart1.png --image chart2.png --url https://example.com/article
+msa "Compare these approaches" --image chart1.png --image chart2.png --url https://example.com/article
 
 # Multiple documents and URLs
-uv run mad-spark evolve "Synthesize insights" --document report1.pdf --document report2.pdf --url https://source1.com --url https://source2.com
+msa "Synthesize insights" --document report1.pdf --document report2.pdf --url https://source1.com --url https://source2.com
 ```
 
-## Important: Two Different Commands
+## Command Reference
 
-This project provides two distinct command-line interfaces:
+The main command is **`msa`** (short for Mad Spark Alt), which provides QADI analysis by default:
 
-### 1. `mad_spark_alt` (Main Command - Recommended)
-- **Purpose**: QADI analysis for idea generation
-- **Example**: `uv run mad_spark_alt "prompt"`
-- **Commands**: `uv run mad_spark_alt --help`
+```bash
+# Default: QADI analysis
+msa "Your question here"
 
-### 2. `mad-spark` (Alternative CLI)
-- **Purpose**: General CLI for various tasks
-- **Example**: `uv run mad-spark [command] "prompt"`
-- **Commands**: `uv run mad-spark --help`
+# List available commands
+msa --help
+```
 
-**Note**: Most users should use `mad_spark_alt` for QADI analysis. The `mad-spark` CLI is for advanced evaluation workflows.
+### Subcommands
 
-#### Evaluator Filtering
-
-The `mad-spark evaluate` command supports filtering which evaluators to run:
+While QADI analysis is the default (no subcommand needed), additional commands are available:
 
 ```bash
 # List available evaluators
-uv run mad-spark list-evaluators
+msa list-evaluators
 
-# Use a specific evaluator
-uv run mad-spark evaluate "text" --evaluators diversity_evaluator
+# Evaluate text with specific evaluators
+msa evaluate "text" --evaluators diversity_evaluator
 
 # Use multiple evaluators
-uv run mad-spark evaluate "text" --evaluators diversity_evaluator,quality_evaluator
+msa evaluate "text" --evaluators diversity_evaluator,quality_evaluator
 
 # Use all evaluators (default)
-uv run mad-spark evaluate "text"
+msa evaluate "text"
 ```
 
 ## How QADI Works
@@ -292,14 +296,14 @@ This is caused by the execution environment (terminal/shell/IDE), not the applic
 
 **Solution**: Use the provided nohup wrapper script for long-running tasks:
 ```bash
-# Instead of: uv run mad_spark_alt "prompt" --evolve
+# Instead of: msa "prompt" --evolve
 # Use: ./run_nohup.sh "prompt" --evolve
 
 # Example
 ./run_nohup.sh "Create a game concept" --evolve --generations 3 --population 10
 ```
 
-Output will be saved to `outputs/mad_spark_alt_output_TIMESTAMP.txt`. 
+Output will be saved to `outputs/msa_output_TIMESTAMP.txt`. 
 
 See the `run_nohup.sh` script for our solution to terminal timeout issues.
 

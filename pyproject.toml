@@ -31,8 +31,7 @@ multimodal = [
 ]
 
 [project.scripts]
-mad-spark = "mad_spark_alt.cli:main"
-mad_spark_alt = "mad_spark_alt.main_qadi:main"
+msa = "mad_spark_alt.unified_cli:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -30,9 +30,9 @@ if [ ! -d ".venv" ]; then
     exit 1
 fi
 
-# Check if mad_spark_alt is installed
-if [ ! -f ".venv/bin/mad_spark_alt" ]; then
-    echo "Error: mad_spark_alt not found in virtual environment"
+# Check if msa is installed
+if [ ! -f ".venv/bin/msa" ]; then
+    echo "Error: msa not found in virtual environment"
     echo "Please run 'uv pip install -e .' first"
     exit 1
 fi
@@ -42,10 +42,10 @@ mkdir -p outputs
 
 # Create output filename with timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-OUTPUT_FILE="outputs/mad_spark_alt_output_${TIMESTAMP}.txt"
+OUTPUT_FILE="outputs/msa_output_${TIMESTAMP}.txt"
 
 echo "Starting Mad Spark Alt (detached to avoid timeout)..."
-echo "Command: .venv/bin/mad_spark_alt $@"
+echo "Command: .venv/bin/msa $@"
 echo "Output will be saved to: $OUTPUT_FILE"
 echo "----------------------------------------"
 
@@ -57,7 +57,7 @@ if [ -f ".env" ]; then
 fi
 
 # Run with nohup, redirecting output to file with unbuffered output
-nohup env PYTHONUNBUFFERED=1 .venv/bin/mad_spark_alt "$@" > "$OUTPUT_FILE" 2>&1 &
+nohup env PYTHONUNBUFFERED=1 .venv/bin/msa "$@" > "$OUTPUT_FILE" 2>&1 &
 PID=$!
 
 echo "Process started with PID: $PID"

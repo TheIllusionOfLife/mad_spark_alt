@@ -84,26 +84,26 @@ Expected Results:
 export GOOGLE_API_KEY="your-api-key-here"
 
 # Test with single image
-uv run mad-spark evolve \
-  "Analyze the financial data in this chart and suggest improvements" \
+msa "Analyze the financial data in this chart and suggest improvements" \
   --image test_multimodal_data/test_chart.png \
+  --evolve \
   --traditional \
   --generations 2 \
   --population 2
 
 # Test with multiple images
-uv run mad-spark evolve \
-  "Compare these two designs" \
+msa "Compare these two designs" \
   --image test_multimodal_data/chart1.png \
   --image test_multimodal_data/chart2.png \
+  --evolve \
   --traditional \
   --generations 2 \
   --population 2
 
 # Test with short form -i
-uv run mad-spark evolve \
-  "What insights can you draw from this image?" \
+msa "What insights can you draw from this image?" \
   -i test_multimodal_data/test_chart.png \
+  --evolve \
   --traditional \
   --generations 2 \
   --population 2
@@ -123,26 +123,26 @@ uv run mad-spark evolve \
 
 ```bash
 # Test with PDF document (requires a test PDF)
-uv run mad-spark evolve \
-  "Summarize the key findings in this research paper" \
+msa "Summarize the key findings in this research paper" \
   --document test_multimodal_data/research_paper.pdf \
+  --evolve \
   --traditional \
   --generations 2 \
   --population 2
 
 # Test with multiple documents
-uv run mad-spark evolve \
-  "Compare the methodologies in these two papers" \
+msa "Compare the methodologies in these two papers" \
   --document test_multimodal_data/paper1.pdf \
   --document test_multimodal_data/paper2.pdf \
+  --evolve \
   --traditional \
   --generations 2 \
   --population 2
 
 # Test with short form -d
-uv run mad-spark evolve \
-  "What are the main conclusions?" \
+msa "What are the main conclusions?" \
   -d test_multimodal_data/report.pdf \
+  --evolve \
   --traditional \
   --generations 2 \
   --population 2
@@ -160,26 +160,26 @@ uv run mad-spark evolve \
 
 ```bash
 # Test with single URL
-uv run mad-spark evolve \
-  "What are the key points from this article?" \
+msa "What are the key points from this article?" \
   --url https://www.example.com/article \
+  --evolve \
   --traditional \
   --generations 2 \
   --population 2
 
 # Test with multiple URLs
-uv run mad-spark evolve \
-  "Compare the perspectives in these articles" \
+msa "Compare the perspectives in these articles" \
   --url https://example1.com/article \
   --url https://example2.com/article \
+  --evolve \
   --traditional \
   --generations 2 \
   --population 2
 
 # Test with short form -u
-uv run mad-spark evolve \
-  "Summarize the main argument" \
+msa "Summarize the main argument" \
   -u https://www.example.com/opinion \
+  --evolve \
   --traditional \
   --generations 2 \
   --population 2
@@ -197,23 +197,23 @@ uv run mad-spark evolve \
 
 ```bash
 # Test with all modalities together
-uv run mad-spark evolve \
-  "Synthesize insights from all these sources" \
+msa "Synthesize insights from all these sources" \
   --image test_multimodal_data/chart.png \
   --document test_multimodal_data/report.pdf \
   --url https://www.example.com/article \
+  --evolve \
   --traditional \
   --generations 2 \
   --population 2
 
 # Test complex scenario with evolution
-uv run mad-spark evolve \
-  "How can we improve this product based on market data, user feedback, and competitor analysis?" \
+msa "How can we improve this product based on market data, user feedback, and competitor analysis?" \
   --image test_multimodal_data/market_chart.png \
   --image test_multimodal_data/user_feedback.png \
   --document test_multimodal_data/competitor_report.pdf \
   --url https://www.example.com/industry-trends \
   --url https://www.example.com/market-research \
+  --evolve \
   --generations 3 \
   --population 5
 ```
@@ -233,22 +233,22 @@ uv run mad-spark evolve \
 
 ```bash
 # Test with nonexistent image
-uv run mad-spark evolve "Test" --image /nonexistent/image.png
+msa "Test" --image /nonexistent/image.png
 # Expected: Error message about file not found
 
 # Test with invalid URL
-uv run mad-spark evolve "Test" --url not-a-valid-url
+msa "Test" --url not-a-valid-url
 # Expected: RuntimeError about invalid URL
 
 # Test with too many URLs
-uv run mad-spark evolve "Test" \
+msa "Test" \
   --url https://example1.com \
   --url https://example2.com \
   # ... (repeat 25 times)
 # Expected: RuntimeError about too many URLs
 
 # Test with unsupported image type
-uv run mad-spark evolve "Test" --image test.bmp
+msa "Test" --image test.bmp
 # Expected: RuntimeError about unsupported image type
 ```
 
@@ -262,15 +262,15 @@ uv run mad-spark evolve "Test" --image test.bmp
 
 ```bash
 # Test with empty problem statement
-uv run mad-spark evolve "" --image test_chart.png
+msa "" --image test_chart.png
 # Expected: Prompt for problem statement
 
 # Test with very long problem statement (>1000 chars)
-uv run mad-spark evolve "$(python3 -c 'print("a" * 1500)')" --image test_chart.png
+msa "$(python3 -c 'print("a" * 1500)')" --image test_chart.png
 # Expected: Handles gracefully or provides clear error
 
 # Test with special characters in filenames
-uv run mad-spark evolve "Test" --image "test file with spaces.png"
+msa "Test" --image "test file with spaces.png"
 # Expected: Handles path correctly
 ```
 
@@ -281,11 +281,11 @@ uv run mad-spark evolve "Test" --image "test file with spaces.png"
 ```bash
 # Test with multiple modalities and higher population
 # Should complete within timeout or provide clear error
-uv run mad-spark evolve \
-  "Complex analysis task" \
+msa "Complex analysis task" \
   --image img1.png --image img2.png --image img3.png \
   --document doc1.pdf --document doc2.pdf \
   --url https://url1.com --url https://url2.com \
+  --evolve \
   --generations 3 \
   --population 8
 ```
@@ -300,10 +300,10 @@ uv run mad-spark evolve \
 
 ```bash
 # Run with cost tracking enabled
-uv run mad-spark evolve \
-  "Analysis task" \
+msa "Analysis task" \
   --image test_chart.png \
   --url https://example.com \
+  --evolve \
   --traditional \
   --generations 2 \
   --population 3
