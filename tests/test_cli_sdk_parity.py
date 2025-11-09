@@ -69,12 +69,11 @@ def test_cli_instantiates_core_orchestrator():
                     # Run CLI
                     result = runner.invoke(main, ['Test question'])
 
-        # Verify SimpleQADIOrchestrator was instantiated
-        assert MockOrchestrator.called, "SimpleQADIOrchestrator should be instantiated"
-
-        # Verify it was called with correct parameters
-        call_args = MockOrchestrator.call_args
-        assert call_args is not None
+        # Verify SimpleQADIOrchestrator was instantiated with correct parameters
+        MockOrchestrator.assert_called_once_with(
+            temperature_override=None,
+            num_hypotheses=3
+        )
 
 
 def test_cli_uses_core_qadi_prompts():
@@ -115,8 +114,9 @@ async def test_cli_and_sdk_produce_same_phase1_format():
     # Run QADI cycle
     result = await orchestrator.run_qadi_cycle(test_question)
 
-    # Verify core question format
-    assert result.core_question.startswith("Q:") or "?" in result.core_question
+    # Verify core question format - should reliably start with "Q: "
+    # as specified by get_questioning_prompt format requirement
+    assert result.core_question.startswith("Q: "), "Core question should start with 'Q: '"
     assert len(result.core_question) > 10, "Core question should be substantial"
 
     # The question should be more than just a literal restatement
