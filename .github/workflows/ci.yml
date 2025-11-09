@@ -64,9 +64,9 @@ jobs:
     
     - name: Test CLI
       run: |
-        uv run mad-spark --help
-        uv run mad-spark list-evaluators
-        echo "Test evaluation" | uv run mad-spark evaluate --model test
+        uv run msa --help
+        uv run msa list-evaluators
+        echo "Test evaluation" | uv run msa evaluate --model test
 
   build:
     runs-on: ubuntu-latest
