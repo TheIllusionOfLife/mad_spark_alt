@@ -719,13 +719,27 @@ async def _run_evolution_pipeline(
 
     # Process documents
     for doc_path in document_paths:
+        mime_type, _ = mimetypes.guess_type(doc_path)
+
+        # Validate document type - currently only PDF supported
+        if mime_type != "application/pdf":
+            # Check if file has .pdf extension as fallback
+            if not doc_path.lower().endswith('.pdf'):
+                raise ValueError(
+                    f"Unsupported document type for {doc_path}. "
+                    f"Only PDF files are currently supported. "
+                    f"Detected type: {mime_type or 'unknown'}"
+                )
+            # Use PDF mime type if extension is .pdf but type couldn't be determined
+            mime_type = "application/pdf"
+
         doc_size = Path(doc_path).stat().st_size
         multimodal_inputs.append(
             MultimodalInput(
                 input_type=MultimodalInputType.DOCUMENT,
                 source_type=MultimodalSourceType.FILE_PATH,
                 data=str(Path(doc_path).absolute()),
-                mime_type="application/pdf",
+                mime_type=mime_type,
                 file_size=doc_size,
             )
         )

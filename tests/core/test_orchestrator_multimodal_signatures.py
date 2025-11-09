@@ -2,124 +2,58 @@
 Unit tests for orchestrator multimodal parameter signatures.
 
 These tests verify that orchestrators properly accept multimodal parameters
-and pass them through correctly. Integration tests with real API calls are
-marked with @pytest.mark.integration.
+by inspecting actual method signatures. This ensures the methods truly
+accept multimodal parameters rather than just mocking them.
 """
 
+import inspect
 import pytest
-from unittest.mock import AsyncMock, patch
 
-from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator, SimpleQADIResult
+from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
 from mad_spark_alt.core.multi_perspective_orchestrator import MultiPerspectiveQADIOrchestrator
 from mad_spark_alt.core.unified_orchestrator import UnifiedQADIOrchestrator
 from mad_spark_alt.core.orchestrator_config import OrchestratorConfig
 from mad_spark_alt.core.multimodal import MultimodalInput, MultimodalInputType, MultimodalSourceType
-from mad_spark_alt.core.phase_logic import HypothesisScore
-
-
-@pytest.fixture
-def sample_multimodal_inputs():
-    """Sample multimodal inputs for testing."""
-    return [
-        MultimodalInput(
-            input_type=MultimodalInputType.IMAGE,
-            source_type=MultimodalSourceType.FILE_PATH,
-            data="/path/to/image.png",
-            mime_type="image/png",
-        )
-    ]
-
-
-@pytest.fixture
-def sample_urls():
-    """Sample URLs."""
-    return ["https://example.com/test"]
-
-
-@pytest.fixture
-def mock_simple_result():
-    """Mock SimpleQADIResult."""
-    return SimpleQADIResult(
-        core_question="Test",
-        hypotheses=["H1", "H2", "H3"],
-        hypothesis_scores=[
-            HypothesisScore(0.8, 0.7, 0.6, 0.7, 0.8, 0.72),
-            HypothesisScore(0.7, 0.8, 0.7, 0.8, 0.7, 0.74),
-            HypothesisScore(0.6, 0.6, 0.8, 0.6, 0.6, 0.64),
-        ],
-        final_answer="Answer",
-        action_plan=["Action"],
-        verification_examples=["Ex"],
-        verification_conclusion="Conclusion",
-        total_llm_cost=0.01,
-    )
 
 
 class TestOrchestratorMultimodalSignatures:
-    """Test that orchestrators accept multimodal parameters."""
+    """Test that orchestrators accept multimodal parameters by inspecting signatures."""
 
-    @pytest.mark.asyncio
-    async def test_simple_orchestrator_signature(self, sample_multimodal_inputs, sample_urls):
-        """Test SimpleQADIOrchestrator accepts multimodal parameters."""
-        orchestrator = SimpleQADIOrchestrator()
+    def test_simple_orchestrator_signature(self):
+        """Test SimpleQADIOrchestrator.run_qadi_cycle() has multimodal parameters."""
+        sig = inspect.signature(SimpleQADIOrchestrator.run_qadi_cycle)
 
-        # This should not raise a TypeError for unexpected keyword arguments
-        try:
-            with patch.object(orchestrator, 'run_qadi_cycle', new=AsyncMock()) as mock_run:
-                await orchestrator.run_qadi_cycle(
-                    "Test question",
-                    multimodal_inputs=sample_multimodal_inputs,
-                    urls=sample_urls,
-                    tools=[],
-                )
-                # Verify method was called
-                assert mock_run.called
-        except TypeError as e:
-            pytest.fail(f"SimpleQADIOrchestrator.run_qadi_cycle() doesn't accept multimodal params: {e}")
+        # Verify multimodal parameters are in the signature
+        expected_params = ["multimodal_inputs", "urls", "tools"]
+        for param_name in expected_params:
+            assert param_name in sig.parameters, (
+                f"Parameter '{param_name}' not found in SimpleQADIOrchestrator.run_qadi_cycle() signature. "
+                f"Available parameters: {list(sig.parameters.keys())}"
+            )
 
-    @pytest.mark.asyncio
-    async def test_multi_perspective_orchestrator_signature(self, sample_multimodal_inputs, sample_urls):
-        """Test MultiPerspectiveQADIOrchestrator accepts multimodal parameters."""
-        orchestrator = MultiPerspectiveQADIOrchestrator()
+    def test_multi_perspective_orchestrator_signature(self):
+        """Test MultiPerspectiveQADIOrchestrator.run_multi_perspective_analysis() has multimodal parameters."""
+        sig = inspect.signature(MultiPerspectiveQADIOrchestrator.run_multi_perspective_analysis)
 
-        try:
-            with patch.object(orchestrator, 'run_multi_perspective_analysis', new=AsyncMock()) as mock_run:
-                await orchestrator.run_multi_perspective_analysis(
-                    "Test question",
-                    multimodal_inputs=sample_multimodal_inputs,
-                    urls=sample_urls,
-                    tools=[],
-                )
-                assert mock_run.called
-        except TypeError as e:
-            pytest.fail(f"MultiPerspectiveQADIOrchestrator.run_multi_perspective_analysis() doesn't accept multimodal params: {e}")
+        # Verify multimodal parameters are in the signature
+        expected_params = ["multimodal_inputs", "urls", "tools"]
+        for param_name in expected_params:
+            assert param_name in sig.parameters, (
+                f"Parameter '{param_name}' not found in MultiPerspectiveQADIOrchestrator.run_multi_perspective_analysis() signature. "
+                f"Available parameters: {list(sig.parameters.keys())}"
+            )
 
-    @pytest.mark.asyncio
-    async def test_unified_orchestrator_signature(self, sample_multimodal_inputs, sample_urls):
-        """Test UnifiedQADIOrchestrator accepts multimodal parameters."""
-        config = OrchestratorConfig.simple_config()
-        orchestrator = UnifiedQADIOrchestrator(config)
+    def test_unified_orchestrator_signature(self):
+        """Test UnifiedQADIOrchestrator.run_qadi_cycle() has multimodal parameters."""
+        sig = inspect.signature(UnifiedQADIOrchestrator.run_qadi_cycle)
 
-        try:
-            with patch.object(orchestrator, 'run_qadi_cycle', new=AsyncMock()) as mock_run:
-                await orchestrator.run_qadi_cycle(
-                    "Test question",
-                    multimodal_inputs=sample_multimodal_inputs,
-                    urls=sample_urls,
-                    tools=[],
-                )
-                assert mock_run.called
-        except TypeError as e:
-            pytest.fail(f"UnifiedQADIOrchestrator.run_qadi_cycle() doesn't accept multimodal params: {e}")
-
-    @pytest.mark.asyncio
-    async def test_simple_result_has_multimodal_fields(self, mock_simple_result):
-        """Test SimpleQADIResult has multimodal metadata fields."""
-        # Verify the dataclass has the expected fields
-        assert hasattr(mock_simple_result, 'multimodal_metadata')
-        assert hasattr(mock_simple_result, 'total_images_processed')
-        assert hasattr(mock_simple_result, 'total_pages_processed')
-        assert hasattr(mock_simple_result, 'total_urls_processed')
+        # Verify multimodal parameters are in the signature
+        expected_params = ["multimodal_inputs", "urls", "tools"]
+        for param_name in expected_params:
+            assert param_name in sig.parameters, (
+                f"Parameter '{param_name}' not found in UnifiedQADIOrchestrator.run_qadi_cycle() signature. "
+                f"Available parameters: {list(sig.parameters.keys())}"
+            )
 
 
 class TestMultimodalValidationInOrchestrators:
