@@ -612,3 +612,15 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **LLM Provider Init**: Must initialize providers BEFORE manual subcommand invocation (early return bypasses normal flow)
 - **Traditional Flag Respect**: EvolutionConfig must check `--traditional` flag to disable semantic operators (`use_semantic=not traditional`)
 - **Migration Guide**: Comprehensive docs/CLI_MIGRATION.md provides before/after examples for all commands
+
+### Result Export & Persistence System ([PR #130](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/130)) - COMPLETED ✅
+- **Two-Layer Serialization**: Results have `to_dict()` for internal use, `to_export_dict()` for user-facing exports with timestamps
+- **Security-First Design**: Path validation prevents directory traversal (`..`) and system directory writes (`/etc`, `/sys`)
+- **Format Support**: JSON (machine-readable with metadata) and Markdown (human-readable documentation)
+- **CLI Integration**: `--output PATH` and `--format {json,md}` flags seamlessly integrated with both QADI and evolution
+- **Evolution Support**: Automatic inclusion of evolution results when `--evolve` flag used
+- **TDD Excellence**: 39 tests (14 serialization + 14 export + 7 CLI + 4 security), all 844 tests passing
+- **Real API Validation**: Tested 3 production scenarios (basic QADI JSON, QADI Markdown, QADI + Evolution) - no timeout/truncation
+- **Code Quality**: Addressed all review feedback (inline imports, generation index, path validation security)
+- **Enum Handling**: Consistent lowercase string serialization (`ThinkingMethod.ABDUCTION` → `"abduction"`)
+- **Parent Directory Creation**: Automatic with `exist_ok=True` to prevent "file not found" errors
