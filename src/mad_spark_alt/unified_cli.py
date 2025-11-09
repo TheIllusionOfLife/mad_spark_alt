@@ -568,12 +568,16 @@ def main(
             # Normalize: check both underscore and hyphenated forms
             input_normalized = input.replace('-', '_')
 
-            # If input matches a subcommand, manually invoke it
+            # If input matches a subcommand, manually invoke it with proper argument parsing
             for cmd_name in subcommand_names:
                 if input == cmd_name or input_normalized == cmd_name or input == cmd_name.replace('_', '-'):
-                    # Found matching subcommand - invoke it manually
+                    # Found matching subcommand - create new context to parse remaining args
                     subcommand = ctx.command.commands[cmd_name]
-                    ctx.invoke(subcommand)
+                    # Use make_context to parse remaining CLI tokens (ctx.args contains unparsed args)
+                    sub_ctx = subcommand.make_context(cmd_name, list(ctx.args), parent=ctx)
+                    # Invoke subcommand with parsed parameters
+                    with sub_ctx:
+                        ctx.invoke(subcommand, **sub_ctx.params)
                     return
 
     if ctx.invoked_subcommand is None:
