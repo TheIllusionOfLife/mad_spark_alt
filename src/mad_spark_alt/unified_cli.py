@@ -40,7 +40,7 @@ from .core import (
 from .core.json_utils import format_llm_cost
 from .core.llm_provider import LLMProvider, get_google_provider, llm_manager
 from .core.multimodal import MultimodalInput, MultimodalInputType, MultimodalSourceType
-from .core.simple_qadi_orchestrator import SimpleQADIOrchestrator
+from .core.simple_qadi_orchestrator import SimpleQADIOrchestrator, SimpleQADIResult
 from .core.qadi_prompts import QADIPrompts
 from .core.terminal_renderer import render_markdown
 from .evolution import (
@@ -50,7 +50,7 @@ from .evolution import (
     GeneticAlgorithm,
     SelectionStrategy,
 )
-from .evolution.interfaces import IndividualFitness
+from .evolution.interfaces import EvolutionResult, IndividualFitness
 from .layers.quantitative import DiversityEvaluator, QualityEvaluator
 from .utils.text_cleaning import clean_ansi_codes
 
@@ -513,7 +513,20 @@ class SimplerQADIOrchestrator(SimpleQADIOrchestrator):
 @click.option('--document', '-d', multiple=True, type=click.Path(exists=True),
               help='Path to document file(s) to include in analysis (PDF supported)')
 @click.option('--url', '-u', multiple=True, help='URL(s) for context retrieval (max 20)')
-def main(ctx, input, verbose, temperature, evolve, generations, population, traditional, diversity_method, image, document, url):
+def main(
+    ctx: click.Context,
+    input: Optional[str],
+    verbose: bool,
+    temperature: Optional[float],
+    evolve: bool,
+    generations: int,
+    population: int,
+    traditional: bool,
+    diversity_method: str,
+    image: tuple,
+    document: tuple,
+    url: tuple,
+) -> None:
     """Mad Spark Alt - QADI Analysis & AI Creativity Evaluation System
 
     Run QADI analysis on any question or problem. Optionally evolve ideas with genetic algorithm.
@@ -852,14 +865,14 @@ async def _run_qadi_analysis(
 
 
 async def _run_evolution(
-    qadi_result,
+    qadi_result: SimpleQADIResult,
     user_input: str,
     qadi_time: float,
     generations: int,
     population: int,
     traditional: bool,
     diversity_method: str,
-    verbose: bool
+    verbose: bool,
 ) -> None:
     """Run evolution phase after QADI analysis."""
     print("\n" + "═" * 50)
@@ -985,7 +998,11 @@ async def _run_evolution(
         evolution_logger.setLevel(original_level)
 
 
-def _display_evolution_results(evolution_result, qadi_result, verbose: bool) -> None:
+def _display_evolution_results(
+    evolution_result: EvolutionResult,
+    qadi_result: SimpleQADIResult,
+    verbose: bool,
+) -> None:
     """Display evolution results with deduplication."""
     print("\n" + "═" * 50)
     print("## 🧬 Evolution Results: Enhanced Solutions\n")
