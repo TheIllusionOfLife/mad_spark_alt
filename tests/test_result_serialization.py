@@ -253,8 +253,8 @@ class TestUnifiedQADIResultSerialization:
 
         result_dict = result.to_dict()
 
-        assert result_dict["strategy_used"] == "MULTI_PERSPECTIVE"
-        assert result_dict["execution_mode"] == "PARALLEL"
+        assert result_dict["strategy_used"] == "multi_perspective"
+        assert result_dict["execution_mode"] == "parallel"
 
     def test_to_dict_optional_fields_present(self):
         """Test that optional fields are included when present."""
