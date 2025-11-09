@@ -182,12 +182,12 @@ class TestSimpleQADIResultSerialization:
 
         idea1 = result_dict["synthesized_ideas"][0]
         assert idea1["content"] == "Idea 1 content"
-        assert idea1["thinking_method"] == "ABDUCTION"
+        assert idea1["thinking_method"] == "abduction"
         assert idea1["confidence_score"] == 0.8
 
         idea2 = result_dict["synthesized_ideas"][1]
         assert idea2["content"] == "Idea 2 content"
-        assert idea2["thinking_method"] == "DEDUCTION"
+        assert idea2["thinking_method"] == "deduction"
         assert idea2["confidence_score"] == 0.9
 
     def test_to_dict_empty_lists(self):
