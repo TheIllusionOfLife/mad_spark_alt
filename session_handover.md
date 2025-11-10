@@ -5,20 +5,12 @@
 #### Recently Completed
 
 - ✅ **[PR #135]**: Fix all 30 test isolation failures - **MAJOR SUCCESS ✅**
-  - **Root Cause**: Triple issue - sys.modules pollution + PEP 562 __getattr__ caching + runtime enum imports
-  - **Solution**: 3-part module restoration (snapshot sys.modules, clear deprecation cache, clear __dict__)
-  - **Helper Method**: Added `_clear_deprecation_state()` to encapsulate test isolation cleanup
-  - **Integration Fix**: Modified autouse fixture to skip integration tests (preserve class-scoped state)
-  - **Test Coverage**: All 861 tests passing (up from 831 before fix)
-  - **Impact**: Complete test isolation achieved, 0 failures in CI
-  - **Review Process**: Addressed feedback from gemini-code-assist, chatgpt-codex-connector, claude
-  - **Learnings**: Test isolation requires understanding Python module caching at 3 levels
+  - **Impact**: Complete test isolation achieved, with 861 tests passing (up from 831) and 0 failures in CI
+  - **Learnings**: Solved a complex triple root cause involving `sys.modules` pollution, PEP 562 caching, and runtime enum imports. See [Session Learnings](#session-learnings) for detailed patterns
 
 - ✅ **[PR #134]**: Defer deprecation warnings until explicit import
-  - **Implementation**: PEP 562 `__getattr__` for lazy imports with caching
-  - **Benefit**: Users can `import package` without warnings for unused deprecated items
-  - **Pattern**: Warnings only fire when deprecated features explicitly accessed
-  - **Test Coverage**: 12 new tests verifying warning behavior
+  - **Impact**: Improved user experience by using PEP 562 `__getattr__` to only show deprecation warnings on use, not on import
+  - **Learnings**: Captured pattern for lazy loading and deferred warnings. See [Session Learnings](#session-learnings) for details
 
 - ✅ **[PR #133]**: Remove SimplerQADIOrchestrator, achieve CLI/SDK parity
   - **Code Reduction**: Removed redundant orchestrator implementation
@@ -191,9 +183,11 @@
   - Systematic feedback processing by priority.
   - API consistency: Validators should raise `ValueError`, not return `bool`.
 
-## Session Handover
+---
 
-### Last Updated: November 09, 2025 03:46 PM JST
+## Historical Context
+
+### Session Handover (November 09, 2025)
 
 #### Recently Completed
 
