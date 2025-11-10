@@ -1,8 +1,9 @@
 """
 Robust JSON handling for LLM responses that might be malformed.
 
-DEPRECATED: This module is deprecated and will be removed in v2.0.0.
-Use json_utils.extract_and_parse_json() and json_utils.parse_ideas_array() instead.
+.. deprecated:: 2.0.0
+   This module is deprecated and will be removed in v2.0.0.
+   Use json_utils.extract_and_parse_json() and json_utils.parse_ideas_array() instead.
 """
 
 import json
@@ -10,14 +11,6 @@ import logging
 import re
 import warnings
 from typing import Any, Dict, List, Optional, Union
-
-# Issue deprecation warning at module import time
-warnings.warn(
-    "robust_json_handler is deprecated and will be removed in v2.0.0. "
-    "Use json_utils.extract_and_parse_json() and json_utils.parse_ideas_array() instead.",
-    DeprecationWarning,
-    stacklevel=2
-)
 
 logger = logging.getLogger(__name__)
 

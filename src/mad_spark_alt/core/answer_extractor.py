@@ -7,26 +7,16 @@ relevant solutions from QADI phases.
 
 .. deprecated:: 2.0.0
    This module is deprecated and will be removed in v3.0.0.
-   It was only used by EnhancedQADIOrchestrator which has been removed.
-   If you need answer extraction, use this module directly or implement
-   your own extraction logic.
+   It was primarily used by EnhancedQADIOrchestrator (now removed).
+   If you need answer extraction functionality, you can continue using this
+   module directly or implement your own extraction logic.
 """
 
 import asyncio
-import warnings
-
-# Issue deprecation warning
-warnings.warn(
-    "answer_extractor module is deprecated and will be removed in v3.0.0. "
-    "This module was primarily used by EnhancedQADIOrchestrator (now removed). "
-    "If you need answer extraction functionality, you can continue using this "
-    "module directly or implement your own extraction logic.",
-    DeprecationWarning,
-    stacklevel=2
-)
 import json
 import logging
 import re
+import warnings
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
