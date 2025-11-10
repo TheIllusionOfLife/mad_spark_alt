@@ -72,29 +72,36 @@ The CLI/SDK divergence is a **systemic risk** that will compound over time. Ever
 
 ---
 
-### Task 0.2: Fix "Execute on Import" Warnings ⏱️ 2 hours
+### Task 0.2: Fix "Execute on Import" Warnings ✅ COMPLETE
 **Source**: unified_refactoring.txt Priority 1, Task 2
 **Risk**: Deprecation warnings execute on import, cluttering user output
+**Status**: ✅ **COMPLETED** on 2025-11-10
+**Actual Time**: ~2 hours
+**PR**: [#134](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/134)
 
-**Implementation**:
-```bash
-# Create deprecated package
-mkdir -p src/mad_spark_alt/deprecated/
-touch src/mad_spark_alt/deprecated/__init__.py
+**Implementation Completed**:
+1. ✅ Removed module-level warnings from 3 deprecated modules:
+   - `smart_orchestrator.py`
+   - `answer_extractor.py`
+   - `robust_json_handler.py`
+2. ✅ Implemented `__getattr__` lazy import mechanism in `core/__init__.py`
+   - Defers warning until actual use
+   - Caches imports to prevent duplicate warnings
+   - Maintains backward compatibility
+3. ✅ Added comprehensive test suite (`test_deprecation_warnings.py`)
+   - 11 tests covering all warning scenarios
+   - Tests for backward compatibility
+   - All tests passing
+4. ✅ Real API validation successful (CLI works with no warnings)
 
-# Move files
-mv src/mad_spark_alt/core/smart_orchestrator.py src/mad_spark_alt/deprecated/
-mv src/mad_spark_alt/core/answer_extractor.py src/mad_spark_alt/deprecated/
-mv src/mad_spark_alt/core/robust_json_handler.py src/mad_spark_alt/deprecated/
-
-# Update imports
-# Add deprecation warnings to deprecated/__init__.py instead of module level
-```
-
-**Success Criteria**:
+**Success Criteria - ALL MET**:
 - ✅ No warnings on `import mad_spark_alt`
+- ✅ No warnings on `import mad_spark_alt.core`
 - ✅ Warnings only when deprecated code is explicitly imported
-- ✅ All tests pass
+- ✅ All tests pass (11 new tests + all existing)
+- ✅ Backward compatibility maintained
+
+**Result**: Clean imports for users, warnings only on explicit deprecated module usage
 
 **Branch**: `fix/deprecation-warnings`
 
@@ -145,29 +152,33 @@ with Live(self._create_progress_table(), refresh_per_second=4) as live:
 
 ---
 
-### Task 1.2: Remove Dead Dependencies ⏱️ 1 hour
+### Task 1.2: Remove Dead Dependencies ✅ COMPLETE
 **Source**: unified_refactoring.txt Priority 1, Task 1
 **Impact**: Reduces maintenance burden, speeds up installs
+**Status**: ✅ **COMPLETED** on 2025-11-10
+**Actual Time**: ~30 minutes
+**PR**: [#137](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/137)
 
-**Implementation**:
-```bash
-# Remove from pyproject.toml
-uv remove openai anthropic
+**Implementation Completed**:
+1. ✅ Removed `openai>=1.0.0` and `anthropic>=0.3.0` from pyproject.toml
+2. ✅ Updated lock file with `uv lock`
+3. ✅ Updated `llm_provider.py` docstring (Google-only)
+4. ✅ Updated 4 example files (qadi_demo, llm_questioning_demo, llm_abductive_demo, llm_deductive_demo)
+5. ✅ Updated documentation (cli_usage.md, docs/README.md)
+6. ✅ Verified no openai/anthropic imports remain in src/ or tests/
+7. ✅ All 861 tests pass
+8. ✅ CLI tested with real API - works correctly (55.4s, $0.0070)
+9. ✅ CI checks pass (test: 5m7s, build: 12s, CodeRabbit: pass)
 
-# Search and remove imports
-grep -r "import openai" src/ tests/
-grep -r "import anthropic" src/ tests/
-# Remove any found imports
+**Success Criteria - ALL MET**:
+- ✅ `pyproject.toml` only lists Google Gemini as LLM provider (15 dependencies, down from 17)
+- ✅ No import errors - verified with grep
+- ✅ `uv sync` completes faster (~0.025s)
+- ✅ All tests pass (861 passed, 1 skipped)
+- ✅ ~100MB disk space saved
+- ✅ Documentation accurately reflects Google-only architecture
 
-# Update uv.lock
-uv lock
-```
-
-**Success Criteria**:
-- ✅ `pyproject.toml` only lists Google Gemini as LLM provider
-- ✅ No import errors
-- ✅ `uv sync` completes faster
-- ✅ All tests pass
+**Result**: Cleaner dependencies, faster installs, no confusion about supported providers
 
 **Branch**: `chore/remove-dead-dependencies`
 
@@ -707,10 +718,13 @@ msa --load-session <id>     # Continue from previous
 - ✅ CLI consolidation (PR #126)
 - ✅ Result export system (PR #130)
 - ✅ Multimodal support (PR #122, #124, #125)
-- ✅ 844/844 tests passing
+- ✅ Task 0.1: CLI/SDK Parity (PR #131)
+- ✅ Task 0.2: Fix Execute on Import Warnings (PR #134)
+- ✅ Task 1.2: Remove Dead Dependencies (PR #137)
+- ✅ 861/861 tests passing, 1 skipped
 
 ### **In Progress**:
-- 🔄 Starting Task 0.1: CLI/SDK Parity investigation
+- None currently
 
 ### **Blocked/Deferred**:
 - None currently
