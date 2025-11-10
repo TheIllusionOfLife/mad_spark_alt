@@ -39,7 +39,6 @@ from .registry import (
     registry,
     unified_registry,
 )
-from .smart_orchestrator import SmartQADICycleResult, SmartQADIOrchestrator
 from .smart_registry import (
     SmartAgentRegistry,
     get_smart_agent,
@@ -134,9 +133,14 @@ import warnings
 
 
 def _create_deprecation_shim(
-    old_name: str, new_class: type, removal_version: str = "v3.0.0"
+    old_name: str, new_class_name: str, removal_version: str = "v3.0.0"
 ) -> type:
     """Create a deprecated class shim that warns on instantiation."""
+    import importlib
+
+    # Lazy load the target class
+    module = importlib.import_module("mad_spark_alt.core.smart_orchestrator")
+    new_class = getattr(module, new_class_name)
 
     class DeprecatedShim(new_class):  # type: ignore[misc,valid-type]
         def __init__(self, *args, **kwargs) -> None:  # type: ignore[no-untyped-def]
@@ -156,14 +160,104 @@ def _create_deprecation_shim(
 
 # Create compatibility shims pointing to SmartQADIOrchestrator
 FastQADIOrchestrator = _create_deprecation_shim(
-    "FastQADIOrchestrator", SmartQADIOrchestrator
+    "FastQADIOrchestrator", "SmartQADIOrchestrator"
 )
 RobustQADIOrchestrator = _create_deprecation_shim(
-    "RobustQADIOrchestrator", SmartQADIOrchestrator
+    "RobustQADIOrchestrator", "SmartQADIOrchestrator"
 )
 EnhancedQADIOrchestrator = _create_deprecation_shim(
-    "EnhancedQADIOrchestrator", SmartQADIOrchestrator
+    "EnhancedQADIOrchestrator", "SmartQADIOrchestrator"
 )
 
-# RobustQADICycleResult is just an alias
-RobustQADICycleResult = SmartQADICycleResult
+# RobustQADICycleResult is just an alias (lazy-loaded via __getattr__)
+
+# Lazy import mechanism for deprecated modules
+# This prevents warnings from firing on `import mad_spark_alt.core`
+_DEPRECATED_IMPORTS = {
+    "SmartQADIOrchestrator": {
+        "module": "smart_orchestrator",
+        "message": (
+            "SmartQADIOrchestrator is deprecated and will be removed in v2.0.0. "
+            "Use UnifiedQADIOrchestrator with OrchestratorConfig.simple_config() instead. "
+            "The Smart strategy has been removed in favor of the simpler and more reliable Simple strategy."
+        ),
+    },
+    "SmartQADICycleResult": {
+        "module": "smart_orchestrator",
+        "message": (
+            "SmartQADICycleResult is deprecated and will be removed in v2.0.0. "
+            "Use UnifiedQADIResult or SimpleQADIResult instead."
+        ),
+    },
+    "answer_extractor": {
+        "module": "answer_extractor",
+        "message": (
+            "answer_extractor module is deprecated and will be removed in v3.0.0. "
+            "This module was primarily used by EnhancedQADIOrchestrator (now removed). "
+            "If you need answer extraction functionality, you can continue using this "
+            "module directly or implement your own extraction logic."
+        ),
+    },
+    "robust_json_handler": {
+        "module": "robust_json_handler",
+        "message": (
+            "robust_json_handler is deprecated and will be removed in v2.0.0. "
+            "Use json_utils.extract_and_parse_json() and json_utils.parse_ideas_array() instead."
+        ),
+    },
+    "RobustQADICycleResult": {
+        "module": "smart_orchestrator",
+        "attr": "SmartQADICycleResult",
+        "message": (
+            "RobustQADICycleResult is deprecated and will be removed in v2.0.0. "
+            "Use UnifiedQADIResult or SimpleQADIResult instead."
+        ),
+    },
+}
+
+# Cache for already-imported deprecated items to prevent duplicate warnings
+_deprecated_cache = {}
+
+
+def __getattr__(name: str):
+    """
+    Lazy import handler for deprecated modules and classes.
+
+    This function is called when an attribute is not found in the module's namespace.
+    It allows us to defer deprecation warnings until the deprecated item is actually used,
+    rather than firing warnings on `import mad_spark_alt.core`.
+    """
+    if name in _DEPRECATED_IMPORTS:
+        # Check cache first to avoid duplicate warnings
+        if name in _deprecated_cache:
+            return _deprecated_cache[name]
+
+        import importlib
+
+        info = _DEPRECATED_IMPORTS[name]
+
+        # Issue deprecation warning
+        warnings.warn(
+            info["message"],
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+        # Import and return the deprecated item
+        module_name = f"mad_spark_alt.core.{info['module']}"
+        module = importlib.import_module(module_name)
+
+        # Handle cases where we need a specific attribute from the module
+        attr_name = info.get("attr", name)
+        if attr_name == name:
+            # Return the class/object directly
+            result = getattr(module, name) if hasattr(module, name) else module
+        else:
+            # Return the aliased attribute
+            result = getattr(module, attr_name)
+
+        # Cache the result
+        _deprecated_cache[name] = result
+        return result
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
