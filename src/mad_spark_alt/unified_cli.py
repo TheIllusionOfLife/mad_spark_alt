@@ -41,7 +41,6 @@ from .core.json_utils import format_llm_cost
 from .core.llm_provider import LLMProvider, get_google_provider, llm_manager
 from .core.multimodal import MultimodalInput, MultimodalInputType, MultimodalSourceType
 from .core.simple_qadi_orchestrator import SimpleQADIOrchestrator, SimpleQADIResult
-from .core.qadi_prompts import QADIPrompts
 from .core.terminal_renderer import render_markdown
 from .evolution import (
     DiversityMethod,
@@ -468,33 +467,6 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
     return solutions
 
 
-# ===== CUSTOM QADI PROMPTS =====
-
-class SimplerQADIPrompts(QADIPrompts):
-    """QADI prompts with simplified Phase 1."""
-
-    @staticmethod
-    def get_questioning_prompt(user_input: str) -> str:
-        """Get a much simpler prompt for Phase 1."""
-        return f"""What is the user asking?
-
-User's input:
-{user_input}
-
-State their question clearly and directly. If they made a statement, rephrase it as the implied question.
-Format: "Q: [The user's question]"
-"""
-
-
-class SimplerQADIOrchestrator(SimpleQADIOrchestrator):
-    """QADI orchestrator with simplified Phase 1."""
-
-    def __init__(self, temperature_override: Optional[float] = None, num_hypotheses: int = 3) -> None:
-        super().__init__(temperature_override, num_hypotheses)
-        # Use custom prompts
-        self.prompts = SimplerQADIPrompts()
-
-
 # ===== MAIN CLI GROUP WITH INVOKE_WITHOUT_COMMAND =====
 
 @click.group(invoke_without_command=True)
@@ -788,7 +760,7 @@ async def _run_qadi_analysis(
 
     # Create orchestrator with optional temperature override and num_hypotheses for evolution
     num_hypotheses = population if evolve else 3
-    orchestrator = SimplerQADIOrchestrator(temperature_override=temperature, num_hypotheses=num_hypotheses)
+    orchestrator = SimpleQADIOrchestrator(temperature_override=temperature, num_hypotheses=num_hypotheses)
 
     start_time = time.time()
 
