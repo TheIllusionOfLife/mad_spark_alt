@@ -135,7 +135,7 @@ class TestDeprecationWarningBehavior:
 
             warning_msg = str(deprecation_warnings[0].message)
             assert 'deprecated' in warning_msg.lower()
-            assert 'v3.0.0' in warning_msg
+            assert 'v2.0.0' in warning_msg
 
     def test_robust_json_handler_import_triggers_warning(self):
         """
@@ -252,6 +252,39 @@ class TestDeprecationWarningBehavior:
                     f"Warning should point to user code (this test file), "
                     f"but points to: {warning_file}"
                 )
+
+
+class TestCLIIntegration:
+    """Test that CLI commands don't trigger deprecation warnings."""
+
+    def test_cli_help_no_warnings(self):
+        """
+        Test that running msa --help doesn't produce deprecation warnings.
+
+        This is the key user-facing test - users should be able to run
+        the CLI without seeing warnings for modules they're not using.
+        """
+        import subprocess
+
+        result = subprocess.run(
+            ['msa', '--help'],
+            capture_output=True,
+            text=True
+        )
+
+        # Check that command succeeded
+        assert result.returncode == 0, (
+            f"CLI command failed with code {result.returncode}\n"
+            f"stderr: {result.stderr}"
+        )
+
+        # Check that no deprecation warnings appear in stderr
+        assert 'DeprecationWarning' not in result.stderr, (
+            f"CLI should not produce deprecation warnings on --help:\n{result.stderr}"
+        )
+        assert 'deprecated' not in result.stderr.lower(), (
+            f"CLI should not mention deprecation on --help:\n{result.stderr}"
+        )
 
 
 class TestBackwardCompatibility:

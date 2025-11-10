@@ -1,5 +1,7 @@
 """Core evaluation system components and idea generation framework."""
 
+from typing import Any, Dict
+
 from .base_orchestrator import AgentCircuitBreaker, BaseOrchestrator
 from .evaluator import CreativityEvaluator, EvaluationSummary
 from .interfaces import (  # New idea generation interfaces
@@ -192,7 +194,7 @@ _DEPRECATED_IMPORTS = {
     "answer_extractor": {
         "module": "answer_extractor",
         "message": (
-            "answer_extractor module is deprecated and will be removed in v3.0.0. "
+            "answer_extractor module is deprecated and will be removed in v2.0.0. "
             "This module was primarily used by EnhancedQADIOrchestrator (now removed). "
             "If you need answer extraction functionality, you can continue using this "
             "module directly or implement your own extraction logic."
@@ -216,10 +218,15 @@ _DEPRECATED_IMPORTS = {
 }
 
 # Cache for already-imported deprecated items to prevent duplicate warnings
-_deprecated_cache = {}
+# NOTE: Despite gemini-code-assist's claim, PEP 562 does NOT automatically cache
+# __getattr__ return values in __dict__. Manual caching is necessary to prevent
+# __getattr__ from being called repeatedly for the same attribute, which would
+# trigger duplicate deprecation warnings. Verified with PEP 562 documentation
+# and empirical testing.
+_deprecated_cache: Dict[str, Any] = {}
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     """
     Lazy import handler for deprecated modules and classes.
 
@@ -250,10 +257,12 @@ def __getattr__(name: str):
         # Handle cases where we need a specific attribute from the module
         attr_name = info.get("attr", name)
         if attr_name == name:
-            # Return the class/object directly
+            # Return the class/object directly, or the module itself if the
+            # class doesn't exist. This handles both class imports
+            # (SmartQADIOrchestrator) and module imports (answer_extractor).
             result = getattr(module, name) if hasattr(module, name) else module
         else:
-            # Return the aliased attribute
+            # Return the aliased attribute (e.g., SmartQADICycleResult → RobustQADICycleResult)
             result = getattr(module, attr_name)
 
         # Cache the result
