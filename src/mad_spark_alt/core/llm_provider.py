@@ -33,7 +33,8 @@ from .cost_utils import calculate_llm_cost_from_config, get_model_costs
 if TYPE_CHECKING:
     from .multimodal import MultimodalInput, MultimodalInputType, MultimodalSourceType, URLContextMetadata
 
-# Import multimodal utilities at runtime (not TYPE_CHECKING)
+# Import multimodal types and utilities at runtime
+from .multimodal import MultimodalSourceType
 from ..utils.multimodal_utils import read_file_as_base64
 
 logger = logging.getLogger(__name__)
@@ -567,17 +568,14 @@ class GoogleProvider(LLMProviderInterface):
             part = self._create_multimodal_part(image_input)
             # {"inline_data": {"mime_type": "image/png", "data": "base64..."}}
         """
-        # Import at runtime to avoid circular dependency
-        from .multimodal import MultimodalSourceType as MMSourceType
-
-        if item.source_type == MMSourceType.BASE64:
+        if item.source_type == MultimodalSourceType.BASE64:
             return {
                 "inline_data": {
                     "mime_type": item.mime_type,
                     "data": item.data
                 }
             }
-        elif item.source_type == MMSourceType.FILE_PATH:
+        elif item.source_type == MultimodalSourceType.FILE_PATH:
             # Read file and convert to base64
             base64_data, mime_type = read_file_as_base64(Path(item.data))
             return {
@@ -586,7 +584,7 @@ class GoogleProvider(LLMProviderInterface):
                     "data": base64_data
                 }
             }
-        elif item.source_type == MMSourceType.FILE_API:
+        elif item.source_type == MultimodalSourceType.FILE_API:
             # Reference uploaded file via File API
             return {
                 "file_data": {
