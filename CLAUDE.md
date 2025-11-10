@@ -623,4 +623,14 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Real API Validation**: Tested 3 production scenarios (basic QADI JSON, QADI Markdown, QADI + Evolution) - no timeout/truncation
 - **Code Quality**: Addressed all review feedback (inline imports, generation index, path validation security)
 - **Enum Handling**: Consistent lowercase string serialization (`ThinkingMethod.ABDUCTION` → `"abduction"`)
+
+### Centralized System Constants ([PR #139](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/139)) - COMPLETED ✅
+- **System Constants Module**: Created `system_constants.py` with 8 frozen dataclass categories (Evolution, Timeouts, LLM, Similarity, Text, Cache, Scoring)
+- **Magic Number Elimination**: Replaced 67+ magic numbers across 12 files with named constants
+- **Single Source of Truth**: All system-wide configuration in one immutable module accessed via `CONSTANTS` singleton
+- **Comprehensive Testing**: 30 tests verify immutability, value ranges, logical relationships (e.g., DEDUP_THRESHOLD >= CACHE_THRESHOLD)
+- **Type Safety**: Frozen dataclasses prevent accidental modification; fixed Optional type annotations project-wide
+- **Backward Compatibility**: Re-exports in `semantic_utils.py` preserve existing import patterns
+- **Benefits**: Easier tuning (change once, apply everywhere), improved readability (named constants vs numbers), consistent configuration
+- **Pattern**: Use `CONSTANTS.CATEGORY.CONSTANT_NAME` (e.g., `CONSTANTS.SIMILARITY.DEDUP_THRESHOLD`) for all magic number access
 - **Parent Directory Creation**: Automatic with `exist_ok=True` to prevent "file not found" errors
