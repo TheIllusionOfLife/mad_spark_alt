@@ -58,3 +58,7 @@ def isolate_llm_state():
 
     # Clear providers after each test
     llm_manager.providers.clear()
+
+    # Force garbage collection to clean up any lingering mocks/patches
+    import gc
+    gc.collect()
