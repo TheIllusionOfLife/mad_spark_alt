@@ -1,8 +1,23 @@
 # Session Handover
 
-## Last Updated: November 10, 2025 12:30 AM JST
+## Last Updated: November 10, 2025 01:51 PM JST
 
 #### Recently Completed
+
+- ✅ **[PR #135]**: Fix all 30 test isolation failures - **MAJOR SUCCESS ✅**
+  - **Impact**: Complete test isolation achieved, with 861 tests passing (up from 831) and 0 failures in CI
+  - **Learnings**: Solved a complex triple root cause involving `sys.modules` pollution, PEP 562 caching, and runtime enum imports. See [Session Learnings](#session-learnings) for detailed patterns
+
+- ✅ **[PR #134]**: Defer deprecation warnings until explicit import
+  - **Impact**: Improved user experience by using PEP 562 `__getattr__` to only show deprecation warnings on use, not on import
+  - **Learnings**: Captured pattern for lazy loading and deferred warnings. See [Session Learnings](#session-learnings) for details
+
+- ✅ **[PR #133]**: Remove SimplerQADIOrchestrator, achieve CLI/SDK parity
+  - **Code Reduction**: Removed redundant orchestrator implementation
+  - **Consistency**: CLI now uses core SimpleQADIOrchestrator (same as SDK)
+  - **Simplification**: Fewer orchestrator variants to maintain
+
+#### Recently Completed (Previous Session)
 
 - ✅ **Documentation Update (2025-11-10)**: Session Handover Cleanup
   - **Updated**: Refactoring Plan Progress section (79% → 100% complete)
@@ -95,6 +110,25 @@
 
 #### Session Learnings
 
+**PR #135: Test Isolation Triple Root Cause (2025-11-10)**:
+- **Discovery**: Tests passing individually but failing in suite at test #467
+- **Root Cause Analysis**: Three interconnected issues:
+  1. **sys.modules pollution**: Deleting entries creates duplicate instances on reimport
+  2. **PEP 562 __getattr__ caching**: Imported attributes cached in module.__dict__, bypass __getattr__
+  3. **Runtime enum imports**: Each import creates new enum instance, breaks == comparisons
+- **Solution Pattern**: 3-part cleanup (snapshot/restore sys.modules + clear cache + clear __dict__)
+- **Helper Method Pattern**: Encapsulate private attribute access in `_clear_deprecation_state()` for maintainability
+- **Integration Test Pattern**: Skip autouse fixtures for integration-marked tests using `if "integration" in request.keywords`
+- **Systematic Review**: GraphQL extraction caught NEW feedback after initial commit (claude approval comment)
+- **Lesson**: Complex test failures often have multiple interconnected causes - fix all three simultaneously
+
+**PR #134: Deferred Deprecation Warnings (2025-11-10)**:
+- **Pattern**: PEP 562 `__getattr__` for lazy imports defers warnings until actual usage
+- **Cache Strategy**: Prevent duplicate warnings with `_deprecated_cache` dict
+- **UX Benefit**: Users can import package without seeing warnings for unused deprecated items
+- **Test Strategy**: Verify warnings fire on explicit use, not on package import
+- **Lesson**: Better UX through careful warning timing improves adoption of deprecation practices
+
 **PR #130: Export System & Code Review Integration (2025-11-09)**:
 - **TDD Excellence**: 39 tests written before implementation - all 844 tests passing (100%)
 - **Security-First Development**: Added path validation after code review feedback prevented directory traversal attacks
@@ -149,9 +183,11 @@
   - Systematic feedback processing by priority.
   - API consistency: Validators should raise `ValueError`, not return `bool`.
 
-## Session Handover
+---
 
-### Last Updated: November 09, 2025 03:46 PM JST
+## Historical Context
+
+### Session Handover (November 09, 2025)
 
 #### Recently Completed
 
