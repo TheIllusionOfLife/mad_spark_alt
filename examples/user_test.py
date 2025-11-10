@@ -38,8 +38,6 @@ console = Console()
 def check_api_keys():
     """Check available API keys and return status."""
     api_keys = {
-        "OpenAI": os.getenv("OPENAI_API_KEY"),
-        "Anthropic": os.getenv("ANTHROPIC_API_KEY"),
         "Google": os.getenv("GOOGLE_API_KEY"),
     }
 
@@ -80,11 +78,9 @@ def display_welcome(show_full: bool = True):
         )
         if show_full:
             console.print(
-                "💡 For AI-powered generation, set one of these environment variables:",
+                "💡 For AI-powered generation, set this environment variable:",
                 style="yellow",
             )
-            console.print("   - OPENAI_API_KEY", style="dim")
-            console.print("   - ANTHROPIC_API_KEY", style="dim")
             console.print("   - GOOGLE_API_KEY\n", style="dim")
 
 

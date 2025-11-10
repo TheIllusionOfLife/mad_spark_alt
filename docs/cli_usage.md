@@ -22,23 +22,17 @@ msa --help
 
 ### Required Environment Variables
 
-For QADI multi-agent analysis and LLM functionality, set up API keys:
+For QADI multi-agent analysis and LLM functionality, set up your Google API key:
 
 ```bash
-# Google Gemini API (REQUIRED - primary LLM provider)
+# Google Gemini API (REQUIRED)
 export GOOGLE_API_KEY="your-google-api-key"
-
-# Optional: OpenAI API (alternative LLM provider)
-export OPENAI_API_KEY="your-openai-api-key"
-
-# Optional: Anthropic Claude API (alternative LLM provider)
-export ANTHROPIC_API_KEY="your-anthropic-api-key"
 
 # Alternative: Create .env file in project root
 echo "GOOGLE_API_KEY=your-key-here" > .env
 ```
 
-**Note**: At least one LLM API key is required for the QADI system to function. Google API is recommended for best results and lowest cost.
+**Note**: Google Gemini API key is required for the QADI system to function. Get your key at https://makersuite.google.com/app/apikey
 
 ## Basic Usage
 

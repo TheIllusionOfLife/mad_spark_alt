@@ -99,11 +99,11 @@ docs/
 This documentation is actively maintained and reflects the current system capabilities:
 
 - **✅ Dynamic Prompt Engineering**: 100% auto-detection accuracy
-- **✅ LLM Integration**: Google, OpenAI, Anthropic support
+- **✅ LLM Integration**: Google Gemini API
 - **✅ Genetic Evolution**: Complete with parallel evaluation
 - **✅ CLI Interface**: Full command-line tools with rich output
 
-Last updated: July 2024
+Last updated: November 2025
 
 ---
 

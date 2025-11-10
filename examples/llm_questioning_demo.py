@@ -29,31 +29,27 @@ async def demo_llm_questioning():
         )
     )
 
-    # Check for API keys
-    openai_key = os.getenv("OPENAI_API_KEY")
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    # Check for API key
+    google_key = os.getenv("GOOGLE_API_KEY")
 
-    if not openai_key and not anthropic_key:
+    if not google_key:
         console.print(
-            "⚠️  No API keys found. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variables.",
+            "⚠️  No API key found. Set GOOGLE_API_KEY environment variable.",
             style="yellow",
         )
         console.print("Falling back to template-based agent demonstration...")
         return
 
-    # Setup LLM providers
+    # Setup LLM provider
     try:
-        await setup_llm_providers(
-            openai_api_key=openai_key, anthropic_api_key=anthropic_key
-        )
-        console.print("✅ LLM providers configured successfully", style="green")
+        await setup_llm_providers(google_api_key=google_key)
+        console.print("✅ Google Gemini provider configured successfully", style="green")
     except Exception as e:
-        console.print(f"❌ Failed to setup LLM providers: {e}", style="red")
+        console.print(f"❌ Failed to setup LLM provider: {e}", style="red")
         return
 
     # Create LLM-powered questioning agent
-    preferred_provider = LLMProvider.ANTHROPIC if anthropic_key else LLMProvider.OPENAI
-    agent = LLMQuestioningAgent(preferred_provider=preferred_provider)
+    agent = LLMQuestioningAgent(preferred_provider=LLMProvider.GOOGLE)
 
     # Demo problems with different characteristics
     problems = [
@@ -200,7 +196,7 @@ async def compare_agents():
         console.print(f"   {i}. {idea.content}")
 
     # Test LLM-powered agent (if available)
-    if os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY"):
+    if os.getenv("GOOGLE_API_KEY"):
         console.print(f"\n🧠 LLM-powered Questioning Agent:")
         try:
             llm_agent = LLMQuestioningAgent()

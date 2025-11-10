@@ -1,9 +1,8 @@
 """
 LLM Provider Abstraction for Multi-Agent Idea Generation.
 
-This module provides a unified interface for working with different LLM providers
-(OpenAI, Anthropic, Google) with features for cost tracking, rate limiting,
-and async request handling.
+This module provides a unified interface for working with Google Gemini API
+with features for cost tracking, rate limiting, and async request handling.
 """
 
 import asyncio
