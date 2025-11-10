@@ -13,6 +13,7 @@ from dataclasses import replace
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
+from mad_spark_alt.core.system_constants import CONSTANTS
 from mad_spark_alt.evolution.cached_fitness import CachedFitnessEvaluator
 from mad_spark_alt.evolution.checkpointing import (
     EvolutionCheckpoint,
@@ -594,7 +595,7 @@ class GeneticAlgorithm:
         if (config.use_semantic_operators and 
             self.semantic_mutation_operator is not None and
             hasattr(self.semantic_mutation_operator, 'mutate_batch') and
-            num_offspring_needed > 3):  # Only use parallel for larger populations
+            num_offspring_needed > CONSTANTS.EVOLUTION.MIN_BATCH_SIZE_FOR_PARALLEL):  # Only use parallel for larger populations
             
             logger.info(f"Using parallel processing for {num_offspring_needed} offspring")
             try:

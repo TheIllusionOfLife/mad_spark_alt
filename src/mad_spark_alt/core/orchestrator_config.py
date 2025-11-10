@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, List, TYPE_CHECKING
 
+from .system_constants import CONSTANTS
+
 if TYPE_CHECKING:
     from .llm_provider import ModelConfig
 
@@ -30,8 +32,8 @@ class Strategy(Enum):
 class TimeoutConfig:
     """Timeout configuration for orchestrator operations."""
 
-    phase_timeout: float = 90.0
-    total_timeout: float = 900.0
+    phase_timeout: float = float(CONSTANTS.TIMEOUTS.PHASE_TIMEOUT_BASE)
+    total_timeout: float = float(CONSTANTS.TIMEOUTS.PHASE_TIMEOUT_TOTAL)
     enable_retry: bool = True
     max_retries: int = 3
 

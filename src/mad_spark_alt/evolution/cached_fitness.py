@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
+from mad_spark_alt.core.system_constants import CONSTANTS
 from mad_spark_alt.evolution.fitness import FitnessEvaluator
 from mad_spark_alt.evolution.interfaces import (
     EvolutionConfig,
@@ -215,8 +216,8 @@ class FitnessCache:
             "size": len(self._cache),
         }
     
-    def get_similar(self, idea: GeneratedIdea, context: Optional[str] = None, 
-                    similarity_threshold: float = 0.8) -> Optional[IndividualFitness]:
+    def get_similar(self, idea: GeneratedIdea, context: Optional[str] = None,
+                    similarity_threshold: Optional[float] = None) -> Optional[IndividualFitness]:
         """
         Find a similar cached entry using semantic similarity.
         
@@ -228,9 +229,12 @@ class FitnessCache:
         Returns:
             Cached fitness for most similar idea, or None
         """
+        if similarity_threshold is None:
+            similarity_threshold = CONSTANTS.SIMILARITY.CACHE_THRESHOLD
+
         if not self._cache:
             return None
-        
+
         # Normalize the target idea content
         target_content = self._normalize_content(idea.content)
         target_words = set(target_content.split())

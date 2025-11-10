@@ -13,12 +13,11 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.core.llm_provider import GoogleProvider, LLMRequest
+from mad_spark_alt.core.system_constants import CONSTANTS
 from mad_spark_alt.evolution.interfaces import CrossoverInterface, EvaluationContext
 
 from .operator_cache import SemanticOperatorCache
 from .semantic_utils import (
-    SEMANTIC_CROSSOVER_MAX_TOKENS,
-    SEMANTIC_BATCH_MUTATION_MAX_TOKENS,
     generate_crossover_fallback_text,
     get_crossover_schema,
     is_likely_truncated,
@@ -36,9 +35,6 @@ class SemanticCrossoverOperator(CrossoverInterface):
     Uses LLM to understand key concepts from both parents and create
     offspring that integrate these concepts synergistically.
     """
-
-    # Similarity threshold for detecting duplicate offspring
-    SIMILARITY_THRESHOLD = 0.7
 
     CROSSOVER_SYSTEM_PROMPT = """You are a genetic crossover operator for idea evolution.
 Your role is to meaningfully combine concepts from two parent ideas into offspring.
@@ -150,7 +146,7 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
                 context=context_str,
                 evaluation_context=evaluation_context_str
             ),
-            max_tokens=SEMANTIC_CROSSOVER_MAX_TOKENS,
+            max_tokens=CONSTANTS.LLM.SEMANTIC_CROSSOVER_MAX_TOKENS,
             temperature=0.7,  # Moderate temperature for balanced creativity
             response_schema=schema,
             response_mime_type="application/json"
@@ -186,7 +182,7 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
 
         # Check for excessive duplication between offspring
         similarity = self._calculate_similarity(offspring1_content, offspring2_content)
-        if similarity > self.SIMILARITY_THRESHOLD:  # More than 70% similar
+        if similarity > CONSTANTS.SIMILARITY.CROSSOVER_THRESHOLD:  # Similar parents produce similar offspring
             logger.warning(f"High similarity detected between offspring: {similarity:.2f}")
             # Use fallback generation for more diverse offspring
             offspring1_content = self._generate_crossover_fallback(parent1, parent2, is_first=True)
@@ -424,8 +420,8 @@ class BatchSemanticCrossoverOperator(CrossoverInterface):
             request = LLMRequest(
                 system_prompt=SemanticCrossoverOperator.CROSSOVER_SYSTEM_PROMPT,
                 user_prompt=batch_prompt,
-                max_tokens=min(SEMANTIC_CROSSOVER_MAX_TOKENS * len(uncached_pairs), SEMANTIC_BATCH_MUTATION_MAX_TOKENS),
-                temperature=0.8,
+                max_tokens=min(CONSTANTS.LLM.SEMANTIC_CROSSOVER_MAX_TOKENS * len(uncached_pairs), CONSTANTS.LLM.SEMANTIC_BATCH_MUTATION_MAX_TOKENS),
+                temperature=CONSTANTS.LLM.REGULAR_MUTATION_TEMPERATURE,
                 response_schema=schema,
                 response_mime_type="application/json"
             )

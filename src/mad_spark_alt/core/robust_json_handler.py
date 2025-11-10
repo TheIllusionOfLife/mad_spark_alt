@@ -12,6 +12,8 @@ import re
 import warnings
 from typing import Any, Dict, List, Optional, Union
 
+from .system_constants import CONSTANTS
+
 logger = logging.getLogger(__name__)
 
 
@@ -86,7 +88,7 @@ def extract_json_from_response(
         if extracted:
             return extracted
 
-    logger.warning(f"Failed to extract JSON from response: {response[:200]}...")
+    logger.warning(f"Failed to extract JSON from response: {response[:CONSTANTS.TEXT.TRUNCATED_RESPONSE_LENGTH]}...")
     return fallback or {}
 
 

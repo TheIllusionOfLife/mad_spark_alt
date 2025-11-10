@@ -41,6 +41,7 @@ from .core.json_utils import format_llm_cost
 from .core.llm_provider import LLMProvider, get_google_provider, llm_manager
 from .core.multimodal import MultimodalInput, MultimodalInputType, MultimodalSourceType
 from .core.simple_qadi_orchestrator import SimpleQADIOrchestrator, SimpleQADIResult
+from .core.system_constants import CONSTANTS
 from .core.terminal_renderer import render_markdown
 from .evolution import (
     DiversityMethod,
@@ -69,17 +70,20 @@ def _get_semantic_operator_status() -> str:
 
 
 def _format_idea_for_display(
-    content: str, max_length: int = 200
+    content: str, max_length: Optional[int] = None
 ) -> str:
     """Format idea content for display with smart truncation.
 
     Args:
         content: The idea content to format
-        max_length: Maximum length before truncation
+        max_length: Maximum length before truncation (default: CONSTANTS.TEXT.MAX_IDEA_DISPLAY_LENGTH)
 
     Returns:
         Formatted content string
     """
+    if max_length is None:
+        max_length = CONSTANTS.TEXT.MAX_IDEA_DISPLAY_LENGTH
+
     if len(content) <= max_length:
         return content
 
@@ -88,13 +92,13 @@ def _format_idea_for_display(
 
     # Look for last complete word
     last_space = truncated.rfind(' ')
-    if last_space > max_length * 0.8:  # If we found a space reasonably close to the end
+    if last_space > max_length * CONSTANTS.TEXT.WORD_BOUNDARY_RATIO:
         truncated = truncated[:last_space]
 
     # Also check for punctuation as good breaking points
     for punct in ['.', ',', ';', ')', ']']:
         punct_pos = truncated.rfind(punct)
-        if punct_pos > max_length * 0.8:
+        if punct_pos > max_length * CONSTANTS.TEXT.WORD_BOUNDARY_RATIO:
             truncated = truncated[:punct_pos + 1]
             break
 
@@ -111,12 +115,6 @@ def _create_evolution_results_table() -> Table:
     return table
 
 
-# Evolution timeout constants
-_BASE_TIMEOUT_SECONDS = 120.0  # Minimum 2 minutes
-_SECONDS_PER_EVALUATION_ESTIMATE = 20  # Estimate per evaluation
-_MAX_TIMEOUT_SECONDS = 600.0  # Maximum 10 minutes
-
-
 def calculate_evolution_timeout(generations: int, population: int) -> float:
     """
     Calculate adaptive timeout based on evolution complexity.
@@ -126,11 +124,14 @@ def calculate_evolution_timeout(generations: int, population: int) -> float:
         population: Population size
 
     Returns:
-        Timeout in seconds (min 120s, max 600s)
+        Timeout in seconds (min 120s, max 900s)
     """
-    # Use 25s per evaluation estimate (increased for batch optimization safety)
-    estimated_time = generations * population * 25
-    return min(max(_BASE_TIMEOUT_SECONDS, estimated_time), _MAX_TIMEOUT_SECONDS)
+    # Use configured timeout per evaluation (25s)
+    estimated_time = generations * population * CONSTANTS.TIMEOUTS.CLI_EVOLUTION_TIMEOUT_PER_EVAL
+    return min(
+        max(CONSTANTS.TIMEOUTS.CLI_BASE_TIMEOUT_SECONDS, estimated_time),
+        CONSTANTS.TIMEOUTS.CLI_MAX_TIMEOUT_SECONDS
+    )
 
 
 def load_env_file() -> None:
@@ -209,25 +210,18 @@ def clean_markdown_text(text: str) -> str:
     return cleaned.strip()
 
 
-# Constants for title extraction
-MIN_HYPOTHESIS_LENGTH = 10
-MIN_MEANINGFUL_TITLE_LENGTH = 10
-MAX_TITLE_LENGTH = 80
-WORD_BOUNDARY_THRESHOLD = 50
-
-
 def _truncate_title(title: str) -> str:
     """Truncate title to MAX_TITLE_LENGTH if needed."""
-    if len(title) <= MAX_TITLE_LENGTH:
+    if len(title) <= CONSTANTS.TEXT.MAX_TITLE_LENGTH:
         return title
-    return title[:MAX_TITLE_LENGTH] + "..."
+    return title[:CONSTANTS.TEXT.MAX_TITLE_LENGTH] + "..."
 
 
 def extract_hypothesis_title(cleaned_hypothesis: str, index: int) -> str:
     """Extract a meaningful title from hypothesis content."""
 
     # Emergency fallback for empty or very short hypotheses
-    if not cleaned_hypothesis or len(cleaned_hypothesis.strip()) < MIN_HYPOTHESIS_LENGTH:
+    if not cleaned_hypothesis or len(cleaned_hypothesis.strip()) < CONSTANTS.TEXT.MIN_HYPOTHESIS_LENGTH:
         return f"Approach {index}"
 
     # Strategy: Extract the first meaningful sentence or phrase
@@ -237,21 +231,21 @@ def extract_hypothesis_title(cleaned_hypothesis: str, index: int) -> str:
     jp_sentence_match = re.match(r'^([^。！？]+[。！？])', cleaned_hypothesis)
     if jp_sentence_match:
         title = jp_sentence_match.group(1).strip()
-        if len(title) > MIN_MEANINGFUL_TITLE_LENGTH:
+        if len(title) > CONSTANTS.TEXT.MIN_MEANINGFUL_TITLE_LENGTH:
             return _truncate_title(title)
 
     # Try English sentence patterns
     en_sentence_match = re.match(r'^([^.!?]+[.!?])', cleaned_hypothesis)
     if en_sentence_match:
         title = en_sentence_match.group(1).strip()
-        if len(title) > MIN_MEANINGFUL_TITLE_LENGTH:
+        if len(title) > CONSTANTS.TEXT.MIN_MEANINGFUL_TITLE_LENGTH:
             return _truncate_title(title)
 
     # For numbered lists, try to extract the intro part
     if "：" in cleaned_hypothesis or ":" in cleaned_hypothesis:
         # Split on colon and take the first part
         parts = re.split(r'[:：]', cleaned_hypothesis)
-        if parts[0] and len(parts[0].strip()) > MIN_MEANINGFUL_TITLE_LENGTH:
+        if parts[0] and len(parts[0].strip()) > CONSTANTS.TEXT.MIN_MEANINGFUL_TITLE_LENGTH:
             title = parts[0].strip()
             return _truncate_title(title)
 
@@ -260,14 +254,14 @@ def extract_hypothesis_title(cleaned_hypothesis: str, index: int) -> str:
     for delimiter in delimiters:
         if delimiter in cleaned_hypothesis[:100]:
             parts = cleaned_hypothesis.split(delimiter, 1)
-            if parts[0] and len(parts[0].strip()) > MIN_MEANINGFUL_TITLE_LENGTH:
+            if parts[0] and len(parts[0].strip()) > CONSTANTS.TEXT.MIN_MEANINGFUL_TITLE_LENGTH:
                 title = parts[0].strip()
                 return _truncate_title(title)
 
     # Final fallback: First MAX_TITLE_LENGTH chars with word boundary
-    if len(cleaned_hypothesis) > MAX_TITLE_LENGTH:
+    if len(cleaned_hypothesis) > CONSTANTS.TEXT.MAX_TITLE_LENGTH:
         # Try to find a word boundary
-        truncated = cleaned_hypothesis[:MAX_TITLE_LENGTH]
+        truncated = cleaned_hypothesis[:CONSTANTS.TEXT.MAX_TITLE_LENGTH]
         last_space = truncated.rfind(' ')
         last_jp_particle = max(
             truncated.rfind('を') if 'を' in truncated else -1,
@@ -277,12 +271,12 @@ def extract_hypothesis_title(cleaned_hypothesis: str, index: int) -> str:
         )
         boundary = max(last_space, last_jp_particle)
 
-        if boundary > WORD_BOUNDARY_THRESHOLD:
+        if boundary > CONSTANTS.TEXT.WORD_BOUNDARY_THRESHOLD:
             return truncated[:boundary].strip() + "..."
         else:
-            return truncated[:MAX_TITLE_LENGTH-3] + "..."
+            return truncated[:CONSTANTS.TEXT.MAX_TITLE_LENGTH-3] + "..."
 
-    return cleaned_hypothesis[:MAX_TITLE_LENGTH].strip()
+    return cleaned_hypothesis[:CONSTANTS.TEXT.MAX_TITLE_LENGTH].strip()
 
 
 def truncate_at_sentence_boundary(text: str, max_length: int) -> str:
@@ -303,7 +297,7 @@ def truncate_at_sentence_boundary(text: str, max_length: int) -> str:
 
     # Fallback: no sentence boundary found, truncate at word boundary
     last_space = boundary_search_text.rfind(' ')
-    if last_space > max_length * 0.8:  # If we found a space reasonably close
+    if last_space > max_length * CONSTANTS.TEXT.WORD_BOUNDARY_RATIO:  # If we found a space reasonably close
         return text[:last_space].strip() + "..."
 
     return boundary_search_text.strip() + "..."
@@ -352,13 +346,13 @@ def format_example_output(example: str, example_num: int) -> str:
 
     if context_content and application_content:
         # Present clean content without redundant labels
-        context_truncated = truncate_at_sentence_boundary(context_content, 350)
-        application_truncated = truncate_at_sentence_boundary(application_content, 350)
+        context_truncated = truncate_at_sentence_boundary(context_content, CONSTANTS.TEXT.MAX_CONTEXT_TRUNCATION_LENGTH)
+        application_truncated = truncate_at_sentence_boundary(application_content, CONSTANTS.TEXT.MAX_CONTEXT_TRUNCATION_LENGTH)
 
         output += f"{context_truncated}\n\n"
         output += f"→ {application_truncated}\n"
 
-        if result_content and len(result_content) < 300:
+        if result_content and len(result_content) < CONSTANTS.TEXT.MAX_RESULT_LENGTH:
             output += f"\n**Result:** {result_content}\n"
     else:
         # Fallback for unstructured examples - clean up more aggressively
@@ -378,7 +372,7 @@ def format_example_output(example: str, example_num: int) -> str:
         cleaned_example = re.sub(r'\n\s*\*\s*\*\s*', '\n', cleaned_example)  # Fix bullet points
         cleaned_example = re.sub(r'\n{3,}', '\n\n', cleaned_example)  # Fix excessive newlines
 
-        truncated = truncate_at_sentence_boundary(cleaned_example.strip(), 400)
+        truncated = truncate_at_sentence_boundary(cleaned_example.strip(), CONSTANTS.TEXT.MAX_EXAMPLE_LENGTH)
         output += truncated + "\n"
 
     return output
@@ -445,7 +439,7 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
             # Clean ANSI codes first
             h_clean = clean_ansi_codes(h)
             title = clean_markdown_text(h_clean)
-            if title and len(title) > 10:  # Must be meaningful
+            if title and len(title) > CONSTANTS.TEXT.MIN_MEANINGFUL_TITLE_LENGTH:  # Must be meaningful
                 solutions.append(title[:150])  # Limit length
 
     # If we don't have enough solutions, add from action plan
@@ -458,10 +452,10 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
 
                 # Take first sentence if it's meaningful
                 first_sentence = action_clean.split('.')[0].strip()
-                if len(first_sentence) > 20:
+                if len(first_sentence) > CONSTANTS.TEXT.MIN_MEANINGFUL_LENGTH:
                     solutions.append(first_sentence)
-                elif len(action_clean) > 20:
-                    solutions.append(action_clean[:100].strip())
+                elif len(action_clean) > CONSTANTS.TEXT.MIN_MEANINGFUL_LENGTH:
+                    solutions.append(action_clean[:CONSTANTS.TEXT.MAX_ACTION_LENGTH].strip())
 
     # Return all solutions, not just 3
     return solutions
@@ -581,15 +575,15 @@ def main(
 
         # Validate evolution parameters
         if evolve:
-            if population < 2 or population > 10:
-                console.print(f"[red]Error: Population size must be between 2 and 10 (got {population})[/red]")
-                console.print("\n[yellow]Valid range:[/yellow] 2 to 10")
+            if population < CONSTANTS.EVOLUTION.MIN_POPULATION_SIZE or population > CONSTANTS.EVOLUTION.MAX_POPULATION_SIZE:
+                console.print(f"[red]Error: Population size must be between {CONSTANTS.EVOLUTION.MIN_POPULATION_SIZE} and {CONSTANTS.EVOLUTION.MAX_POPULATION_SIZE} (got {population})[/red]")
+                console.print(f"\n[yellow]Valid range:[/yellow] {CONSTANTS.EVOLUTION.MIN_POPULATION_SIZE} to {CONSTANTS.EVOLUTION.MAX_POPULATION_SIZE}")
                 console.print("Example: msa \"Your question\" --evolve --population 5")
                 ctx.exit(1)
 
-            if generations < 2 or generations > 5:
-                console.print(f"[red]Error: Generations must be between 2 and 5 (got {generations})[/red]")
-                console.print("\n[yellow]Valid range:[/yellow] 2 to 5")
+            if generations < CONSTANTS.EVOLUTION.MIN_GENERATIONS or generations > CONSTANTS.EVOLUTION.MAX_GENERATIONS:
+                console.print(f"[red]Error: Generations must be between {CONSTANTS.EVOLUTION.MIN_GENERATIONS} and {CONSTANTS.EVOLUTION.MAX_GENERATIONS} (got {generations})[/red]")
+                console.print(f"\n[yellow]Valid range:[/yellow] {CONSTANTS.EVOLUTION.MIN_GENERATIONS} to {CONSTANTS.EVOLUTION.MAX_GENERATIONS}")
                 console.print("Example: msa \"Your question\" --evolve --generations 3")
                 ctx.exit(1)
 
@@ -1060,8 +1054,10 @@ def _display_evolution_results(
     print("## 🧬 Evolution Results: Enhanced Solutions\n")
     print("*The initial hypotheses have been evolved and refined:*\n")
 
-    def is_similar(a: str, b: str, threshold: float = 0.85) -> bool:
+    def is_similar(a: str, b: str, threshold: Optional[float] = None) -> bool:
         """Check if two strings are similar above threshold."""
+        if threshold is None:
+            threshold = CONSTANTS.SIMILARITY.DEDUP_THRESHOLD
         return SequenceMatcher(None, a.lower(), b.lower()).ratio() > threshold
 
     # Get ALL individuals from all generations + initial QADI hypotheses
@@ -1098,13 +1094,13 @@ def _display_evolution_results(
         for existing in unique_individuals:
             existing_content = existing.idea.content.strip() if existing.idea.content else ""
             similarity = SequenceMatcher(None, normalized_content.lower(), existing_content.lower()).ratio()
-            if similarity > 0.85:
+            if similarity > CONSTANTS.SIMILARITY.DEDUP_THRESHOLD:
                 is_duplicate = True
                 break
 
         if not is_duplicate:
             unique_individuals.append(ind)
-            if len(unique_individuals) >= 8:
+            if len(unique_individuals) >= CONSTANTS.TEXT.MAX_DISPLAY_IDEAS:
                 break
 
     # Display evolved ideas
@@ -1140,7 +1136,7 @@ def _display_evolution_results(
         render_markdown(cleaned_content)
         print()
 
-        if display_count >= 3:
+        if display_count >= CONSTANTS.TEXT.MAX_TOP_IDEAS_DISPLAY:
             break
 
     # Show metrics
