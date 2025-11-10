@@ -145,29 +145,33 @@ with Live(self._create_progress_table(), refresh_per_second=4) as live:
 
 ---
 
-### Task 1.2: Remove Dead Dependencies ⏱️ 1 hour
+### Task 1.2: Remove Dead Dependencies ✅ COMPLETE
 **Source**: unified_refactoring.txt Priority 1, Task 1
 **Impact**: Reduces maintenance burden, speeds up installs
+**Status**: ✅ **COMPLETED** on 2025-11-10
+**Actual Time**: ~30 minutes
+**PR**: [#137](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/137)
 
-**Implementation**:
-```bash
-# Remove from pyproject.toml
-uv remove openai anthropic
+**Implementation Completed**:
+1. ✅ Removed `openai>=1.0.0` and `anthropic>=0.3.0` from pyproject.toml
+2. ✅ Updated lock file with `uv lock`
+3. ✅ Updated `llm_provider.py` docstring (Google-only)
+4. ✅ Updated 4 example files (qadi_demo, llm_questioning_demo, llm_abductive_demo, llm_deductive_demo)
+5. ✅ Updated documentation (cli_usage.md, docs/README.md)
+6. ✅ Verified no openai/anthropic imports remain in src/ or tests/
+7. ✅ All 861 tests pass
+8. ✅ CLI tested with real API - works correctly (55.4s, $0.0070)
+9. ✅ CI checks pass (test: 5m7s, build: 12s, CodeRabbit: pass)
 
-# Search and remove imports
-grep -r "import openai" src/ tests/
-grep -r "import anthropic" src/ tests/
-# Remove any found imports
+**Success Criteria - ALL MET**:
+- ✅ `pyproject.toml` only lists Google Gemini as LLM provider (15 dependencies, down from 17)
+- ✅ No import errors - verified with grep
+- ✅ `uv sync` completes faster (~0.025s)
+- ✅ All tests pass (861 passed, 1 skipped)
+- ✅ ~100MB disk space saved
+- ✅ Documentation accurately reflects Google-only architecture
 
-# Update uv.lock
-uv lock
-```
-
-**Success Criteria**:
-- ✅ `pyproject.toml` only lists Google Gemini as LLM provider
-- ✅ No import errors
-- ✅ `uv sync` completes faster
-- ✅ All tests pass
+**Result**: Cleaner dependencies, faster installs, no confusion about supported providers
 
 **Branch**: `chore/remove-dead-dependencies`
 
