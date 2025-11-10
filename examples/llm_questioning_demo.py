@@ -196,7 +196,7 @@ async def compare_agents():
         console.print(f"   {i}. {idea.content}")
 
     # Test LLM-powered agent (if available)
-    if os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY"):
+    if os.getenv("GOOGLE_API_KEY"):
         console.print(f"\n🧠 LLM-powered Questioning Agent:")
         try:
             llm_agent = LLMQuestioningAgent()

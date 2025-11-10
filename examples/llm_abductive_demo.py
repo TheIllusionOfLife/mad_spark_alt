@@ -57,10 +57,8 @@ async def demo_basic_hypothesis_generation():
     # Setup LLM agent
     agent_setup = await setup_llm_agent()
     if not agent_setup:
-        print("⚠️  No LLM API keys found in environment variables.")
-        print(
-            "   Please set OPENAI_API_KEY and/or ANTHROPIC_API_KEY to see AI-powered generation."
-        )
+        print("⚠️  No LLM API key found in environment variables.")
+        print("   Please set GOOGLE_API_KEY to see AI-powered generation.")
         print("   Skipping LLM demonstration...")
         return
 

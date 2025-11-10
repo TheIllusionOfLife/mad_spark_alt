@@ -63,10 +63,10 @@ async def check_api_keys() -> bool:
         )
     else:
         console.print(
-            "📝 No API keys found. Using template-based agents.", style="yellow"
+            "📝 No API key found. Using template-based agents.", style="yellow"
         )
         console.print(
-            "💡 Set OPENAI_API_KEY, ANTHROPIC_API_KEY, or GOOGLE_API_KEY for AI-powered generation.",
+            "💡 Set GOOGLE_API_KEY for AI-powered generation.",
             style="dim",
         )
 
@@ -196,14 +196,8 @@ async def demo_qadi_capabilities(problem: str) -> None:
 
     console.print(f"\n🎯 Problem: [italic]{problem}[/italic]")
 
-    # Check if we have API keys
-    has_api_keys = any(
-        [
-            os.getenv("OPENAI_API_KEY"),
-            os.getenv("ANTHROPIC_API_KEY"),
-            os.getenv("GOOGLE_API_KEY"),
-        ]
-    )
+    # Check if we have API key
+    has_api_keys = bool(os.getenv("GOOGLE_API_KEY"))
 
     if has_api_keys:
         console.print("🤖 API key detected - full QADI analysis available!")
@@ -223,12 +217,10 @@ async def demo_qadi_capabilities(problem: str) -> None:
         console.print(capabilities_table)
 
     else:
-        console.print("❌ No API keys detected - QADI analysis requires LLM access")
-        console.print("\n📝 To enable full QADI analysis, set one of these environment variables:")
+        console.print("❌ No API key detected - QADI analysis requires LLM access")
+        console.print("\n📝 To enable full QADI analysis, set this environment variable:")
         console.print("  • GOOGLE_API_KEY=your_google_api_key")
-        console.print("  • OPENAI_API_KEY=your_openai_api_key") 
-        console.print("  • ANTHROPIC_API_KEY=your_anthropic_api_key")
-        console.print("\n💡 Get API keys from the respective provider websites")
+        console.print("\n💡 Get API key from https://makersuite.google.com/app/apikey")
 
 
 async def main() -> None:
