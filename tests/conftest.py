@@ -5,6 +5,7 @@ This module provides shared fixtures and configuration for all tests,
 including proper LLM provider state management and test isolation.
 """
 
+import gc
 import os
 from typing import AsyncGenerator
 
@@ -27,8 +28,9 @@ async def mock_llm_setup() -> AsyncGenerator[LLMManager, None]:
             result = await orchestrator.run_qadi_cycle("test")
     """
     # Skip if real API key is available (integration tests)
-    if os.getenv("GOOGLE_API_KEY"):
-        await setup_llm_providers(os.getenv("GOOGLE_API_KEY"))
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if api_key:
+        await setup_llm_providers(api_key)
     else:
         # For unit tests without API keys, tests should mock the LLM calls themselves
         # This fixture just ensures the llm_manager is in a clean state
@@ -41,16 +43,27 @@ async def mock_llm_setup() -> AsyncGenerator[LLMManager, None]:
 
 
 @pytest.fixture(autouse=True)
-def isolate_llm_state():
+def isolate_llm_state(request):
     """
     Ensure each test starts with clean LLM provider state.
 
     This runs before every test automatically to prevent state leakage
-    between tests. Tests that need providers should either:
-    1. Use the mock_llm_setup fixture
-    2. Set up their own mocked providers
-    3. Be marked as @pytest.mark.integration and skipped in CI
+    between tests. Integration tests are skipped to allow class-scoped
+    fixtures to register and maintain real LLM providers across tests.
+
+    Tests that need providers should either:
+    1. Use the mock_llm_setup fixture (unit tests)
+    2. Set up their own mocked providers (unit tests)
+    3. Be marked as @pytest.mark.integration (integration tests)
+
+    Note: mock_llm_setup provides LLM providers for tests that need them.
+    This fixture (autouse) ensures cleanup for all other tests.
     """
+    # Skip isolation for integration tests that manage their own provider state
+    if "integration" in request.keywords:
+        yield
+        return
+
     # Clear providers before each test
     llm_manager.providers.clear()
 
@@ -59,6 +72,7 @@ def isolate_llm_state():
     # Clear providers after each test
     llm_manager.providers.clear()
 
-    # Force garbage collection to clean up any lingering mocks/patches
-    import gc
+    # Force garbage collection to clean up lingering mock objects and weak references
+    # This is necessary because AsyncMock objects can hold references that prevent
+    # proper cleanup, leading to ResourceWarnings in tests
     gc.collect()

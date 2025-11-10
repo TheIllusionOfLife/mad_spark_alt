@@ -28,19 +28,16 @@ def restore_core_modules():
     Root cause fix for 30 test failures that passed individually but
     failed in full suite starting at test #467 (end of deprecation tests).
     """
+    import mad_spark_alt.core
+
     # Snapshot all mad_spark_alt.core* modules before test
     snapshot = {
         k: v for k, v in sys.modules.items()
         if k.startswith('mad_spark_alt.core')
     }
 
-    # Clear the deprecation cache and module __dict__ before each test
-    import mad_spark_alt.core
-    mad_spark_alt.core._deprecated_cache.clear()
-
-    # Remove deprecated attributes from module __dict__ to force __getattr__ to be called
-    for deprecated_name in mad_spark_alt.core._DEPRECATED_IMPORTS.keys():
-        mad_spark_alt.core.__dict__.pop(deprecated_name, None)
+    # Clear deprecation state before test to ensure warnings fire properly
+    mad_spark_alt.core._clear_deprecation_state()
 
     yield
 
@@ -53,10 +50,8 @@ def restore_core_modules():
     # 2. Restore original modules
     sys.modules.update(snapshot)
 
-    # 3. Clear deprecation cache and module __dict__ to prevent cross-test pollution
-    mad_spark_alt.core._deprecated_cache.clear()
-    for deprecated_name in mad_spark_alt.core._DEPRECATED_IMPORTS.keys():
-        mad_spark_alt.core.__dict__.pop(deprecated_name, None)
+    # 3. Clear deprecation state to prevent cross-test pollution
+    mad_spark_alt.core._clear_deprecation_state()
 
 
 class TestDeprecationWarningBehavior:

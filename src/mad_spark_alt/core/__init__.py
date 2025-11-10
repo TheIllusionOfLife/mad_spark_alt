@@ -270,3 +270,24 @@ def __getattr__(name: str) -> Any:
         return result
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def _clear_deprecation_state() -> None:
+    """
+    Clear deprecation cache and module __dict__ for testing.
+
+    Internal use only. Used by test_deprecation_warnings.py to ensure
+    proper test isolation when testing PEP 562 __getattr__ behavior.
+
+    This function clears two pieces of state:
+    1. _deprecated_cache: Prevents duplicate warnings when same item imported multiple times
+    2. module __dict__: Forces __getattr__ to be called again for deprecated items
+
+    Without clearing both, subsequent imports of deprecated items won't trigger
+    warnings because:
+    - Cached items return immediately without calling __getattr__
+    - Items in __dict__ bypass __getattr__ entirely (PEP 562 behavior)
+    """
+    _deprecated_cache.clear()
+    for name in _DEPRECATED_IMPORTS.keys():
+        globals().pop(name, None)
