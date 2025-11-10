@@ -131,7 +131,7 @@
    - **Estimate**: 12-16 hours
    - **Impact**: Very High - fundamentally improves evolution quality and convergence speed
 
-3. **[MEDIUM PRIORITY] Enhanced Error Messages**
+5. **[MEDIUM PRIORITY] Enhanced Error Messages**
    - **Source**: session_handover.md (CodeRabbit suggestion from PR #126)
    - **Context**: Users might try old commands (mad-spark, mad_spark_alt)
    - **Goal**: Provide helpful migration hints for common mistakes
