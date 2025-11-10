@@ -38,8 +38,6 @@ async def showcase_llm_vs_template():
 
     # Check API keys
     api_keys = {
-        "OpenAI": os.getenv("OPENAI_API_KEY"),
-        "Anthropic": os.getenv("ANTHROPIC_API_KEY"),
         "Google": os.getenv("GOOGLE_API_KEY"),
     }
 
