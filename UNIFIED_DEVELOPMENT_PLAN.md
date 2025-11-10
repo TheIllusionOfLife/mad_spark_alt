@@ -718,10 +718,13 @@ msa --load-session <id>     # Continue from previous
 - ✅ CLI consolidation (PR #126)
 - ✅ Result export system (PR #130)
 - ✅ Multimodal support (PR #122, #124, #125)
-- ✅ 844/844 tests passing
+- ✅ Task 0.1: CLI/SDK Parity (PR #131)
+- ✅ Task 0.2: Fix Execute on Import Warnings (PR #134)
+- ✅ Task 1.2: Remove Dead Dependencies (PR #137)
+- ✅ 861/861 tests passing, 1 skipped
 
 ### **In Progress**:
-- 🔄 Starting Task 0.1: CLI/SDK Parity investigation
+- None currently
 
 ### **Blocked/Deferred**:
 - None currently
