@@ -28,30 +28,24 @@ async def setup_llm_agent() -> Optional[Tuple[LLMAbductiveAgent, str]]:
     Setup LLM agent with API key checking and provider configuration.
 
     Returns:
-        Tuple of (agent, status_message) if successful, None if no API keys available
+        Tuple of (agent, status_message) if successful, None if no API key available
     """
-    openai_key = os.getenv("OPENAI_API_KEY")
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    google_key = os.getenv("GOOGLE_API_KEY")
 
-    if not (openai_key or anthropic_key):
+    if not google_key:
         return None
 
     try:
-        # Setup LLM providers
-        await setup_llm_providers(
-            openai_api_key=openai_key,
-            anthropic_api_key=anthropic_key,
-        )
+        # Setup LLM provider
+        await setup_llm_providers(google_api_key=google_key)
 
-        # Create the agent with preferred provider
-        preferred_provider = LLMProvider.OPENAI if openai_key else LLMProvider.ANTHROPIC
-        agent = LLMAbductiveAgent(preferred_provider=preferred_provider)
+        # Create the agent with Google provider
+        agent = LLMAbductiveAgent(preferred_provider=LLMProvider.GOOGLE)
 
-        provider_name = "OpenAI" if openai_key else "Anthropic"
-        return agent, f"✅ LLM agent configured with {provider_name}"
+        return agent, "✅ LLM agent configured with Google Gemini"
 
     except (ValueError, RuntimeError, ConnectionError) as e:
-        print(f"❌ Failed to setup LLM providers: {e}")
+        print(f"❌ Failed to setup LLM provider: {e}")
         return None
 
 

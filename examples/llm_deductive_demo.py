@@ -23,27 +23,20 @@ async def demo_basic_logical_analysis():
     print("🔍 LLM Deductive Agent - Basic Logical Analysis Demo")
     print("=" * 60)
 
-    # Check if we have API keys
-    openai_key = os.getenv("OPENAI_API_KEY")
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    # Check if we have API key
+    google_key = os.getenv("GOOGLE_API_KEY")
 
-    if not (openai_key or anthropic_key):
-        print("⚠️  No LLM API keys found in environment variables.")
-        print(
-            "   Please set OPENAI_API_KEY and/or ANTHROPIC_API_KEY to see AI-powered analysis."
-        )
+    if not google_key:
+        print("⚠️  No LLM API key found in environment variables.")
+        print("   Please set GOOGLE_API_KEY to see AI-powered analysis.")
         print("   Skipping LLM demonstration...")
         return
 
-    # Setup LLM providers
-    await setup_llm_providers(
-        openai_api_key=openai_key,
-        anthropic_api_key=anthropic_key,
-    )
+    # Setup LLM provider
+    await setup_llm_providers(google_api_key=google_key)
 
     # Create the agent
-    preferred_provider = LLMProvider.OPENAI if openai_key else LLMProvider.ANTHROPIC
-    agent = LLMDeductiveAgent(preferred_provider=preferred_provider)
+    agent = LLMDeductiveAgent(preferred_provider=LLMProvider.GOOGLE)
 
     # Test problem for logical analysis
     problem_statement = """

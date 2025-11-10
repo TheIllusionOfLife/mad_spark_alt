@@ -37,8 +37,6 @@ async def check_api_keys() -> bool:
     console.print("🔐 Checking API Key Availability", style="bold blue")
 
     api_keys = {
-        "OpenAI": os.getenv("OPENAI_API_KEY"),
-        "Anthropic": os.getenv("ANTHROPIC_API_KEY"),
         "Google": os.getenv("GOOGLE_API_KEY"),
     }
 
