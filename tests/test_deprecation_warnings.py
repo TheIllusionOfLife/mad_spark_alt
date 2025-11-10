@@ -14,6 +14,51 @@ from io import StringIO
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def restore_core_modules():
+    """
+    Snapshot and restore mad_spark_alt.core modules to prevent pollution.
+
+    This fixture prevents test isolation issues by ensuring that any
+    sys.modules manipulation within deprecation tests doesn't leak to
+    subsequent tests in the suite. Without this, tests that clear
+    sys.modules create duplicate module instances, causing patches
+    to target the wrong module object.
+
+    Root cause fix for 30 test failures that passed individually but
+    failed in full suite starting at test #467 (end of deprecation tests).
+    """
+    # Snapshot all mad_spark_alt.core* modules before test
+    snapshot = {
+        k: v for k, v in sys.modules.items()
+        if k.startswith('mad_spark_alt.core')
+    }
+
+    # Clear the deprecation cache and module __dict__ before each test
+    import mad_spark_alt.core
+    mad_spark_alt.core._deprecated_cache.clear()
+
+    # Remove deprecated attributes from module __dict__ to force __getattr__ to be called
+    for deprecated_name in mad_spark_alt.core._DEPRECATED_IMPORTS.keys():
+        mad_spark_alt.core.__dict__.pop(deprecated_name, None)
+
+    yield
+
+    # Restore original state after test
+    # 1. Remove any new modules that appeared
+    for k in list(sys.modules.keys()):
+        if k.startswith('mad_spark_alt.core'):
+            sys.modules.pop(k, None)
+
+    # 2. Restore original modules
+    sys.modules.update(snapshot)
+
+    # 3. Clear deprecation cache and module __dict__ to prevent cross-test pollution
+    mad_spark_alt.core._deprecated_cache.clear()
+    for deprecated_name in mad_spark_alt.core._DEPRECATED_IMPORTS.keys():
+        mad_spark_alt.core.__dict__.pop(deprecated_name, None)
+
+
 class TestDeprecationWarningBehavior:
     """Test that deprecation warnings only fire on explicit use."""
 
