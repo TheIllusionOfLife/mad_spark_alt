@@ -12,12 +12,14 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
+from mad_spark_alt.core.system_constants import CONSTANTS
 from mad_spark_alt.evolution.constants import (
     DEFAULT_CREATIVITY_WEIGHT,
     DEFAULT_CROSSOVER_RATE,
     DEFAULT_DIVERSITY_PRESSURE,
     DEFAULT_DIVERSITY_WEIGHT,
     DEFAULT_MUTATION_RATE,
+    DEFAULT_QADI_CRITERION_WEIGHT,
     DEFAULT_QUALITY_WEIGHT,
     EQUAL_WEIGHT_CREATIVITY,
     EQUAL_WEIGHT_DIVERSITY,
@@ -25,9 +27,6 @@ from mad_spark_alt.evolution.constants import (
     EVALUATION_CRITERIA,
     ZERO_SCORE,
 )
-
-# Default weight for each QADI criterion when calculating overall fitness
-DEFAULT_QADI_CRITERION_WEIGHT = 0.2
 
 
 @dataclass
@@ -65,8 +64,8 @@ class EvolutionConfig:
     generations: int = 3  # Changed default from 10 to 3
     mutation_rate: float = DEFAULT_MUTATION_RATE
     crossover_rate: float = DEFAULT_CROSSOVER_RATE
-    elite_size: int = 1  # Changed default from 2 to 1
-    tournament_size: int = 2  # Changed default from 3 to 2 to work with smaller populations
+    elite_size: int = CONSTANTS.EVOLUTION.DEFAULT_ELITE_SIZE
+    tournament_size: int = CONSTANTS.EVOLUTION.DEFAULT_TOURNAMENT_SIZE
     selection_strategy: SelectionStrategy = SelectionStrategy.TOURNAMENT
 
     # Fitness evaluation config
@@ -82,7 +81,7 @@ class EvolutionConfig:
     adaptive_mutation: bool = False
     diversity_pressure: float = DEFAULT_DIVERSITY_PRESSURE
     parallel_evaluation: bool = True
-    max_parallel_evaluations: int = 3  # Reduced from 5 to work with smaller populations
+    max_parallel_evaluations: int = CONSTANTS.EVOLUTION.DEFAULT_MAX_PARALLEL_EVALUATIONS
     random_seed: Optional[int] = None
 
     # Timeout configuration
@@ -101,7 +100,7 @@ class EvolutionConfig:
     
     # Semantic operator configuration
     use_semantic_operators: bool = True
-    semantic_operator_threshold: float = 0.8  # Increased from 0.5 to make semantic operators trigger more often
+    semantic_operator_threshold: float = CONSTANTS.SIMILARITY.SEMANTIC_OPERATOR_THRESHOLD
     semantic_batch_size: int = 5
     semantic_cache_ttl: int = 3600
     
@@ -110,12 +109,12 @@ class EvolutionConfig:
 
     def validate(self) -> bool:
         """Validate configuration parameters."""
-        # Population size must be between 2 and 10
-        if self.population_size < 2 or self.population_size > 10:
+        # Population size must be within configured bounds
+        if self.population_size < CONSTANTS.EVOLUTION.MIN_POPULATION_SIZE or self.population_size > CONSTANTS.EVOLUTION.MAX_POPULATION_SIZE:
             return False
-        
-        # Generations must be between 2 and 5
-        if self.generations < 2 or self.generations > 5:
+
+        # Generations must be within configured bounds
+        if self.generations < CONSTANTS.EVOLUTION.MIN_GENERATIONS or self.generations > CONSTANTS.EVOLUTION.MAX_GENERATIONS:
             return False
             
         if not 0 <= self.mutation_rate <= 1:

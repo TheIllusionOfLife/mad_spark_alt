@@ -14,13 +14,11 @@ from typing import Any, Dict, List, Optional, Union
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.core.llm_provider import GoogleProvider, LLMRequest
+from mad_spark_alt.core.system_constants import CONSTANTS
 from mad_spark_alt.evolution.interfaces import MutationInterface, EvaluationContext
 
 from .operator_cache import SemanticOperatorCache
 from .semantic_utils import (
-    SEMANTIC_MUTATION_MAX_TOKENS,
-    SEMANTIC_BATCH_MUTATION_BASE_TOKENS,
-    SEMANTIC_BATCH_MUTATION_MAX_TOKENS,
     get_mutation_schema,
     is_likely_truncated,
     _prepare_operator_contexts,
@@ -37,14 +35,6 @@ class BatchSemanticMutationOperator(MutationInterface):
     Creates semantically meaningful variations of ideas using different
     mutation strategies like perspective shifts and mechanism changes.
     """
-
-    # Constants for breakthrough mutations and temperature settings
-    BREAKTHROUGH_TEMPERATURE = 0.95
-    REGULAR_MUTATION_TEMPERATURE = 0.8
-    BREAKTHROUGH_TOKEN_MULTIPLIER = 2
-    BREAKTHROUGH_CONFIDENCE_PROXY_THRESHOLD = 0.85
-    BREAKTHROUGH_CONFIDENCE_MULTIPLIER = 1.05
-    REGULAR_CONFIDENCE_MULTIPLIER = 0.95
 
     # Mutation prompt templates
     MUTATION_SYSTEM_PROMPT = """You are a genetic mutation operator for idea evolution.
@@ -208,7 +198,7 @@ Return JSON with mutations array containing id and content for each idea."""
         ]
 
         # Threshold for determining if an idea qualifies for breakthrough mutation
-        self.breakthrough_threshold = 0.8  # Ideas with fitness >= 0.8 get breakthrough mutations
+        self.breakthrough_threshold = CONSTANTS.LLM.BREAKTHROUGH_FITNESS_THRESHOLD  # Ideas with high fitness get breakthrough mutations
 
     def _is_high_scoring_idea(self, idea: GeneratedIdea) -> bool:
         """
@@ -233,7 +223,7 @@ Return JSON with mutations array containing id and content for each idea."""
             return True
 
         # 2. Check confidence score as proxy (high confidence + later generation)
-        if idea.confidence_score and idea.confidence_score >= self.BREAKTHROUGH_CONFIDENCE_PROXY_THRESHOLD:
+        if idea.confidence_score and idea.confidence_score >= CONSTANTS.LLM.BREAKTHROUGH_CONFIDENCE_THRESHOLD:
             generation = idea.metadata.get("generation", 0)
             if generation >= 1:  # Must be from evolution, not initial generation
                 return True
@@ -339,15 +329,15 @@ Return JSON with mutations array containing id and content for each idea."""
             mutation_type = random.choice(self.breakthrough_mutation_types)
             system_prompt = self.BREAKTHROUGH_SYSTEM_PROMPT
             user_prompt_template = self.BREAKTHROUGH_MUTATION_PROMPT
-            temperature = self.BREAKTHROUGH_TEMPERATURE  # Higher temperature for breakthrough creativity
-            max_tokens = SEMANTIC_MUTATION_MAX_TOKENS * self.BREAKTHROUGH_TOKEN_MULTIPLIER  # More tokens for detailed breakthrough solutions
+            temperature = CONSTANTS.LLM.BREAKTHROUGH_TEMPERATURE  # Higher temperature for breakthrough creativity
+            max_tokens = CONSTANTS.LLM.SEMANTIC_MUTATION_MAX_TOKENS * CONSTANTS.LLM.BREAKTHROUGH_TOKEN_MULTIPLIER  # More tokens for detailed breakthrough solutions
         else:
             # Use regular mutation
             mutation_type = random.choice(self.mutation_types)
             system_prompt = self.MUTATION_SYSTEM_PROMPT
             user_prompt_template = self.SINGLE_MUTATION_PROMPT
             temperature = 0.8  # Standard temperature for creativity
-            max_tokens = SEMANTIC_MUTATION_MAX_TOKENS
+            max_tokens = CONSTANTS.LLM.SEMANTIC_MUTATION_MAX_TOKENS
 
         # Create single mutation schema
         single_schema = {
@@ -540,10 +530,10 @@ Return JSON with mutations array containing id and content for each idea."""
                     ideas_list=ideas_list
                 ),
                 max_tokens=min(
-                    SEMANTIC_BATCH_MUTATION_BASE_TOKENS * len(breakthrough_ideas) * self.BREAKTHROUGH_TOKEN_MULTIPLIER,
-                    SEMANTIC_BATCH_MUTATION_MAX_TOKENS
+                    CONSTANTS.LLM.SEMANTIC_BATCH_MUTATION_BASE_TOKENS * len(breakthrough_ideas) * CONSTANTS.LLM.BREAKTHROUGH_TOKEN_MULTIPLIER,
+                    CONSTANTS.LLM.SEMANTIC_BATCH_MUTATION_MAX_TOKENS
                 ),
-                temperature=self.BREAKTHROUGH_TEMPERATURE,
+                temperature=CONSTANTS.LLM.BREAKTHROUGH_TEMPERATURE,
                 response_schema=breakthrough_schema,
                 response_mime_type="application/json"
             )
@@ -590,8 +580,8 @@ Return JSON with mutations array containing id and content for each idea."""
                     evaluation_context=evaluation_context_str,
                     ideas_list=ideas_list
                 ),
-                max_tokens=min(SEMANTIC_BATCH_MUTATION_BASE_TOKENS * len(regular_ideas), SEMANTIC_BATCH_MUTATION_MAX_TOKENS),
-                temperature=self.REGULAR_MUTATION_TEMPERATURE,
+                max_tokens=min(CONSTANTS.LLM.SEMANTIC_BATCH_MUTATION_BASE_TOKENS * len(regular_ideas), CONSTANTS.LLM.SEMANTIC_BATCH_MUTATION_MAX_TOKENS),
+                temperature=CONSTANTS.LLM.REGULAR_MUTATION_TEMPERATURE,
                 response_schema=schema,
                 response_mime_type="application/json"
             )
@@ -870,7 +860,7 @@ Return JSON with mutations array containing id and content for each idea."""
     ) -> GeneratedIdea:
         """Create a mutated idea object."""
         # Adjust confidence based on mutation type
-        confidence_multiplier = self.BREAKTHROUGH_CONFIDENCE_MULTIPLIER if is_breakthrough else self.REGULAR_CONFIDENCE_MULTIPLIER
+        confidence_multiplier = CONSTANTS.LLM.BREAKTHROUGH_CONFIDENCE_MULTIPLIER if is_breakthrough else CONSTANTS.LLM.REGULAR_CONFIDENCE_MULTIPLIER
         base_confidence = original.confidence_score or 0.5
         new_confidence = min(1.0, base_confidence * confidence_multiplier)
 

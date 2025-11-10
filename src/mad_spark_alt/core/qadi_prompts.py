@@ -13,6 +13,8 @@ The QADI process:
 
 from typing import Dict
 
+from .system_constants import CONSTANTS
+
 
 class QADIPrompts:
     """Universal prompts for the QADI methodology."""
@@ -176,9 +178,9 @@ PHASE_HYPERPARAMETERS = {
         "top_p": 0.9,
     },
     "abduction": {
-        "temperature": 0.8,  # High - need creative hypotheses (default)
+        "temperature": CONSTANTS.LLM.DEFAULT_QADI_TEMPERATURE,  # Creative hypotheses
         "max_tokens": 2500,  # Increased for detailed hypotheses with 150+ words each
-        "top_p": 0.95,
+        "top_p": CONSTANTS.LLM.DEFAULT_QADI_TOP_P,
         "user_adjustable": True,  # Allow --temperature override
     },
     "deduction": {

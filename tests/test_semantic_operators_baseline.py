@@ -344,7 +344,9 @@ class TestSemanticCrossoverOperator:
         """Test operator initializes correctly"""
         assert crossover_operator.llm_provider is not None
         assert crossover_operator.cache is not None
-        assert crossover_operator.SIMILARITY_THRESHOLD == 0.7
+        # SIMILARITY_THRESHOLD moved to CONSTANTS.SIMILARITY.CROSSOVER_THRESHOLD
+        from mad_spark_alt.core.system_constants import CONSTANTS
+        assert CONSTANTS.SIMILARITY.CROSSOVER_THRESHOLD == 0.7
 
     def test_calculate_similarity(self, crossover_operator):
         """Test similarity calculation"""

@@ -112,6 +112,7 @@ DEFAULT_FALLBACK_COST = 0.045  # Default cost estimate when no history available
 DEFAULT_CREATIVITY_WEIGHT = 0.4  # Default weight for creativity score
 DEFAULT_DIVERSITY_WEIGHT = 0.3  # Default weight for diversity score
 DEFAULT_QUALITY_WEIGHT = 0.3  # Default weight for quality score
+DEFAULT_QADI_CRITERION_WEIGHT = 0.2  # Default weight for each QADI criterion (5 criteria = 1.0 total)
 
 # Equal weight fallbacks
 EQUAL_WEIGHT_CREATIVITY = 0.33  # Equal weight for creativity

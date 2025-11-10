@@ -8,19 +8,22 @@ including context preparation, cache key generation, truncation detection, and J
 import hashlib
 from typing import Any, Dict, Optional, Tuple, Union
 
+from mad_spark_alt.core.system_constants import CONSTANTS
 from mad_spark_alt.evolution.interfaces import EvaluationContext
 
-# Token limits for semantic operators (optimized for performance)
-SEMANTIC_MUTATION_MAX_TOKENS = 1500  # Increased to reduce truncation warnings
-SEMANTIC_BATCH_MUTATION_BASE_TOKENS = 1500  # Base tokens per idea in batch
-SEMANTIC_BATCH_MUTATION_MAX_TOKENS = 6000  # Maximum tokens for batch mutation
-SEMANTIC_CROSSOVER_MAX_TOKENS = 2000  # Increased for better synthesis
+# Re-export token constants from system_constants for backward compatibility
+SEMANTIC_MUTATION_MAX_TOKENS = CONSTANTS.LLM.SEMANTIC_MUTATION_MAX_TOKENS
+SEMANTIC_BATCH_MUTATION_BASE_TOKENS = CONSTANTS.LLM.SEMANTIC_BATCH_MUTATION_BASE_TOKENS
+SEMANTIC_BATCH_MUTATION_MAX_TOKENS = CONSTANTS.LLM.SEMANTIC_BATCH_MUTATION_MAX_TOKENS
+SEMANTIC_CROSSOVER_MAX_TOKENS = CONSTANTS.LLM.SEMANTIC_CROSSOVER_MAX_TOKENS
 
-# Cache configuration constants
-CACHE_MAX_SIZE = 1000  # Increased maximum number of cache entries for better performance
-SIMILARITY_KEY_LENGTH = 16  # Length of similarity hash key
-SIMILARITY_CONTENT_PREFIX_LENGTH = 50  # Characters to use for similarity matching
-SIMILARITY_WORDS_COUNT = 10  # Number of meaningful words for similarity key
+# Re-export cache constants from system_constants for backward compatibility
+CACHE_MAX_SIZE = CONSTANTS.CACHE.CACHE_MAX_SIZE
+SIMILARITY_KEY_LENGTH = CONSTANTS.CACHE.SIMILARITY_KEY_LENGTH
+SIMILARITY_CONTENT_PREFIX_LENGTH = CONSTANTS.CACHE.SIMILARITY_CONTENT_PREFIX_LENGTH
+SIMILARITY_WORDS_COUNT = CONSTANTS.CACHE.SIMILARITY_WORDS_COUNT
+
+# Session management constants (not centralized yet)
 SESSION_TTL_EXTENSION_RATE = 0.1  # Rate of TTL extension during session
 MAX_SESSION_TTL_EXTENSION = 3600  # Maximum TTL extension in seconds
 

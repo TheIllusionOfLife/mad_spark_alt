@@ -17,6 +17,7 @@ from .interfaces import (
     ThinkingMethod,
 )
 from .llm_provider import LLMRequest, llm_manager
+from .system_constants import CONSTANTS
 from .qadi_prompts import PHASE_HYPERPARAMETERS, QADIPrompts, calculate_hypothesis_score
 from ..utils.text_cleaning import clean_ansi_codes
 from .parsing_utils import HypothesisParser, ScoreParser, ActionPlanParser, ParsedScores
@@ -209,7 +210,7 @@ class SimpleQADIOrchestrator:
                         thinking_method=ThinkingMethod.ABDUCTION,
                         agent_name="SimpleQADIOrchestrator",
                         generation_prompt=f"Hypothesis {i+1} for: {questioning_result.core_question}",
-                        confidence_score=0.8,  # Default high confidence for hypotheses
+                        confidence_score=CONSTANTS.LLM.DEFAULT_HYPOTHESIS_CONFIDENCE,  # Default confidence for hypotheses
                         reasoning="Generated as potential answer to core question",
                         metadata={"hypothesis_index": i},
                     ),
