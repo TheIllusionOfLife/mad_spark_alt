@@ -2,7 +2,7 @@
 
 ## Branch: feature/pydantic-structured-outputs
 
-## Status: Phase 3 Complete (3 of 7 phases done)
+## Status: Phase 3a Complete (Schema Generation) - Phase 3b Pending (Pydantic Validation)
 
 ## Commits Completed
 
@@ -42,25 +42,79 @@ refactor: add multi-provider Pydantic schema support to LLM provider
 
 ---
 
-### Commit 3: Phase 3 QADI Phase Schema Migration (ab8e9c7 + fixes)
+### Commit 3: Phase 3 QADI Phase Schema Generation (ab8e9c7 + fixes)
 refactor: migrate QADI phase schemas to Pydantic models
+
+**Scope**: Schema Generation Only (NOT full Pydantic validation)
 
 **Files Modified**:
 - `src/mad_spark_alt/core/phase_logic.py`: Updated `get_hypothesis_generation_schema()` and `get_deduction_schema()`
 - `tests/test_phase_logic_pydantic.py`: 15 comprehensive validation tests (448 lines)
 - `tests/test_structured_output_integration.py`: Updated for standard JSON Schema format
 
-**Key Changes**:
+**What's Implemented**:
 - ✅ `get_hypothesis_generation_schema()` returns `HypothesisListResponse.model_json_schema()`
 - ✅ `get_deduction_schema()` returns `DeductionResponse.model_json_schema()`
-- ✅ Backward compatible fallback parsing maintained
+- ✅ LLM API receives Pydantic-generated schemas for structured output
 - ✅ Standard JSON Schema format (lowercase types)
+- ✅ Schema validation tests passing
+
+**What's NOT Implemented** (Future Work):
+- ❌ Parsing still uses manual JSON with `.get()` and defaults
+- ❌ NOT using `DeductionResponse.model_validate_json()` for automatic validation
+- ❌ Missing benefits: type-safe access, clear error messages, automatic validation
 
 **Test Results**: 15/15 new tests + 945/945 existing tests passing
+
+**Impact**: Schemas are generated correctly and sent to LLM, but response parsing doesn't leverage Pydantic validation yet.
 
 ---
 
 ## Remaining Work
+
+### Phase 3b: QADI Phase Pydantic Validation (CRITICAL GAP)
+
+**Objective**: Replace manual JSON parsing with Pydantic validation in QADI phases
+
+**Current Issue**: Phase 3 only implemented schema **generation**, not validation parsing
+
+**Files to Modify**:
+1. `src/mad_spark_alt/core/phase_logic.py` - `execute_deduction_phase()` (lines 565-614)
+2. `src/mad_spark_alt/core/phase_logic.py` - `execute_abduction_phase()` (hypothesis parsing)
+
+**Changes Needed**:
+```python
+# CURRENT (manual parsing):
+data = json.loads(content)
+for eval_data in data.get("evaluations", []):
+    score_data = eval_data.get("scores", {})
+    # ... manual extraction with .get() and defaults
+
+# NEEDED (Pydantic validation):
+try:
+    result = DeductionResponse.model_validate_json(content)
+    # Type-safe access: result.evaluations[0].scores.impact
+except ValidationError as e:
+    logger.warning(f"Pydantic validation failed: {e}")
+    # Fall back to manual parsing
+```
+
+**Benefits**:
+- ✅ Automatic validation (catches invalid LLM responses)
+- ✅ Type-safe access (IDE autocomplete, no typos)
+- ✅ Clear error messages (shows exactly what failed validation)
+- ✅ Score range enforcement (0.0-1.0 validated automatically)
+
+**Tests to Add**:
+- Test Pydantic validation with invalid scores (> 1.0, < 0.0)
+- Test graceful fallback when validation fails
+- Test type-safe access patterns
+
+**Estimated Time**: 1-2 hours
+
+**Commit**: "refactor: use Pydantic validation in QADI phase parsing"
+
+---
 
 ### Phase 4: Evolution Operator Schema Migration
 
@@ -293,14 +347,15 @@ except ValidationError as e:
 
 ## Estimated Time Remaining
 
-- ✅ Phase 3 (QADI): Complete
+- ✅ Phase 3a (Schema Generation): Complete
+- Phase 3b (Pydantic Validation): 1-2 hours ⚠️ CRITICAL GAP
 - Phase 4 (Evolution): 2-3 hours
 - Phase 5 (Integration): 1 hour
 - Phase 6 (User Testing): 2-3 hours ⚠️ CRITICAL
 - Phase 7 (Docs): 1-2 hours
 - Final checks: 1 hour
 
-**Total**: 7-10 hours
+**Total**: 8-12 hours
 
 ---
 
@@ -309,7 +364,8 @@ except ValidationError as e:
 Before declaring PR complete:
 
 **Code & Tests**:
-- [x] Phase 3 complete (QADI phases)
+- [x] Phase 3a complete (QADI schema generation)
+- [ ] Phase 3b complete (Pydantic validation parsing) ⚠️ CRITICAL GAP
 - [ ] Phase 4 complete (Evolution operators)
 - [ ] Phase 5 complete (Integration tests)
 - [ ] All new tests passing
