@@ -2,12 +2,12 @@
 
 ## Branch: feature/pydantic-structured-outputs
 
-## Status: Phase 2 Complete (2 of 7 phases done)
+## Status: Phase 3 Complete (3 of 7 phases done)
 
 ## Commits Completed
 
 ### Commit 1: Phase 1 Foundation (90c0bbb)
-**test: add universal Pydantic schema models with multi-provider support**
+test: add universal Pydantic schema models with multi-provider support
 
 **Files Created**:
 - `src/mad_spark_alt/core/schemas.py`: 9 Pydantic models (185 lines)
@@ -26,7 +26,7 @@
 ---
 
 ### Commit 2: Phase 2 LLM Provider Integration (f845bab)
-**refactor: add multi-provider Pydantic schema support to LLM provider**
+refactor: add multi-provider Pydantic schema support to LLM provider
 
 **Files Modified**:
 - `src/mad_spark_alt/core/llm_provider.py`: Accept Pydantic models
@@ -42,40 +42,25 @@
 
 ---
 
-## Remaining Work
+### Commit 3: Phase 3 QADI Phase Schema Migration (ab8e9c7 + fixes)
+refactor: migrate QADI phase schemas to Pydantic models
 
-### Phase 3: QADI Phase Schema Migration (NEXT)
+**Files Modified**:
+- `src/mad_spark_alt/core/phase_logic.py`: Updated `get_hypothesis_generation_schema()` and `get_deduction_schema()`
+- `tests/test_phase_logic_pydantic.py`: 15 comprehensive validation tests (448 lines)
+- `tests/test_structured_output_integration.py`: Updated for standard JSON Schema format
 
-**Objective**: Replace manual dict schemas in QADI phases with Pydantic models
+**Key Changes**:
+- ✅ `get_hypothesis_generation_schema()` returns `HypothesisListResponse.model_json_schema()`
+- ✅ `get_deduction_schema()` returns `DeductionResponse.model_json_schema()`
+- ✅ Backward compatible fallback parsing maintained
+- ✅ Standard JSON Schema format (lowercase types)
 
-**Files to Modify**:
-1. `src/mad_spark_alt/core/phase_logic.py`:
-   - Line 42-64: Replace `get_hypothesis_generation_schema()`
-     → Use `HypothesisListResponse.model_json_schema()`
-   - Line 67-107: Replace `get_deduction_schema()`
-     → Use `DeductionResponse.model_json_schema()`
-   - Line 606-657: Update deduction parsing
-     → Use `DeductionResponse.model_validate_json()`
-
-2. `tests/test_phase_logic.py`:
-   - Add Pydantic validation tests
-   - Test score range validation (reject scores > 1.0)
-   - Test strict validation (reject extra fields)
-
-**Steps** (TDD):
-1. Write failing tests in `test_phase_logic.py`
-2. Update `get_hypothesis_generation_schema()` to return Pydantic schema
-3. Update `get_deduction_schema()` to return Pydantic schema
-4. Update parsing logic to use `model_validate_json()`
-5. Run tests until all pass
-6. Commit: "refactor: migrate QADI phase schemas to Pydantic"
-
-**Expected Impact**:
-- Automatic score validation (0.0-1.0)
-- Clear error messages from Pydantic
-- Type-safe response parsing
+**Test Results**: 15/15 new tests + 945/945 existing tests passing
 
 ---
+
+## Remaining Work
 
 ### Phase 4: Evolution Operator Schema Migration
 

@@ -109,7 +109,7 @@ class TestSchemaConversionInProvider:
         # Mock the safe_aiohttp_request to capture the payload
         with patch("mad_spark_alt.core.llm_provider.safe_aiohttp_request") as mock_request:
             mock_request.return_value = response_data
-            response = await provider.generate(request)
+            await provider.generate(request)
 
             # Verify API was called
             assert mock_request.called
@@ -162,7 +162,7 @@ class TestSchemaConversionInProvider:
 
         with patch("mad_spark_alt.core.llm_provider.safe_aiohttp_request") as mock_request:
             mock_request.return_value = response_data
-            response = await provider.generate(request)
+            await provider.generate(request)
 
             call_args = mock_request.call_args
             payload = call_args[1]["json"]

@@ -345,8 +345,8 @@ class TestDeductionPhaseWithPydantic:
     async def test_deduction_falls_back_on_pydantic_validation_error(
         self, mock_llm_manager, phase_input, sample_hypotheses
     ):
-        """Test deduction falls back to text parsing if Pydantic validation fails."""
-        # Invalid response: score > 1.0 (would fail Pydantic validation)
+        """Test deduction falls back to text parsing when response is not JSON."""
+        # Non-JSON response triggers fallback to text parsing
         mock_response = LLMResponse(
             content="""
 Evaluation Results:

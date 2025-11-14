@@ -406,8 +406,8 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Testing**: Comprehensive integration tests confirm structured output reliability
 - **Documentation**: See [STRUCTURED_OUTPUT.md](docs/STRUCTURED_OUTPUT.md) for details
 
-### Pydantic Schema Architecture (LATEST - Migration Complete) ✅
-- **Migration Complete**: Moved from manual dict schemas to Pydantic models for multi-provider compatibility
+### Pydantic Schema Architecture (LATEST - Core Implementation Complete) ✅
+- **Core Phases Complete**: QADI phases now use Pydantic models for multi-provider compatibility (evolution operators pending)
 - **Core Models** (src/mad_spark_alt/core/schemas.py):
   - **QADI Schemas**: HypothesisScores, Hypothesis, HypothesisEvaluation, DeductionResponse, HypothesisListResponse
   - **Evolution Schemas**: MutationResponse, BatchMutationResponse, CrossoverResponse, BatchCrossoverResponse
@@ -460,6 +460,7 @@ print(f'Available methods: {list(registry._agents.keys())}')
   - QADI phase tests (15 tests)
   - All 945+ existing tests passing
 - **Documentation**: See [docs/MULTI_PROVIDER_SCHEMAS.md](docs/MULTI_PROVIDER_SCHEMAS.md) for complete guide
+- **Status**: See [PYDANTIC_MIGRATION_STATUS.md](PYDANTIC_MIGRATION_STATUS.md) for remaining phases (evolution operators, integration tests)
 
 ### Phase 2 Hypothesis Display Format (PR #89, #101)
 - **User Preference**: Simple numbered list format without "**Approach X:**" labels

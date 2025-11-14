@@ -43,13 +43,13 @@ class TestStructuredOutputSchemas:
         assert "items" in hypotheses_schema
 
         # Items can be a direct schema or a $ref
-        if "$ref" in hypotheses_schema["items"]:
+        items = hypotheses_schema["items"]
+        if isinstance(items, dict) and "$ref" in items:
             # Pydantic uses $ref for reusability
             assert "$defs" in schema or "definitions" in schema
         else:
-            item_schema = hypotheses_schema["items"]
             # Should have properties for id and content
-            assert "properties" in item_schema or "allOf" in item_schema
+            assert "properties" in items or "allOf" in items
 
     def test_deduction_schema_structure(self):
         """Test deduction (score evaluation) schema has correct structure."""
