@@ -60,7 +60,7 @@
 - Implemented Pydantic validation in `execute_deduction_phase()`
 - Implemented Pydantic validation in `execute_abduction_phase()`
 - Created `tests/test_phase_logic_pydantic_validation.py` with 7 tests
-- **Test Results**: 7/7 new tests passing, 952/952 total passing
+- **Test Results**: 7/7 new tests passing, all existing tests passing
 
 **Implementation**:
 ```python
@@ -93,7 +93,7 @@ except (ValidationError, json.JSONDecodeError):
 - Added Pydantic validation to `semantic_mutation.py`
 - Added Pydantic validation to `semantic_crossover.py`
 - Created `tests/test_evolution_pydantic_validation.py` with 10 tests
-- **Test Results**: 10/10 new tests passing, 945/945 total passing
+- **Test Results**: 10/10 new tests passing, all existing tests passing
 
 **Files Modified**:
 1. `src/mad_spark_alt/evolution/semantic_utils.py`:
