@@ -160,6 +160,33 @@ graph TB
 **Rationale**: Enables plugin-style extensibility
 **Consequences**: Runtime flexibility, slight startup overhead
 
+### ADR-006: Pydantic Schemas for Structured Output
+**Decision**: Migrate from manual dict schemas to Pydantic models for all LLM structured outputs
+**Rationale**:
+- Gemini API now supports standard JSON Schema (not just Gemini-specific format)
+- Pydantic provides automatic validation, type safety, and IDE support
+- Single schema definition works across multiple LLM providers (Gemini, OpenAI, Anthropic, local LLMs)
+- Score range validation (0.0-1.0) enforced at API level
+- Strict validation (`extra="forbid"`) catches LLM hallucinations early
+
+**Trade-offs**:
+- Adds Pydantic dependency (but widely used, minimal overhead)
+- Requires migration from existing dict schemas (backward compatible via Union type)
+
+**Benefits**:
+- Type-safe schema definitions with IDE autocomplete
+- Clear error messages from Pydantic validation
+- Multi-provider compatibility without schema duplication
+- Automatic constraint enforcement (e.g., score ranges)
+- Schema reusability via nested models
+
+**Migration Strategy**:
+- Use `Union[Dict[str, Any], type]` for gradual migration
+- Existing dict schemas continue working
+- New code uses Pydantic models
+
+**See Also**: [docs/MULTI_PROVIDER_SCHEMAS.md](docs/MULTI_PROVIDER_SCHEMAS.md) for comprehensive guide
+
 ---
 
 ## System Architecture

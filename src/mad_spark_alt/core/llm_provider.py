@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union
 
 import aiohttp
 from pydantic import BaseModel, Field
@@ -119,7 +119,7 @@ class LLMRequest(BaseModel):
         top_p: Nucleus sampling threshold
         stop_sequences: Optional stop sequences
         model_configuration: Optional model-specific configuration
-        response_schema: Optional JSON schema for structured output
+        response_schema: Optional JSON schema for structured output (Dict) OR Pydantic model (Type[BaseModel])
         response_mime_type: Optional MIME type for response (e.g., "application/json")
 
         # Multimodal fields (Phase 1 - Foundation)
@@ -135,13 +135,52 @@ class LLMRequest(BaseModel):
     top_p: float = 0.9
     stop_sequences: Optional[List[str]] = None
     model_configuration: Optional[ModelConfig] = None
-    response_schema: Optional[Dict[str, Any]] = None
+    # UPDATED: Accept either dict or Pydantic model for multi-provider compatibility
+    response_schema: Optional[Union[Dict[str, Any], Type[BaseModel]]] = None
     response_mime_type: Optional[str] = None
 
     # NEW: Multimodal support (Phase 1)
     multimodal_inputs: Optional[List["MultimodalInput"]] = None
     urls: Optional[List[str]] = None  # For URL context tool
     tools: Optional[List[Dict[str, Any]]] = None  # Provider-specific tools
+
+    def get_json_schema(self) -> Optional[Dict[str, Any]]:
+        """
+        Get JSON Schema dict from response_schema.
+
+        Converts Pydantic models to standard JSON Schema using model_json_schema().
+        Dict schemas are returned as-is for backward compatibility.
+
+        Returns:
+            JSON Schema dict, or None if response_schema is None
+
+        Example:
+            >>> from mad_spark_alt.core.schemas import DeductionResponse
+            >>> request = LLMRequest(
+            ...     user_prompt="Test",
+            ...     response_schema=DeductionResponse,
+            ...     response_mime_type="application/json"
+            ... )
+            >>> schema = request.get_json_schema()
+            >>> print(schema["type"])  # "object"
+        """
+        if self.response_schema is None:
+            return None
+
+        # Check if it's a Pydantic model class
+        if isinstance(self.response_schema, type) and issubclass(
+            self.response_schema, BaseModel
+        ):
+            return self.response_schema.model_json_schema()
+
+        # Otherwise, assume it's already a dict (backward compatibility)
+        # Validate it's actually a dict to fail fast with clear error message
+        if not isinstance(self.response_schema, dict):
+            raise TypeError(
+                f"response_schema must be a Pydantic BaseModel class or dict, "
+                f"got {type(self.response_schema).__name__}"
+            )
+        return self.response_schema
 
 
 class LLMResponse(BaseModel):
@@ -385,7 +424,8 @@ class GoogleProvider(LLMProviderInterface):
         # Add structured output configuration if provided
         if request.response_schema and request.response_mime_type:
             generation_config["responseMimeType"] = request.response_mime_type
-            generation_config["responseJsonSchema"] = request.response_schema
+            # Use get_json_schema() to convert Pydantic models to JSON Schema
+            generation_config["responseJsonSchema"] = request.get_json_schema()
 
         payload = {
             "contents": contents,

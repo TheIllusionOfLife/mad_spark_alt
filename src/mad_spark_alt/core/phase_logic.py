@@ -27,6 +27,7 @@ from .interfaces import GeneratedIdea, ThinkingMethod
 from .llm_provider import LLMRequest, LLMResponse, ModelConfig, llm_manager
 from .parsing_utils import ActionPlanParser, HypothesisParser, ParsedScores, ScoreParser
 from .qadi_prompts import PHASE_HYPERPARAMETERS, QADIPrompts, calculate_hypothesis_score
+from .schemas import DeductionResponse, HypothesisListResponse
 
 if TYPE_CHECKING:
     from .multimodal import MultimodalInput
@@ -42,69 +43,25 @@ logger = logging.getLogger(__name__)
 def get_hypothesis_generation_schema() -> Dict[str, Any]:
     """Get JSON schema for structured hypothesis generation.
 
+    Uses Pydantic models to generate standard JSON Schema compatible with
+    all LLM providers (Gemini, OpenAI, Anthropic, local LLMs).
+
     Returns:
-        JSON schema dictionary for Gemini structured output
+        JSON schema dictionary for LLM structured output
     """
-    return {
-        "type": "OBJECT",
-        "properties": {
-            "hypotheses": {
-                "type": "ARRAY",
-                "items": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "id": {"type": "STRING"},
-                        "content": {"type": "STRING"},
-                    },
-                    "required": ["id", "content"],
-                },
-            }
-        },
-        "required": ["hypotheses"],
-    }
+    return HypothesisListResponse.model_json_schema()
 
 
 def get_deduction_schema() -> Dict[str, Any]:
     """Get JSON schema for structured deduction/scoring.
 
+    Uses Pydantic models to generate standard JSON Schema with automatic
+    validation (score range 0.0-1.0, strict field validation).
+
     Returns:
-        JSON schema dictionary for Gemini structured output
+        JSON schema dictionary for LLM structured output
     """
-    return {
-        "type": "OBJECT",
-        "properties": {
-            "evaluations": {
-                "type": "ARRAY",
-                "items": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "hypothesis_id": {"type": "STRING"},
-                        "scores": {
-                            "type": "OBJECT",
-                            "properties": {
-                                "impact": {"type": "NUMBER"},
-                                "feasibility": {"type": "NUMBER"},
-                                "accessibility": {"type": "NUMBER"},
-                                "sustainability": {"type": "NUMBER"},
-                                "scalability": {"type": "NUMBER"},
-                            },
-                            "required": [
-                                "impact",
-                                "feasibility",
-                                "accessibility",
-                                "sustainability",
-                                "scalability",
-                            ],
-                        },
-                    },
-                    "required": ["hypothesis_id", "scores"],
-                },
-            },
-            "answer": {"type": "STRING"},
-            "action_plan": {"type": "ARRAY", "items": {"type": "STRING"}},
-        },
-        "required": ["evaluations", "answer", "action_plan"],
-    }
+    return DeductionResponse.model_json_schema()
 
 
 # ============================================================================
