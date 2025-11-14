@@ -406,6 +406,61 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Testing**: Comprehensive integration tests confirm structured output reliability
 - **Documentation**: See [STRUCTURED_OUTPUT.md](docs/STRUCTURED_OUTPUT.md) for details
 
+### Pydantic Schema Architecture (LATEST - Migration Complete) ✅
+- **Migration Complete**: Moved from manual dict schemas to Pydantic models for multi-provider compatibility
+- **Core Models** (src/mad_spark_alt/core/schemas.py):
+  - **QADI Schemas**: HypothesisScores, Hypothesis, HypothesisEvaluation, DeductionResponse, HypothesisListResponse
+  - **Evolution Schemas**: MutationResponse, BatchMutationResponse, CrossoverResponse, BatchCrossoverResponse
+- **Key Benefits**:
+  - **Type Safety**: IDE autocomplete and type checking for LLM responses
+  - **Automatic Validation**: Gemini API enforces constraints server-side (e.g., score ranges 0.0-1.0)
+  - **Multi-Provider Compatible**: Standard JSON Schema works with Gemini, OpenAI, Anthropic, local LLMs
+  - **Clear Error Messages**: Pydantic provides detailed validation errors
+  - **Schema Reusability**: Nested models with $ref support
+- **Critical Patterns**:
+  - **Score Validation**: Use `Field(ge=0.0, le=1.0)` for automatic range enforcement
+  - **Strict Validation**: Use `ConfigDict(extra="forbid")` to catch LLM hallucinations
+  - **Property Ordering**: Pydantic v2 preserves field order (important for Gemini 2.5+)
+  - **Backward Compatibility**: `Union[Dict[str, Any], type]` allows gradual migration
+- **Usage Examples**:
+  ```python
+  # 1. Using Pydantic model in LLM request
+  from mad_spark_alt.core.schemas import DeductionResponse
+  request = LLMRequest(
+      user_prompt="Evaluate hypotheses...",
+      response_schema=DeductionResponse,  # Pydantic model class
+      response_mime_type="application/json"
+  )
+
+  # 2. Parsing validated response
+  result = DeductionResponse.model_validate_json(response.content)
+  for eval in result.evaluations:
+      print(f"Impact: {eval.scores.impact}")  # Type-safe access
+
+  # 3. Handling validation errors
+  try:
+      result = DeductionResponse.model_validate_json(response_text)
+  except ValidationError as e:
+      logger.error(f"Validation failed: {e.errors()}")
+      # Fall back to text parsing
+  ```
+- **Migration Guidelines**:
+  - **Always use Pydantic models for new structured outputs**
+  - **LLMRequest accepts both**: Pydantic models (new) and dicts (legacy)
+  - **Test with real API**: Integration tests validate prompt-schema-parser compatibility
+  - **Schema reuse**: Use nested models instead of duplicating definitions
+- **Pydantic v2 Requirements**:
+  - Use `model_json_schema()` not `schema()`
+  - Use `ConfigDict` not `class Config`
+  - Use `model_validate_json()` not `parse_raw()`
+  - Type check: `isinstance(schema, type) and issubclass(schema, BaseModel)`
+- **Test Coverage**: 54 comprehensive tests across all Pydantic functionality
+  - Schema model tests (29 tests)
+  - LLM provider integration tests (10 tests)
+  - QADI phase tests (15 tests)
+  - All 945+ existing tests passing
+- **Documentation**: See [docs/MULTI_PROVIDER_SCHEMAS.md](docs/MULTI_PROVIDER_SCHEMAS.md) for complete guide
+
 ### Phase 2 Hypothesis Display Format (PR #89, #101)
 - **User Preference**: Simple numbered list format without "**Approach X:**" labels
 - **Implementation**: Extract first sentence as title, display description on subsequent lines
