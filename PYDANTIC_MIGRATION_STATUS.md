@@ -175,7 +175,7 @@ GOOGLE_API_KEY=xxx pytest tests/test_multi_provider_schemas.py::test_real_api -v
 
 ### 1. Checkout Branch
 ```bash
-cd /Users/yuyamukai/dev/mad_spark_alt
+cd /path/to/your/mad_spark_alt
 git checkout feature/pydantic-structured-outputs
 ```
 

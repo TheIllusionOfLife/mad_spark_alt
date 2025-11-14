@@ -27,6 +27,7 @@ from .interfaces import GeneratedIdea, ThinkingMethod
 from .llm_provider import LLMRequest, LLMResponse, ModelConfig, llm_manager
 from .parsing_utils import ActionPlanParser, HypothesisParser, ParsedScores, ScoreParser
 from .qadi_prompts import PHASE_HYPERPARAMETERS, QADIPrompts, calculate_hypothesis_score
+from .schemas import DeductionResponse, HypothesisListResponse
 
 if TYPE_CHECKING:
     from .multimodal import MultimodalInput
@@ -48,8 +49,6 @@ def get_hypothesis_generation_schema() -> Dict[str, Any]:
     Returns:
         JSON schema dictionary for LLM structured output
     """
-    from .schemas import HypothesisListResponse
-
     return HypothesisListResponse.model_json_schema()
 
 
@@ -62,8 +61,6 @@ def get_deduction_schema() -> Dict[str, Any]:
     Returns:
         JSON schema dictionary for LLM structured output
     """
-    from .schemas import DeductionResponse
-
     return DeductionResponse.model_json_schema()
 
 
