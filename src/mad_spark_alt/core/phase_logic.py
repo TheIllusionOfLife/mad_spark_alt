@@ -594,13 +594,7 @@ async def execute_deduction_phase(
                 scores = []
                 for evaluation in result.evaluations:
                     # Use validated scores directly from Pydantic model
-                    scores_dict = {
-                        "impact": evaluation.scores.impact,
-                        "feasibility": evaluation.scores.feasibility,
-                        "accessibility": evaluation.scores.accessibility,
-                        "sustainability": evaluation.scores.sustainability,
-                        "scalability": evaluation.scores.scalability,
-                    }
+                    scores_dict = evaluation.scores.model_dump()
                     overall = calculate_hypothesis_score(scores_dict)
 
                     score = HypothesisScore(

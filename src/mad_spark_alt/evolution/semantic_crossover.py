@@ -177,15 +177,14 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
                     offspring1_content = data["offspring_1"]
                     offspring2_content = data["offspring_2"]
                     logger.debug("Successfully parsed crossover from manual JSON parsing")
-            except (json.JSONDecodeError, KeyError, TypeError) as e:
-                logger.debug("Manual JSON parsing failed, falling back to text parsing: %s", e)
-
-        # Fall back to text parsing if needed
-        # Note: Check for None explicitly, empty string is valid content
-        if offspring1_content is None or offspring2_content is None:
-            offspring1_content, offspring2_content = self._parse_crossover_response(
-                response.content, parent1, parent2
-            )
+                else:
+                    raise KeyError("offspring_1 or offspring_2 not found in JSON")
+            except (json.JSONDecodeError, KeyError, TypeError) as e_manual:
+                logger.debug("Manual JSON parsing failed, falling back to text parsing: %s", e_manual)
+                # Fall back to text parsing
+                offspring1_content, offspring2_content = self._parse_crossover_response(
+                    response.content, parent1, parent2
+                )
 
         # Check for truncation
         if is_likely_truncated(offspring1_content):

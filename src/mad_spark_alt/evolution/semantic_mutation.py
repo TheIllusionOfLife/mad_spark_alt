@@ -736,10 +736,8 @@ Return JSON with mutations array containing id and content for each idea."""
                         is_breakthrough
                     )
 
-            # Add ordered mutations to results, filtering out None
-            for mutation in ordered_mutations:
-                if mutation is not None:
-                    mutations.append(mutation)
+            # Add ordered mutations to results (all None values filled by now)
+            mutations.extend([m for m in ordered_mutations if m is not None])
 
             # Fill any missing mutations with fallbacks
             while len(mutations) < expected_count:
