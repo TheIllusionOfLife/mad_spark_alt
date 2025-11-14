@@ -13,12 +13,34 @@ from typing import Any, Dict, Type
 from pydantic import BaseModel
 
 
+def to_standard_json_schema(pydantic_model: Type[BaseModel]) -> Dict[str, Any]:
+    """
+    Convert Pydantic model to standard JSON Schema.
+
+    This is the universal converter that works for any provider
+    supporting JSON Schema (which is most modern LLM APIs).
+
+    Args:
+        pydantic_model: Pydantic model class to convert
+
+    Returns:
+        Standard JSON Schema dict
+
+    Example:
+        >>> from mad_spark_alt.core.schemas import HypothesisScores
+        >>> schema = to_standard_json_schema(HypothesisScores)
+        >>> print(schema["type"])  # "object"
+        >>> print(schema["properties"].keys())  # impact, feasibility, ...
+    """
+    return pydantic_model.model_json_schema()
+
+
 def to_gemini_schema(pydantic_model: Type[BaseModel]) -> Dict[str, Any]:
     """
     Convert Pydantic model to Gemini API's response_json_schema format.
 
     As of Gemini API update (2025), Gemini accepts standard JSON Schema,
-    so this is a direct conversion via model_json_schema().
+    so this delegates to to_standard_json_schema().
 
     Args:
         pydantic_model: Pydantic model class to convert
@@ -39,7 +61,7 @@ def to_gemini_schema(pydantic_model: Type[BaseModel]) -> Dict[str, Any]:
         ...     }
         ... )
     """
-    return pydantic_model.model_json_schema()
+    return to_standard_json_schema(pydantic_model)
 
 
 def to_openai_schema(pydantic_model: Type[BaseModel]) -> Dict[str, Any]:
@@ -47,7 +69,7 @@ def to_openai_schema(pydantic_model: Type[BaseModel]) -> Dict[str, Any]:
     Convert Pydantic model to OpenAI API's response_format schema.
 
     OpenAI's Structured Outputs feature also uses standard JSON Schema,
-    so this is a direct conversion.
+    so this delegates to to_standard_json_schema().
 
     Args:
         pydantic_model: Pydantic model class to convert
@@ -70,7 +92,7 @@ def to_openai_schema(pydantic_model: Type[BaseModel]) -> Dict[str, Any]:
         ...     }
         ... )
     """
-    return pydantic_model.model_json_schema()
+    return to_standard_json_schema(pydantic_model)
 
 
 def to_anthropic_schema(pydantic_model: Type[BaseModel]) -> Dict[str, Any]:
@@ -100,29 +122,7 @@ def to_anthropic_schema(pydantic_model: Type[BaseModel]) -> Dict[str, Any]:
         ...     }]
         ... )
     """
-    return pydantic_model.model_json_schema()
-
-
-def to_standard_json_schema(pydantic_model: Type[BaseModel]) -> Dict[str, Any]:
-    """
-    Convert Pydantic model to standard JSON Schema.
-
-    This is the universal converter that works for any provider
-    supporting JSON Schema (which is most modern LLM APIs).
-
-    Args:
-        pydantic_model: Pydantic model class to convert
-
-    Returns:
-        Standard JSON Schema dict
-
-    Example:
-        >>> from mad_spark_alt.core.schemas import HypothesisScores
-        >>> schema = to_standard_json_schema(HypothesisScores)
-        >>> print(schema["type"])  # "object"
-        >>> print(schema["properties"].keys())  # impact, feasibility, ...
-    """
-    return pydantic_model.model_json_schema()
+    return to_standard_json_schema(pydantic_model)
 
 
 def is_pydantic_model(obj: Any) -> bool:
@@ -140,7 +140,5 @@ def is_pydantic_model(obj: Any) -> bool:
         >>> is_pydantic_model(DeductionResponse)  # True
         >>> is_pydantic_model({"type": "object"})  # False
     """
-    try:
-        return isinstance(obj, type) and issubclass(obj, BaseModel)
-    except TypeError:
-        return False
+    # isinstance(obj, type) check prevents TypeError in issubclass
+    return isinstance(obj, type) and issubclass(obj, BaseModel)
