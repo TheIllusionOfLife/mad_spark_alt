@@ -771,14 +771,14 @@ Return JSON with mutations array containing id and content for each idea."""
 
             # Process mutations - create a list with correct ordering based on ID
             # Initialize ordered mutations list with None placeholders
-            ordered_mutations: List[Optional[Dict[str, Any]]] = [None] * expected_count
+            fallback_mutations: List[Optional[Dict[str, Any]]] = [None] * expected_count
 
             for mutation in raw_mutations:
                 if isinstance(mutation, dict) and "id" in mutation and "content" in mutation:
                     # IDs are 1-based, convert to 0-based index
                     idx = mutation["id"] - 1
                     if 0 <= idx < expected_count:
-                        ordered_mutations[idx] = {
+                        fallback_mutations[idx] = {
                             "content": mutation["content"],
                             "mutation_type": mutation.get("mutation_type",
                                 "paradigm_shift" if is_breakthrough else "batch_mutation")
@@ -788,14 +788,14 @@ Return JSON with mutations array containing id and content for each idea."""
 
             # Fill any None entries with fallbacks
             for i in range(expected_count):
-                if ordered_mutations[i] is None:
-                    ordered_mutations[i] = self._create_fallback_mutation(
+                if fallback_mutations[i] is None:
+                    fallback_mutations[i] = self._create_fallback_mutation(
                         original_ideas[i] if i < len(original_ideas) else None,
                         is_breakthrough
                     )
 
             # Add ordered mutations to results, filtering out None
-            for mutation in ordered_mutations:
+            for mutation in fallback_mutations:
                 if mutation is not None:
                     mutations.append(mutation)
 
