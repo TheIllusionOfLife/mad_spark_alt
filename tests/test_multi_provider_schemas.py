@@ -12,6 +12,7 @@ import json
 import os
 
 import pytest
+from pydantic import ValidationError
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.core.llm_provider import GoogleProvider, LLMProvider, LLMRequest
@@ -390,11 +391,11 @@ async def test_pydantic_validation_with_invalid_schema_response(real_google_prov
 
     response = await real_google_provider.generate(request)
 
-    # Try to validate - should either work or raise ValidationError
+    # Try to validate - should either work or raise ValidationError/JSONDecodeError
     try:
         validated = HypothesisListResponse.model_validate_json(response.content)
         print(f"✅ Even with low tokens, validation succeeded: {len(validated.hypotheses)} hypotheses")
-    except Exception as e:
+    except (ValidationError, json.JSONDecodeError) as e:
         # Validation failed as expected with low tokens
         print(f"✅ Validation failed gracefully with informative error: {type(e).__name__}")
         print(f"   Error message: {str(e)[:100]}...")
