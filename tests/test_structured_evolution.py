@@ -352,13 +352,13 @@ class TestStructuredCrossover:
         assert request.response_schema is not None
         assert request.response_mime_type == "application/json"
         
-        # Verify schema structure
+        # Verify schema structure (Pydantic uses offspring1/offspring2, not offspring_1/offspring_2)
         schema = request.response_schema
         assert schema["type"] == "object"
-        assert "offspring_1" in schema["properties"]
-        assert "offspring_2" in schema["properties"]
-        assert schema["properties"]["offspring_1"]["type"] == "string"
-        assert schema["properties"]["offspring_2"]["type"] == "string"
+        assert "offspring1" in schema["properties"]
+        assert "offspring2" in schema["properties"]
+        assert schema["properties"]["offspring1"]["type"] == "string"
+        assert schema["properties"]["offspring2"]["type"] == "string"
         
         # Verify offspring results
         assert len(offspring) == 2
@@ -534,35 +534,46 @@ class TestEvolutionOperatorSchemas:
     def test_mutation_schema_structure(self):
         """Test the structure of mutation schema."""
         from mad_spark_alt.evolution.semantic_operators import get_mutation_schema
-        
+
         schema = get_mutation_schema()  # No arguments needed
-        
+
         # Verify structure
         assert schema["type"] == "object"
         assert "mutations" in schema["properties"]
         assert schema["properties"]["mutations"]["type"] == "array"
-        
-        # Verify item structure
+
+        # Verify item structure (Pydantic uses $ref for nested schemas)
         item_schema = schema["properties"]["mutations"]["items"]
-        assert item_schema["type"] == "object"
-        assert "id" in item_schema["properties"]
-        assert "content" in item_schema["properties"]
-        assert item_schema["properties"]["id"]["type"] == "integer"
-        assert item_schema["properties"]["content"]["type"] == "string"
+        if "$ref" in item_schema:
+            # Extract definition name and look it up
+            ref_path = item_schema["$ref"].split("/")[-1]
+            mutation_def = schema["$defs"][ref_path]
+            assert mutation_def["type"] == "object"
+            assert "id" in mutation_def["properties"]
+            assert "mutated_idea" in mutation_def["properties"]  # Pydantic field name
+            assert mutation_def["properties"]["id"]["type"] == "integer"
+            assert mutation_def["properties"]["mutated_idea"]["type"] == "string"
+        else:
+            # Fallback for inline definitions
+            assert item_schema["type"] == "object"
+            assert "id" in item_schema["properties"]
+            assert "content" in item_schema["properties"]
+            assert item_schema["properties"]["id"]["type"] == "integer"
+            assert item_schema["properties"]["content"]["type"] == "string"
 
     def test_crossover_schema_structure(self):
         """Test the structure of crossover schema."""
         from mad_spark_alt.evolution.semantic_operators import get_crossover_schema
-        
+
         schema = get_crossover_schema()
-        
-        # Verify structure
+
+        # Verify structure (Pydantic uses offspring1/offspring2, not offspring_1/offspring_2)
         assert schema["type"] == "object"
-        assert "offspring_1" in schema["properties"]
-        assert "offspring_2" in schema["properties"]
-        assert schema["properties"]["offspring_1"]["type"] == "string"
-        assert schema["properties"]["offspring_2"]["type"] == "string"
-        assert schema["required"] == ["offspring_1", "offspring_2"]
+        assert "offspring1" in schema["properties"]
+        assert "offspring2" in schema["properties"]
+        assert schema["properties"]["offspring1"]["type"] == "string"
+        assert schema["properties"]["offspring2"]["type"] == "string"
+        assert schema["required"] == ["offspring1", "offspring2"]
 
 
 @pytest.mark.integration

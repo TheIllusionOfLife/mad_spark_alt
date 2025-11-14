@@ -132,18 +132,34 @@ class TestUtilityFunctions:
         assert schema["type"] == "object"
         assert "mutations" in schema["properties"]
         assert schema["properties"]["mutations"]["type"] == "array"
-        assert "id" in schema["properties"]["mutations"]["items"]["properties"]
-        assert "content" in schema["properties"]["mutations"]["items"]["properties"]
+
+        # Pydantic uses $ref for nested schemas
+        items = schema["properties"]["mutations"]["items"]
+        if "$ref" in items:
+            # Extract definition name and look it up
+            ref_path = items["$ref"].split("/")[-1]  # Get "MutationResult" from "#/$defs/MutationResult"
+            mutation_def = schema["$defs"][ref_path]
+            assert "id" in mutation_def["properties"]
+            assert "mutated_idea" in mutation_def["properties"]
+        else:
+            # Fallback for inline definitions
+            assert "id" in items["properties"]
+            assert "content" in items["properties"]
 
     def test_get_crossover_schema(self):
         """Test crossover schema structure"""
         schema = get_crossover_schema()
 
         assert schema["type"] == "object"
-        assert "offspring_1" in schema["properties"]
-        assert "offspring_2" in schema["properties"]
-        assert schema["properties"]["offspring_1"]["type"] == "string"
-        assert schema["properties"]["offspring_2"]["type"] == "string"
+        assert "offspring1" in schema["properties"] or "offspring_1" in schema["properties"]
+        assert "offspring2" in schema["properties"] or "offspring_2" in schema["properties"]
+
+        # Check offspring1 field (Pydantic uses "offspring1" not "offspring_1")
+        offspring1_key = "offspring1" if "offspring1" in schema["properties"] else "offspring_1"
+        offspring2_key = "offspring2" if "offspring2" in schema["properties"] else "offspring_2"
+
+        assert schema["properties"][offspring1_key]["type"] == "string"
+        assert schema["properties"][offspring2_key]["type"] == "string"
 
 
 class TestSemanticOperatorCache:

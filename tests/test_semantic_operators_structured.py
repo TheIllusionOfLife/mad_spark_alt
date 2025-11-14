@@ -17,31 +17,45 @@ class TestSemanticOperatorsStructured:
     """Test semantic operators with proper Gemini structured output."""
     
     def test_crossover_schema_format(self):
-        """Test that crossover schema matches Gemini format."""
+        """Test that crossover schema matches Pydantic JSON Schema format."""
         schema = get_crossover_schema()
-        
+
         # Verify schema structure
         assert schema["type"] == "object"
         assert "properties" in schema
-        assert "offspring_1" in schema["properties"]
-        assert "offspring_2" in schema["properties"]
-        assert schema["properties"]["offspring_1"]["type"] == "string"
-        assert schema["properties"]["offspring_2"]["type"] == "string"
+
+        # Pydantic uses "offspring1" and "offspring2" (no underscore) as field names
+        assert "offspring1" in schema["properties"]
+        assert "offspring2" in schema["properties"]
+        assert schema["properties"]["offspring1"]["type"] == "string"
+        assert schema["properties"]["offspring2"]["type"] == "string"
         assert "required" in schema
-        assert "offspring_1" in schema["required"]
-        assert "offspring_2" in schema["required"]
+        assert "offspring1" in schema["required"]
+        assert "offspring2" in schema["required"]
     
     def test_mutation_schema_format(self):
-        """Test that mutation schema matches Gemini format."""
+        """Test that mutation schema matches Pydantic JSON Schema format."""
         schema = get_mutation_schema()
-        
+
         # Verify schema structure
         assert schema["type"] == "object"
         assert "properties" in schema
         assert "mutations" in schema["properties"]
         assert schema["properties"]["mutations"]["type"] == "array"
         assert "items" in schema["properties"]["mutations"]
-        assert schema["properties"]["mutations"]["items"]["type"] == "object"
+
+        # Pydantic uses $ref for nested schemas
+        items = schema["properties"]["mutations"]["items"]
+        if "$ref" in items:
+            # Extract definition name and verify it exists
+            ref_path = items["$ref"].split("/")[-1]
+            assert "$defs" in schema
+            assert ref_path in schema["$defs"]
+            mutation_def = schema["$defs"][ref_path]
+            assert mutation_def["type"] == "object"
+        else:
+            # Fallback for inline definitions
+            assert items["type"] == "object"
     
     @pytest.mark.asyncio
     async def test_crossover_with_proper_json_response(self):

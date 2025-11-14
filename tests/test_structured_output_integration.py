@@ -82,10 +82,20 @@ class TestStructuredOutputSchemas:
         mutations_schema = schema["properties"]["mutations"]
         assert mutations_schema["type"] == "array"
 
+        # Pydantic uses $ref for nested schemas
         item_schema = mutations_schema["items"]
-        assert "id" in item_schema["properties"]
-        assert item_schema["properties"]["id"]["type"] == "integer"
-        assert "content" in item_schema["properties"]
+        if "$ref" in item_schema:
+            # Extract definition name and look it up
+            ref_path = item_schema["$ref"].split("/")[-1]
+            mutation_def = schema["$defs"][ref_path]
+            assert "id" in mutation_def["properties"]
+            assert mutation_def["properties"]["id"]["type"] == "integer"
+            assert "mutated_idea" in mutation_def["properties"]  # Pydantic field name
+        else:
+            # Fallback for inline definitions
+            assert "id" in item_schema["properties"]
+            assert item_schema["properties"]["id"]["type"] == "integer"
+            assert "content" in item_schema["properties"]
 
     def test_crossover_schema_structure(self):
         """Test crossover schema has correct structure."""
@@ -93,8 +103,9 @@ class TestStructuredOutputSchemas:
 
         assert schema["type"] == "object"
         assert "properties" in schema
-        assert "offspring_1" in schema["properties"]
-        assert "offspring_2" in schema["properties"]
+        # Pydantic uses offspring1/offspring2 (no underscore)
+        assert "offspring1" in schema["properties"]
+        assert "offspring2" in schema["properties"]
 
 
 class TestStructuredOutputParsing:
