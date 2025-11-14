@@ -22,6 +22,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
+from pydantic import ValidationError
+
 from ..utils.text_cleaning import clean_ansi_codes
 from .interfaces import GeneratedIdea, ThinkingMethod
 from .llm_provider import LLMRequest, LLMResponse, ModelConfig, llm_manager
@@ -414,13 +416,38 @@ async def execute_abduction_phase(
                 "url_context_metadata": response.url_context_metadata,
             }
 
-            # Use parsing_utils for hypothesis extraction
+            # Try Pydantic validation first (Phase 3b)
+            try:
+                result = HypothesisListResponse.model_validate_json(response.content)
+                hypotheses = [h.content for h in result.hypotheses]
+
+                if len(hypotheses) >= num_hypotheses:
+                    logger.debug(
+                        "Successfully extracted %d hypotheses via Pydantic validation",
+                        len(hypotheses)
+                    )
+                    return AbductionResult(
+                        hypotheses=hypotheses[:num_hypotheses],
+                        llm_cost=total_cost,
+                        raw_response=raw_response,
+                        num_requested=num_hypotheses,
+                        num_generated=len(hypotheses[:num_hypotheses]),
+                        multimodal_metadata=multimodal_metadata,
+                    )
+            except (ValidationError, json.JSONDecodeError) as e:
+                logger.debug(
+                    "Pydantic validation failed for hypothesis generation, "
+                    "falling back to HypothesisParser: %s",
+                    e,
+                )
+
+            # Fall back to parsing_utils for hypothesis extraction
             hypotheses = HypothesisParser.parse_with_fallback(
                 response.content, num_expected=num_hypotheses
             )
 
             if len(hypotheses) >= num_hypotheses:
-                logger.debug("Successfully extracted %d hypotheses", len(hypotheses))
+                logger.debug("Successfully extracted %d hypotheses via HypothesisParser", len(hypotheses))
                 return AbductionResult(
                     hypotheses=hypotheses[:num_hypotheses],
                     llm_cost=total_cost,
@@ -559,7 +586,69 @@ async def execute_deduction_phase(
                 "url_context_metadata": response.url_context_metadata,
             }
 
-            # Try to parse as JSON first (structured output)
+            # Try Pydantic validation first (Phase 3b)
+            try:
+                result = DeductionResponse.model_validate_json(content)
+
+                # Extract scores from validated Pydantic model with type-safe access
+                scores = []
+                for evaluation in result.evaluations:
+                    # Use validated scores directly from Pydantic model
+                    scores_dict = {
+                        "impact": evaluation.scores.impact,
+                        "feasibility": evaluation.scores.feasibility,
+                        "accessibility": evaluation.scores.accessibility,
+                        "sustainability": evaluation.scores.sustainability,
+                        "scalability": evaluation.scores.scalability,
+                    }
+                    overall = calculate_hypothesis_score(scores_dict)
+
+                    score = HypothesisScore(
+                        impact=evaluation.scores.impact,
+                        feasibility=evaluation.scores.feasibility,
+                        accessibility=evaluation.scores.accessibility,
+                        sustainability=evaluation.scores.sustainability,
+                        scalability=evaluation.scores.scalability,
+                        overall=overall,
+                    )
+                    scores.append(score)
+
+                # Ensure we have scores for all hypotheses
+                while len(scores) < len(hypotheses):
+                    scores.append(
+                        HypothesisScore(
+                            impact=0.5,
+                            feasibility=0.5,
+                            accessibility=0.5,
+                            sustainability=0.5,
+                            scalability=0.5,
+                            overall=0.5,
+                        )
+                    )
+
+                answer = result.answer
+                action_plan = result.action_plan
+
+                logger.debug("Successfully parsed deduction response with Pydantic validation")
+
+                return DeductionResult(
+                    hypothesis_scores=scores,
+                    answer=answer,
+                    action_plan=action_plan,
+                    llm_cost=total_cost,
+                    raw_response=raw_response,
+                    used_parallel=False,
+                    multimodal_metadata=multimodal_metadata,
+                )
+
+            except (ValidationError, json.JSONDecodeError) as e:
+                # Pydantic validation failed, fall back to manual parsing
+                logger.debug(
+                    "Pydantic validation failed, falling back to manual JSON parsing: %s",
+                    e,
+                )
+
+            # Try manual JSON parsing as fallback
             try:
                 data = json.loads(content)
 
@@ -616,7 +705,7 @@ async def execute_deduction_phase(
             except (json.JSONDecodeError, KeyError, TypeError) as e:
                 # Fall back to text parsing
                 logger.debug(
-                    "Structured output parsing failed, falling back to text parsing: %s",
+                    "Manual JSON parsing failed, falling back to text parsing: %s",
                     e,
                 )
 
