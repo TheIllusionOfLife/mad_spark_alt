@@ -75,23 +75,23 @@ class TestStructuredOutputSchemas:
         """Test mutation schema has correct structure."""
         schema = get_mutation_schema()
 
-        assert schema["type"] == "OBJECT"
+        assert schema["type"] == "object"
         assert "properties" in schema
         assert "mutations" in schema["properties"]
 
         mutations_schema = schema["properties"]["mutations"]
-        assert mutations_schema["type"] == "ARRAY"
+        assert mutations_schema["type"] == "array"
 
         item_schema = mutations_schema["items"]
         assert "id" in item_schema["properties"]
-        assert item_schema["properties"]["id"]["type"] == "INTEGER"
+        assert item_schema["properties"]["id"]["type"] == "integer"
         assert "content" in item_schema["properties"]
 
     def test_crossover_schema_structure(self):
         """Test crossover schema has correct structure."""
         schema = get_crossover_schema()
 
-        assert schema["type"] == "OBJECT"
+        assert schema["type"] == "object"
         assert "properties" in schema
         assert "offspring_1" in schema["properties"]
         assert "offspring_2" in schema["properties"]

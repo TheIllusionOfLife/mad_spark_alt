@@ -21,12 +21,12 @@ class TestSemanticOperatorsStructured:
         schema = get_crossover_schema()
         
         # Verify schema structure
-        assert schema["type"] == "OBJECT"
+        assert schema["type"] == "object"
         assert "properties" in schema
         assert "offspring_1" in schema["properties"]
         assert "offspring_2" in schema["properties"]
-        assert schema["properties"]["offspring_1"]["type"] == "STRING"
-        assert schema["properties"]["offspring_2"]["type"] == "STRING"
+        assert schema["properties"]["offspring_1"]["type"] == "string"
+        assert schema["properties"]["offspring_2"]["type"] == "string"
         assert "required" in schema
         assert "offspring_1" in schema["required"]
         assert "offspring_2" in schema["required"]
@@ -36,12 +36,12 @@ class TestSemanticOperatorsStructured:
         schema = get_mutation_schema()
         
         # Verify schema structure
-        assert schema["type"] == "OBJECT"
+        assert schema["type"] == "object"
         assert "properties" in schema
         assert "mutations" in schema["properties"]
-        assert schema["properties"]["mutations"]["type"] == "ARRAY"
+        assert schema["properties"]["mutations"]["type"] == "array"
         assert "items" in schema["properties"]["mutations"]
-        assert schema["properties"]["mutations"]["items"]["type"] == "OBJECT"
+        assert schema["properties"]["mutations"]["items"]["type"] == "object"
     
     @pytest.mark.asyncio
     async def test_crossover_with_proper_json_response(self):

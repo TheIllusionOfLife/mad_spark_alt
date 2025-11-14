@@ -74,9 +74,9 @@ class TestStructuredMutation:
         
         # Verify schema structure
         schema = request.response_schema
-        assert schema["type"] == "OBJECT"
+        assert schema["type"] == "object"
         assert "mutations" in schema["properties"]
-        assert schema["properties"]["mutations"]["type"] == "ARRAY"
+        assert schema["properties"]["mutations"]["type"] == "array"
         
         # Verify mutation result
         assert len(mutated_ideas) == 1
@@ -354,11 +354,11 @@ class TestStructuredCrossover:
         
         # Verify schema structure
         schema = request.response_schema
-        assert schema["type"] == "OBJECT"
+        assert schema["type"] == "object"
         assert "offspring_1" in schema["properties"]
         assert "offspring_2" in schema["properties"]
-        assert schema["properties"]["offspring_1"]["type"] == "STRING"
-        assert schema["properties"]["offspring_2"]["type"] == "STRING"
+        assert schema["properties"]["offspring_1"]["type"] == "string"
+        assert schema["properties"]["offspring_2"]["type"] == "string"
         
         # Verify offspring results
         assert len(offspring) == 2
@@ -538,17 +538,17 @@ class TestEvolutionOperatorSchemas:
         schema = get_mutation_schema()  # No arguments needed
         
         # Verify structure
-        assert schema["type"] == "OBJECT"
+        assert schema["type"] == "object"
         assert "mutations" in schema["properties"]
-        assert schema["properties"]["mutations"]["type"] == "ARRAY"
+        assert schema["properties"]["mutations"]["type"] == "array"
         
         # Verify item structure
         item_schema = schema["properties"]["mutations"]["items"]
-        assert item_schema["type"] == "OBJECT"
+        assert item_schema["type"] == "object"
         assert "id" in item_schema["properties"]
         assert "content" in item_schema["properties"]
-        assert item_schema["properties"]["id"]["type"] == "INTEGER"
-        assert item_schema["properties"]["content"]["type"] == "STRING"
+        assert item_schema["properties"]["id"]["type"] == "integer"
+        assert item_schema["properties"]["content"]["type"] == "string"
 
     def test_crossover_schema_structure(self):
         """Test the structure of crossover schema."""
@@ -557,11 +557,11 @@ class TestEvolutionOperatorSchemas:
         schema = get_crossover_schema()
         
         # Verify structure
-        assert schema["type"] == "OBJECT"
+        assert schema["type"] == "object"
         assert "offspring_1" in schema["properties"]
         assert "offspring_2" in schema["properties"]
-        assert schema["properties"]["offspring_1"]["type"] == "STRING"
-        assert schema["properties"]["offspring_2"]["type"] == "STRING"
+        assert schema["properties"]["offspring_1"]["type"] == "string"
+        assert schema["properties"]["offspring_2"]["type"] == "string"
         assert schema["required"] == ["offspring_1", "offspring_2"]
 
 

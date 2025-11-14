@@ -129,9 +129,9 @@ class TestUtilityFunctions:
         """Test mutation schema structure"""
         schema = get_mutation_schema()
 
-        assert schema["type"] == "OBJECT"
+        assert schema["type"] == "object"
         assert "mutations" in schema["properties"]
-        assert schema["properties"]["mutations"]["type"] == "ARRAY"
+        assert schema["properties"]["mutations"]["type"] == "array"
         assert "id" in schema["properties"]["mutations"]["items"]["properties"]
         assert "content" in schema["properties"]["mutations"]["items"]["properties"]
 
@@ -139,11 +139,11 @@ class TestUtilityFunctions:
         """Test crossover schema structure"""
         schema = get_crossover_schema()
 
-        assert schema["type"] == "OBJECT"
+        assert schema["type"] == "object"
         assert "offspring_1" in schema["properties"]
         assert "offspring_2" in schema["properties"]
-        assert schema["properties"]["offspring_1"]["type"] == "STRING"
-        assert schema["properties"]["offspring_2"]["type"] == "STRING"
+        assert schema["properties"]["offspring_1"]["type"] == "string"
+        assert schema["properties"]["offspring_2"]["type"] == "string"
 
 
 class TestSemanticOperatorCache:
