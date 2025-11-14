@@ -390,7 +390,7 @@ class SimpleQADIOrchestrator:
         # Use local model for simple generation if configured
         response = await self.llm_manager.generate(
             request,
-            use_fallback=self.use_local_for_simple
+            use_fallback=not self.use_local_for_simple
         )
 
         # Parse hypotheses...
@@ -615,7 +615,6 @@ msa "Your question" --provider ollama --ollama-model gemma3:12b
 | Hardware amortization | - | $1000-2000/year | - |
 
 **Break-even**: ~50-100 QADI+Evolution runs per month
-\`\`\`
 
 ## Expected Benefits
 
@@ -649,5 +648,3 @@ msa "Your question" --provider ollama --ollama-model gemma3:12b
 3. **Tune hybrid routing** (which operations use which provider)
 4. **Benchmark performance** (tokens/sec, quality, cost)
 5. **Scale gradually** (start 10% local, increase to 70%)
-
-Would you like me to start implementing Phase 1 (OllamaProvider class)?
