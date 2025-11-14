@@ -774,17 +774,20 @@ Return JSON with mutations array containing id and content for each idea."""
             fallback_mutations: List[Optional[Dict[str, Any]]] = [None] * expected_count
 
             for mutation in raw_mutations:
-                if isinstance(mutation, dict) and "id" in mutation and "content" in mutation:
-                    # IDs are 1-based, convert to 0-based index
-                    idx = mutation["id"] - 1
-                    if 0 <= idx < expected_count:
-                        fallback_mutations[idx] = {
-                            "content": mutation["content"],
-                            "mutation_type": mutation.get("mutation_type",
-                                "paradigm_shift" if is_breakthrough else "batch_mutation")
-                        }
-                    else:
-                        logger.warning(f"Mutation ID {mutation['id']} out of range")
+                if isinstance(mutation, dict) and "id" in mutation:
+                    # Accept both "mutated_idea" (Pydantic schema) and "content" (legacy format)
+                    content = mutation.get("mutated_idea") or mutation.get("content")
+                    if content:
+                        # IDs are 1-based, convert to 0-based index
+                        idx = mutation["id"] - 1
+                        if 0 <= idx < expected_count:
+                            fallback_mutations[idx] = {
+                                "content": content,
+                                "mutation_type": mutation.get("mutation_type",
+                                    "paradigm_shift" if is_breakthrough else "batch_mutation")
+                            }
+                        else:
+                            logger.warning(f"Mutation ID {mutation['id']} out of range")
 
             # Fill any None entries with fallbacks
             for i in range(expected_count):
