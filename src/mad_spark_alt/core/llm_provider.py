@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union
 
 import aiohttp
 from pydantic import BaseModel, Field
@@ -136,7 +136,7 @@ class LLMRequest(BaseModel):
     stop_sequences: Optional[List[str]] = None
     model_configuration: Optional[ModelConfig] = None
     # UPDATED: Accept either dict or Pydantic model for multi-provider compatibility
-    response_schema: Optional[Union[Dict[str, Any], type]] = None
+    response_schema: Optional[Union[Dict[str, Any], Type[BaseModel]]] = None
     response_mime_type: Optional[str] = None
 
     # NEW: Multimodal support (Phase 1)
@@ -174,8 +174,13 @@ class LLMRequest(BaseModel):
             return self.response_schema.model_json_schema()
 
         # Otherwise, assume it's already a dict (backward compatibility)
-        # Type cast for mypy: at this point we know it's a Dict, not a type
-        return self.response_schema  # type: ignore[return-value]
+        # Validate it's actually a dict to fail fast with clear error message
+        if not isinstance(self.response_schema, dict):
+            raise TypeError(
+                f"response_schema must be a Pydantic BaseModel class or dict, "
+                f"got {type(self.response_schema).__name__}"
+            )
+        return self.response_schema
 
 
 class LLMResponse(BaseModel):
