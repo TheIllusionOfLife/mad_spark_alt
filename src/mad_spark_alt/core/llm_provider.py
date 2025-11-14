@@ -174,7 +174,8 @@ class LLMRequest(BaseModel):
             return self.response_schema.model_json_schema()
 
         # Otherwise, assume it's already a dict (backward compatibility)
-        return self.response_schema
+        # Type cast for mypy: at this point we know it's a Dict, not a type
+        return self.response_schema  # type: ignore[return-value]
 
 
 class LLMResponse(BaseModel):
