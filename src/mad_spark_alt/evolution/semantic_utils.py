@@ -186,23 +186,8 @@ def get_mutation_schema() -> Dict[str, Any]:
     Returns:
         JSON schema dictionary for Gemini structured output
     """
-    return {
-        "type": "OBJECT",
-        "properties": {
-            "mutations": {
-                "type": "ARRAY",
-                "items": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "id": {"type": "INTEGER"},
-                        "content": {"type": "STRING"},
-                    },
-                    "required": ["id", "content"]
-                }
-            }
-        },
-        "required": ["mutations"]
-    }
+    from mad_spark_alt.core.schemas import BatchMutationResponse
+    return BatchMutationResponse.model_json_schema()
 
 
 def get_crossover_schema() -> Dict[str, Any]:
@@ -211,14 +196,8 @@ def get_crossover_schema() -> Dict[str, Any]:
     Returns:
         JSON schema dictionary for Gemini structured output
     """
-    return {
-        "type": "OBJECT",
-        "properties": {
-            "offspring_1": {"type": "STRING"},
-            "offspring_2": {"type": "STRING"}
-        },
-        "required": ["offspring_1", "offspring_2"]
-    }
+    from mad_spark_alt.core.schemas import CrossoverResponse
+    return CrossoverResponse.model_json_schema()
 
 
 def generate_crossover_fallback_text(
