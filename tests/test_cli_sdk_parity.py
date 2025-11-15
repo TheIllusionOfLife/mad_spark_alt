@@ -70,10 +70,11 @@ def test_cli_instantiates_core_orchestrator():
                     result = runner.invoke(main, ['Test question'])
 
         # Verify SimpleQADIOrchestrator was instantiated with correct parameters
-        MockOrchestrator.assert_called_once_with(
-            temperature_override=None,
-            num_hypotheses=3
-        )
+        MockOrchestrator.assert_called_once()
+        args, kwargs = MockOrchestrator.call_args
+        assert kwargs['temperature_override'] is None
+        assert kwargs['num_hypotheses'] == 3
+        assert 'llm_provider' in kwargs  # Provider is now passed from unified_cli
 
 
 def test_cli_uses_core_qadi_prompts():
