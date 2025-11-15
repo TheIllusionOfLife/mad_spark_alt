@@ -23,6 +23,22 @@ def runner():
 
 
 @pytest.fixture
+def mock_provider_setup():
+    """Mock provider setup for CLI tests in CI environment."""
+    from mad_spark_alt.core.llm_provider import GoogleProvider, OllamaProvider
+
+    with patch('mad_spark_alt.unified_cli.setup_llm_providers', new_callable=AsyncMock):
+        # Mock get_google_provider to return a mock provider (must be instance of GoogleProvider)
+        mock_gemini = MagicMock(spec=GoogleProvider)
+        with patch('mad_spark_alt.unified_cli.get_google_provider', return_value=mock_gemini):
+            # Mock OllamaProvider constructor to raise OSError (simulates CI environment without Ollama)
+            # Keep OllamaProvider as real class so isinstance() checks work
+            with patch.object(OllamaProvider, '__init__', side_effect=OSError("Ollama not available")):
+                with patch.dict('os.environ', {'GOOGLE_API_KEY': 'test-key'}):
+                    yield mock_gemini
+
+
+@pytest.fixture
 def mock_qadi_result():
     """Mock QADI result for testing."""
     from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
@@ -94,7 +110,7 @@ def mock_evolution_result():
 class TestCLIExportJSON:
     """Test JSON export via CLI."""
 
-    def test_export_json_with_output_flag(self, runner, tmp_path, mock_qadi_result):
+    def test_export_json_with_output_flag(self, runner, tmp_path, mock_qadi_result, mock_provider_setup):
         """Test that --output flag exports results to JSON file."""
         output_file = tmp_path / "test_output.json"
 
@@ -104,14 +120,12 @@ class TestCLIExportJSON:
             mock_orch.run_qadi_cycle.return_value = mock_qadi_result
             mock_orch_class.return_value = mock_orch
 
-            # Mock LLM setup
-            with patch('mad_spark_alt.unified_cli.setup_llm_providers', new_callable=AsyncMock):
-                with patch.dict('os.environ', {'GOOGLE_API_KEY': 'test-key'}):
-                    result = runner.invoke(
-                        main,
-                        ['--output', str(output_file), '--format', 'json', 'Test question'],
-                        catch_exceptions=False
-                    )
+            # Provider setup already mocked by fixture
+            result = runner.invoke(
+                main,
+                ['--output', str(output_file), '--format', 'json', 'Test question'],
+                catch_exceptions=False
+            )
 
         # Verify command completed
         assert result.exit_code == 0
@@ -127,8 +141,8 @@ class TestCLIExportJSON:
         assert len(data["hypotheses"]) == 3
         assert data["final_answer"] == "Combine time management with automation and focus techniques."
 
-    
-    def test_export_json_default_format(self, runner, tmp_path, mock_qadi_result):
+
+    def test_export_json_default_format(self, runner, tmp_path, mock_qadi_result, mock_provider_setup):
         """Test that JSON is default format when --output is specified."""
         output_file = tmp_path / "output.json"
 
@@ -137,13 +151,12 @@ class TestCLIExportJSON:
             mock_orch.run_qadi_cycle.return_value = mock_qadi_result
             mock_orch_class.return_value = mock_orch
 
-            with patch('mad_spark_alt.unified_cli.setup_llm_providers', new_callable=AsyncMock):
-                with patch.dict('os.environ', {'GOOGLE_API_KEY': 'test-key'}):
-                    result = runner.invoke(
-                        main,
-                        ['--output', str(output_file), 'Test question'],
-                        catch_exceptions=False
-                    )
+            # Provider setup already mocked by fixture
+            result = runner.invoke(
+                main,
+                ['--output', str(output_file), 'Test question'],
+                catch_exceptions=False
+            )
 
         assert result.exit_code == 0
         assert output_file.exists()
@@ -187,8 +200,8 @@ class TestCLIExportJSON:
 class TestCLIExportMarkdown:
     """Test Markdown export via CLI."""
 
-    
-    def test_export_markdown_with_format_flag(self, runner, tmp_path, mock_qadi_result):
+
+    def test_export_markdown_with_format_flag(self, runner, tmp_path, mock_qadi_result, mock_provider_setup):
         """Test that --format md exports results to Markdown file."""
         output_file = tmp_path / "test_output.md"
 
@@ -197,13 +210,12 @@ class TestCLIExportMarkdown:
             mock_orch.run_qadi_cycle.return_value = mock_qadi_result
             mock_orch_class.return_value = mock_orch
 
-            with patch('mad_spark_alt.unified_cli.setup_llm_providers', new_callable=AsyncMock):
-                with patch.dict('os.environ', {'GOOGLE_API_KEY': 'test-key'}):
-                    result = runner.invoke(
-                        main,
-                        ['--output', str(output_file), '--format', 'md', 'Test question'],
-                        catch_exceptions=False
-                    )
+            # Provider setup already mocked by fixture
+            result = runner.invoke(
+                main,
+                ['--output', str(output_file), '--format', 'md', 'Test question'],
+                catch_exceptions=False
+            )
 
         assert result.exit_code == 0
         assert output_file.exists()
@@ -263,8 +275,8 @@ class TestCLIExportValidation:
         assert result.exit_code != 0
         assert "txt" in result.output or "Invalid value" in result.output
 
-    
-    def test_output_creates_parent_directories(self, runner, tmp_path, mock_qadi_result):
+
+    def test_output_creates_parent_directories(self, runner, tmp_path, mock_qadi_result, mock_provider_setup):
         """Test that export creates parent directories if needed."""
         output_file = tmp_path / "subdir1" / "subdir2" / "output.json"
 
@@ -273,13 +285,12 @@ class TestCLIExportValidation:
             mock_orch.run_qadi_cycle.return_value = mock_qadi_result
             mock_orch_class.return_value = mock_orch
 
-            with patch('mad_spark_alt.unified_cli.setup_llm_providers', new_callable=AsyncMock):
-                with patch.dict('os.environ', {'GOOGLE_API_KEY': 'test-key'}):
-                    result = runner.invoke(
-                        main,
-                        ['--output', str(output_file), 'Test'],
-                        catch_exceptions=False
-                    )
+            # Provider setup already mocked by fixture
+            result = runner.invoke(
+                main,
+                ['--output', str(output_file), 'Test'],
+                catch_exceptions=False
+            )
 
         assert result.exit_code == 0
         assert output_file.exists()

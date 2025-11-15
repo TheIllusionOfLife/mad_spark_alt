@@ -5,22 +5,23 @@ Intelligent analysis system using QADI methodology (Question → Abduction → D
 ## Features
 
 - **QADI Methodology**: Structured 4-phase analysis for any question or problem
+- **Multi-Provider LLM Support**: Choose between Gemini API (cloud) or Ollama (local/free)
 - **Universal Evaluation**: Impact, Feasibility, Accessibility, Sustainability, Scalability
 - **Multiple Analysis Modes**: Simple, hypothesis-driven, multi-perspective
 - **Temperature Control**: Adjust creativity level (0.0-2.0)
 - **Audience-Neutral**: Practical insights for everyone, not just businesses
 - **Real-World Examples**: Concrete applications at individual, community, and systemic levels
 - **Structured Output**: Utilizes Gemini's structured output API for reliable parsing of hypotheses and scores
-- **Multimodal Support** (Phase 2): Analyze images, PDFs, and web content alongside text
+- **Multimodal Support**: Analyze images (both providers), PDFs and URLs (Gemini only) alongside text
 
 ### Multimodal Capabilities (New!)
 
-Mad Spark Alt now supports multimodal analysis using Gemini's vision and URL context capabilities:
+Mad Spark Alt now supports multimodal analysis. Both Gemini and Ollama support image analysis, while PDFs and URLs require Gemini:
 
 **Supported Input Types:**
-- **Images**: PNG, JPEG, WebP, HEIC (up to 20MB per image)
-- **Documents**: PDF files with vision understanding (up to 1000 pages)
-- **URLs**: Fetch and analyze web content (up to 20 URLs per request)
+- **Images**: PNG, JPEG, WebP, HEIC (up to 20MB per image) - **Both Gemini and Ollama**
+- **Documents**: PDF files with vision understanding (up to 1000 pages) - **Gemini only**
+- **URLs**: Fetch and analyze web content (up to 20 URLs per request) - **Gemini only**
 
 **Usage via Python API:**
 ```python
@@ -74,8 +75,9 @@ uv sync  # Or: pip install -e .
 ## Quick Start
 
 ```bash
-# Setup API key (REQUIRED)
+# Setup API key (REQUIRED for Gemini, optional for Ollama-only usage)
 echo "GOOGLE_API_KEY=your_key_here" > .env
+# Note: Skip this step if using --provider ollama exclusively
 ```
 
 ### Basic Usage (Short Alias)
@@ -99,6 +101,37 @@ uv run msa "How can we reduce plastic waste?"
 uv run msa "Your question" --evolve
 ```
 
+### LLM Provider Selection
+
+Choose between cloud API (Gemini) or local inference (Ollama):
+
+```bash
+# Auto mode (default): Smart routing based on input
+# - Text/images → Ollama (free local)
+# - Documents/URLs → Gemini (required for processing)
+msa "Your question" --provider auto
+
+# Force Gemini API (cloud, costs money)
+msa "Your question" --provider gemini
+
+# Force Ollama (free local, requires Ollama running)
+msa "Your question" --provider ollama
+
+# Ollama setup (one-time)
+# 1. Install: https://ollama.ai
+# 2. Run: ollama serve
+# 3. Pull model: ollama pull gemma3:12b-it-qat
+# 4. Use: msa "Your question" --provider ollama
+```
+
+**Provider Comparison:**
+
+| Provider | Cost | Speed | Multimodal | Notes |
+|----------|------|-------|------------|-------|
+| Gemini | ~$0.01/query | Fast (10s) | ✅ Images, PDFs, URLs | Requires API key |
+| Ollama | Free | Slower (20-30s) | ✅ Images only | Requires local setup |
+| Auto | Mixed | Variable | ✅ Full support | Best of both worlds |
+
 ### Advanced Options
 
 ```bash
@@ -114,13 +147,13 @@ msa "Your question" --evolve --traditional
 # Use semantic diversity calculation for enhanced idea variety
 msa "Your question" --temperature 2.0 --evolve --generations 2 --population 10 --diversity-method semantic --verbose
 
-# Analyze an image with QADI
+# Analyze an image with QADI (works with both Gemini and Ollama)
 msa "Analyze this design for improvement" --image design.png
 
-# Process a PDF document
+# Process a PDF document (requires Gemini)
 msa "Summarize key findings" --document research.pdf
 
-# Combine multiple modalities
+# Combine multiple modalities (requires Gemini)
 msa "Compare these approaches" --image chart1.png --image chart2.png --url https://example.com/article
 
 # Multiple documents and URLs

@@ -38,8 +38,9 @@ from .core import (
     setup_llm_providers,
 )
 from .core.json_utils import format_llm_cost
-from .core.llm_provider import LLMProvider, get_google_provider, llm_manager
+from .core.llm_provider import LLMProvider, LLMProviderInterface, OllamaProvider, get_google_provider, llm_manager
 from .core.multimodal import MultimodalInput, MultimodalInputType, MultimodalSourceType
+from .core.provider_router import ProviderRouter, ProviderSelection
 from .core.simple_qadi_orchestrator import SimpleQADIOrchestrator, SimpleQADIResult
 from .core.system_constants import CONSTANTS
 from .core.terminal_renderer import render_markdown
@@ -466,6 +467,8 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
 @click.group(invoke_without_command=True)
 @click.pass_context
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging and detailed output')
+@click.option('--provider', type=click.Choice(['auto', 'gemini', 'ollama'], case_sensitive=False),
+              default='auto', help='LLM provider: auto (smart routing), gemini (API only), ollama (local only)')
 @click.option('--temperature', '-t', type=click.FloatRange(0.0, 2.0), help='Temperature for hypothesis generation (0.0-2.0, default: 0.8)')
 @click.option('--evolve', '-e', is_flag=True, help='Evolve ideas using genetic algorithm after QADI analysis')
 @click.option('--generations', '-g', type=int, default=2, help='Number of evolution generations (default: 2, with --evolve)')
@@ -485,6 +488,7 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
 def main(
     ctx: click.Context,
     verbose: bool,
+    provider: str,
     temperature: Optional[float],
     evolve: bool,
     generations: int,
@@ -587,18 +591,49 @@ def main(
                 console.print("Example: msa \"Your question\" --evolve --generations 3")
                 ctx.exit(1)
 
-        # Check API key
-        if not google_key:
-            console.print("[red]Error: GOOGLE_API_KEY not found[/red]")
+        # Validate provider availability based on selection
+        provider_selection = ProviderSelection(provider.lower())
+
+        has_documents = len(document) > 0
+        has_urls = len(url) > 0
+
+        # Validate provider combinations
+        if provider_selection == ProviderSelection.GEMINI and not google_key:
+            console.print("[red]Error: --provider gemini requires GOOGLE_API_KEY[/red]")
             console.print("\n[yellow]To fix this:[/yellow]")
             console.print("1. Get a Google API key from: https://makersuite.google.com/app/apikey")
             console.print("2. Set environment variable: export GOOGLE_API_KEY='your-key'")
             console.print("3. Or create .env file: echo 'GOOGLE_API_KEY=your-key' > .env")
+            console.print("\n[dim]Or use --provider ollama for free local inference[/dim]")
             ctx.exit(1)
+
+        if provider_selection == ProviderSelection.OLLAMA and (has_documents or has_urls):
+            console.print("[red]Error: Ollama doesn't support --document or --url inputs[/red]")
+            console.print("\n[yellow]Options:[/yellow]")
+            console.print("  1. Use --provider auto (Gemini preprocesses documents/URLs, Ollama handles QADI)")
+            console.print("  2. Use --provider gemini (full Gemini pipeline)")
+            console.print("  3. Remove --document/--url flags (text/image only with Ollama)")
+            ctx.exit(1)
+
+        # For auto mode, check if we have necessary providers
+        if provider_selection == ProviderSelection.AUTO:
+            if (has_documents or has_urls) and not google_key:
+                console.print("[red]Error: Documents/URLs require Gemini API (GOOGLE_API_KEY not found)[/red]")
+                console.print("\n[yellow]To fix this:[/yellow]")
+                console.print("1. Set GOOGLE_API_KEY for document/URL processing")
+                console.print("2. Or remove --document/--url flags to use Ollama only")
+                ctx.exit(1)
+
+            # If no providers available at all
+            if not google_key:
+                # Check if Ollama is available (we'll try to connect later)
+                console.print("[yellow]Note: No GOOGLE_API_KEY found. Will attempt to use Ollama (local LLM).[/yellow]")
+                console.print("[dim]Ensure Ollama is running: ollama serve[/dim]")
 
         # Run QADI analysis
         _run_qadi_sync(
             input,
+            provider_selection=provider_selection,
             temperature=temperature,
             verbose=verbose,
             evolve=evolve,
@@ -641,6 +676,7 @@ def main(
 
 def _run_qadi_sync(
     user_input: str,
+    provider_selection: ProviderSelection = ProviderSelection.AUTO,
     temperature: Optional[float] = None,
     verbose: bool = False,
     evolve: bool = False,
@@ -657,6 +693,7 @@ def _run_qadi_sync(
     """Synchronous wrapper for QADI analysis - handles event loop properly."""
     asyncio.run(_run_qadi_analysis(
         user_input,
+        provider_selection=provider_selection,
         temperature=temperature,
         verbose=verbose,
         evolve=evolve,
@@ -674,6 +711,7 @@ def _run_qadi_sync(
 
 async def _run_qadi_analysis(
     user_input: str,
+    provider_selection: ProviderSelection = ProviderSelection.AUTO,
     temperature: Optional[float] = None,
     verbose: bool = False,
     evolve: bool = False,
@@ -687,9 +725,9 @@ async def _run_qadi_analysis(
     output_file: Optional[str] = None,
     export_format: str = "json"
 ) -> None:
-    """Run QADI analysis with simplified Phase 1 and optional evolution."""
+    """Run QADI analysis with multi-provider support and optional evolution."""
 
-    print("🧠 Simplified QADI Analysis")
+    print("🧠 QADI Analysis with Multi-Provider Support")
     print("=" * 50 + "\n")
 
     # Display user input clearly
@@ -744,17 +782,79 @@ async def _run_qadi_analysis(
     # Convert URLs tuple to list
     url_list = list(urls) if urls else None
 
-    # Setup LLM providers
+    # Initialize providers based on availability
     google_key = os.getenv("GOOGLE_API_KEY")
-    if not google_key:
-        print("❌ Error: GOOGLE_API_KEY not found")
+
+    # Initialize Gemini provider if API key available
+    gemini_provider = None
+    if google_key:
+        await setup_llm_providers(google_api_key=google_key)
+        gemini_provider = get_google_provider()
+
+    # Initialize Ollama provider (always try, will fail gracefully if unavailable)
+    ollama_provider = None
+    try:
+        import aiohttp
+        ollama_provider = OllamaProvider()
+        # Actually verify Ollama server is reachable
+        session = await ollama_provider._get_session()
+        async with session.get(
+            f"{ollama_provider.base_url}/api/tags",
+            timeout=aiohttp.ClientTimeout(total=2)
+        ) as resp:
+            if resp.status != 200:
+                raise ConnectionError("Ollama server not responding")
+        if verbose:
+            print("✅ Ollama provider initialized")
+    except (aiohttp.ClientError, OSError, ConnectionError, asyncio.TimeoutError) as e:
+        ollama_provider = None  # Set to None so router knows it's unavailable
+        if verbose:
+            print(f"⚠️  Ollama not available: {e}")
+
+    # Create provider router
+    router = ProviderRouter(
+        gemini_provider=gemini_provider,
+        ollama_provider=ollama_provider,
+        default_strategy=provider_selection,
+    )
+
+    # Select provider based on input
+    try:
+        primary_provider, is_hybrid_mode = router.select_provider(
+            has_documents=len(document_paths) > 0,
+            has_urls=len(url_list) > 0 if url_list else False,
+            force_provider=provider_selection,
+        )
+
+        provider_name = primary_provider.__class__.__name__.replace("Provider", "")
+        if is_hybrid_mode:
+            # is_hybrid_mode means documents/URLs detected, so using Gemini for all phases
+            print("🔀 Using Gemini for documents/URLs (auto mode)\n")
+        else:
+            print(f"🤖 Using {provider_name} for analysis\n")
+
+    except ValueError as e:
+        print(f"❌ Error: {e}")
         return
 
-    await setup_llm_providers(google_api_key=google_key)
+    # Register selected provider with llm_manager and create orchestrator
+    # Determine which provider enum to use
+    if isinstance(primary_provider, OllamaProvider):
+        provider_enum = LLMProvider.OLLAMA
+    else:  # GoogleProvider
+        provider_enum = LLMProvider.GOOGLE
 
-    # Create orchestrator with optional temperature override and num_hypotheses for evolution
+    # Register the selected provider if not already registered
+    if provider_enum not in llm_manager.providers:
+        llm_manager.register_provider(provider_enum, primary_provider)
+
+    # Create orchestrator with selected provider
     num_hypotheses = population if evolve else 3
-    orchestrator = SimpleQADIOrchestrator(temperature_override=temperature, num_hypotheses=num_hypotheses)
+    orchestrator = SimpleQADIOrchestrator(
+        temperature_override=temperature,
+        num_hypotheses=num_hypotheses,
+        llm_provider=primary_provider
+    )
 
     start_time = time.time()
 
@@ -872,7 +972,8 @@ async def _run_qadi_analysis(
         if evolve and result.synthesized_ideas:
             evolution_result = await _run_evolution(
                 result, user_input, elapsed_time, generations, population,
-                traditional, diversity_method, verbose
+                traditional, diversity_method, verbose,
+                llm_provider_for_evolution=primary_provider
             )
 
         # Export results if output file specified
@@ -895,6 +996,13 @@ async def _run_qadi_analysis(
         if verbose:
             import traceback
             traceback.print_exc()
+    finally:
+        # Clean up provider sessions to prevent resource leaks
+        if ollama_provider is not None:
+            try:
+                await ollama_provider.close()
+            except Exception:
+                pass  # Ignore cleanup errors
 
 
 async def _run_evolution(
@@ -906,8 +1014,12 @@ async def _run_evolution(
     traditional: bool,
     diversity_method: str,
     verbose: bool,
+    llm_provider_for_evolution: Optional[LLMProviderInterface] = None,
 ) -> Optional[EvolutionResult]:
     """Run evolution phase after QADI analysis.
+
+    Args:
+        llm_provider_for_evolution: LLM provider to use for evolution (Ollama or Gemini)
 
     Returns:
         EvolutionResult if successful, None if failed or timed out
@@ -934,8 +1046,10 @@ async def _run_evolution(
             print("🧬 Evolution operators: TRADITIONAL (faster but less creative)")
             print("   (Use without --traditional for semantic operators)")
         else:
-            llm_provider = get_google_provider()
-            print("🧬 Evolution operators: SEMANTIC (LLM-powered for better creativity)")
+            # Use provided LLM provider (Ollama or Gemini) for evolution
+            llm_provider = llm_provider_for_evolution
+            provider_name = llm_provider.__class__.__name__.replace("Provider", "") if llm_provider else "Unknown"
+            print(f"🧬 Evolution operators: SEMANTIC ({provider_name}-powered for better creativity)")
             print("   (Use --traditional for faster traditional operators)")
 
         # Display diversity method information

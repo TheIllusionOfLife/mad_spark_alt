@@ -16,7 +16,7 @@ from .interfaces import (
     GeneratedIdea,
     ThinkingMethod,
 )
-from .llm_provider import LLMRequest, llm_manager
+from .llm_provider import LLMRequest, LLMProviderInterface, OllamaProvider, llm_manager
 from .system_constants import CONSTANTS
 from .qadi_prompts import PHASE_HYPERPARAMETERS, QADIPrompts, calculate_hypothesis_score
 from ..utils.text_cleaning import clean_ansi_codes
@@ -105,19 +105,26 @@ class SimpleQADIOrchestrator:
     - Unified evaluation scoring
     """
 
-    def __init__(self, temperature_override: Optional[float] = None, num_hypotheses: int = 3) -> None:
+    def __init__(
+        self,
+        temperature_override: Optional[float] = None,
+        num_hypotheses: int = 3,
+        llm_provider: Optional["LLMProviderInterface"] = None,
+    ) -> None:
         """
         Initialize the orchestrator.
 
         Args:
             temperature_override: Optional temperature override for abduction phase (0.0-2.0)
             num_hypotheses: Number of hypotheses to generate in abduction phase (default: 3)
+            llm_provider: Optional custom LLM provider (if None, uses global llm_manager default)
         """
         self.prompts = QADIPrompts()
         if temperature_override is not None and not 0.0 <= temperature_override <= 2.0:
             raise ValueError("Temperature must be between 0.0 and 2.0")
         self.temperature_override = temperature_override
         self.num_hypotheses = max(3, num_hypotheses)  # Ensure at least 3
+        self.llm_provider = llm_provider  # Custom provider for this orchestrator instance
 
     async def run_qadi_cycle(
         self,
@@ -158,11 +165,27 @@ class SimpleQADIOrchestrator:
         )
 
         try:
+            # Use custom provider if provided, otherwise use global llm_manager
+            manager_to_use = llm_manager
+            if self.llm_provider is not None:
+                # Create a temporary wrapper that routes to the custom provider
+                from .llm_provider import LLMManager, LLMProvider
+                temp_manager = LLMManager()
+
+                # Determine provider enum based on instance type
+                if isinstance(self.llm_provider, OllamaProvider):
+                    provider_enum = LLMProvider.OLLAMA
+                else:  # Assume GoogleProvider
+                    provider_enum = LLMProvider.GOOGLE
+
+                temp_manager.register_provider(provider_enum, self.llm_provider)
+                manager_to_use = temp_manager
+
             # Phase 1: Question - Extract core question
             logger.info("Running Question phase")
             phase_input = PhaseInput(
                 user_input=full_input,
-                llm_manager=llm_manager,
+                llm_manager=manager_to_use,
                 context={},
                 max_retries=max_retries,
                 multimodal_inputs=multimodal_inputs,
