@@ -52,6 +52,7 @@ class LLMProvider(Enum):
     """Supported LLM providers."""
 
     GOOGLE = "google"
+    OLLAMA = "ollama"
 
 
 class ModelSize(Enum):
@@ -819,6 +820,241 @@ class GoogleProvider(LLMProviderInterface):
                 "dimensions": request.output_dimensionality
             }
         )
+
+    async def close(self) -> None:
+        """Close the session."""
+        if self._session and not self._session.closed:
+            await self._session.close()
+
+
+class OllamaProvider(LLMProviderInterface):
+    """Ollama local LLM provider implementation with structured output support."""
+
+    def __init__(
+        self,
+        model: str = "gemma3:12b-it-qat",
+        base_url: str = "http://localhost:11434",
+        retry_config: Optional[RetryConfig] = None,
+    ):
+        """
+        Initialize Ollama provider.
+
+        Args:
+            model: Ollama model name (default: gemma3:12b-it-qat)
+            base_url: Ollama API base URL (default: http://localhost:11434)
+            retry_config: Optional retry configuration
+        """
+        self.model = model
+        self.base_url = base_url
+        self._session: Optional[aiohttp.ClientSession] = None
+        self.retry_config = retry_config or RetryConfig()
+        self.circuit_breaker = CircuitBreaker()
+
+    async def _get_session(self) -> aiohttp.ClientSession:
+        """Get or create aiohttp session."""
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def generate(self, request: LLMRequest) -> LLMResponse:
+        """
+        Generate text using Ollama API with Pydantic schema support.
+
+        Supports:
+        - Text generation
+        - Image inputs (via base64 encoding)
+        - Structured output (JSON schema via format parameter)
+        - Pydantic model schemas
+
+        Args:
+            request: LLMRequest with prompt and optional schema
+
+        Returns:
+            LLMResponse with generated content
+
+        Raises:
+            LLMError: If Ollama API request fails
+        """
+        session = await self._get_session()
+
+        # Build messages in Ollama format
+        messages = self._build_messages(request)
+
+        # Build payload
+        payload: Dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "temperature": request.temperature,
+                "num_predict": request.max_tokens,
+                "top_p": request.top_p,
+            },
+        }
+
+        # Add structured output schema if provided
+        if request.response_schema:
+            schema = request.get_json_schema()
+            payload["format"] = schema  # Ollama's format parameter
+            # Best practice: Use temperature=0 for schema compliance
+            payload["options"]["temperature"] = 0.0
+            logger.debug(f"Using structured output with schema: {schema.get('type', 'unknown')}")
+
+        # Make request to Ollama API
+        url = f"{self.base_url}/api/chat"
+        start_time = time.time()
+
+        try:
+            response_data = await safe_aiohttp_request(
+                session=session,
+                method="POST",
+                url=url,
+                json=payload,
+                retry_config=self.retry_config,
+                circuit_breaker=self.circuit_breaker,
+                timeout=180,  # 3 minutes timeout for local inference
+            )
+        except Exception as e:
+            raise LLMError(
+                f"Ollama API request failed: {str(e)}. "
+                f"Ensure Ollama is running (ollama serve) and model is available (ollama pull {self.model})",
+                ErrorType.API_ERROR,
+            ) from e
+
+        end_time = time.time()
+
+        # Extract generated content
+        try:
+            content = response_data["message"]["content"]
+        except (KeyError, IndexError) as e:
+            raise LLMError(
+                f"Invalid response format from Ollama API: {e}",
+                ErrorType.API_ERROR,
+            ) from e
+
+        # Ollama doesn't provide token counts, estimate them
+        # Use characters / 4 as rough approximation (1 token ≈ 4 chars)
+        prompt_text = request.user_prompt
+        if request.system_prompt:
+            prompt_text = f"{request.system_prompt}\n{prompt_text}"
+
+        prompt_tokens = len(prompt_text) // 4
+        completion_tokens = len(content) // 4
+        total_tokens = prompt_tokens + completion_tokens
+
+        # Count multimodal inputs
+        total_images = None
+        if request.multimodal_inputs:
+            from .multimodal import MultimodalInputType as MMInputType
+
+            total_images = sum(
+                1 for item in request.multimodal_inputs
+                if item.input_type == MMInputType.IMAGE
+            )
+            total_images = total_images if total_images > 0 else None
+
+        return LLMResponse(
+            content=content,
+            provider=LLMProvider.OLLAMA,
+            model=self.model,
+            usage={
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": total_tokens,
+            },
+            cost=0.0,  # Ollama is free (local inference)
+            response_time=end_time - start_time,
+            total_images_processed=total_images,
+        )
+
+    def _build_messages(self, request: LLMRequest) -> List[Dict[str, Any]]:
+        """
+        Build Ollama messages format.
+
+        Ollama messages format:
+        [
+            {"role": "system", "content": "..."},
+            {"role": "user", "content": "...", "images": ["base64..."]}
+        ]
+
+        Args:
+            request: LLMRequest with prompts and optional multimodal inputs
+
+        Returns:
+            List of message dictionaries
+        """
+        messages = []
+
+        # Add system prompt if provided
+        if request.system_prompt:
+            messages.append({"role": "system", "content": request.system_prompt})
+
+        # Build user message with optional images
+        user_message: Dict[str, Any] = {
+            "role": "user",
+            "content": request.user_prompt,
+        }
+
+        # Handle multimodal inputs (images)
+        if request.multimodal_inputs:
+            images = []
+            for item in request.multimodal_inputs:
+                from .multimodal import MultimodalInputType, MultimodalSourceType
+
+                if item.input_type == MultimodalInputType.IMAGE:
+                    if item.source_type == MultimodalSourceType.FILE_PATH:
+                        # Read file and convert to base64
+                        base64_data, _ = read_file_as_base64(Path(item.data))
+                        images.append(base64_data)
+                    elif item.source_type == MultimodalSourceType.BASE64:
+                        # Already base64 encoded
+                        images.append(item.data)
+                    else:
+                        logger.warning(
+                            f"Unsupported multimodal source type for Ollama: {item.source_type}. "
+                            f"Ollama supports FILE_PATH and BASE64 only."
+                        )
+
+            if images:
+                user_message["images"] = images
+
+        messages.append(user_message)
+
+        return messages
+
+    def get_available_models(self) -> List[ModelConfig]:
+        """
+        Get available Ollama models.
+
+        Returns list with current model configuration.
+        Ollama is free (local inference), so costs are $0.00.
+        """
+        return [
+            ModelConfig(
+                provider=LLMProvider.OLLAMA,
+                model_name=self.model,
+                model_size=ModelSize.MEDIUM,
+                input_cost_per_1k=0.0,  # Free (local)
+                output_cost_per_1k=0.0,  # Free (local)
+                max_tokens=8192,  # gemma3 context window
+                temperature=0.7,
+                top_p=0.9,
+            )
+        ]
+
+    def calculate_cost(
+        self, input_tokens: int, output_tokens: int, model_config: ModelConfig
+    ) -> float:
+        """
+        Calculate cost for Ollama usage.
+
+        Ollama runs locally, so cost is always $0.00.
+        (Hardware costs not tracked here)
+
+        Returns:
+            0.0 (Ollama is free)
+        """
+        return 0.0
 
     async def close(self) -> None:
         """Close the session."""
