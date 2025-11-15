@@ -38,7 +38,7 @@ from .core import (
     setup_llm_providers,
 )
 from .core.json_utils import format_llm_cost
-from .core.llm_provider import LLMProvider, OllamaProvider, get_google_provider, llm_manager
+from .core.llm_provider import LLMProvider, LLMProviderInterface, OllamaProvider, get_google_provider, llm_manager
 from .core.multimodal import MultimodalInput, MultimodalInputType, MultimodalSourceType
 from .core.provider_router import ProviderRouter, ProviderSelection
 from .core.simple_qadi_orchestrator import SimpleQADIOrchestrator, SimpleQADIResult
@@ -1007,7 +1007,7 @@ async def _run_evolution(
     traditional: bool,
     diversity_method: str,
     verbose: bool,
-    llm_provider_for_evolution: Optional["LLMProviderInterface"] = None,
+    llm_provider_for_evolution: Optional[LLMProviderInterface] = None,
 ) -> Optional[EvolutionResult]:
     """Run evolution phase after QADI analysis.
 

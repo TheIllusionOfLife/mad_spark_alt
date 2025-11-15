@@ -42,6 +42,8 @@ def test_cli_does_not_have_simpler_qadi_prompts():
 
 def test_cli_instantiates_core_orchestrator():
     """Verify CLI instantiates the core SimpleQADIOrchestrator, not a custom one."""
+    from mad_spark_alt.core.llm_provider import GoogleProvider, OllamaProvider as RealOllamaProvider
+
     runner = CliRunner()
 
     # Mock the orchestrator to track instantiation
@@ -66,8 +68,14 @@ def test_cli_instantiates_core_orchestrator():
         with patch('mad_spark_alt.unified_cli.load_env_file'):
             with patch('mad_spark_alt.unified_cli.os.getenv', return_value='test-api-key'):
                 with patch('mad_spark_alt.unified_cli.setup_llm_providers', new_callable=AsyncMock):
-                    # Run CLI
-                    result = runner.invoke(main, ['Test question'])
+                    # Mock get_google_provider to return a mock provider (must be instance of GoogleProvider)
+                    mock_gemini = MagicMock(spec=GoogleProvider)
+                    with patch('mad_spark_alt.unified_cli.get_google_provider', return_value=mock_gemini):
+                        # Mock OllamaProvider constructor to raise OSError (simulates CI environment without Ollama)
+                        # Keep OllamaProvider as real class so isinstance() checks work
+                        with patch.object(RealOllamaProvider, '__init__', side_effect=OSError("Ollama not available")):
+                            # Run CLI (will use Gemini provider when Ollama unavailable)
+                            result = runner.invoke(main, ['Test question'])
 
         # Verify SimpleQADIOrchestrator was instantiated with correct parameters
         MockOrchestrator.assert_called_once()
