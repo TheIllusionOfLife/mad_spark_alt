@@ -454,13 +454,13 @@ print(f'Available methods: {list(registry._agents.keys())}')
   - Use `ConfigDict` not `class Config`
   - Use `model_validate_json()` not `parse_raw()`
   - Type check: `isinstance(schema, type) and issubclass(schema, BaseModel)`
-- **Test Coverage**: 962 comprehensive tests across all Pydantic functionality
+- **Test Coverage**: 64 dedicated Pydantic tests added, all 962 total project tests passing
   - Schema model tests (29 tests)
   - LLM provider integration tests (10 tests)
   - QADI phase tests (7 tests)
   - Evolution operator tests (10 tests)
   - Real API integration tests (8 tests)
-  - All existing tests passing
+  - All pre-existing tests remain passing (898 tests)
 - **Documentation**: See [docs/MULTI_PROVIDER_SCHEMAS.md](docs/MULTI_PROVIDER_SCHEMAS.md) for complete guide
 - **Migration Status**: COMPLETE - All 6 phases implemented and tested (see [PYDANTIC_MIGRATION_STATUS.md](PYDANTIC_MIGRATION_STATUS.md))
 - **3-Layer Graceful Fallback Pattern** (PR #142):
@@ -482,8 +482,9 @@ print(f'Available methods: {list(registry._agents.keys())}')
         # Layer 2: Manual JSON parsing
         try:
             data = json.loads(content)
-            scores = [data.get('scores', {})]
-        except (json.JSONDecodeError, KeyError):
+            evaluations = data.get("evaluations", []) if isinstance(data, dict) else []
+            scores = [e.get("scores", {}) for e in evaluations if isinstance(e, dict)]
+        except json.JSONDecodeError:
             # Layer 3: Text parsing
             scores = extract_scores_from_text(content)
     ```
