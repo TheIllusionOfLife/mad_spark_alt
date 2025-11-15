@@ -974,7 +974,8 @@ async def _run_qadi_analysis(
         if evolve and result.synthesized_ideas:
             evolution_result = await _run_evolution(
                 result, user_input, elapsed_time, generations, population,
-                traditional, diversity_method, verbose
+                traditional, diversity_method, verbose,
+                llm_provider_for_evolution=primary_provider
             )
 
         # Export results if output file specified
@@ -1008,8 +1009,12 @@ async def _run_evolution(
     traditional: bool,
     diversity_method: str,
     verbose: bool,
+    llm_provider_for_evolution: Optional["LLMProviderInterface"] = None,
 ) -> Optional[EvolutionResult]:
     """Run evolution phase after QADI analysis.
+
+    Args:
+        llm_provider_for_evolution: LLM provider to use for evolution (Ollama or Gemini)
 
     Returns:
         EvolutionResult if successful, None if failed or timed out
@@ -1036,8 +1041,10 @@ async def _run_evolution(
             print("🧬 Evolution operators: TRADITIONAL (faster but less creative)")
             print("   (Use without --traditional for semantic operators)")
         else:
-            llm_provider = get_google_provider()
-            print("🧬 Evolution operators: SEMANTIC (LLM-powered for better creativity)")
+            # Use provided LLM provider (Ollama or Gemini) for evolution
+            llm_provider = llm_provider_for_evolution
+            provider_name = llm_provider.__class__.__name__.replace("Provider", "") if llm_provider else "Unknown"
+            print(f"🧬 Evolution operators: SEMANTIC ({provider_name}-powered for better creativity)")
             print("   (Use --traditional for faster traditional operators)")
 
         # Display diversity method information
