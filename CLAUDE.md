@@ -406,8 +406,8 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Testing**: Comprehensive integration tests confirm structured output reliability
 - **Documentation**: See [STRUCTURED_OUTPUT.md](docs/STRUCTURED_OUTPUT.md) for details
 
-### Pydantic Schema Architecture (LATEST - Core Implementation Complete) ✅
-- **Core Phases Complete**: QADI phases now use Pydantic models for multi-provider compatibility (evolution operators pending)
+### Pydantic Schema Architecture (COMPLETE - PR #141, #142) ✅
+- **ALL Phases Complete**: QADI phases and evolution operators now use Pydantic models for multi-provider compatibility
 - **Core Models** (src/mad_spark_alt/core/schemas.py):
   - **QADI Schemas**: HypothesisScores, Hypothesis, HypothesisEvaluation, DeductionResponse, HypothesisListResponse
   - **Evolution Schemas**: MutationResponse, BatchMutationResponse, CrossoverResponse, BatchCrossoverResponse
@@ -454,13 +454,40 @@ print(f'Available methods: {list(registry._agents.keys())}')
   - Use `ConfigDict` not `class Config`
   - Use `model_validate_json()` not `parse_raw()`
   - Type check: `isinstance(schema, type) and issubclass(schema, BaseModel)`
-- **Test Coverage**: 54 comprehensive tests across all Pydantic functionality
+- **Test Coverage**: 64 dedicated Pydantic tests added, all 962 total project tests passing
   - Schema model tests (29 tests)
   - LLM provider integration tests (10 tests)
-  - QADI phase tests (15 tests)
-  - All 945+ existing tests passing
+  - QADI phase tests (7 tests)
+  - Evolution operator tests (10 tests)
+  - Real API integration tests (8 tests)
+  - All pre-existing tests remain passing (898 tests)
 - **Documentation**: See [docs/MULTI_PROVIDER_SCHEMAS.md](docs/MULTI_PROVIDER_SCHEMAS.md) for complete guide
-- **Status**: See [PYDANTIC_MIGRATION_STATUS.md](PYDANTIC_MIGRATION_STATUS.md) for remaining phases (evolution operators, integration tests)
+- **Migration Status**: COMPLETE - All 6 phases implemented and tested (see [PYDANTIC_MIGRATION_STATUS.md](PYDANTIC_MIGRATION_STATUS.md))
+- **3-Layer Graceful Fallback Pattern** (PR #142):
+  - **Layer 1 - Pydantic Validation**: Try `model_validate_json()` for type-safe parsing with automatic validation
+  - **Layer 2 - Manual JSON Parsing**: Fall back to `json.loads()` with manual field extraction using `.get()` and defaults
+  - **Layer 3 - Text Parsing**: Final fallback to regex-based text extraction when JSON parsing fails
+  - **Critical Implementation Details**:
+    - Nested fallback ensures no valid LLM response is rejected
+    - Each layer logs debug messages for observability
+    - Use `except (ValidationError, json.JSONDecodeError)` to catch both Pydantic and JSON errors
+    - Always verify fallback accepts all field name variations (e.g., `mutated_idea` and `content`)
+  - **Example**:
+    ```python
+    try:
+        # Layer 1: Pydantic validation (preferred)
+        result = DeductionResponse.model_validate_json(content)
+        scores = [e.scores for e in result.evaluations]
+    except (ValidationError, json.JSONDecodeError):
+        # Layer 2: Manual JSON parsing
+        try:
+            data = json.loads(content)
+            evaluations = data.get("evaluations", []) if isinstance(data, dict) else []
+            scores = [e.get("scores", {}) for e in evaluations if isinstance(e, dict)]
+        except json.JSONDecodeError:
+            # Layer 3: Text parsing
+            scores = extract_scores_from_text(content)
+    ```
 
 ### Phase 2 Hypothesis Display Format (PR #89, #101)
 - **User Preference**: Simple numbered list format without "**Approach X:**" labels
