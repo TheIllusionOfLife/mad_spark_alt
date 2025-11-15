@@ -12,8 +12,11 @@ import random
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
+from pydantic import ValidationError
+
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.core.llm_provider import GoogleProvider, LLMRequest
+from mad_spark_alt.core.schemas import BatchMutationResponse
 from mad_spark_alt.core.system_constants import CONSTANTS
 from mad_spark_alt.evolution.interfaces import MutationInterface, EvaluationContext
 
@@ -698,7 +701,59 @@ Return JSON with mutations array containing id and content for each idea."""
         """
         mutations: List[Dict[str, Any]] = []
 
-        # Try to parse as JSON first (structured output)
+        # Try Pydantic validation first (Phase 4)
+        try:
+            if hasattr(response, 'content'):
+                response_text = response.content
+            else:
+                response_text = str(response)
+
+            # Validate using Pydantic model
+            validated_response = BatchMutationResponse.model_validate_json(response_text)
+
+            # Initialize ordered mutations list with None placeholders
+            ordered_mutations: List[Optional[Dict[str, Any]]] = [None] * expected_count
+
+            # Process validated mutations with type-safe access
+            for mutation_result in validated_response.mutations:
+                # IDs are 1-based, convert to 0-based index
+                idx = mutation_result.id - 1
+                if 0 <= idx < expected_count:
+                    ordered_mutations[idx] = {
+                        "content": mutation_result.mutated_idea,
+                        "mutation_type": mutation_result.mutation_type if mutation_result.mutation_type else (
+                            "paradigm_shift" if is_breakthrough else "batch_mutation"
+                        )
+                    }
+                else:
+                    logger.warning(f"Mutation ID {mutation_result.id} out of range")
+
+            # Fill any None entries with fallbacks
+            for i in range(expected_count):
+                if ordered_mutations[i] is None:
+                    ordered_mutations[i] = self._create_fallback_mutation(
+                        original_ideas[i] if i < len(original_ideas) else None,
+                        is_breakthrough
+                    )
+
+            # Add ordered mutations to results (all None values filled by now)
+            mutations.extend([m for m in ordered_mutations if m is not None])
+
+            # Fill any missing mutations with fallbacks
+            while len(mutations) < expected_count:
+                idx = len(mutations)
+                mutations.append(self._create_fallback_mutation(
+                    original_ideas[idx] if idx < len(original_ideas) else None,
+                    is_breakthrough
+                ))
+
+            logger.debug("Successfully parsed mutation response with Pydantic validation")
+            return [m for m in mutations if m is not None]
+
+        except (ValidationError, json.JSONDecodeError) as e:
+            logger.debug(f"Pydantic validation failed for mutation response, falling back to manual parsing: {e}")
+
+        # Fall back to manual JSON parsing
         try:
             if hasattr(response, 'content'):
                 data = json.loads(response.content)
@@ -714,31 +769,34 @@ Return JSON with mutations array containing id and content for each idea."""
 
             # Process mutations - create a list with correct ordering based on ID
             # Initialize ordered mutations list with None placeholders
-            ordered_mutations: List[Optional[Dict[str, Any]]] = [None] * expected_count
+            fallback_mutations: List[Optional[Dict[str, Any]]] = [None] * expected_count
 
             for mutation in raw_mutations:
-                if isinstance(mutation, dict) and "id" in mutation and "content" in mutation:
-                    # IDs are 1-based, convert to 0-based index
-                    idx = mutation["id"] - 1
-                    if 0 <= idx < expected_count:
-                        ordered_mutations[idx] = {
-                            "content": mutation["content"],
-                            "mutation_type": mutation.get("mutation_type",
-                                "paradigm_shift" if is_breakthrough else "batch_mutation")
-                        }
-                    else:
-                        logger.warning(f"Mutation ID {mutation['id']} out of range")
+                if isinstance(mutation, dict) and "id" in mutation:
+                    # Accept both "mutated_idea" (Pydantic schema) and "content" (legacy format)
+                    content = mutation.get("mutated_idea") or mutation.get("content")
+                    if content:
+                        # IDs are 1-based, convert to 0-based index
+                        idx = mutation["id"] - 1
+                        if 0 <= idx < expected_count:
+                            fallback_mutations[idx] = {
+                                "content": content,
+                                "mutation_type": mutation.get("mutation_type",
+                                    "paradigm_shift" if is_breakthrough else "batch_mutation")
+                            }
+                        else:
+                            logger.warning(f"Mutation ID {mutation['id']} out of range")
 
             # Fill any None entries with fallbacks
             for i in range(expected_count):
-                if ordered_mutations[i] is None:
-                    ordered_mutations[i] = self._create_fallback_mutation(
+                if fallback_mutations[i] is None:
+                    fallback_mutations[i] = self._create_fallback_mutation(
                         original_ideas[i] if i < len(original_ideas) else None,
                         is_breakthrough
                     )
 
             # Add ordered mutations to results, filtering out None
-            for mutation in ordered_mutations:
+            for mutation in fallback_mutations:
                 if mutation is not None:
                     mutations.append(mutation)
 

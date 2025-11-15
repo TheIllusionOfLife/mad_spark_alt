@@ -8,6 +8,7 @@ including context preparation, cache key generation, truncation detection, and J
 import hashlib
 from typing import Any, Dict, Optional, Tuple, Union
 
+from mad_spark_alt.core.schemas import BatchMutationResponse, CrossoverResponse
 from mad_spark_alt.core.system_constants import CONSTANTS
 from mad_spark_alt.evolution.interfaces import EvaluationContext
 
@@ -186,23 +187,7 @@ def get_mutation_schema() -> Dict[str, Any]:
     Returns:
         JSON schema dictionary for Gemini structured output
     """
-    return {
-        "type": "OBJECT",
-        "properties": {
-            "mutations": {
-                "type": "ARRAY",
-                "items": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "id": {"type": "INTEGER"},
-                        "content": {"type": "STRING"},
-                    },
-                    "required": ["id", "content"]
-                }
-            }
-        },
-        "required": ["mutations"]
-    }
+    return BatchMutationResponse.model_json_schema()
 
 
 def get_crossover_schema() -> Dict[str, Any]:
@@ -211,14 +196,7 @@ def get_crossover_schema() -> Dict[str, Any]:
     Returns:
         JSON schema dictionary for Gemini structured output
     """
-    return {
-        "type": "OBJECT",
-        "properties": {
-            "offspring_1": {"type": "STRING"},
-            "offspring_2": {"type": "STRING"}
-        },
-        "required": ["offspring_1", "offspring_2"]
-    }
+    return CrossoverResponse.model_json_schema()
 
 
 def generate_crossover_fallback_text(

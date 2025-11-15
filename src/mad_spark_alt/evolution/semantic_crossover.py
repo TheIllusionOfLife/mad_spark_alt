@@ -11,8 +11,11 @@ from datetime import datetime, timezone
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from pydantic import ValidationError
+
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.core.llm_provider import GoogleProvider, LLMRequest
+from mad_spark_alt.core.schemas import CrossoverResponse
 from mad_spark_alt.core.system_constants import CONSTANTS
 from mad_spark_alt.evolution.interfaces import CrossoverInterface, EvaluationContext
 
@@ -154,25 +157,34 @@ Return two detailed offspring ideas as JSON with offspring_1 and offspring_2 fie
 
         response = await self.llm_provider.generate(request)
 
-        # Try to parse as JSON first (structured output)
+        # Try Pydantic validation first (Phase 4)
         offspring1_content = None
         offspring2_content = None
 
         try:
-            data = json.loads(response.content)
-            if "offspring_1" in data and "offspring_2" in data:
-                offspring1_content = data["offspring_1"]
-                offspring2_content = data["offspring_2"]
-                logger.debug("Successfully parsed crossover from structured output")
-        except (json.JSONDecodeError, KeyError, TypeError) as e:
-            logger.debug("Structured output parsing failed, falling back to text parsing: %s", e)
+            # Validate using Pydantic model
+            validated_response = CrossoverResponse.model_validate_json(response.content)
+            offspring1_content = validated_response.offspring1
+            offspring2_content = validated_response.offspring2
+            logger.debug("Successfully parsed crossover with Pydantic validation")
+        except (ValidationError, json.JSONDecodeError) as e:
+            logger.debug("Pydantic validation failed for crossover, falling back to manual parsing: %s", e)
 
-        # Fall back to text parsing if needed
-        # Note: Check for None explicitly, empty string is valid content
-        if offspring1_content is None or offspring2_content is None:
-            offspring1_content, offspring2_content = self._parse_crossover_response(
-                response.content, parent1, parent2
-            )
+            # Fall back to manual JSON parsing
+            try:
+                data = json.loads(response.content)
+                if "offspring_1" in data and "offspring_2" in data:
+                    offspring1_content = data["offspring_1"]
+                    offspring2_content = data["offspring_2"]
+                    logger.debug("Successfully parsed crossover from manual JSON parsing")
+                else:
+                    raise KeyError("offspring_1 or offspring_2 not found in JSON")
+            except (json.JSONDecodeError, KeyError, TypeError) as e_manual:
+                logger.debug("Manual JSON parsing failed, falling back to text parsing: %s", e_manual)
+                # Fall back to text parsing
+                offspring1_content, offspring2_content = self._parse_crossover_response(
+                    response.content, parent1, parent2
+                )
 
         # Check for truncation
         if is_likely_truncated(offspring1_content):
