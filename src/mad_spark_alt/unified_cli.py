@@ -838,8 +838,6 @@ async def _run_qadi_analysis(
         return
 
     # Register selected provider with llm_manager and create orchestrator
-    from mad_spark_alt.core.llm_provider import llm_manager, LLMProvider
-
     # Determine which provider enum to use
     if isinstance(primary_provider, OllamaProvider):
         provider_enum = LLMProvider.OLLAMA

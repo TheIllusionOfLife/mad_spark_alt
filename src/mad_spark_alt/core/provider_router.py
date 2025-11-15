@@ -218,7 +218,7 @@ class ProviderRouter:
             return await primary_provider.generate(request)
         except Exception as e:
             logger.exception(
-                f"Primary provider ({primary_provider.__class__.__name__}) failed: {e}"
+                f"Primary provider ({primary_provider.__class__.__name__}) failed"
             )
 
             if not enable_fallback:
@@ -230,7 +230,7 @@ class ProviderRouter:
                 try:
                     return await self.gemini_provider.generate(request)
                 except Exception as fallback_error:
-                    logger.exception(f"Fallback provider also failed: {fallback_error}")
+                    logger.exception("Fallback provider also failed")
                     raise LLMError(
                         f"Both providers failed. "
                         f"Primary ({primary_provider.__class__.__name__}): {e}. "
@@ -239,7 +239,7 @@ class ProviderRouter:
                     ) from fallback_error
 
             # No fallback available
-            logger.error("No fallback provider available")
+            logger.exception("No fallback provider available")
             raise
 
     def get_provider_status(self) -> dict:
