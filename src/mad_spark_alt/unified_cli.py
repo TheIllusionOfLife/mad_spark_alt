@@ -794,12 +794,13 @@ async def _run_qadi_analysis(
     # Initialize Ollama provider (always try, will fail gracefully if unavailable)
     ollama_provider = None
     try:
+        import aiohttp
         ollama_provider = OllamaProvider()
         # Quick connectivity check
         await ollama_provider._get_session()
         if verbose:
             print("✅ Ollama provider initialized")
-    except Exception as e:
+    except (aiohttp.ClientError, OSError, ConnectionError) as e:
         if verbose:
             print(f"⚠️  Ollama not available: {e}")
 
@@ -820,7 +821,8 @@ async def _run_qadi_analysis(
 
         provider_name = primary_provider.__class__.__name__.replace("Provider", "")
         if is_hybrid_mode:
-            print(f"🔀 Hybrid Mode: Gemini (preprocessing) → Ollama (QADI)\n")
+            # is_hybrid_mode means documents/URLs detected, so using Gemini for all phases
+            print("🔀 Using Gemini for documents/URLs (auto mode)\n")
         else:
             print(f"🤖 Using {provider_name} for analysis\n")
 

@@ -12,16 +12,16 @@ Intelligent analysis system using QADI methodology (Question → Abduction → D
 - **Audience-Neutral**: Practical insights for everyone, not just businesses
 - **Real-World Examples**: Concrete applications at individual, community, and systemic levels
 - **Structured Output**: Utilizes Gemini's structured output API for reliable parsing of hypotheses and scores
-- **Multimodal Support**: Analyze images, PDFs, and web content alongside text (Gemini only)
+- **Multimodal Support**: Analyze images (both providers), PDFs and URLs (Gemini only) alongside text
 
 ### Multimodal Capabilities (New!)
 
-Mad Spark Alt now supports multimodal analysis using Gemini's vision and URL context capabilities:
+Mad Spark Alt now supports multimodal analysis. Both Gemini and Ollama support image analysis, while PDFs and URLs require Gemini:
 
 **Supported Input Types:**
-- **Images**: PNG, JPEG, WebP, HEIC (up to 20MB per image)
-- **Documents**: PDF files with vision understanding (up to 1000 pages)
-- **URLs**: Fetch and analyze web content (up to 20 URLs per request)
+- **Images**: PNG, JPEG, WebP, HEIC (up to 20MB per image) - **Both Gemini and Ollama**
+- **Documents**: PDF files with vision understanding (up to 1000 pages) - **Gemini only**
+- **URLs**: Fetch and analyze web content (up to 20 URLs per request) - **Gemini only**
 
 **Usage via Python API:**
 ```python
