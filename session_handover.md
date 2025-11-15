@@ -4,7 +4,7 @@
 
 **Branch:** `feature/ollama-integration`
 **Commits:** 5 total
-**Tests:** All passing (27 new Ollama tests + 968 existing tests)
+**Tests:** 27 new Ollama tests + 968 existing tests passing (3 pre-existing failures unrelated to this PR)
 
 ---
 

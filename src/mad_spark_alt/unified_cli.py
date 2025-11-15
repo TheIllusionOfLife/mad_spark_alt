@@ -828,12 +828,25 @@ async def _run_qadi_analysis(
         print(f"❌ Error: {e}")
         return
 
-    # Create orchestrator with optional temperature override and num_hypotheses for evolution
-    # NOTE: Phase 4 will add llm_provider parameter for hybrid orchestration
+    # Register selected provider with llm_manager and create orchestrator
+    from mad_spark_alt.core.llm_provider import llm_manager, LLMProvider
+
+    # Determine which provider enum to use
+    if isinstance(primary_provider, OllamaProvider):
+        provider_enum = LLMProvider.OLLAMA
+    else:  # GoogleProvider
+        provider_enum = LLMProvider.GOOGLE
+
+    # Register the selected provider if not already registered
+    if provider_enum not in llm_manager.providers:
+        llm_manager.register_provider(provider_enum, primary_provider)
+
+    # Create orchestrator with selected provider
     num_hypotheses = population if evolve else 3
     orchestrator = SimpleQADIOrchestrator(
         temperature_override=temperature,
-        num_hypotheses=num_hypotheses
+        num_hypotheses=num_hypotheses,
+        llm_provider=primary_provider
     )
 
     start_time = time.time()

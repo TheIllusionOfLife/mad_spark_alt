@@ -332,17 +332,20 @@ class TestOllamaProviderErrorHandling:
 
         request = LLMRequest(user_prompt="Test")
 
-        with pytest.raises(Exception):  # Should raise connection error
+        # OllamaProvider should wrap connection issues in LLMError
+        from mad_spark_alt.core.retry import LLMError
+
+        with pytest.raises(LLMError, match="Ollama API request failed"):
             await provider.generate(request)
 
     @pytest.mark.asyncio
     async def test_invalid_model_name(self):
         """Test error handling for non-existent model."""
         provider = OllamaProvider(model="nonexistent-model:latest")
-
-        # This should fail when trying to use the model
-        # (Ollama will return error if model doesn't exist)
         request = LLMRequest(user_prompt="Test")
 
-        # Note: Actual behavior depends on Ollama API
-        # May auto-pull or return error
+        # Behavior can vary by Ollama setup; at minimum, ensure we get a wrapped error
+        from mad_spark_alt.core.retry import LLMError
+
+        with pytest.raises(LLMError):
+            await provider.generate(request)

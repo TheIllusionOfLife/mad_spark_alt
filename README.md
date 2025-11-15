@@ -75,8 +75,9 @@ uv sync  # Or: pip install -e .
 ## Quick Start
 
 ```bash
-# Setup API key (REQUIRED)
+# Setup API key (REQUIRED for Gemini, optional for Ollama-only usage)
 echo "GOOGLE_API_KEY=your_key_here" > .env
+# Note: Skip this step if using --provider ollama exclusively
 ```
 
 ### Basic Usage (Short Alias)

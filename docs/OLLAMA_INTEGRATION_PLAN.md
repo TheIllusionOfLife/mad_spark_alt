@@ -1,8 +1,10 @@
 # Ollama Integration Plan - Multi-Provider LLM Support
 
 **Date:** 2025-01-15
-**Status:** In Progress
-**Branch:** `feature/ollama-integration`
+**Status:** COMPLETE - MVP Shipped (see deviations below)
+**Branch:** `feature/ollama-integration` → **Merged to main**
+
+**Note:** This document describes the original implementation plan. See [../session_handover.md](../session_handover.md) for actual shipped implementation status.
 
 ## Executive Summary
 
@@ -42,10 +44,16 @@ This document captures the decision-making process and implementation plan for i
 
 ## Definition of Done
 
-**Code Complete:**
-- OllamaProvider with Pydantic schema support
-- ProviderRouter with auto-selection + fallback
-- Hybrid orchestration (Gemini → Ollama handover)
+**⚠️ Deviations from Original Plan:**
+- **Phase 4 (Hybrid Orchestration):** SKIPPED for MVP - not required for basic functionality
+- **Test Count:** 27 new tests (not 50+ as initially planned)
+- **Existing Tests:** 968/971 passing (3 pre-existing failures unrelated to this PR)
+
+**Code Complete (Actual Shipped MVP):**
+- ✅ OllamaProvider with Pydantic schema support
+- ✅ ProviderRouter with auto-selection + fallback
+- ✅ Provider wiring into SimpleQADIOrchestrator (added post-review)
+- ⏭️ Hybrid orchestration (deferred - can add in future PR)
 - CLI `--provider` flag with validation
 
 **Testing Complete:**
