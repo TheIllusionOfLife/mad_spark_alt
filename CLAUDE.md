@@ -717,3 +717,26 @@ print(f'Available methods: {list(registry._agents.keys())}')
 - **Benefits**: Easier tuning (change once, apply everywhere), improved readability (named constants vs numbers), consistent configuration
 - **Pattern**: Use `CONSTANTS.CATEGORY.CONSTANT_NAME` (e.g., `CONSTANTS.SIMILARITY.DEDUP_THRESHOLD`) for all magic number access
 - **Parent Directory Creation**: Automatic with `exist_ok=True` to prevent "file not found" errors
+
+### Multi-Provider LLM Architecture ([PR #144](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/144)) - COMPLETED ✅
+- **ProviderRouter Pattern**: Intelligent auto-selection based on input type (documents/URLs → Gemini, text → Ollama)
+- **OllamaProvider**: Free local LLM inference with Pydantic schema support and image handling via base64
+- **Graceful Fallback**: Automatic Ollama → Gemini fallback on provider failure with retry logic
+- **CLI Integration**: `--provider {auto,gemini,ollama}` flag with input validation (blocks Ollama + documents/URLs)
+- **Resource Management Critical**: aiohttp ClientSession MUST be cleaned up with `finally` block
+  ```python
+  try:
+      # Use provider
+      result = await orchestrator.run_qadi_cycle(question)
+  finally:
+      if ollama_provider is not None:
+          try:
+              await ollama_provider.close()
+          except Exception:
+              pass  # Ignore cleanup errors
+  ```
+- **Type Safety with Enums**: Always use `ProviderSelection.OLLAMA` enum, never string `"ollama"` for type safety
+- **Provider Registration**: Pass `llm_provider=primary_provider` to orchestrator, not just to llm_manager
+- **Cost Tracking**: Ollama costs $0.00 (local), tracked via `total_llm_cost` field
+- **Performance**: 68.9s acceptable for local inference (<2x Gemini baseline)
+- **Test Coverage**: 27 new tests (OllamaProvider, ProviderRouter, E2E integration), all 995 tests passing
