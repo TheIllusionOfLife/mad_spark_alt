@@ -217,7 +217,7 @@ class ProviderRouter:
         try:
             return await primary_provider.generate(request)
         except Exception as e:
-            logger.warning(
+            logger.exception(
                 f"Primary provider ({primary_provider.__class__.__name__}) failed: {e}"
             )
 
@@ -230,7 +230,7 @@ class ProviderRouter:
                 try:
                     return await self.gemini_provider.generate(request)
                 except Exception as fallback_error:
-                    logger.error(f"Fallback provider also failed: {fallback_error}")
+                    logger.exception(f"Fallback provider also failed: {fallback_error}")
                     raise LLMError(
                         f"Both providers failed. "
                         f"Primary ({primary_provider.__class__.__name__}): {e}. "
@@ -260,12 +260,12 @@ class ProviderRouter:
         status = {}
 
         if self.gemini_provider:
-            status["gemini"] = {
-                "available": True,
-                "model": self.gemini_provider.get_available_models()[0].model_name
-                if self.gemini_provider.get_available_models()
-                else "unknown",
-            }
+            try:
+                models = self.gemini_provider.get_available_models()
+                model_name = models[0].model_name if models else "unknown"
+            except Exception:
+                model_name = "unknown"
+            status["gemini"] = {"available": True, "model": model_name}
         else:
             status["gemini"] = {"available": False}
 

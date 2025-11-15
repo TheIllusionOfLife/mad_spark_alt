@@ -796,11 +796,18 @@ async def _run_qadi_analysis(
     try:
         import aiohttp
         ollama_provider = OllamaProvider()
-        # Quick connectivity check
-        await ollama_provider._get_session()
+        # Actually verify Ollama server is reachable
+        session = await ollama_provider._get_session()
+        async with session.get(
+            f"{ollama_provider.base_url}/api/tags",
+            timeout=aiohttp.ClientTimeout(total=2)
+        ) as resp:
+            if resp.status != 200:
+                raise ConnectionError("Ollama server not responding")
         if verbose:
             print("✅ Ollama provider initialized")
-    except (aiohttp.ClientError, OSError, ConnectionError) as e:
+    except (aiohttp.ClientError, OSError, ConnectionError, asyncio.TimeoutError) as e:
+        ollama_provider = None  # Set to None so router knows it's unavailable
         if verbose:
             print(f"⚠️  Ollama not available: {e}")
 
