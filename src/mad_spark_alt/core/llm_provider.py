@@ -898,7 +898,8 @@ class OllamaProvider(LLMProviderInterface):
             payload["format"] = schema  # Ollama's format parameter
             # Best practice: Use temperature=0 for schema compliance
             payload["options"]["temperature"] = 0.0
-            logger.debug(f"Using structured output with schema: {schema.get('type', 'unknown')}")
+            schema_type = schema.get("type", "unknown") if schema else "unknown"
+            logger.debug(f"Using structured output with schema: {schema_type}")
 
         # Make request to Ollama API
         url = f"{self.base_url}/api/chat"
