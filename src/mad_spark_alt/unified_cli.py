@@ -996,6 +996,13 @@ async def _run_qadi_analysis(
         if verbose:
             import traceback
             traceback.print_exc()
+    finally:
+        # Clean up provider sessions to prevent resource leaks
+        if ollama_provider is not None:
+            try:
+                await ollama_provider.close()
+            except Exception:
+                pass  # Ignore cleanup errors
 
 
 async def _run_evolution(
