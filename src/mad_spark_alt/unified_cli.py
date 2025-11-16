@@ -828,9 +828,11 @@ async def _run_qadi_analysis(
 
         provider_name = primary_provider.__class__.__name__.replace("Provider", "")
         if is_hybrid_mode:
-            # is_hybrid_mode means documents/URLs detected, so using Gemini for all phases
-            # Note: Hybrid orchestration (Gemini preprocess → Ollama QADI) not yet implemented
-            print("🔀 Using Gemini for documents/URLs (multimodal requires Gemini)\n")
+            # Check if we can do true hybrid routing (Gemini preprocess → Ollama QADI)
+            if ollama_provider:
+                print("🔀 Hybrid mode: Gemini extracts documents/URLs → Ollama runs QADI\n")
+            else:
+                print("🔀 Using Gemini for documents/URLs (Ollama unavailable for hybrid mode)\n")
         else:
             print(f"🤖 Using {provider_name} for analysis\n")
 
@@ -854,24 +856,49 @@ async def _run_qadi_analysis(
 
     start_time = time.time()
     used_fallback = False
+    hybrid_metadata = None
 
     try:
-        # Run QADI cycle with centralized fallback support
-        # Uses ProviderRouter.run_qadi_with_fallback() for SDK-consistent behavior
-        result, active_provider, used_fallback = await router.run_qadi_with_fallback(
-            user_input=user_input,
-            primary_provider=primary_provider,
-            fallback_provider=gemini_provider,
-            temperature_override=temperature,
-            num_hypotheses=num_hypotheses,
-            multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
-            urls=url_list,
-        )
+        # Use hybrid routing if documents/URLs present AND Ollama is available
+        # Hybrid mode: Gemini extracts document/URL content, Ollama runs QADI
+        if is_hybrid_mode and ollama_provider:
+            result, active_provider, used_fallback, hybrid_metadata = await router.run_hybrid_qadi(
+                user_input=user_input,
+                document_paths=document_paths,
+                urls=urls,
+                image_paths=image_paths,
+                temperature_override=temperature,
+                num_hypotheses=num_hypotheses,
+            )
 
-        if used_fallback:
-            print(f"\n⚠️  Primary provider ({primary_provider.__class__.__name__}) failed")
-            print("🔄 Fell back to Gemini API")
-            print("✅ Successfully completed with Gemini fallback\n")
+            if hybrid_metadata:
+                # Show preprocessing info
+                preprocess_cost = hybrid_metadata.get("preprocessing_cost", 0.0)
+                extracted_len = hybrid_metadata.get("extracted_content_length", 0)
+                if verbose:
+                    print(f"📄 Preprocessing: Extracted {extracted_len} characters (cost: ${preprocess_cost:.6f})")
+
+            if used_fallback:
+                print("\n⚠️  Ollama failed during QADI")
+                print("🔄 Fell back to Gemini-only mode (using extracted context)")
+                print("✅ Successfully completed with Gemini fallback\n")
+        else:
+            # Standard routing: single provider handles everything
+            # Uses ProviderRouter.run_qadi_with_fallback() for SDK-consistent behavior
+            result, active_provider, used_fallback = await router.run_qadi_with_fallback(
+                user_input=user_input,
+                primary_provider=primary_provider,
+                fallback_provider=gemini_provider,
+                temperature_override=temperature,
+                num_hypotheses=num_hypotheses,
+                multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
+                urls=url_list,
+            )
+
+            if used_fallback:
+                print(f"\n⚠️  Primary provider ({primary_provider.__class__.__name__}) failed")
+                print("🔄 Fell back to Gemini API")
+                print("✅ Successfully completed with Gemini fallback\n")
 
         # Extract key solutions for summary
         key_solutions = extract_key_solutions(
@@ -973,7 +1000,15 @@ async def _run_qadi_analysis(
         if not evolve:  # Show summary now if not evolving
             print("\n" + "─" * 50)
             fallback_note = " (via Gemini fallback)" if used_fallback else ""
-            print(f"⏱️  Time: {elapsed_time:.1f}s | 💰 Cost: ${result.total_llm_cost:.4f}{fallback_note}")
+            # Include preprocessing cost in total if hybrid mode was used
+            total_cost = result.total_llm_cost
+            cost_breakdown = ""
+            if hybrid_metadata:
+                preprocess_cost = hybrid_metadata.get("preprocessing_cost", 0.0)
+                total_cost += preprocess_cost
+                if preprocess_cost > 0:
+                    cost_breakdown = f" (preprocessing: ${preprocess_cost:.4f}, QADI: ${result.total_llm_cost:.4f})"
+            print(f"⏱️  Time: {elapsed_time:.1f}s | 💰 Cost: ${total_cost:.4f}{cost_breakdown}{fallback_note}")
 
         # Evolution phase if requested
         evolution_result = None
