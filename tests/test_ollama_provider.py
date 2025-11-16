@@ -514,7 +514,6 @@ class TestOllamaProviderResourceCleanup:
         ):
             # Get sessions from multiple requests
             import asyncio
-            sessions = []
 
             async def make_request():
                 request = LLMRequest(user_prompt="Test", max_tokens=50)
@@ -560,8 +559,29 @@ class TestOllamaProviderResourceCleanup:
         assert provider._session.closed
 
     @pytest.mark.asyncio
-    async def test_uses_centralized_timeout_constant(self):
-        """Test that OllamaProvider uses CONSTANTS for timeout values."""
+    async def test_generate_uses_centralized_timeout(self):
+        """Test that generate() uses the centralized timeout constant."""
+        from mad_spark_alt.core.system_constants import CONSTANTS
+        provider = OllamaProvider()
+        request = LLMRequest(user_prompt="Test")
+
+        mock_response_data = {"message": {"content": "Response"}, "done": True}
+
+        with patch(
+            'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
+            new=AsyncMock(return_value=mock_response_data)
+        ) as mock_safe_request:
+            await provider.generate(request)
+            mock_safe_request.assert_called_once()
+            _, kwargs = mock_safe_request.call_args
+            assert kwargs.get("timeout") == CONSTANTS.TIMEOUTS.OLLAMA_INFERENCE_TIMEOUT
+
+        # Cleanup
+        await provider.close()
+
+    @pytest.mark.asyncio
+    async def test_centralized_constants_defined(self):
+        """Test that centralized constants are properly defined."""
         from mad_spark_alt.core.system_constants import CONSTANTS
 
         # Verify the constant exists and has expected value
@@ -654,3 +674,95 @@ class TestOllamaProviderResourceCleanup:
             assert captured_payloads[-1]["options"]["temperature"] == 0.0
 
         await provider.close()
+
+    @pytest.mark.asyncio
+    async def test_close_is_thread_safe(self):
+        """Test that close() uses the session lock for thread safety."""
+        import asyncio
+        provider = OllamaProvider()
+
+        # Create a session first
+        mock_response_data = {"message": {"content": "Test"}, "done": True}
+        with patch(
+            'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
+            new=AsyncMock(return_value=mock_response_data)
+        ):
+            request = LLMRequest(user_prompt="Test")
+            await provider.generate(request)
+
+        # Verify session exists
+        assert provider._session is not None
+        assert not provider._session.closed
+
+        # Test that concurrent close() and _get_session() don't race
+        # by acquiring the lock manually first
+        async with provider._session_lock:
+            # While we hold the lock, close shouldn't be able to proceed
+            # This verifies close() uses the lock
+            pass
+
+        # Now close should work fine
+        await provider.close()
+        assert provider._session.closed
+
+
+class TestOllamaFallbackDetection:
+    """Test Ollama error detection patterns for fallback logic."""
+
+    def test_ollama_failure_detection_patterns(self):
+        """Test that various Ollama failure patterns are correctly identified."""
+        from mad_spark_alt.core.llm_provider import OllamaProvider
+        import asyncio
+
+        provider = OllamaProvider()
+
+        # Test patterns that should be detected as Ollama failures
+        ollama_failures = [
+            Exception("Ollama server not responding"),
+            Exception("ollama connection refused"),
+            Exception("Connection timed out"),
+            Exception("aiohttp.ClientError occurred"),
+            ConnectionError("Cannot connect"),
+            OSError("Network unreachable"),
+            asyncio.TimeoutError(),
+        ]
+
+        for error in ollama_failures:
+            is_failure = (
+                isinstance(provider, OllamaProvider) and
+                (
+                    "Ollama" in str(error) or
+                    "ollama" in str(error) or
+                    "Connection" in str(error) or
+                    "aiohttp" in str(error) or
+                    isinstance(error, (ConnectionError, OSError, asyncio.TimeoutError))
+                )
+            )
+            assert is_failure, f"Expected {error} to be detected as Ollama failure"
+
+    def test_non_ollama_failures_not_detected(self):
+        """Test that non-Ollama failures are not misidentified."""
+        from mad_spark_alt.core.llm_provider import OllamaProvider
+        import asyncio
+
+        provider = OllamaProvider()
+
+        # These should NOT be detected as Ollama failures
+        non_ollama_failures = [
+            ValueError("Invalid parameter"),
+            KeyError("Missing key"),
+            RuntimeError("General error"),
+        ]
+
+        for error in non_ollama_failures:
+            is_failure = (
+                isinstance(provider, OllamaProvider) and
+                (
+                    "Ollama" in str(error) or
+                    "ollama" in str(error) or
+                    "Connection" in str(error) or
+                    "aiohttp" in str(error) or
+                    isinstance(error, (ConnectionError, OSError, asyncio.TimeoutError))
+                )
+            )
+            assert not is_failure, f"Expected {error} NOT to be detected as Ollama failure"

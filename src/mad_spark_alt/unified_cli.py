@@ -1003,7 +1003,8 @@ async def _run_qadi_analysis(
 
         if not evolve:  # Show summary now if not evolving
             print("\n" + "─" * 50)
-            print(f"⏱️  Time: {elapsed_time:.1f}s | 💰 Cost: ${result.total_llm_cost:.4f}")
+            fallback_note = " (via Gemini fallback)" if used_fallback else ""
+            print(f"⏱️  Time: {elapsed_time:.1f}s | 💰 Cost: ${result.total_llm_cost:.4f}{fallback_note}")
 
         # Evolution phase if requested
         evolution_result = None

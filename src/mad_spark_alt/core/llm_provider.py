@@ -1084,9 +1084,10 @@ class OllamaProvider(LLMProviderInterface):
         return 0.0
 
     async def close(self) -> None:
-        """Close the session."""
-        if self._session and not self._session.closed:
-            await self._session.close()
+        """Close the session (thread-safe with respect to _get_session)."""
+        async with self._session_lock:
+            if self._session and not self._session.closed:
+                await self._session.close()
 
 
 class LLMManager:
