@@ -152,6 +152,7 @@ Mad Spark Alt is a Multi-Agent Idea Generation System powered by LLMs using the 
 | #130 | Result Export | `to_dict()` internal, `to_export_dict()` user-facing; path traversal protection |
 | #139 | System Constants | `CONSTANTS.CATEGORY.NAME` pattern; frozen dataclasses for immutability |
 | #144 | Multi-Provider | `ProviderRouter` auto-selection; `finally` block for resource cleanup; enum type safety |
+| #149 | Hybrid Routing | Gemini preprocess → Ollama QADI; fail-fast on empty inputs; `_is_ollama_connection_error()` helper |
 
 **Detailed Documentation**:
 - Pydantic: [MULTI_PROVIDER_SCHEMAS.md](docs/MULTI_PROVIDER_SCHEMAS.md)
@@ -176,4 +177,14 @@ except (ValidationError, json.JSONDecodeError):
         data = json.loads(content)  # Layer 2: Manual JSON
     except json.JSONDecodeError:
         result = extract_from_text(content)  # Layer 3: Regex
+```
+
+### Hybrid Routing with Fail-Fast (PR #149)
+```python
+# Preprocess with Gemini, run QADI with Ollama
+extracted_context, cost = await router.extract_document_content(docs, urls)
+if not extracted_context.strip():
+    raise ValueError("No valid content extracted")  # Fail fast, don't mislead user
+enhanced_input = f"Context:\n{extracted_context}\n\nQuestion: {user_input}"
+result = await ollama_orchestrator.run_qadi_cycle(enhanced_input)
 ```
