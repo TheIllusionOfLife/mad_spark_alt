@@ -732,8 +732,8 @@ print(f'Available methods: {list(registry._agents.keys())}')
       if ollama_provider is not None:
           try:
               await ollama_provider.close()
-          except Exception:
-              pass  # Ignore cleanup errors
+          except Exception as e:
+              logger.warning(f"Failed to close Ollama provider session: {e}") # Log and ignore
   ```
 - **Type Safety with Enums**: Always use `ProviderSelection.OLLAMA` enum, never string `"ollama"` for type safety
 - **Provider Registration**: Pass `llm_provider=primary_provider` to orchestrator, not just to llm_manager
