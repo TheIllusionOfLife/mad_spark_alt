@@ -754,16 +754,27 @@ async def _run_qadi_analysis(
             )
         )
 
-    # Process documents
+    # Process documents - only PDFs become multimodal inputs
+    # Text files (CSV, TXT, JSON, MD) are handled by ProviderRouter.extract_document_content()
+    supported_text_exts = {".txt", ".csv", ".json", ".md", ".markdown"}
     for doc_path in document_paths:
+        file_ext = Path(doc_path).suffix.lower()
+
+        # Skip text files - they'll be handled by provider_router.extract_document_content()
+        if file_ext in supported_text_exts:
+            # Just validate file exists
+            if not Path(doc_path).exists():
+                raise ValueError(f"Document not found: {doc_path}")
+            continue
+
         mime_type, _ = mimetypes.guess_type(doc_path)
 
-        # Validate document type - currently only PDF supported
+        # Validate document type - PDF for multimodal input
         if mime_type != "application/pdf":
             if not doc_path.lower().endswith('.pdf'):
                 raise ValueError(
                     f"Unsupported document type for {doc_path}. "
-                    f"Only PDF files are currently supported. "
+                    f"Supported formats: PDF, TXT, CSV, JSON, MD. "
                     f"Detected type: {mime_type or 'unknown'}"
                 )
             mime_type = "application/pdf"
