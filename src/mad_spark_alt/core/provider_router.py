@@ -441,7 +441,7 @@ class ProviderRouter:
 
             mime_type, _ = mimetypes.guess_type(doc_path)
             if mime_type != "application/pdf":
-                if not doc_path.lower().endswith('.pdf'):
+                if not str(doc_path).lower().endswith('.pdf'):
                     # Skip non-PDF documents for now
                     logger.warning(f"Skipping non-PDF document: {doc_path}")
                     continue

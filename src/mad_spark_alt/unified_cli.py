@@ -828,7 +828,7 @@ async def _run_qadi_analysis(
     try:
         primary_provider, is_hybrid_mode = router.select_provider(
             has_documents=len(document_paths) > 0,
-            has_urls=len(url_list) > 0 if url_list else False,
+            has_urls=bool(url_list),
             force_provider=provider_selection,
         )
 
@@ -862,7 +862,7 @@ async def _run_qadi_analysis(
 
     start_time = time.time()
     used_fallback = False
-    hybrid_metadata = None
+    hybrid_metadata: Optional[Dict[str, Any]] = None
 
     try:
         # Use hybrid routing if documents/URLs present
