@@ -93,6 +93,11 @@ Mad Spark Alt is a Multi-Agent Idea Generation System powered by LLMs using the 
 - **User-Visible**: `logger.warning()` or higher for issues users need to know
 - **Internal Debug**: `logger.debug()` for fallbacks, parsing failures, internal state
 
+### Deprecation Best Practices
+- **Warn at module import**: Use `warnings.warn()` at module level
+- **Provide migration path**: Specify the new module/function to use
+- **Use `stacklevel=2`**: Pinpoint the caller location in warnings
+
 ### Evolution System
 - **API**: `GeneticAlgorithm()` with `EvolutionRequest` object, access `result.final_population`
 - **Mutation**: Creates new objects even at 0% rate; use 0.3+ for diversity
@@ -127,6 +132,11 @@ Mad Spark Alt is a Multi-Agent Idea Generation System powered by LLMs using the 
 - **Solution**: Write integration tests alongside unit tests from start
 - **Realistic Data**: Production-like responses in ALL mocks (copy actual API responses)
 - **Config Matrix**: Test ALL parameter combinations and boundaries
+
+### Claude Code Custom Commands
+- **$ARGUMENTS Support**: Custom commands accept arguments via `$ARGUMENTS`
+- **Example**: `/fix_pr_since_commit 1916eed` passes "1916eed" as `$ARGUMENTS`
+- **Implementation**: Use `${ARGUMENTS:-default_value}` for optional parameters
 
 ## Completed Features Reference
 
