@@ -903,12 +903,11 @@ class OllamaProvider(LLMProviderInterface):
             # If temperature is very high (>0.8), cap at 0.5 for better schema compliance
             # Users who explicitly set low temperature via --temperature are respected
             if request.temperature > 0.8:
-                capped_temp = min(request.temperature, 0.5)
                 logger.warning(
                     f"High temperature ({request.temperature}) may cause structured output failures. "
-                    f"Capping at {capped_temp} for better schema compliance."
+                    f"Capping at 0.5 for better schema compliance."
                 )
-                payload["options"]["temperature"] = capped_temp
+                payload["options"]["temperature"] = 0.5
             else:
                 # Respect user's temperature setting for structured output
                 logger.debug(

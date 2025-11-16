@@ -836,7 +836,7 @@ async def _run_qadi_analysis(
 
     except ValueError as e:
         print(f"❌ Error: {e}")
-        raise SystemExit(1)
+        raise SystemExit(1) from e
 
     # Register selected provider with llm_manager and create orchestrator
     # Determine which provider enum to use
@@ -886,7 +886,7 @@ async def _run_qadi_analysis(
             )
 
             if is_ollama_failure and gemini_provider is not None:
-                print(f"\n⚠️  Ollama failed: {primary_error}")
+                print(f"\n⚠️  Ollama failed: {type(primary_error).__name__}: {primary_error}")
                 print("🔄 Falling back to Gemini API...\n")
                 logger.warning(f"Ollama provider failed, falling back to Gemini: {primary_error}")
 

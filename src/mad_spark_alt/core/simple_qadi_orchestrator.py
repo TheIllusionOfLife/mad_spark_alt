@@ -204,6 +204,7 @@ class SimpleQADIOrchestrator:
             result.multimodal_metadata["questioning"] = questioning_result.multimodal_metadata
             # Use max() not +=, as all phases process the same documents
             # A 10-page PDF processed by 4 phases is still 10 pages total, not 40
+            # NOTE: This assumes all phases receive the same multimodal_inputs (current behavior)
             result.total_images_processed = max(
                 result.total_images_processed,
                 questioning_result.multimodal_metadata.get("images_processed", 0)
