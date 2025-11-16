@@ -452,7 +452,7 @@ class ProviderRouter:
                 MultimodalInput(
                     input_type=MultimodalInputType.DOCUMENT,
                     source_type=MultimodalSourceType.FILE_PATH,
-                    data=str(Path(doc_path).absolute()),
+                    data=str(doc_path_obj.absolute()),
                     mime_type=mime_type,
                     file_size=doc_size,
                 )
@@ -561,6 +561,14 @@ class ProviderRouter:
         metadata["preprocessing_cost"] = preprocessing_cost
         metadata["extracted_content_length"] = len(extracted_context)
 
+        # Warn if extraction returned empty content (document might be unreadable)
+        if not extracted_context.strip():
+            logger.warning(
+                "Gemini returned empty content from document/URL extraction. "
+                "Documents may be empty, corrupted, or unreadable. "
+                "QADI will proceed with minimal context."
+            )
+
         # Step 2: Build image-only multimodal inputs for Ollama
         # gemma3 can handle images natively, so pass them directly
         image_inputs = []
@@ -579,7 +587,7 @@ class ProviderRouter:
                 MultimodalInput(
                     input_type=MultimodalInputType.IMAGE,
                     source_type=MultimodalSourceType.FILE_PATH,
-                    data=str(Path(img_path).absolute()),
+                    data=str(img_path_obj.absolute()),
                     mime_type=mime_type,
                     file_size=img_size,
                 )

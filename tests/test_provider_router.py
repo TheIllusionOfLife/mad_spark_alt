@@ -1015,3 +1015,97 @@ class TestHybridRouting:
             assert metadata["urls_processed"] == 3
             assert metadata["images_passed_to_ollama"] == 1
             assert metadata["hybrid_mode"] is True
+
+    @pytest.mark.asyncio
+    async def test_non_ollama_failure_not_caught_in_hybrid(self, tmp_path):
+        """Test non-Ollama failures in hybrid routing are not caught (prevents masking bugs)."""
+        pdf_file = tmp_path / "doc.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4")
+
+        gemini = AsyncMock(spec=GoogleProvider)
+        gemini.generate = AsyncMock(
+            return_value=LLMResponse(
+                content="Extracted content",
+                provider=LLMProvider.GOOGLE,
+                model="gemini-2.5-flash",
+                usage={},
+                cost=0.001,
+            )
+        )
+
+        ollama = AsyncMock(spec=OllamaProvider)
+        router = ProviderRouter(gemini_provider=gemini, ollama_provider=ollama)
+
+        with patch(
+            "mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator"
+        ) as mock_orch_class:
+            mock_orchestrator = AsyncMock()
+            # This is a programming bug (TypeError), not Ollama failure - should NOT be caught
+            mock_orchestrator.run_qadi_cycle = AsyncMock(
+                side_effect=TypeError("Invalid argument type - programming bug")
+            )
+            mock_orch_class.return_value = mock_orchestrator
+
+            # Programming bugs should propagate, not trigger fallback
+            with pytest.raises(TypeError, match="Invalid argument type"):
+                await router.run_hybrid_qadi(
+                    user_input="Question",
+                    document_paths=(str(pdf_file),),
+                    urls=(),
+                    image_paths=(),
+                )
+
+    @pytest.mark.asyncio
+    async def test_empty_extraction_result_warning(self, tmp_path):
+        """Test behavior when Gemini returns empty string from extraction."""
+        pdf_file = tmp_path / "doc.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4")
+
+        gemini = AsyncMock(spec=GoogleProvider)
+        # Gemini returns empty string (document might be empty/unreadable)
+        gemini.generate = AsyncMock(
+            return_value=LLMResponse(
+                content="",  # Empty extraction result
+                provider=LLMProvider.GOOGLE,
+                model="gemini-2.5-flash",
+                usage={},
+                cost=0.001,
+            )
+        )
+
+        ollama = AsyncMock(spec=OllamaProvider)
+        mock_result = SimpleQADIResult(
+            core_question="Q",
+            hypotheses=["H1"],
+            hypothesis_scores=[],
+            final_answer="Answer",
+            action_plan=["Step"],
+            verification_examples=["Ex"],
+            verification_conclusion="Valid",
+            total_llm_cost=0.0,
+        )
+
+        router = ProviderRouter(gemini_provider=gemini, ollama_provider=ollama)
+
+        with patch(
+            "mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator"
+        ) as mock_orch_class:
+            mock_orchestrator = AsyncMock()
+            mock_orchestrator.run_qadi_cycle = AsyncMock(return_value=mock_result)
+            mock_orch_class.return_value = mock_orchestrator
+
+            _result, _provider, _used_fallback, metadata = await router.run_hybrid_qadi(
+                user_input="Question",
+                document_paths=(str(pdf_file),),
+                urls=(),
+                image_paths=(),
+            )
+
+            # Metadata should reflect empty extraction
+            assert metadata["extracted_content_length"] == 0
+            # QADI should still receive the (empty) context
+            call_args = mock_orchestrator.run_qadi_cycle.call_args[1]
+            user_input_arg = call_args.get("user_input") or mock_orchestrator.run_qadi_cycle.call_args[0][0]
+            # Context block should be present but empty
+            assert "Context from documents/URLs:" in user_input_arg
+            assert "Question:" in user_input_arg
