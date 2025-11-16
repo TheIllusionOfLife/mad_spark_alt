@@ -41,6 +41,8 @@ logger = logging.getLogger(__name__)
 # Keywords indicating Ollama-specific failures (vs programming bugs)
 # Used for targeted fallback detection - only fallback on provider failures,
 # not on code errors that would fail with any provider
+# These patterns were established in PR #147 to prevent masking programming bugs
+# while still catching genuine Ollama connection/timeout issues
 _OLLAMA_FAILURE_KEYWORDS = [
     "Ollama",
     "ollama",
