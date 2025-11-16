@@ -291,7 +291,8 @@ class ProviderRouter:
 
         # 3. Block cloud metadata endpoints (common SSRF targets)
         # Check hostname only (not entire URL) to avoid false positives on paths/queries
-        if parsed.hostname and any(pattern in parsed.hostname for pattern in _BLOCKED_METADATA_PATTERNS):
+        # Use lowercase comparison to prevent case-sensitivity bypass (e.g., METADATA.GOOGLE.INTERNAL)
+        if parsed.hostname and any(pattern in parsed.hostname.lower() for pattern in _BLOCKED_METADATA_PATTERNS):
             raise ValueError(f"Cloud metadata endpoints not allowed: {url}")
 
     def _read_text_document(self, file_path: Path) -> str:

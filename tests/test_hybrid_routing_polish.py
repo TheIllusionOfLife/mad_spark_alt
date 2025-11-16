@@ -92,6 +92,11 @@ class TestURLValidation:
         # Azure metadata (hostname-based)
         with pytest.raises(ValueError, match="Cloud metadata endpoints not allowed"):
             router._validate_url_security("http://metadata.azure.com/instance")
+        # Case-insensitive check (prevent bypass with uppercase)
+        with pytest.raises(ValueError, match="Cloud metadata endpoints not allowed"):
+            router._validate_url_security("http://METADATA.GOOGLE.INTERNAL/computeMetadata/")
+        with pytest.raises(ValueError, match="Cloud metadata endpoints not allowed"):
+            router._validate_url_security("http://Metadata.Azure.Com/instance")
 
     @pytest.mark.asyncio
     async def test_url_validation_called_during_extraction(self):

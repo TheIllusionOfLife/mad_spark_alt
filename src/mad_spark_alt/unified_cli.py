@@ -782,7 +782,6 @@ async def _run_qadi_analysis(
                         content = "\n".join(lines[:100]) + f"\n... ({len(lines) - 100} more rows)"
                     text_document_contents.append(f"=== {Path(doc_path).name} (CSV) ===\n{content}")
                 elif file_ext == ".json":
-                    import json
                     try:
                         data = json.loads(content)
                         text_document_contents.append(f"=== {Path(doc_path).name} (JSON) ===\n{json.dumps(data, indent=2)}")
@@ -817,11 +816,8 @@ async def _run_qadi_analysis(
             )
         )
 
-    # Prepend text document contents to user input for non-hybrid mode
-    # (hybrid mode handles this via extract_document_content)
-    if text_document_contents:
-        text_context = "\n\n".join(text_document_contents)
-        user_input = f"Context from text documents:\n{text_context}\n\nQuestion: {user_input}"
+    # Note: Text document contents will be prepended AFTER provider selection
+    # to avoid duplication in hybrid mode (which processes documents separately)
 
     # Convert URLs tuple to list
     url_list = list(urls) if urls else None
@@ -907,6 +903,12 @@ async def _run_qadi_analysis(
     start_time = time.time()
     used_fallback = False
     hybrid_metadata: Optional[Dict[str, Any]] = None
+
+    # Prepend text document contents to user input ONLY for non-hybrid mode
+    # (hybrid mode handles documents via extract_document_content, avoiding duplication)
+    if not is_hybrid_mode and text_document_contents:
+        text_context = "\n\n".join(text_document_contents)
+        user_input = f"Context from text documents:\n{text_context}\n\nQuestion: {user_input}"
 
     try:
         # Use hybrid routing if documents/URLs present
