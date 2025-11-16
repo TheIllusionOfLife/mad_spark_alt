@@ -1338,9 +1338,10 @@ def evaluate(
 ) -> None:
     """Evaluate creativity of AI output."""
 
-    # Get provider from context if not overridden
-    effective_provider = provider if provider else ctx.obj.get('provider', 'auto') if ctx.obj else 'auto'
-    logger.debug(f"Using provider: {effective_provider} (inherited: {provider is None})")
+    # TODO: Provider selection is captured but not yet used in evaluation.
+    # This is preparatory for future provider-aware evaluation (e.g., LLM judge using specified provider).
+    # For now, the --provider flag enables CLI consistency and context inheritance.
+    _ = provider if provider else ctx.obj.get('provider', 'auto') if ctx.obj else 'auto'  # noqa: F841
 
     # Get input text
     if file:
@@ -1423,9 +1424,10 @@ def batch_evaluate(
 ) -> None:
     """Evaluate creativity of multiple AI outputs from files."""
 
-    # Get provider from context if not overridden
-    effective_provider = provider if provider else ctx.obj.get('provider', 'auto') if ctx.obj else 'auto'
-    logger.debug(f"Using provider: {effective_provider} (inherited: {provider is None})")
+    # TODO: Provider selection is captured but not yet used in evaluation.
+    # This is preparatory for future provider-aware evaluation (e.g., LLM judge using specified provider).
+    # For now, the --provider flag enables CLI consistency and context inheritance.
+    _ = provider if provider else ctx.obj.get('provider', 'auto') if ctx.obj else 'auto'  # noqa: F841
 
     # Parse output type
     try:
@@ -1474,9 +1476,10 @@ def compare(
 ) -> None:
     """Compare creativity of multiple responses to the same prompt."""
 
-    # Get provider from context if not overridden
-    effective_provider = provider if provider else ctx.obj.get('provider', 'auto') if ctx.obj else 'auto'
-    logger.debug(f"Using provider: {effective_provider} (inherited: {provider is None})")
+    # TODO: Provider selection is captured but not yet used in evaluation.
+    # This is preparatory for future provider-aware evaluation (e.g., LLM judge using specified provider).
+    # For now, the --provider flag enables CLI consistency and context inheritance.
+    _ = provider if provider else ctx.obj.get('provider', 'auto') if ctx.obj else 'auto'  # noqa: F841
 
     if len(responses) < 2:
         console.print("[red]Error: Need at least 2 responses to compare[/red]")

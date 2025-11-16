@@ -47,7 +47,9 @@ def test_cli_instantiates_core_orchestrator():
     runner = CliRunner()
 
     # Mock the orchestrator to track instantiation
-    with patch('mad_spark_alt.unified_cli.SimpleQADIOrchestrator') as MockOrchestrator:
+    # Note: Since centralized fallback, orchestrator is now instantiated in ProviderRouter.run_qadi_with_fallback()
+    # We need to patch at the source module (simple_qadi_orchestrator) where it's imported
+    with patch('mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator') as MockOrchestrator:
         # Setup mock
         mock_instance = MagicMock()
         mock_result = MagicMock()

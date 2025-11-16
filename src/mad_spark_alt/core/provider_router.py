@@ -38,6 +38,22 @@ from .retry import ErrorType, LLMError
 logger = logging.getLogger(__name__)
 
 
+# Keywords indicating Ollama-specific failures (vs programming bugs)
+# Used for targeted fallback detection - only fallback on provider failures,
+# not on code errors that would fail with any provider
+_OLLAMA_FAILURE_KEYWORDS = [
+    "Ollama",
+    "ollama",
+    "Connection",
+    "aiohttp",
+    "Failed to generate",
+    "Failed to parse",
+    "Failed to extract",
+    "Failed to score",
+    "Max retries exceeded",
+]
+
+
 class ProviderSelection(Enum):
     """Provider selection strategy."""
 
@@ -320,17 +336,7 @@ class ProviderRouter:
                 )
                 or any(
                     keyword in str(primary_error)
-                    for keyword in [
-                        "Ollama",
-                        "ollama",
-                        "Connection",
-                        "aiohttp",
-                        "Failed to generate",
-                        "Failed to parse",
-                        "Failed to extract",
-                        "Failed to score",
-                        "Max retries exceeded",
-                    ]
+                    for keyword in _OLLAMA_FAILURE_KEYWORDS
                 )
             )
 

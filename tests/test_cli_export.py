@@ -114,8 +114,8 @@ class TestCLIExportJSON:
         """Test that --output flag exports results to JSON file."""
         output_file = tmp_path / "test_output.json"
 
-        # Mock the orchestrator
-        with patch('mad_spark_alt.unified_cli.SimpleQADIOrchestrator') as mock_orch_class:
+        # Mock the orchestrator (patch at source module since it's imported in ProviderRouter.run_qadi_with_fallback)
+        with patch('mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator') as mock_orch_class:
             mock_orch = AsyncMock()
             mock_orch.run_qadi_cycle.return_value = mock_qadi_result
             mock_orch_class.return_value = mock_orch
@@ -146,7 +146,7 @@ class TestCLIExportJSON:
         """Test that JSON is default format when --output is specified."""
         output_file = tmp_path / "output.json"
 
-        with patch('mad_spark_alt.unified_cli.SimpleQADIOrchestrator') as mock_orch_class:
+        with patch('mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator') as mock_orch_class:
             mock_orch = AsyncMock()
             mock_orch.run_qadi_cycle.return_value = mock_qadi_result
             mock_orch_class.return_value = mock_orch
@@ -166,7 +166,7 @@ class TestCLIExportJSON:
         """Test exporting QADI + evolution results to JSON."""
         output_file = tmp_path / "evolution_output.json"
 
-        with patch('mad_spark_alt.unified_cli.SimpleQADIOrchestrator') as mock_orch_class:
+        with patch('mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator') as mock_orch_class:
             mock_orch = AsyncMock()
             mock_orch.run_qadi_cycle.return_value = mock_qadi_result
             mock_orch_class.return_value = mock_orch
@@ -205,7 +205,7 @@ class TestCLIExportMarkdown:
         """Test that --format md exports results to Markdown file."""
         output_file = tmp_path / "test_output.md"
 
-        with patch('mad_spark_alt.unified_cli.SimpleQADIOrchestrator') as mock_orch_class:
+        with patch('mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator') as mock_orch_class:
             mock_orch = AsyncMock()
             mock_orch.run_qadi_cycle.return_value = mock_qadi_result
             mock_orch_class.return_value = mock_orch
@@ -231,7 +231,7 @@ class TestCLIExportMarkdown:
         """Test exporting QADI + evolution to Markdown."""
         output_file = tmp_path / "evolution_output.md"
 
-        with patch('mad_spark_alt.unified_cli.SimpleQADIOrchestrator') as mock_orch_class:
+        with patch('mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator') as mock_orch_class:
             mock_orch = AsyncMock()
             mock_orch.run_qadi_cycle.return_value = mock_qadi_result
             mock_orch_class.return_value = mock_orch
@@ -280,7 +280,7 @@ class TestCLIExportValidation:
         """Test that export creates parent directories if needed."""
         output_file = tmp_path / "subdir1" / "subdir2" / "output.json"
 
-        with patch('mad_spark_alt.unified_cli.SimpleQADIOrchestrator') as mock_orch_class:
+        with patch('mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator') as mock_orch_class:
             mock_orch = AsyncMock()
             mock_orch.run_qadi_cycle.return_value = mock_qadi_result
             mock_orch_class.return_value = mock_orch
