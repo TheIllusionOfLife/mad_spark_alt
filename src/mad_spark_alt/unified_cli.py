@@ -871,21 +871,16 @@ async def _run_qadi_analysis(
             )
         except Exception as primary_error:
             # Check if this is an Ollama failure and we have Gemini fallback available
-            # Broadened detection: If we're using Ollama and it fails for ANY reason
-            # (not just connection errors), we should try Gemini fallback
+            # Targeted detection: Only catch connection/timeout errors and specific Ollama failures
+            # Avoid catching all RuntimeError to prevent masking programming bugs
             is_ollama_failure = (
                 isinstance(primary_provider, OllamaProvider) and
                 (
-                    # Connection-style failures
-                    "Ollama" in str(primary_error) or
-                    "ollama" in str(primary_error) or
-                    "Connection" in str(primary_error) or
-                    "aiohttp" in str(primary_error) or
                     isinstance(primary_error, (ConnectionError, OSError, asyncio.TimeoutError)) or
-                    # Processing failures from Ollama (e.g., parsing failures)
-                    "Failed to generate" in str(primary_error) or
-                    "Failed to parse" in str(primary_error) or
-                    isinstance(primary_error, RuntimeError)  # Includes parsing/processing failures
+                    any(keyword in str(primary_error) for keyword in [
+                        "Ollama", "ollama", "Connection", "aiohttp",
+                        "Failed to generate", "Failed to parse"
+                    ])
                 )
             )
 

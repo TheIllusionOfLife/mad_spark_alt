@@ -661,7 +661,7 @@ class TestOllamaProviderResourceCleanup:
             # Should respect user's low temperature
             assert captured_payloads[-1]["options"]["temperature"] == 0.3
 
-            # Test 2: High temperature should be overridden to 0.0
+            # Test 2: High temperature should be capped at 0.5
             request = LLMRequest(
                 user_prompt="Test",
                 response_schema=HypothesisListResponse,
@@ -670,8 +670,8 @@ class TestOllamaProviderResourceCleanup:
             )
             await provider.generate(request)
 
-            # Should override to 0.0 for schema compliance
-            assert captured_payloads[-1]["options"]["temperature"] == 0.0
+            # Should cap to 0.5 for schema compliance (not 0.0)
+            assert captured_payloads[-1]["options"]["temperature"] == 0.5
 
         await provider.close()
 
@@ -735,16 +735,11 @@ class TestOllamaFallbackDetection:
             is_failure = (
                 isinstance(provider, OllamaProvider) and
                 (
-                    # Connection-style failures
-                    "Ollama" in str(error) or
-                    "ollama" in str(error) or
-                    "Connection" in str(error) or
-                    "aiohttp" in str(error) or
                     isinstance(error, (ConnectionError, OSError, asyncio.TimeoutError)) or
-                    # Processing failures from Ollama (e.g., parsing failures)
-                    "Failed to generate" in str(error) or
-                    "Failed to parse" in str(error) or
-                    isinstance(error, RuntimeError)  # Includes parsing/processing failures
+                    any(keyword in str(error) for keyword in [
+                        "Ollama", "ollama", "Connection", "aiohttp",
+                        "Failed to generate", "Failed to parse"
+                    ])
                 )
             )
             assert is_failure, f"Expected {error} to be detected as Ollama failure"
@@ -752,36 +747,32 @@ class TestOllamaFallbackDetection:
     def test_non_ollama_failures_not_detected(self):
         """Test that non-Ollama failures are not misidentified.
 
-        Note: With broadened fallback detection, most Ollama failures should
-        trigger fallback. These are errors that won't benefit from fallback.
+        Targeted detection avoids catching generic RuntimeErrors to prevent
+        masking programming bugs that should propagate.
         """
         from mad_spark_alt.core.llm_provider import OllamaProvider
         import asyncio
 
         provider = OllamaProvider()
 
-        # These should NOT be detected as Ollama failures (type errors, key errors, etc.)
-        # These are programming bugs, not Ollama service issues
+        # These should NOT be detected as Ollama failures
+        # They are programming bugs or unrelated errors
         non_ollama_failures = [
             ValueError("Invalid parameter"),
             KeyError("Missing key"),
-            # Note: RuntimeError IS now detected as Ollama failure for broader coverage
+            RuntimeError("Generic runtime error"),  # Generic RuntimeError NOT caught
+            TypeError("Type mismatch"),
         ]
 
         for error in non_ollama_failures:
             is_failure = (
                 isinstance(provider, OllamaProvider) and
                 (
-                    # Connection-style failures
-                    "Ollama" in str(error) or
-                    "ollama" in str(error) or
-                    "Connection" in str(error) or
-                    "aiohttp" in str(error) or
                     isinstance(error, (ConnectionError, OSError, asyncio.TimeoutError)) or
-                    # Processing failures from Ollama (e.g., parsing failures)
-                    "Failed to generate" in str(error) or
-                    "Failed to parse" in str(error) or
-                    isinstance(error, RuntimeError)  # Includes parsing/processing failures
+                    any(keyword in str(error) for keyword in [
+                        "Ollama", "ollama", "Connection", "aiohttp",
+                        "Failed to generate", "Failed to parse"
+                    ])
                 )
             )
             assert not is_failure, f"Expected {error} NOT to be detected as Ollama failure"
