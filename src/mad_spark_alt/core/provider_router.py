@@ -142,6 +142,27 @@ class ContentCache:
         self._cache.clear()
         logger.debug("Content cache cleared")
 
+    def cleanup_expired(self) -> int:
+        """
+        Remove all expired entries from cache.
+
+        This prevents memory leaks in long-running processes by proactively
+        cleaning up stale entries rather than waiting for access.
+
+        Returns:
+            Number of entries removed
+        """
+        current_time = time()
+        expired_keys = [
+            k for k, (_, _, timestamp) in self._cache.items()
+            if current_time - timestamp >= self.ttl
+        ]
+        for key in expired_keys:
+            del self._cache[key]
+        if expired_keys:
+            logger.debug(f"Cleaned up {len(expired_keys)} expired cache entries")
+        return len(expired_keys)
+
 
 class ProviderSelection(Enum):
     """Provider selection strategy."""
@@ -231,6 +252,12 @@ class ProviderRouter:
         - Internal/private IPs (localhost, 127.0.0.1, 10.x.x.x, etc.)
         - Cloud metadata endpoints (AWS, GCP, Azure)
 
+        Known Limitation:
+            This validation checks the URL hostname but does NOT resolve DNS.
+            Hostnames that resolve to private IPs (DNS rebinding attacks) are not
+            blocked. For maximum security in production, consider using a DNS resolver
+            to verify the resolved IP is not private before fetching.
+
         Args:
             url: URL string to validate
 
@@ -263,7 +290,8 @@ class ProviderRouter:
                     raise ValueError(f"Private/internal IP not allowed: {hostname}")
 
         # 3. Block cloud metadata endpoints (common SSRF targets)
-        if any(pattern in url for pattern in _BLOCKED_METADATA_PATTERNS):
+        # Check hostname only (not entire URL) to avoid false positives on paths/queries
+        if parsed.hostname and any(pattern in parsed.hostname for pattern in _BLOCKED_METADATA_PATTERNS):
             raise ValueError(f"Cloud metadata endpoints not allowed: {url}")
 
     def _read_text_document(self, file_path: Path) -> str:
@@ -649,7 +677,9 @@ class ProviderRouter:
                 try:
                     text_content = self._read_text_document(doc_path_obj)
                     text_contexts.append(f"=== {doc_path_obj.name} ===\n{text_content}")
-                except Exception as e:
+                    # Cache the text content (cost is 0 since no API call)
+                    self._content_cache.set(doc_path_obj, text_content, 0.0)
+                except (OSError, IOError, UnicodeDecodeError) as e:
                     logger.warning(f"Failed to read {doc_path}: {e}")
                     continue
 

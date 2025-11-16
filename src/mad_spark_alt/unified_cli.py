@@ -756,15 +756,42 @@ async def _run_qadi_analysis(
 
     # Process documents - only PDFs become multimodal inputs
     # Text files (CSV, TXT, JSON, MD) are handled by ProviderRouter.extract_document_content()
+    # in hybrid mode, or read directly in non-hybrid mode
     supported_text_exts = {".txt", ".csv", ".json", ".md", ".markdown"}
+    text_document_contents = []  # Store text file contents for non-hybrid mode
+
     for doc_path in document_paths:
         file_ext = Path(doc_path).suffix.lower()
 
-        # Skip text files - they'll be handled by provider_router.extract_document_content()
+        # Handle text files - store content for later use
         if file_ext in supported_text_exts:
-            # Just validate file exists
+            # Validate file exists
             if not Path(doc_path).exists():
                 raise ValueError(f"Document not found: {doc_path}")
+
+            # Read text content for non-hybrid mode (hybrid mode will call extract_document_content)
+            # This ensures text files are never silently dropped
+            try:
+                with open(doc_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                # Format based on file type
+                if file_ext == ".csv":
+                    lines = content.strip().split("\n")
+                    if len(lines) > 100:
+                        content = "\n".join(lines[:100]) + f"\n... ({len(lines) - 100} more rows)"
+                    text_document_contents.append(f"=== {Path(doc_path).name} (CSV) ===\n{content}")
+                elif file_ext == ".json":
+                    import json
+                    try:
+                        data = json.loads(content)
+                        text_document_contents.append(f"=== {Path(doc_path).name} (JSON) ===\n{json.dumps(data, indent=2)}")
+                    except json.JSONDecodeError:
+                        text_document_contents.append(f"=== {Path(doc_path).name} (JSON) ===\n{content}")
+                else:
+                    text_document_contents.append(f"=== {Path(doc_path).name} ===\n{content}")
+            except (OSError, IOError, UnicodeDecodeError) as e:
+                raise ValueError(f"Failed to read text document {doc_path}: {e}") from e
             continue
 
         mime_type, _ = mimetypes.guess_type(doc_path)
@@ -789,6 +816,12 @@ async def _run_qadi_analysis(
                 file_size=doc_size,
             )
         )
+
+    # Prepend text document contents to user input for non-hybrid mode
+    # (hybrid mode handles this via extract_document_content)
+    if text_document_contents:
+        text_context = "\n\n".join(text_document_contents)
+        user_input = f"Context from text documents:\n{text_context}\n\nQuestion: {user_input}"
 
     # Convert URLs tuple to list
     url_list = list(urls) if urls else None
