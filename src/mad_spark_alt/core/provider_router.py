@@ -368,8 +368,8 @@ class ProviderRouter:
 
     async def extract_document_content(
         self,
-        document_paths: tuple,
-        urls: tuple,
+        document_paths: Optional[tuple] = None,
+        urls: Optional[tuple] = None,
     ) -> Tuple[str, float]:
         """
         Use Gemini to extract text content from documents and URLs.
@@ -402,6 +402,10 @@ class ProviderRouter:
                 "Gemini provider required for document/URL content extraction.\n"
                 "Set GOOGLE_API_KEY environment variable."
             )
+
+        # Normalize parameters for SDK callers
+        document_paths = document_paths or ()
+        urls = urls or ()
 
         # Build extraction prompt
         extraction_prompt = (
@@ -461,9 +465,9 @@ class ProviderRouter:
     async def run_hybrid_qadi(
         self,
         user_input: str,
-        document_paths: tuple,
-        urls: tuple,
-        image_paths: tuple,
+        document_paths: Optional[tuple] = None,
+        urls: Optional[tuple] = None,
+        image_paths: Optional[tuple] = None,
         temperature_override: Optional[float] = None,
         num_hypotheses: int = 3,
     ) -> Tuple["SimpleQADIResult", LLMProviderInterface, bool, Dict[str, Any]]:
@@ -508,6 +512,11 @@ class ProviderRouter:
 
         # Import here to avoid circular dependency
         from .simple_qadi_orchestrator import SimpleQADIOrchestrator
+
+        # Normalize parameters for SDK callers
+        document_paths = document_paths or ()
+        urls = urls or ()
+        image_paths = image_paths or ()
 
         metadata = {
             "preprocessing_cost": 0.0,

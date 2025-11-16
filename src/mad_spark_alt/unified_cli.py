@@ -807,6 +807,12 @@ async def _run_qadi_analysis(
         if verbose:
             print("✅ Ollama provider initialized")
     except (aiohttp.ClientError, OSError, ConnectionError, asyncio.TimeoutError) as e:
+        # Clean up the session if connection check failed
+        if ollama_provider is not None:
+            try:
+                await ollama_provider.close()
+            except Exception:
+                pass  # Ignore cleanup errors
         ollama_provider = None  # Set to None so router knows it's unavailable
         if verbose:
             print(f"⚠️  Ollama not available: {e}")
