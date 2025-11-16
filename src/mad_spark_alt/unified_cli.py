@@ -871,14 +871,21 @@ async def _run_qadi_analysis(
             )
         except Exception as primary_error:
             # Check if this is an Ollama failure and we have Gemini fallback available
+            # Broadened detection: If we're using Ollama and it fails for ANY reason
+            # (not just connection errors), we should try Gemini fallback
             is_ollama_failure = (
                 isinstance(primary_provider, OllamaProvider) and
                 (
+                    # Connection-style failures
                     "Ollama" in str(primary_error) or
                     "ollama" in str(primary_error) or
                     "Connection" in str(primary_error) or
                     "aiohttp" in str(primary_error) or
-                    isinstance(primary_error, (ConnectionError, OSError, asyncio.TimeoutError))
+                    isinstance(primary_error, (ConnectionError, OSError, asyncio.TimeoutError)) or
+                    # Processing failures from Ollama (e.g., parsing failures)
+                    "Failed to generate" in str(primary_error) or
+                    "Failed to parse" in str(primary_error) or
+                    isinstance(primary_error, RuntimeError)  # Includes parsing/processing failures
                 )
             )
 
@@ -899,6 +906,8 @@ async def _run_qadi_analysis(
                     urls=url_list,
                 )
                 used_fallback = True
+                # CRITICAL: Update primary_provider so evolution uses the working fallback provider
+                primary_provider = gemini_provider
                 print("✅ Successfully completed with Gemini fallback\n")
             else:
                 # Not an Ollama failure or no fallback available, re-raise

@@ -725,44 +725,63 @@ class TestOllamaFallbackDetection:
             ConnectionError("Cannot connect"),
             OSError("Network unreachable"),
             asyncio.TimeoutError(),
+            # Processing failures (e.g., from phase_logic.py)
+            RuntimeError("Failed to generate hypotheses after max retries"),
+            RuntimeError("Failed to parse deduction response"),
+            Exception("Failed to generate action plan"),
         ]
 
         for error in ollama_failures:
             is_failure = (
                 isinstance(provider, OllamaProvider) and
                 (
+                    # Connection-style failures
                     "Ollama" in str(error) or
                     "ollama" in str(error) or
                     "Connection" in str(error) or
                     "aiohttp" in str(error) or
-                    isinstance(error, (ConnectionError, OSError, asyncio.TimeoutError))
+                    isinstance(error, (ConnectionError, OSError, asyncio.TimeoutError)) or
+                    # Processing failures from Ollama (e.g., parsing failures)
+                    "Failed to generate" in str(error) or
+                    "Failed to parse" in str(error) or
+                    isinstance(error, RuntimeError)  # Includes parsing/processing failures
                 )
             )
             assert is_failure, f"Expected {error} to be detected as Ollama failure"
 
     def test_non_ollama_failures_not_detected(self):
-        """Test that non-Ollama failures are not misidentified."""
+        """Test that non-Ollama failures are not misidentified.
+
+        Note: With broadened fallback detection, most Ollama failures should
+        trigger fallback. These are errors that won't benefit from fallback.
+        """
         from mad_spark_alt.core.llm_provider import OllamaProvider
         import asyncio
 
         provider = OllamaProvider()
 
-        # These should NOT be detected as Ollama failures
+        # These should NOT be detected as Ollama failures (type errors, key errors, etc.)
+        # These are programming bugs, not Ollama service issues
         non_ollama_failures = [
             ValueError("Invalid parameter"),
             KeyError("Missing key"),
-            RuntimeError("General error"),
+            # Note: RuntimeError IS now detected as Ollama failure for broader coverage
         ]
 
         for error in non_ollama_failures:
             is_failure = (
                 isinstance(provider, OllamaProvider) and
                 (
+                    # Connection-style failures
                     "Ollama" in str(error) or
                     "ollama" in str(error) or
                     "Connection" in str(error) or
                     "aiohttp" in str(error) or
-                    isinstance(error, (ConnectionError, OSError, asyncio.TimeoutError))
+                    isinstance(error, (ConnectionError, OSError, asyncio.TimeoutError)) or
+                    # Processing failures from Ollama (e.g., parsing failures)
+                    "Failed to generate" in str(error) or
+                    "Failed to parse" in str(error) or
+                    isinstance(error, RuntimeError)  # Includes parsing/processing failures
                 )
             )
             assert not is_failure, f"Expected {error} NOT to be detected as Ollama failure"
