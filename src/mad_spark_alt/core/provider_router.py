@@ -19,8 +19,10 @@ Provider selection follows a clear hierarchy:
 
 import asyncio
 import logging
+import mimetypes
 from enum import Enum
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
     from .simple_qadi_orchestrator import SimpleQADIResult
@@ -33,6 +35,7 @@ from .llm_provider import (
     LLMResponse,
     OllamaProvider,
 )
+from .multimodal import MultimodalInput, MultimodalInputType, MultimodalSourceType
 from .retry import ErrorType, LLMError
 
 logger = logging.getLogger(__name__)
@@ -112,6 +115,27 @@ class ProviderRouter:
         if ollama_provider:
             available.append("Ollama")
         logger.info(f"ProviderRouter initialized with: {', '.join(available) or 'No providers'}")
+
+    def _is_ollama_connection_error(self, error: Exception) -> bool:
+        """
+        Check if an exception is a common Ollama connection/runtime error.
+
+        This helper provides consistent fallback detection across methods,
+        avoiding duplication and ensuring all error types are handled uniformly.
+
+        Args:
+            error: The exception to check
+
+        Returns:
+            True if error indicates Ollama connection/timeout failure,
+            False otherwise (likely a programming bug that should be raised)
+        """
+        return isinstance(
+            error, (ConnectionError, OSError, asyncio.TimeoutError)
+        ) or any(
+            keyword in str(error)
+            for keyword in _OLLAMA_FAILURE_KEYWORDS
+        )
 
     def select_provider(
         self,
@@ -332,15 +356,7 @@ class ProviderRouter:
             # Avoid catching all RuntimeError to prevent masking programming bugs
             is_ollama_failure = isinstance(
                 primary_provider, OllamaProvider
-            ) and (
-                isinstance(
-                    primary_error, (ConnectionError, OSError, asyncio.TimeoutError)
-                )
-                or any(
-                    keyword in str(primary_error)
-                    for keyword in _OLLAMA_FAILURE_KEYWORDS
-                )
-            )
+            ) and self._is_ollama_connection_error(primary_error)
 
             if is_ollama_failure and fallback_provider is not None:
                 logger.warning(
@@ -362,6 +378,280 @@ class ProviderRouter:
 
             # Not an Ollama failure or no fallback available, re-raise
             raise
+
+    async def extract_document_content(
+        self,
+        document_paths: Optional[tuple] = None,
+        urls: Optional[tuple] = None,
+    ) -> Tuple[str, float]:
+        """
+        Use Gemini to extract text content from documents and URLs.
+
+        This enables hybrid routing: Gemini extracts content that Ollama
+        (gemma3) cannot process directly (e.g., PDFs, web pages), then
+        passes the extracted text to Ollama for QADI reasoning.
+
+        Args:
+            document_paths: Tuple of document file paths (from --document flag)
+            urls: Tuple of URL strings (from --url flag)
+
+        Returns:
+            Tuple of (extracted_text, extraction_cost):
+            - extracted_text: Text content extracted from documents/URLs
+            - extraction_cost: LLM cost for the extraction operation
+
+        Raises:
+            ValueError: If Gemini provider is not available
+
+        Example:
+            >>> text, cost = await router.extract_document_content(
+            ...     document_paths=("report.pdf",),
+            ...     urls=("https://example.com/article",)
+            ... )
+            >>> # text contains extracted content ready for Ollama
+        """
+        if not self.gemini_provider:
+            raise ValueError(
+                "Gemini provider required for document/URL content extraction.\n"
+                "Set GOOGLE_API_KEY environment variable."
+            )
+
+        # Normalize parameters for SDK callers
+        document_paths = document_paths or ()
+        urls = urls or ()
+
+        # Build extraction prompt
+        extraction_prompt = (
+            "Extract and summarize the key content from the provided documents and/or URLs.\n"
+            "Focus on:\n"
+            "- Main facts, data, and statistics\n"
+            "- Key arguments and conclusions\n"
+            "- Relevant context for analysis\n\n"
+            "Return the content as plain text, organized clearly.\n"
+            "Do not add your own analysis - just extract and organize the information."
+        )
+
+        # Build multimodal inputs for documents
+        multimodal_inputs = []
+        for doc_path in document_paths:
+            doc_path_obj = Path(doc_path)
+            if not doc_path_obj.exists():
+                logger.warning(f"Document not found, skipping: {doc_path}")
+                continue
+
+            mime_type, _ = mimetypes.guess_type(doc_path)
+            if mime_type != "application/pdf":
+                if not str(doc_path).lower().endswith('.pdf'):
+                    # Skip non-PDF documents for now
+                    logger.warning(f"Skipping non-PDF document: {doc_path}")
+                    continue
+                mime_type = "application/pdf"
+
+            doc_size = doc_path_obj.stat().st_size
+            multimodal_inputs.append(
+                MultimodalInput(
+                    input_type=MultimodalInputType.DOCUMENT,
+                    source_type=MultimodalSourceType.FILE_PATH,
+                    data=str(doc_path_obj.absolute()),
+                    mime_type=mime_type,
+                    file_size=doc_size,
+                )
+            )
+
+        # Check if we have anything to extract
+        if not multimodal_inputs and not urls:
+            raise ValueError(
+                "No valid documents or URLs to extract content from.\n"
+                "All provided documents were either not found or not supported (only PDFs are supported).\n"
+                "Please check your file paths and ensure documents exist."
+            )
+
+        # Create extraction request
+        request = LLMRequest(
+            user_prompt=extraction_prompt,
+            multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
+            urls=list(urls) if urls else None,
+            max_tokens=4000,  # Allow detailed extraction
+            temperature=0.3,  # Low temperature for factual extraction
+        )
+
+        logger.info(
+            f"Extracting content from {len(document_paths)} documents and {len(urls)} URLs"
+        )
+
+        response = await self.gemini_provider.generate(request)
+        extraction_cost = response.cost
+
+        logger.info(
+            f"Extracted {len(response.content)} characters (cost: ${extraction_cost:.6f})"
+        )
+
+        return response.content, extraction_cost
+
+    async def run_hybrid_qadi(
+        self,
+        user_input: str,
+        document_paths: Optional[tuple] = None,
+        urls: Optional[tuple] = None,
+        image_paths: Optional[tuple] = None,
+        temperature_override: Optional[float] = None,
+        num_hypotheses: int = 3,
+    ) -> Tuple["SimpleQADIResult", LLMProviderInterface, bool, Dict[str, Any]]:
+        """
+        Run hybrid QADI: Gemini extracts document/URL content, Ollama reasons.
+
+        This provides cost optimization for document-heavy workflows:
+        - Gemini: Process documents/URLs once (extraction)
+        - Ollama: Run all 4 QADI phases locally (free)
+
+        Falls back to Gemini-only if Ollama is unavailable.
+
+        Args:
+            user_input: User's question or input text
+            document_paths: Tuple of document file paths (from --document)
+            urls: Tuple of URL strings (from --url)
+            image_paths: Tuple of image file paths (from --image)
+            temperature_override: Optional temperature for QADI phases
+            num_hypotheses: Number of hypotheses to generate
+
+        Returns:
+            Tuple of (result, provider, used_fallback, metadata):
+            - result: SimpleQADIResult from QADI cycle
+            - provider: The provider that executed QADI (Ollama or Gemini)
+            - used_fallback: True if fell back to Gemini-only
+            - metadata: Dict with preprocessing info (cost, char count, etc.)
+
+        Example:
+            >>> result, provider, fallback, meta = await router.run_hybrid_qadi(
+            ...     user_input="Analyze the market trends",
+            ...     document_paths=("report.pdf",),
+            ...     urls=("https://news.com/article",),
+            ...     image_paths=(),
+            ... )
+            >>> print(f"Preprocessing cost: ${meta['preprocessing_cost']:.4f}")
+            >>> print(f"QADI cost: ${result.total_cost:.4f}")
+        """
+        if not self.gemini_provider:
+            raise ValueError(
+                "Gemini provider required for hybrid routing (document/URL preprocessing)."
+            )
+
+        # Import here to avoid circular dependency
+        from .simple_qadi_orchestrator import SimpleQADIOrchestrator
+
+        # Normalize parameters for SDK callers
+        document_paths = document_paths or ()
+        urls = urls or ()
+        image_paths = image_paths or ()
+
+        metadata = {
+            "preprocessing_cost": 0.0,
+            "extracted_content_length": 0,
+            "documents_processed": len(document_paths),
+            "urls_processed": len(urls),
+            "images_passed_to_ollama": len(image_paths),
+            "hybrid_mode": True,
+        }
+
+        # Step 1: Extract content from documents/URLs using Gemini
+        extracted_context, preprocessing_cost = await self.extract_document_content(
+            document_paths=document_paths,
+            urls=urls,
+        )
+        metadata["preprocessing_cost"] = preprocessing_cost
+        metadata["extracted_content_length"] = len(extracted_context)
+
+        # Warn if extraction returned empty content (document might be unreadable)
+        if not extracted_context.strip():
+            logger.warning(
+                "Gemini returned empty content from document/URL extraction. "
+                "Documents may be empty, corrupted, or unreadable. "
+                "QADI will proceed with minimal context."
+            )
+
+        # Step 2: Build image-only multimodal inputs for Ollama
+        # gemma3 can handle images natively, so pass them directly
+        image_inputs = []
+        for img_path in image_paths:
+            img_path_obj = Path(img_path)
+            if not img_path_obj.exists():
+                logger.warning(f"Image not found, skipping: {img_path}")
+                continue
+
+            mime_type, _ = mimetypes.guess_type(img_path)
+            if not mime_type or not mime_type.startswith("image/"):
+                mime_type = "image/png"
+
+            img_size = img_path_obj.stat().st_size
+            image_inputs.append(
+                MultimodalInput(
+                    input_type=MultimodalInputType.IMAGE,
+                    source_type=MultimodalSourceType.FILE_PATH,
+                    data=str(img_path_obj.absolute()),
+                    mime_type=mime_type,
+                    file_size=img_size,
+                )
+            )
+
+        # Step 3: Prepare enhanced input with extracted context
+        enhanced_input = (
+            f"Context from documents/URLs:\n"
+            f"---\n"
+            f"{extracted_context}\n"
+            f"---\n\n"
+            f"Question: {user_input}"
+        )
+
+        # Step 4: Run QADI with Ollama (or fallback to Gemini)
+        if self.ollama_provider:
+            logger.info("Running QADI with Ollama using extracted context")
+            try:
+                orchestrator = SimpleQADIOrchestrator(
+                    temperature_override=temperature_override,
+                    num_hypotheses=num_hypotheses,
+                    llm_provider=self.ollama_provider,
+                )
+                result = await orchestrator.run_qadi_cycle(
+                    user_input=enhanced_input,
+                    multimodal_inputs=image_inputs if image_inputs else None,
+                    urls=None,  # Already processed by Gemini
+                )
+                return result, self.ollama_provider, False, metadata
+            except Exception as ollama_error:
+                # Check if this is an Ollama-specific failure
+                is_ollama_failure = self._is_ollama_connection_error(ollama_error)
+
+                if is_ollama_failure:
+                    logger.warning(
+                        f"Ollama failed during hybrid QADI, falling back to Gemini-only: {ollama_error}"
+                    )
+                    # Fall through to Gemini fallback
+                else:
+                    # Not an Ollama failure, re-raise
+                    raise
+
+        # Fallback: Use Gemini for QADI (already have the context extracted)
+        logger.info("Falling back to Gemini-only mode for QADI")
+        metadata["hybrid_mode"] = False  # Not truly hybrid anymore
+
+        # For Gemini fallback, we can either:
+        # 1. Pass the original documents/URLs again (redundant but consistent)
+        # 2. Use the extracted context (efficient but different behavior)
+        # We choose option 2 for consistency with what Ollama would see
+        fallback_orchestrator = SimpleQADIOrchestrator(
+            temperature_override=temperature_override,
+            num_hypotheses=num_hypotheses,
+            llm_provider=self.gemini_provider,
+        )
+
+        # Use extracted context + images (same as what Ollama would receive)
+        result = await fallback_orchestrator.run_qadi_cycle(
+            user_input=enhanced_input,
+            multimodal_inputs=image_inputs if image_inputs else None,
+            urls=None,  # Already extracted
+        )
+
+        return result, self.gemini_provider, True, metadata
 
     def get_provider_status(self) -> dict:
         """

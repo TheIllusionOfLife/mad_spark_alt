@@ -899,20 +899,11 @@ class OllamaProvider(LLMProviderInterface):
         if request.response_schema:
             schema = request.get_json_schema()
             payload["format"] = schema  # Ollama's format parameter
-            # Recommend temperature=0 for schema compliance, but respect user's explicit setting
-            # If temperature is very high (>0.8), cap at 0.5 for better schema compliance
-            # Users who explicitly set low temperature via --temperature are respected
-            if request.temperature > 0.8:
-                logger.warning(
-                    f"High temperature ({request.temperature}) may cause structured output failures. "
-                    f"Capping at 0.5 for better schema compliance."
-                )
-                payload["options"]["temperature"] = 0.5
-            else:
-                # Respect user's temperature setting for structured output
-                logger.debug(
-                    f"Using user-specified temperature ({request.temperature}) for structured output"
-                )
+            # User controls temperature directly - no automatic capping
+            # High temperature may affect schema compliance, but user has full control
+            logger.debug(
+                f"Using temperature {request.temperature} for structured output"
+            )
             schema_type = schema.get("type", "unknown") if schema else "unknown"
             logger.debug(f"Using structured output with schema: {schema_type}")
 

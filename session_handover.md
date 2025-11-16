@@ -21,20 +21,6 @@
 
 ## Follow-Up PRs Needed
 
-### MEDIUM PRIORITY
-
-3. **Hybrid Routing (PDF → Ollama)**
-   - **Problem**: Original vision of "Gemini preprocesses docs, Ollama does QADI" not implemented
-   - **Current**: Switches entirely to Gemini when documents/URLs present
-   - **Files**: `src/mad_spark_alt/unified_cli.py:829-834`
-   - **Impact**: Cost optimization for document workflows
-
-4. **Temperature Clamping UX**
-   - **Problem**: Silent capping (>0.8 → 0.5) with only log warning
-   - **Issue**: Users requesting `--temperature 1.5` get 0.5 without CLI feedback
-   - **Options**: (a) Print warning to CLI, (b) Make opt-in via flag, (c) Remove capping
-   - **Files**: `src/mad_spark_alt/core/llm_provider.py:905-911`
-
 ### LOW PRIORITY
 
 5. **Performance Benchmark Test Flakiness**
