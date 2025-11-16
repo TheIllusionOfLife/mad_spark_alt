@@ -460,8 +460,11 @@ class ProviderRouter:
 
         # Check if we have anything to extract
         if not multimodal_inputs and not urls:
-            logger.warning("No valid documents or URLs to extract content from")
-            return "", 0.0  # Return empty string and zero cost
+            raise ValueError(
+                "No valid documents or URLs to extract content from.\n"
+                "All provided documents were either not found or not supported (only PDFs are supported).\n"
+                "Please check your file paths and ensure documents exist."
+            )
 
         # Create extraction request
         request = LLMRequest(

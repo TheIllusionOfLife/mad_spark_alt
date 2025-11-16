@@ -677,6 +677,42 @@ class TestHybridRouting:
             )
 
     @pytest.mark.asyncio
+    async def test_extract_with_all_invalid_documents_raises_error(self, tmp_path):
+        """Test extraction fails fast when all documents are invalid (not found or unsupported)."""
+        # Create a non-PDF file that will be skipped
+        csv_file = tmp_path / "data.csv"
+        csv_file.write_text("col1,col2\n1,2")
+
+        gemini = AsyncMock(spec=GoogleProvider)
+        router = ProviderRouter(gemini_provider=gemini, ollama_provider=None)
+
+        # Only CSV file (unsupported) and no URLs - should raise ValueError
+        with pytest.raises(ValueError, match="No valid documents or URLs"):
+            await router.extract_document_content(
+                document_paths=(str(csv_file),),
+                urls=(),
+            )
+
+        # Gemini should NOT be called since no valid inputs
+        assert not gemini.generate.called
+
+    @pytest.mark.asyncio
+    async def test_extract_with_missing_documents_raises_error(self):
+        """Test extraction fails when all documents are missing."""
+        gemini = AsyncMock(spec=GoogleProvider)
+        router = ProviderRouter(gemini_provider=gemini, ollama_provider=None)
+
+        # Non-existent files and no URLs - should raise ValueError
+        with pytest.raises(ValueError, match="No valid documents or URLs"):
+            await router.extract_document_content(
+                document_paths=("/nonexistent/file.pdf", "/also/missing.pdf"),
+                urls=(),
+            )
+
+        # Gemini should NOT be called
+        assert not gemini.generate.called
+
+    @pytest.mark.asyncio
     async def test_run_hybrid_qadi_gemini_extract_ollama_qadi(self, tmp_path):
         """Test full hybrid flow: Gemini extracts, Ollama runs QADI."""
         pdf_file = tmp_path / "data.pdf"
