@@ -77,6 +77,17 @@ class TimeoutConstants:
     CLI_MAX_TIMEOUT_SECONDS: float = 900.0
     """Maximum timeout for CLI operations (15 minutes, matches PHASE_TIMEOUT_TOTAL)."""
 
+    # Ollama provider timeouts
+    OLLAMA_INFERENCE_TIMEOUT: int = 180
+    """Timeout in seconds for Ollama local inference (3 minutes)."""
+
+    OLLAMA_CONNECTION_CHECK_TIMEOUT: int = 2
+    """Timeout in seconds for checking Ollama server availability."""
+
+    # Gemini provider timeouts
+    GEMINI_REQUEST_TIMEOUT: int = 300
+    """Timeout in seconds for Gemini API requests (5 minutes)."""
+
 
 @dataclass(frozen=True)
 class LLMConstants:
@@ -128,6 +139,16 @@ class LLMConstants:
     # Default values
     DEFAULT_HYPOTHESIS_CONFIDENCE: float = 0.8
     """Default confidence score when LLM doesn't provide one."""
+
+    # Ollama provider defaults
+    OLLAMA_DEFAULT_BASE_URL: str = "http://localhost:11434"
+    """Default base URL for Ollama local server."""
+
+    OLLAMA_DEFAULT_MODEL: str = "gemma3:12b-it-qat"
+    """Default Ollama model for QADI operations."""
+
+    OLLAMA_DEFAULT_MAX_TOKENS: int = 8192
+    """Default context window for Ollama models."""
 
 
 @dataclass(frozen=True)

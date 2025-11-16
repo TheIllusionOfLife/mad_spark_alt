@@ -610,7 +610,7 @@ def main(
         if provider_selection == ProviderSelection.OLLAMA and (has_documents or has_urls):
             console.print("[red]Error: Ollama doesn't support --document or --url inputs[/red]")
             console.print("\n[yellow]Options:[/yellow]")
-            console.print("  1. Use --provider auto (Gemini preprocesses documents/URLs, Ollama handles QADI)")
+            console.print("  1. Use --provider auto (uses Gemini for documents/URLs)")
             console.print("  2. Use --provider gemini (full Gemini pipeline)")
             console.print("  3. Remove --document/--url flags (text/image only with Ollama)")
             ctx.exit(1)
@@ -800,7 +800,7 @@ async def _run_qadi_analysis(
         session = await ollama_provider._get_session()
         async with session.get(
             f"{ollama_provider.base_url}/api/tags",
-            timeout=aiohttp.ClientTimeout(total=2)
+            timeout=aiohttp.ClientTimeout(total=CONSTANTS.TIMEOUTS.OLLAMA_CONNECTION_CHECK_TIMEOUT)
         ) as resp:
             if resp.status != 200:
                 raise ConnectionError("Ollama server not responding")
@@ -829,13 +829,14 @@ async def _run_qadi_analysis(
         provider_name = primary_provider.__class__.__name__.replace("Provider", "")
         if is_hybrid_mode:
             # is_hybrid_mode means documents/URLs detected, so using Gemini for all phases
-            print("🔀 Using Gemini for documents/URLs (auto mode)\n")
+            # Note: Hybrid orchestration (Gemini preprocess → Ollama QADI) not yet implemented
+            print("🔀 Using Gemini for documents/URLs (multimodal requires Gemini)\n")
         else:
             print(f"🤖 Using {provider_name} for analysis\n")
 
     except ValueError as e:
         print(f"❌ Error: {e}")
-        return
+        raise SystemExit(1) from e
 
     # Register selected provider with llm_manager and create orchestrator
     # Determine which provider enum to use
@@ -857,14 +858,59 @@ async def _run_qadi_analysis(
     )
 
     start_time = time.time()
+    used_fallback = False
 
     try:
-        # Run QADI cycle
-        result = await orchestrator.run_qadi_cycle(
-            user_input,
-            multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
-            urls=url_list,
-        )
+        # Run QADI cycle with fallback support
+        # If Ollama fails and Gemini is available, automatically retry with Gemini
+        try:
+            result = await orchestrator.run_qadi_cycle(
+                user_input,
+                multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
+                urls=url_list,
+            )
+        except Exception as primary_error:
+            # Check if this is an Ollama failure and we have Gemini fallback available
+            # Targeted detection: Only catch connection/timeout errors and specific Ollama failures
+            # Avoid catching all RuntimeError to prevent masking programming bugs
+            is_ollama_failure = (
+                isinstance(primary_provider, OllamaProvider) and
+                (
+                    isinstance(primary_error, (ConnectionError, OSError, asyncio.TimeoutError)) or
+                    any(keyword in str(primary_error) for keyword in [
+                        "Ollama", "ollama", "Connection", "aiohttp",
+                        "Failed to generate", "Failed to parse", "Failed to extract",
+                        "Failed to score", "Max retries exceeded"
+                    ])
+                )
+            )
+
+            if is_ollama_failure and gemini_provider is not None:
+                print(f"\n⚠️  Ollama failed: {type(primary_error).__name__}: {primary_error}")
+                print("🔄 Falling back to Gemini API...\n")
+                logger.warning(f"Ollama provider failed, falling back to Gemini: {primary_error}")
+
+                # Create new orchestrator with Gemini
+                fallback_orchestrator = SimpleQADIOrchestrator(
+                    temperature_override=temperature,
+                    num_hypotheses=num_hypotheses,
+                    llm_provider=gemini_provider
+                )
+                result = await fallback_orchestrator.run_qadi_cycle(
+                    user_input,
+                    multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
+                    urls=url_list,
+                )
+                used_fallback = True
+                # CRITICAL: Track which provider actually succeeded for later stages
+                active_provider = gemini_provider
+                print("✅ Successfully completed with Gemini fallback\n")
+            else:
+                # Not an Ollama failure or no fallback available, re-raise
+                raise
+        else:
+            # No fallback occurred, use the original provider
+            active_provider = primary_provider
 
         # Extract key solutions for summary
         key_solutions = extract_key_solutions(
@@ -965,7 +1011,8 @@ async def _run_qadi_analysis(
 
         if not evolve:  # Show summary now if not evolving
             print("\n" + "─" * 50)
-            print(f"⏱️  Time: {elapsed_time:.1f}s | 💰 Cost: ${result.total_llm_cost:.4f}")
+            fallback_note = " (via Gemini fallback)" if used_fallback else ""
+            print(f"⏱️  Time: {elapsed_time:.1f}s | 💰 Cost: ${result.total_llm_cost:.4f}{fallback_note}")
 
         # Evolution phase if requested
         evolution_result = None
@@ -973,7 +1020,7 @@ async def _run_qadi_analysis(
             evolution_result = await _run_evolution(
                 result, user_input, elapsed_time, generations, population,
                 traditional, diversity_method, verbose,
-                llm_provider_for_evolution=primary_provider
+                llm_provider_for_evolution=active_provider
             )
 
         # Export results if output file specified

@@ -106,8 +106,8 @@ uv run msa "Your question" --evolve
 Choose between cloud API (Gemini) or local inference (Ollama):
 
 ```bash
-# Auto mode (default): Smart routing based on input
-# - Text/images → Ollama (free local)
+# Auto mode (default): Prefers Ollama, falls back to Gemini
+# - Text/images → Ollama (free local, with Gemini fallback if Ollama unavailable)
 # - Documents/URLs → Gemini (required for processing)
 msa "Your question" --provider auto
 
@@ -130,7 +130,13 @@ msa "Your question" --provider ollama
 |----------|------|-------|------------|-------|
 | Gemini | ~$0.01/query | Fast (10s) | ✅ Images, PDFs, URLs | Requires API key |
 | Ollama | Free | Slower (20-30s) | ✅ Images only | Requires local setup |
-| Auto | Mixed | Variable | ✅ Full support | Best of both worlds |
+| Auto | Mixed | Variable | ✅ Full support | Ollama-first with fallback |
+
+**Current Limitations:**
+- **Hybrid routing (PDF → Ollama)** is not yet implemented - auto mode switches entirely to Gemini when documents/URLs present
+- **Subcommands** (evaluate, batch-evaluate, etc.) do not inherit `--provider` flag - these subcommands always use their default providers
+- **SDK/API** clients have no automatic fallback - fallback logic is CLI-specific only
+- **Ollama temperature clamping** - when using structured output (QADI phases), temperatures above 0.8 are silently capped to 0.5 for schema compliance (logged as warning)
 
 ### Advanced Options
 

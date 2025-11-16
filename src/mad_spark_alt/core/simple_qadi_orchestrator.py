@@ -202,8 +202,17 @@ class SimpleQADIOrchestrator:
 
             # Track multimodal metadata from questioning phase
             result.multimodal_metadata["questioning"] = questioning_result.multimodal_metadata
-            result.total_images_processed += questioning_result.multimodal_metadata.get("images_processed", 0)
-            result.total_pages_processed += questioning_result.multimodal_metadata.get("pages_processed", 0)
+            # Use max() not +=, as all phases process the same documents
+            # A 10-page PDF processed by 4 phases is still 10 pages total, not 40
+            # NOTE: This assumes all phases receive the same multimodal_inputs (current behavior)
+            result.total_images_processed = max(
+                result.total_images_processed,
+                questioning_result.multimodal_metadata.get("images_processed", 0)
+            )
+            result.total_pages_processed = max(
+                result.total_pages_processed,
+                questioning_result.multimodal_metadata.get("pages_processed", 0)
+            )
 
             # Phase 2: Abduction - Generate hypotheses
             logger.info("Running Abduction phase")
@@ -222,8 +231,14 @@ class SimpleQADIOrchestrator:
 
             # Track multimodal metadata from abduction phase
             result.multimodal_metadata["abduction"] = abduction_result.multimodal_metadata
-            result.total_images_processed += abduction_result.multimodal_metadata.get("images_processed", 0)
-            result.total_pages_processed += abduction_result.multimodal_metadata.get("pages_processed", 0)
+            result.total_images_processed = max(
+                result.total_images_processed,
+                abduction_result.multimodal_metadata.get("images_processed", 0)
+            )
+            result.total_pages_processed = max(
+                result.total_pages_processed,
+                abduction_result.multimodal_metadata.get("pages_processed", 0)
+            )
 
             # Convert hypotheses to GeneratedIdea objects for evolution compatibility
             for i, hypothesis in enumerate(abduction_result.hypotheses):
@@ -260,8 +275,14 @@ class SimpleQADIOrchestrator:
 
             # Track multimodal metadata from deduction phase
             result.multimodal_metadata["deduction"] = deduction_result.multimodal_metadata
-            result.total_images_processed += deduction_result.multimodal_metadata.get("images_processed", 0)
-            result.total_pages_processed += deduction_result.multimodal_metadata.get("pages_processed", 0)
+            result.total_images_processed = max(
+                result.total_images_processed,
+                deduction_result.multimodal_metadata.get("images_processed", 0)
+            )
+            result.total_pages_processed = max(
+                result.total_pages_processed,
+                deduction_result.multimodal_metadata.get("pages_processed", 0)
+            )
 
             # Phase 4: Induction - Verify answer
             logger.info("Running Induction phase")
@@ -282,8 +303,14 @@ class SimpleQADIOrchestrator:
 
             # Track multimodal metadata from induction phase
             result.multimodal_metadata["induction"] = induction_result.multimodal_metadata
-            result.total_images_processed += induction_result.multimodal_metadata.get("images_processed", 0)
-            result.total_pages_processed += induction_result.multimodal_metadata.get("pages_processed", 0)
+            result.total_images_processed = max(
+                result.total_images_processed,
+                induction_result.multimodal_metadata.get("images_processed", 0)
+            )
+            result.total_pages_processed = max(
+                result.total_pages_processed,
+                induction_result.multimodal_metadata.get("pages_processed", 0)
+            )
 
             # Track total URLs processed
             result.total_urls_processed = len(urls) if urls else 0

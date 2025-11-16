@@ -62,12 +62,12 @@ This document captures the decision-making process and implementation plan for i
 - Real API tests for 5 user scenarios
 - Performance benchmarks < 2x Gemini
 
-**User Validation (ALL scenarios):**
-1. Pure Ollama (text) - complete analysis, no errors
-2. Pure Gemini (PDF+images) - multimodal processing works
-3. Hybrid (PDF → Ollama) - cost breakdown shown
-4. Evolution (Ollama) - semantic operators work
-5. Fallback (Ollama down → Gemini) - seamless recovery
+**User Validation (Actual Status):**
+1. ✅ Pure Ollama (text) - complete analysis, no errors
+2. ✅ Pure Gemini (PDF+images) - multimodal processing works
+3. ❌ Hybrid (PDF → Ollama) - **NOT IMPLEMENTED** (entire query goes to Gemini when documents/URLs present)
+4. ✅ Evolution (Ollama) - semantic operators work
+5. ⚠️ Fallback (Ollama down → Gemini) - CLI-only, not SDK/subcommands
 
 **Quality Standards (Non-Negotiable):**
 ❌ No timeouts  
