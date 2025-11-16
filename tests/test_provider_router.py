@@ -16,6 +16,7 @@ from mad_spark_alt.core.llm_provider import (
     OllamaProvider,
 )
 from mad_spark_alt.core.retry import LLMError
+from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIResult
 
 
 class TestProviderRouterSelection:
@@ -283,3 +284,294 @@ class TestProviderRouterStatus:
 
         assert status["gemini"]["available"] is False
         assert status["ollama"]["available"] is False
+
+
+class TestQADICycleFallback:
+    """Test QADI cycle fallback for SDK usage."""
+
+    @pytest.mark.asyncio
+    async def test_primary_provider_succeeds_no_fallback(self):
+        """Test successful primary provider returns without fallback."""
+        gemini = MagicMock(spec=GoogleProvider)
+        ollama = MagicMock(spec=OllamaProvider)
+
+        # Create mock QADI result
+        mock_result = MagicMock(spec=SimpleQADIResult)
+        mock_result.core_question = "Test question"
+        mock_result.hypotheses = ["Hypothesis 1"]
+        mock_result.evaluations = []
+        mock_result.action_plan = []
+
+        router = ProviderRouter(gemini, ollama)
+
+        with patch(
+            "mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator"
+        ) as mock_orchestrator_class:
+            mock_orchestrator = MagicMock()
+            mock_orchestrator.run_qadi_cycle = AsyncMock(return_value=mock_result)
+            mock_orchestrator_class.return_value = mock_orchestrator
+
+            result, active_provider, used_fallback = await router.run_qadi_with_fallback(
+                user_input="How can AI improve education?",
+                primary_provider=ollama,
+                fallback_provider=gemini,
+            )
+
+            assert result == mock_result
+            assert active_provider == ollama
+            assert used_fallback is False
+            mock_orchestrator.run_qadi_cycle.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_ollama_failure_falls_back_to_gemini(self):
+        """Test Ollama failure triggers Gemini fallback for QADI cycle."""
+        gemini = MagicMock(spec=GoogleProvider)
+        ollama = MagicMock(spec=OllamaProvider)
+
+        # Create mock QADI result for fallback
+        mock_fallback_result = MagicMock(spec=SimpleQADIResult)
+        mock_fallback_result.core_question = "Fallback question"
+        mock_fallback_result.hypotheses = ["Fallback hypothesis"]
+
+        router = ProviderRouter(gemini, ollama)
+
+        with patch(
+            "mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator"
+        ) as mock_orchestrator_class:
+            # First call (Ollama) fails, second call (Gemini) succeeds
+            call_count = [0]
+
+            def create_orchestrator(*args, **kwargs):
+                call_count[0] += 1
+                mock = MagicMock()
+                if call_count[0] == 1:
+                    # First orchestrator (Ollama) fails
+                    mock.run_qadi_cycle = AsyncMock(
+                        side_effect=ConnectionError("Ollama server unavailable")
+                    )
+                else:
+                    # Second orchestrator (Gemini) succeeds
+                    mock.run_qadi_cycle = AsyncMock(return_value=mock_fallback_result)
+                return mock
+
+            mock_orchestrator_class.side_effect = create_orchestrator
+
+            result, active_provider, used_fallback = await router.run_qadi_with_fallback(
+                user_input="How can AI improve education?",
+                primary_provider=ollama,
+                fallback_provider=gemini,
+            )
+
+            assert result == mock_fallback_result
+            assert active_provider == gemini
+            assert used_fallback is True
+            assert call_count[0] == 2  # Two orchestrators created
+
+    @pytest.mark.asyncio
+    async def test_ollama_failure_with_keyword_detection(self):
+        """Test Ollama failure detection with specific keywords."""
+        gemini = MagicMock(spec=GoogleProvider)
+        ollama = MagicMock(spec=OllamaProvider)
+
+        mock_result = MagicMock(spec=SimpleQADIResult)
+
+        router = ProviderRouter(gemini, ollama)
+
+        # Test various Ollama failure keywords
+        failure_messages = [
+            "Failed to generate response",
+            "Failed to parse JSON",
+            "Failed to extract hypotheses",
+            "Failed to score ideas",
+            "Max retries exceeded for Ollama",
+        ]
+
+        for failure_msg in failure_messages:
+            with patch(
+                "mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator"
+            ) as mock_orch_class:
+                call_count = [0]
+
+                def create_orch(*args, **kwargs):
+                    call_count[0] += 1
+                    mock = MagicMock()
+                    if call_count[0] == 1:
+                        mock.run_qadi_cycle = AsyncMock(
+                            side_effect=RuntimeError(failure_msg)
+                        )
+                    else:
+                        mock.run_qadi_cycle = AsyncMock(return_value=mock_result)
+                    return mock
+
+                mock_orch_class.side_effect = create_orch
+
+                _, active_provider, used_fallback = await router.run_qadi_with_fallback(
+                    user_input="Test",
+                    primary_provider=ollama,
+                    fallback_provider=gemini,
+                )
+
+                assert active_provider == gemini, f"Failed for: {failure_msg}"
+                assert used_fallback is True, f"Failed for: {failure_msg}"
+
+    @pytest.mark.asyncio
+    async def test_non_ollama_failure_not_caught(self):
+        """Test non-Ollama failures are not caught (prevents masking bugs)."""
+        gemini = MagicMock(spec=GoogleProvider)
+        ollama = MagicMock(spec=OllamaProvider)
+
+        router = ProviderRouter(gemini, ollama)
+
+        with patch(
+            "mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator"
+        ) as mock_orch_class:
+            mock_orchestrator = MagicMock()
+            # This is a programming bug, should not be caught
+            mock_orchestrator.run_qadi_cycle = AsyncMock(
+                side_effect=TypeError("Invalid argument type")
+            )
+            mock_orch_class.return_value = mock_orchestrator
+
+            with pytest.raises(TypeError, match="Invalid argument type"):
+                await router.run_qadi_with_fallback(
+                    user_input="Test",
+                    primary_provider=ollama,
+                    fallback_provider=gemini,
+                )
+
+    @pytest.mark.asyncio
+    async def test_no_fallback_provider_reraises_error(self):
+        """Test error is reraised when no fallback provider available."""
+        gemini = MagicMock(spec=GoogleProvider)
+        ollama = MagicMock(spec=OllamaProvider)
+
+        router = ProviderRouter(gemini, ollama)
+
+        with patch(
+            "mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator"
+        ) as mock_orch_class:
+            mock_orchestrator = MagicMock()
+            mock_orchestrator.run_qadi_cycle = AsyncMock(
+                side_effect=ConnectionError("Ollama connection failed")
+            )
+            mock_orch_class.return_value = mock_orchestrator
+
+            # No fallback provider
+            with pytest.raises(ConnectionError, match="Ollama connection failed"):
+                await router.run_qadi_with_fallback(
+                    user_input="Test",
+                    primary_provider=ollama,
+                    fallback_provider=None,  # No fallback
+                )
+
+    @pytest.mark.asyncio
+    async def test_both_providers_fail_raises_original_error(self):
+        """Test when both providers fail, the fallback error is raised."""
+        gemini = MagicMock(spec=GoogleProvider)
+        ollama = MagicMock(spec=OllamaProvider)
+
+        router = ProviderRouter(gemini, ollama)
+
+        with patch(
+            "mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator"
+        ) as mock_orch_class:
+            call_count = [0]
+
+            def create_orch(*args, **kwargs):
+                call_count[0] += 1
+                mock = MagicMock()
+                if call_count[0] == 1:
+                    mock.run_qadi_cycle = AsyncMock(
+                        side_effect=ConnectionError("Ollama down")
+                    )
+                else:
+                    mock.run_qadi_cycle = AsyncMock(
+                        side_effect=Exception("Gemini API error")
+                    )
+                return mock
+
+            mock_orch_class.side_effect = create_orch
+
+            # Should raise the Gemini error (second failure)
+            with pytest.raises(Exception, match="Gemini API error"):
+                await router.run_qadi_with_fallback(
+                    user_input="Test",
+                    primary_provider=ollama,
+                    fallback_provider=gemini,
+                )
+
+    @pytest.mark.asyncio
+    async def test_sdk_usage_pattern(self):
+        """Test SDK users can use fallback directly without CLI."""
+        # This demonstrates the SDK usage pattern
+        gemini = MagicMock(spec=GoogleProvider)
+        ollama = MagicMock(spec=OllamaProvider)
+
+        mock_result = MagicMock(spec=SimpleQADIResult)
+        mock_result.core_question = "SDK Test"
+        mock_result.hypotheses = ["SDK Hypothesis"]
+
+        router = ProviderRouter(gemini, ollama)
+
+        with patch(
+            "mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator"
+        ) as mock_orch_class:
+            mock_orchestrator = MagicMock()
+            mock_orchestrator.run_qadi_cycle = AsyncMock(return_value=mock_result)
+            mock_orch_class.return_value = mock_orchestrator
+
+            # SDK usage - configure temperature and hypotheses
+            result, provider, fallback_used = await router.run_qadi_with_fallback(
+                user_input="How can we improve user experience?",
+                primary_provider=ollama,
+                fallback_provider=gemini,
+                temperature_override=0.9,
+                num_hypotheses=5,
+            )
+
+            # Verify orchestrator was configured correctly
+            mock_orch_class.assert_called_once_with(
+                temperature_override=0.9,
+                num_hypotheses=5,
+                llm_provider=ollama,
+            )
+
+            assert result.core_question == "SDK Test"
+            assert provider == ollama
+            assert fallback_used is False
+
+    @pytest.mark.asyncio
+    async def test_parameters_passed_to_orchestrator(self):
+        """Test all parameters are correctly passed to orchestrator."""
+        gemini = MagicMock(spec=GoogleProvider)
+        ollama = MagicMock(spec=OllamaProvider)
+
+        mock_result = MagicMock(spec=SimpleQADIResult)
+        router = ProviderRouter(gemini, ollama)
+
+        with patch(
+            "mad_spark_alt.core.simple_qadi_orchestrator.SimpleQADIOrchestrator"
+        ) as mock_orch_class:
+            mock_orchestrator = MagicMock()
+            mock_orchestrator.run_qadi_cycle = AsyncMock(return_value=mock_result)
+            mock_orch_class.return_value = mock_orchestrator
+
+            multimodal_inputs = [MagicMock()]
+            urls = ["https://example.com"]
+
+            await router.run_qadi_with_fallback(
+                user_input="Test input",
+                primary_provider=ollama,
+                fallback_provider=gemini,
+                temperature_override=0.7,
+                num_hypotheses=4,
+                multimodal_inputs=multimodal_inputs,
+                urls=urls,
+            )
+
+            # Verify run_qadi_cycle was called with correct parameters
+            mock_orchestrator.run_qadi_cycle.assert_called_once_with(
+                "Test input",
+                multimodal_inputs=multimodal_inputs,
+                urls=urls,
+            )

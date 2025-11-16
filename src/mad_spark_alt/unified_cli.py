@@ -849,68 +849,29 @@ async def _run_qadi_analysis(
     if provider_enum not in llm_manager.providers:
         llm_manager.register_provider(provider_enum, primary_provider)
 
-    # Create orchestrator with selected provider
+    # Determine number of hypotheses based on evolution mode
     num_hypotheses = population if evolve else 3
-    orchestrator = SimpleQADIOrchestrator(
-        temperature_override=temperature,
-        num_hypotheses=num_hypotheses,
-        llm_provider=primary_provider
-    )
 
     start_time = time.time()
     used_fallback = False
 
     try:
-        # Run QADI cycle with fallback support
-        # If Ollama fails and Gemini is available, automatically retry with Gemini
-        try:
-            result = await orchestrator.run_qadi_cycle(
-                user_input,
-                multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
-                urls=url_list,
-            )
-        except Exception as primary_error:
-            # Check if this is an Ollama failure and we have Gemini fallback available
-            # Targeted detection: Only catch connection/timeout errors and specific Ollama failures
-            # Avoid catching all RuntimeError to prevent masking programming bugs
-            is_ollama_failure = (
-                isinstance(primary_provider, OllamaProvider) and
-                (
-                    isinstance(primary_error, (ConnectionError, OSError, asyncio.TimeoutError)) or
-                    any(keyword in str(primary_error) for keyword in [
-                        "Ollama", "ollama", "Connection", "aiohttp",
-                        "Failed to generate", "Failed to parse", "Failed to extract",
-                        "Failed to score", "Max retries exceeded"
-                    ])
-                )
-            )
+        # Run QADI cycle with centralized fallback support
+        # Uses ProviderRouter.run_qadi_with_fallback() for SDK-consistent behavior
+        result, active_provider, used_fallback = await router.run_qadi_with_fallback(
+            user_input=user_input,
+            primary_provider=primary_provider,
+            fallback_provider=gemini_provider,
+            temperature_override=temperature,
+            num_hypotheses=num_hypotheses,
+            multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
+            urls=url_list,
+        )
 
-            if is_ollama_failure and gemini_provider is not None:
-                print(f"\n⚠️  Ollama failed: {type(primary_error).__name__}: {primary_error}")
-                print("🔄 Falling back to Gemini API...\n")
-                logger.warning(f"Ollama provider failed, falling back to Gemini: {primary_error}")
-
-                # Create new orchestrator with Gemini
-                fallback_orchestrator = SimpleQADIOrchestrator(
-                    temperature_override=temperature,
-                    num_hypotheses=num_hypotheses,
-                    llm_provider=gemini_provider
-                )
-                result = await fallback_orchestrator.run_qadi_cycle(
-                    user_input,
-                    multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
-                    urls=url_list,
-                )
-                used_fallback = True
-                # CRITICAL: Track which provider actually succeeded for later stages
-                active_provider = gemini_provider
-                print("✅ Successfully completed with Gemini fallback\n")
-            else:
-                # Not an Ollama failure or no fallback available, re-raise
-                raise
-        else:
-            # No fallback occurred, use the original provider
-            active_provider = primary_provider
+        if used_fallback:
+            print(f"\n⚠️  Primary provider ({primary_provider.__class__.__name__}) failed")
+            print("🔄 Fell back to Gemini API")
+            print("✅ Successfully completed with Gemini fallback\n")
 
         # Extract key solutions for summary
         key_solutions = extract_key_solutions(
@@ -1365,7 +1326,6 @@ def evaluate(
     output_format: str,
 ) -> None:
     """Evaluate creativity of AI output."""
-
     # Get input text
     if file:
         with open(file, "r") as f:
@@ -1441,7 +1401,6 @@ def batch_evaluate(
     output_format: str,
 ) -> None:
     """Evaluate creativity of multiple AI outputs from files."""
-
     # Parse output type
     try:
         output_type_enum = OutputType(output_type)
@@ -1483,7 +1442,6 @@ def compare(
     output: Optional[str],
 ) -> None:
     """Compare creativity of multiple responses to the same prompt."""
-
     if len(responses) < 2:
         console.print("[red]Error: Need at least 2 responses to compare[/red]")
         sys.exit(1)

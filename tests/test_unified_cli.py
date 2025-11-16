@@ -245,3 +245,50 @@ class TestUnifiedCLIErrorHandling:
             if result.exit_code != 0:
                 # If it fails, should show helpful error about providers
                 assert 'API key' in result.output or 'provider' in result.output.lower() or 'Ollama' in result.output
+
+
+class TestProviderInheritance:
+    """Test provider selection for main command (not subcommands - they don't use providers yet)."""
+
+    def test_main_command_provider_option_persists(self):
+        """Main command's --provider option should be documented."""
+        from mad_spark_alt.unified_cli import main
+
+        runner = CliRunner()
+        result = runner.invoke(main, ['--help'])
+
+        assert result.exit_code == 0
+        assert '--provider' in result.output
+        # Check for provider choices
+        assert 'auto' in result.output.lower()
+        assert 'gemini' in result.output.lower()
+        assert 'ollama' in result.output.lower()
+
+    def test_main_command_accepts_provider_flag(self):
+        """Main command should accept --provider flag for QADI analysis."""
+        from mad_spark_alt.unified_cli import main
+
+        runner = CliRunner()
+
+        # Verify the command structure accepts provider
+        result = runner.invoke(main, ['--provider', 'gemini', '--help'])
+
+        # Should not error
+        assert result.exit_code == 0
+        # Help should still be accessible with provider flag
+        assert 'Mad Spark Alt' in result.output
+
+    def test_subcommands_do_not_have_provider_option(self):
+        """Subcommands should NOT have --provider option (not yet implemented)."""
+        from mad_spark_alt.unified_cli import evaluate, batch_evaluate, compare
+
+        # Check that Click-decorated functions do NOT have provider parameter
+        # Access the underlying Click command's params
+        eval_params = {p.name for p in evaluate.params}
+        assert 'provider' not in eval_params
+
+        batch_params = {p.name for p in batch_evaluate.params}
+        assert 'provider' not in batch_params
+
+        compare_params = {p.name for p in compare.params}
+        assert 'provider' not in compare_params

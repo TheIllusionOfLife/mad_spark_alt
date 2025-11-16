@@ -17,9 +17,13 @@ Provider selection follows a clear hierarchy:
 3. Default strategy (text/images → Ollama, fallback to Gemini)
 """
 
+import asyncio
 import logging
 from enum import Enum
-from typing import Optional, Tuple
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple
+
+if TYPE_CHECKING:
+    from .simple_qadi_orchestrator import SimpleQADIResult
 
 from .llm_provider import (
     GoogleProvider,
@@ -32,6 +36,24 @@ from .llm_provider import (
 from .retry import ErrorType, LLMError
 
 logger = logging.getLogger(__name__)
+
+
+# Keywords indicating Ollama-specific failures (vs programming bugs)
+# Used for targeted fallback detection - only fallback on provider failures,
+# not on code errors that would fail with any provider
+# These patterns were established in PR #147 to prevent masking programming bugs
+# while still catching genuine Ollama connection/timeout issues
+_OLLAMA_FAILURE_KEYWORDS = [
+    "Ollama",
+    "ollama",
+    "Connection",
+    "aiohttp",
+    "Failed to generate",
+    "Failed to parse",
+    "Failed to extract",
+    "Failed to score",
+    "Max retries exceeded",
+]
 
 
 class ProviderSelection(Enum):
@@ -240,6 +262,105 @@ class ProviderRouter:
 
             # No fallback available
             logger.exception("No fallback provider available")
+            raise
+
+    async def run_qadi_with_fallback(
+        self,
+        user_input: str,
+        primary_provider: LLMProviderInterface,
+        fallback_provider: Optional[LLMProviderInterface] = None,
+        temperature_override: Optional[float] = None,
+        num_hypotheses: int = 3,
+        multimodal_inputs: Optional[List[Any]] = None,
+        urls: Optional[List[str]] = None,
+    ) -> Tuple["SimpleQADIResult", LLMProviderInterface, bool]:
+        """
+        Run QADI cycle with automatic provider fallback.
+
+        This method centralizes fallback logic for both CLI and SDK users.
+        If the primary provider (typically Ollama) fails, it automatically
+        retries with the fallback provider (typically Gemini).
+
+        Args:
+            user_input: User's question or input text
+            primary_provider: Primary provider to try first
+            fallback_provider: Optional fallback provider (usually Gemini)
+            temperature_override: Optional temperature for LLM generation
+            num_hypotheses: Number of hypotheses to generate (default: 3)
+            multimodal_inputs: Optional list of multimodal inputs (images, etc.)
+            urls: Optional list of URLs for context
+
+        Returns:
+            Tuple of (result, active_provider, used_fallback):
+            - result: SimpleQADIResult from the successful provider
+            - active_provider: The provider that actually succeeded
+            - used_fallback: True if fallback was used, False otherwise
+
+        Raises:
+            Exception: If both providers fail or no fallback available
+
+        Example:
+            >>> # SDK usage
+            >>> router = ProviderRouter(gemini_provider, ollama_provider)
+            >>> result, provider, used_fallback = await router.run_qadi_with_fallback(
+            ...     user_input="How can AI improve education?",
+            ...     primary_provider=ollama_provider,
+            ...     fallback_provider=gemini_provider,
+            ... )
+            >>> if used_fallback:
+            ...     print("Ollama failed, completed with Gemini")
+        """
+        # Import here to avoid circular dependency
+        from .simple_qadi_orchestrator import SimpleQADIOrchestrator
+
+        orchestrator = SimpleQADIOrchestrator(
+            temperature_override=temperature_override,
+            num_hypotheses=num_hypotheses,
+            llm_provider=primary_provider,
+        )
+
+        try:
+            result = await orchestrator.run_qadi_cycle(
+                user_input,
+                multimodal_inputs=multimodal_inputs,
+                urls=urls,
+            )
+            return result, primary_provider, False
+        except Exception as primary_error:
+            # Targeted Ollama failure detection
+            # Only catch connection/timeout errors and specific Ollama failures
+            # Avoid catching all RuntimeError to prevent masking programming bugs
+            is_ollama_failure = isinstance(
+                primary_provider, OllamaProvider
+            ) and (
+                isinstance(
+                    primary_error, (ConnectionError, OSError, asyncio.TimeoutError)
+                )
+                or any(
+                    keyword in str(primary_error)
+                    for keyword in _OLLAMA_FAILURE_KEYWORDS
+                )
+            )
+
+            if is_ollama_failure and fallback_provider is not None:
+                logger.warning(
+                    f"Primary provider ({primary_provider.__class__.__name__}) failed, "
+                    f"falling back to {fallback_provider.__class__.__name__}: {primary_error}"
+                )
+
+                fallback_orchestrator = SimpleQADIOrchestrator(
+                    temperature_override=temperature_override,
+                    num_hypotheses=num_hypotheses,
+                    llm_provider=fallback_provider,
+                )
+                result = await fallback_orchestrator.run_qadi_cycle(
+                    user_input,
+                    multimodal_inputs=multimodal_inputs,
+                    urls=urls,
+                )
+                return result, fallback_provider, True
+
+            # Not an Ollama failure or no fallback available, re-raise
             raise
 
     def get_provider_status(self) -> dict:
