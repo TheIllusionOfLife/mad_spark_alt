@@ -902,12 +902,15 @@ async def _run_qadi_analysis(
                     urls=url_list,
                 )
                 used_fallback = True
-                # CRITICAL: Update primary_provider so evolution uses the working fallback provider
-                primary_provider = gemini_provider
+                # CRITICAL: Track which provider actually succeeded for later stages
+                active_provider = gemini_provider
                 print("✅ Successfully completed with Gemini fallback\n")
             else:
                 # Not an Ollama failure or no fallback available, re-raise
                 raise
+        else:
+            # No fallback occurred, use the original provider
+            active_provider = primary_provider
 
         # Extract key solutions for summary
         key_solutions = extract_key_solutions(
@@ -1017,7 +1020,7 @@ async def _run_qadi_analysis(
             evolution_result = await _run_evolution(
                 result, user_input, elapsed_time, generations, population,
                 traditional, diversity_method, verbose,
-                llm_provider_for_evolution=primary_provider
+                llm_provider_for_evolution=active_provider
             )
 
         # Export results if output file specified

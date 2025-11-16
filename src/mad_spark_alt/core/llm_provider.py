@@ -848,7 +848,7 @@ class OllamaProvider(LLMProviderInterface):
         self.model = model or CONSTANTS.LLM.OLLAMA_DEFAULT_MODEL
         self.base_url = base_url or CONSTANTS.LLM.OLLAMA_DEFAULT_BASE_URL
         self._session: Optional[aiohttp.ClientSession] = None
-        self._session_lock = asyncio.Lock()  # Protect concurrent session creation
+        self._session_lock: asyncio.Lock = asyncio.Lock()  # Protect concurrent session creation
         self.retry_config = retry_config or RetryConfig()
         self.circuit_breaker = CircuitBreaker()
 
