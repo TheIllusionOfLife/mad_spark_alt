@@ -468,7 +468,7 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
 @click.pass_context
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging and detailed output')
 @click.option('--provider', type=click.Choice(['auto', 'gemini', 'ollama'], case_sensitive=False),
-              default='auto', help='LLM provider: auto (smart routing), gemini (API only), ollama (local only)')
+              default='auto', help='LLM provider: auto (hybrid mode - Gemini extracts docs/URLs, Ollama runs QADI), gemini (API only), ollama (local only)')
 @click.option('--temperature', '-t', type=click.FloatRange(0.0, 2.0), help='Temperature for hypothesis generation (0.0-2.0, default: 0.8)')
 @click.option('--evolve', '-e', is_flag=True, help='Evolve ideas using genetic algorithm after QADI analysis')
 @click.option('--generations', '-g', type=int, default=2, help='Number of evolution generations (default: 2, with --evolve)')
@@ -479,8 +479,8 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
 @click.option('--image', '-i', multiple=True, type=click.Path(exists=True),
               help='Path to image file(s) to include in analysis (PNG, JPEG, GIF, WEBP supported)')
 @click.option('--document', '-d', multiple=True, type=click.Path(exists=True),
-              help='Path to document file(s) to include in analysis (PDF supported)')
-@click.option('--url', '-u', multiple=True, help='URL(s) for context retrieval (max 20)')
+              help='Path to document file(s) to include in analysis (PDF, TXT, CSV, JSON, MD supported). With --provider auto, triggers hybrid mode.')
+@click.option('--url', '-u', multiple=True, help='URL(s) for context retrieval (max 20). With --provider auto, triggers hybrid mode using Gemini for extraction.')
 @click.option('--output', '-o', type=click.Path(), help='Export results to file (JSON or Markdown)')
 @click.option('--format', 'export_format', type=click.Choice(['json', 'md'], case_sensitive=False),
               default='json', help='Export format: json or md (default: json)')

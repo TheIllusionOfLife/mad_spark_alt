@@ -679,17 +679,17 @@ class TestHybridRouting:
     @pytest.mark.asyncio
     async def test_extract_with_all_invalid_documents_raises_error(self, tmp_path):
         """Test extraction fails fast when all documents are invalid (not found or unsupported)."""
-        # Create a non-PDF file that will be skipped
-        csv_file = tmp_path / "data.csv"
-        csv_file.write_text("col1,col2\n1,2")
+        # Create a non-supported file (binary executable)
+        exe_file = tmp_path / "program.exe"
+        exe_file.write_bytes(b"binary content")
 
         gemini = AsyncMock(spec=GoogleProvider)
         router = ProviderRouter(gemini_provider=gemini, ollama_provider=None)
 
-        # Only CSV file (unsupported) and no URLs - should raise ValueError
+        # Only unsupported file and no URLs - should raise ValueError
         with pytest.raises(ValueError, match="No valid documents or URLs"):
             await router.extract_document_content(
-                document_paths=(str(csv_file),),
+                document_paths=(str(exe_file),),
                 urls=(),
             )
 

@@ -18,11 +18,16 @@ Provider selection follows a clear hierarchy:
 """
 
 import asyncio
+import ipaddress
+import json
 import logging
 import mimetypes
 from enum import Enum
+from hashlib import sha256
 from pathlib import Path
+from time import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from urllib.parse import urlparse
 
 if TYPE_CHECKING:
     from .simple_qadi_orchestrator import SimpleQADIResult
@@ -57,6 +62,85 @@ _OLLAMA_FAILURE_KEYWORDS = [
     "Failed to score",
     "Max retries exceeded",
 ]
+
+# Content extraction limits
+DEFAULT_EXTRACTION_MAX_TOKENS = 4000
+OLLAMA_CONTEXT_WARNING_THRESHOLD = 6000  # Leave room for QADI prompts
+MAX_CSV_ROWS = 100  # Truncate large CSVs
+
+# Supported document extensions for text-based processing
+SUPPORTED_TEXT_EXTENSIONS = {".txt", ".csv", ".json", ".md", ".markdown"}
+SUPPORTED_DOCUMENT_EXTENSIONS = {".pdf"} | SUPPORTED_TEXT_EXTENSIONS
+
+# SSRF prevention: blocked patterns
+_BLOCKED_METADATA_PATTERNS = [
+    "169.254.169.254",
+    "metadata.google",
+    "metadata.azure",
+]
+
+
+class ContentCache:
+    """Simple in-memory cache for extracted document content."""
+
+    def __init__(self, ttl_seconds: int = 3600):  # 1 hour default
+        """
+        Initialize content cache.
+
+        Args:
+            ttl_seconds: Time-to-live for cache entries in seconds
+        """
+        self._cache: Dict[str, Tuple[str, float, float]] = {}  # hash -> (content, cost, timestamp)
+        self.ttl = ttl_seconds
+
+    def _compute_hash(self, file_path: Path) -> str:
+        """Compute SHA256 hash of file content."""
+        with open(file_path, "rb") as f:
+            return sha256(f.read()).hexdigest()
+
+    def get(self, file_path: Path) -> Optional[Tuple[str, float]]:
+        """
+        Get cached content if exists and not expired.
+
+        Args:
+            file_path: Path to the file
+
+        Returns:
+            Tuple of (content, cost) if cached and valid, None otherwise
+        """
+        try:
+            file_hash = self._compute_hash(file_path)
+            if file_hash in self._cache:
+                content, cost, timestamp = self._cache[file_hash]
+                if time() - timestamp < self.ttl:
+                    logger.debug(f"Cache hit for {file_path.name}")
+                    return content, cost
+                else:
+                    del self._cache[file_hash]  # Expired
+        except (OSError, IOError) as e:
+            logger.debug(f"Cache lookup failed for {file_path}: {e}")
+        return None
+
+    def set(self, file_path: Path, content: str, cost: float) -> None:
+        """
+        Cache extracted content.
+
+        Args:
+            file_path: Path to the file
+            content: Extracted content
+            cost: Extraction cost
+        """
+        try:
+            file_hash = self._compute_hash(file_path)
+            self._cache[file_hash] = (content, cost, time())
+            logger.debug(f"Cached content for {file_path.name}")
+        except (OSError, IOError) as e:
+            logger.debug(f"Failed to cache {file_path}: {e}")
+
+    def clear(self) -> None:
+        """Clear all cached content."""
+        self._cache.clear()
+        logger.debug("Content cache cleared")
 
 
 class ProviderSelection(Enum):
@@ -107,6 +191,7 @@ class ProviderRouter:
         self.gemini_provider = gemini_provider
         self.ollama_provider = ollama_provider
         self.default_strategy = default_strategy
+        self._content_cache = ContentCache()
 
         # Log available providers
         available = []
@@ -136,6 +221,89 @@ class ProviderRouter:
             keyword in str(error)
             for keyword in _OLLAMA_FAILURE_KEYWORDS
         )
+
+    def _validate_url_security(self, url: str) -> None:
+        """
+        Validate URL is safe to fetch (prevent SSRF attacks).
+
+        This blocks:
+        - Non-HTTP(S) schemes (file://, ftp://, etc.)
+        - Internal/private IPs (localhost, 127.0.0.1, 10.x.x.x, etc.)
+        - Cloud metadata endpoints (AWS, GCP, Azure)
+
+        Args:
+            url: URL string to validate
+
+        Raises:
+            ValueError: If URL is not safe for external fetching
+        """
+        parsed = urlparse(url)
+
+        # 1. Scheme whitelist - only HTTP(S) allowed
+        if parsed.scheme not in ("https", "http"):
+            raise ValueError(
+                f"Unsupported URL scheme: {parsed.scheme}. Only http/https allowed."
+            )
+
+        # 2. Block internal/private IPs
+        hostname = parsed.hostname
+        if hostname:
+            # Block localhost variants
+            if hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+                raise ValueError(f"Internal URLs not allowed: {hostname}")
+
+            # Block private IP ranges
+            try:
+                ip = ipaddress.ip_address(hostname)
+            except ValueError:
+                pass  # Not an IP address, hostname is fine
+            else:
+                # Successfully parsed as IP, check if it's private
+                if ip.is_private or ip.is_loopback or ip.is_link_local:
+                    raise ValueError(f"Private/internal IP not allowed: {hostname}")
+
+        # 3. Block cloud metadata endpoints (common SSRF targets)
+        if any(pattern in url for pattern in _BLOCKED_METADATA_PATTERNS):
+            raise ValueError(f"Cloud metadata endpoints not allowed: {url}")
+
+    def _read_text_document(self, file_path: Path) -> str:
+        """
+        Read text-based documents directly.
+
+        Handles different file formats:
+        - .csv: Format as readable table with row truncation
+        - .json: Pretty-print JSON data
+        - .txt, .md, .markdown: Read as plain text
+
+        Args:
+            file_path: Path to text-based document
+
+        Returns:
+            Formatted document content as string
+        """
+        suffix = file_path.suffix.lower()
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        if suffix == ".csv":
+            # Format CSV as readable table with truncation for large files
+            lines = content.strip().split("\n")
+            if len(lines) > MAX_CSV_ROWS:
+                truncated_content = "\n".join(lines[:MAX_CSV_ROWS])
+                return f"CSV Data:\n{truncated_content}\n... ({len(lines) - MAX_CSV_ROWS} more rows)"
+            return f"CSV Data:\n{content}"
+
+        elif suffix == ".json":
+            # Pretty-print JSON for readability
+            try:
+                data = json.loads(content)
+                return f"JSON Data:\n{json.dumps(data, indent=2)}"
+            except json.JSONDecodeError:
+                return f"JSON File (invalid format):\n{content}"
+
+        else:  # .txt, .md, .markdown
+            return content
 
     def select_provider(
         self,
@@ -383,6 +551,8 @@ class ProviderRouter:
         self,
         document_paths: Optional[tuple] = None,
         urls: Optional[tuple] = None,
+        max_tokens: int = DEFAULT_EXTRACTION_MAX_TOKENS,
+        warn_on_large: bool = True,
     ) -> Tuple[str, float]:
         """
         Use Gemini to extract text content from documents and URLs.
@@ -391,9 +561,17 @@ class ProviderRouter:
         (gemma3) cannot process directly (e.g., PDFs, web pages), then
         passes the extracted text to Ollama for QADI reasoning.
 
+        Supports multiple document formats:
+        - PDF: Processed via Gemini multimodal API
+        - TXT, MD: Read as plain text
+        - CSV: Formatted as table with row truncation
+        - JSON: Pretty-printed for readability
+
         Args:
             document_paths: Tuple of document file paths (from --document flag)
             urls: Tuple of URL strings (from --url flag)
+            max_tokens: Maximum tokens for extraction (default: 4000)
+            warn_on_large: Whether to warn about large content (default: True)
 
         Returns:
             Tuple of (extracted_text, extraction_cost):
@@ -401,11 +579,11 @@ class ProviderRouter:
             - extraction_cost: LLM cost for the extraction operation
 
         Raises:
-            ValueError: If Gemini provider is not available
+            ValueError: If Gemini provider is not available or URLs are unsafe
 
         Example:
             >>> text, cost = await router.extract_document_content(
-            ...     document_paths=("report.pdf",),
+            ...     document_paths=("report.pdf", "data.csv"),
             ...     urls=("https://example.com/article",)
             ... )
             >>> # text contains extracted content ready for Ollama
@@ -420,8 +598,79 @@ class ProviderRouter:
         document_paths = document_paths or ()
         urls = urls or ()
 
-        # Build extraction prompt
-        extraction_prompt = (
+        # Validate URLs for security (SSRF prevention)
+        for url in urls:
+            self._validate_url_security(url)
+
+        # Build multimodal inputs for PDFs and text contexts for other files
+        multimodal_inputs = []
+        text_contexts = []
+        total_cost = 0.0
+
+        for doc_path in document_paths:
+            doc_path_obj = Path(doc_path)
+            if not doc_path_obj.exists():
+                logger.warning(f"Document not found, skipping: {doc_path}")
+                continue
+
+            file_ext = doc_path_obj.suffix.lower()
+
+            # Check if extension is supported
+            if file_ext not in SUPPORTED_DOCUMENT_EXTENSIONS:
+                logger.warning(
+                    f"Skipping unsupported document type: {doc_path} "
+                    f"(supported: {', '.join(sorted(SUPPORTED_DOCUMENT_EXTENSIONS))})"
+                )
+                continue
+
+            # Check cache for this document
+            cached = self._content_cache.get(doc_path_obj)
+            if cached:
+                content, cost = cached
+                text_contexts.append(f"=== {doc_path_obj.name} ===\n{content}")
+                total_cost += cost
+                continue
+
+            if file_ext == ".pdf":
+                # PDF: Process via Gemini multimodal API
+                mime_type = "application/pdf"
+                doc_size = doc_path_obj.stat().st_size
+                multimodal_inputs.append(
+                    MultimodalInput(
+                        input_type=MultimodalInputType.DOCUMENT,
+                        source_type=MultimodalSourceType.FILE_PATH,
+                        data=str(doc_path_obj.absolute()),
+                        mime_type=mime_type,
+                        file_size=doc_size,
+                    )
+                )
+            else:
+                # Text-based documents: read directly
+                try:
+                    text_content = self._read_text_document(doc_path_obj)
+                    text_contexts.append(f"=== {doc_path_obj.name} ===\n{text_content}")
+                except Exception as e:
+                    logger.warning(f"Failed to read {doc_path}: {e}")
+                    continue
+
+        # Check if we have anything to extract
+        if not multimodal_inputs and not urls and not text_contexts:
+            raise ValueError(
+                "No valid documents or URLs to extract content from.\n"
+                f"All provided documents were either not found or not supported.\n"
+                f"Supported formats: {', '.join(sorted(SUPPORTED_DOCUMENT_EXTENSIONS))}\n"
+                "Please check your file paths and ensure documents exist."
+            )
+
+        # If we only have text contexts (no PDFs or URLs), return them directly
+        if not multimodal_inputs and not urls:
+            combined_text = "\n\n".join(text_contexts)
+            # Check size limits
+            combined_text = self._apply_size_limits(combined_text, max_tokens, warn_on_large)
+            return combined_text, total_cost
+
+        # Build extraction prompt including any text contexts
+        base_prompt = (
             "Extract and summarize the key content from the provided documents and/or URLs.\n"
             "Focus on:\n"
             "- Main facts, data, and statistics\n"
@@ -431,47 +680,21 @@ class ProviderRouter:
             "Do not add your own analysis - just extract and organize the information."
         )
 
-        # Build multimodal inputs for documents
-        multimodal_inputs = []
-        for doc_path in document_paths:
-            doc_path_obj = Path(doc_path)
-            if not doc_path_obj.exists():
-                logger.warning(f"Document not found, skipping: {doc_path}")
-                continue
-
-            mime_type, _ = mimetypes.guess_type(doc_path)
-            if mime_type != "application/pdf":
-                if not str(doc_path).lower().endswith('.pdf'):
-                    # Skip non-PDF documents for now
-                    logger.warning(f"Skipping non-PDF document: {doc_path}")
-                    continue
-                mime_type = "application/pdf"
-
-            doc_size = doc_path_obj.stat().st_size
-            multimodal_inputs.append(
-                MultimodalInput(
-                    input_type=MultimodalInputType.DOCUMENT,
-                    source_type=MultimodalSourceType.FILE_PATH,
-                    data=str(doc_path_obj.absolute()),
-                    mime_type=mime_type,
-                    file_size=doc_size,
-                )
+        if text_contexts:
+            extraction_prompt = (
+                f"Additional document content:\n"
+                f"{''.join(text_contexts)}\n\n"
+                f"{base_prompt}"
             )
-
-        # Check if we have anything to extract
-        if not multimodal_inputs and not urls:
-            raise ValueError(
-                "No valid documents or URLs to extract content from.\n"
-                "All provided documents were either not found or not supported (only PDFs are supported).\n"
-                "Please check your file paths and ensure documents exist."
-            )
+        else:
+            extraction_prompt = base_prompt
 
         # Create extraction request
         request = LLMRequest(
             user_prompt=extraction_prompt,
             multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
             urls=list(urls) if urls else None,
-            max_tokens=4000,  # Allow detailed extraction
+            max_tokens=max_tokens,
             temperature=0.3,  # Low temperature for factual extraction
         )
 
@@ -480,13 +703,51 @@ class ProviderRouter:
         )
 
         response = await self.gemini_provider.generate(request)
-        extraction_cost = response.cost
+        extraction_cost = response.cost + total_cost
+
+        extracted_content = response.content
+
+        # Apply size limits and warnings
+        extracted_content = self._apply_size_limits(extracted_content, max_tokens, warn_on_large)
 
         logger.info(
-            f"Extracted {len(response.content)} characters (cost: ${extraction_cost:.6f})"
+            f"Extracted {len(extracted_content)} characters (cost: ${extraction_cost:.6f})"
         )
 
-        return response.content, extraction_cost
+        return extracted_content, extraction_cost
+
+    def _apply_size_limits(
+        self, content: str, max_tokens: int, warn_on_large: bool
+    ) -> str:
+        """
+        Apply size limits and warnings to extracted content.
+
+        Args:
+            content: Extracted content string
+            max_tokens: Maximum allowed tokens
+            warn_on_large: Whether to emit warnings for large content
+
+        Returns:
+            Content, potentially truncated with notice
+        """
+        # Estimate token count (rough: 1 token ≈ 4 chars)
+        estimated_tokens = len(content) // 4
+
+        if warn_on_large and estimated_tokens > OLLAMA_CONTEXT_WARNING_THRESHOLD:
+            logger.warning(
+                f"Extracted content is large (~{estimated_tokens} tokens). "
+                f"May exceed Ollama context limits. Consider using --provider gemini for large documents."
+            )
+
+        # Truncate if significantly over limit (50% over)
+        if estimated_tokens > max_tokens * 1.5:
+            truncate_chars = int(max_tokens * 4)
+            original_length = len(content)
+            content = content[:truncate_chars]
+            content += f"\n\n[Content truncated from ~{original_length // 4} to ~{max_tokens} tokens]"
+            logger.info(f"Content truncated from ~{original_length // 4} to ~{max_tokens} tokens")
+
+        return content
 
     async def run_hybrid_qadi(
         self,
