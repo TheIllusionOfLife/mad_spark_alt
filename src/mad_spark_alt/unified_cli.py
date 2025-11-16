@@ -1313,7 +1313,6 @@ def list_evaluators() -> None:
 
 
 @main.command()
-@click.pass_context
 @click.argument("text", required=False)
 @click.option("--file", "-f", type=click.Path(exists=True), help="Read text from file")
 @click.option("--model", "-m", default="test-model", help="Model name for the output")
@@ -1323,7 +1322,6 @@ def list_evaluators() -> None:
 @click.option("--output", "-o", type=click.Path(), help="Save results to file")
 @click.option("--format", "output_format", type=click.Choice(["json", "table"]), default="table", help="Output format")
 def evaluate(
-    ctx: click.Context,
     text: Optional[str],
     file: Optional[str],
     model: str,
@@ -1396,14 +1394,12 @@ def evaluate(
 
 
 @main.command()
-@click.pass_context
 @click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
 @click.option("--model", "-m", default="test-model", help="Model name for the outputs")
 @click.option("--output-type", "-t", type=click.Choice(["text", "code"]), default="text", help="Output type")
 @click.option("--output", "-o", type=click.Path(), help="Save results to file")
 @click.option("--format", "output_format", type=click.Choice(["json", "table"]), default="table", help="Output format")
 def batch_evaluate(
-    ctx: click.Context,
     files: List[str],
     model: str,
     output_type: str,
@@ -1441,13 +1437,11 @@ def batch_evaluate(
 
 
 @main.command()
-@click.pass_context
 @click.argument("prompt")
 @click.option("--responses", "-r", multiple=True, required=True, help="Multiple responses to compare")
 @click.option("--model", "-m", default="test-model", help="Model name")
 @click.option("--output", "-o", type=click.Path(), help="Save results to file")
 def compare(
-    ctx: click.Context,
     prompt: str,
     responses: List[str],
     model: str,
