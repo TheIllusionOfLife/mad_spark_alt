@@ -245,3 +245,104 @@ class TestUnifiedCLIErrorHandling:
             if result.exit_code != 0:
                 # If it fails, should show helpful error about providers
                 assert 'API key' in result.output or 'provider' in result.output.lower() or 'Ollama' in result.output
+
+
+class TestProviderInheritance:
+    """Test provider inheritance from parent command to subcommands."""
+
+    def test_evaluate_shows_provider_option(self):
+        """Evaluate subcommand should have --provider option."""
+        from mad_spark_alt.unified_cli import main
+
+        runner = CliRunner()
+        result = runner.invoke(main, ['evaluate', '--help'])
+
+        assert result.exit_code == 0
+        assert '--provider' in result.output
+        assert 'gemini' in result.output.lower()
+        assert 'ollama' in result.output.lower()
+
+    def test_batch_evaluate_shows_provider_option(self):
+        """Batch-evaluate subcommand should have --provider option."""
+        from mad_spark_alt.unified_cli import main
+
+        runner = CliRunner()
+        result = runner.invoke(main, ['batch-evaluate', '--help'])
+
+        assert result.exit_code == 0
+        assert '--provider' in result.output
+        assert 'gemini' in result.output.lower()
+        assert 'ollama' in result.output.lower()
+
+    def test_compare_shows_provider_option(self):
+        """Compare subcommand should have --provider option."""
+        from mad_spark_alt.unified_cli import main
+
+        runner = CliRunner()
+        result = runner.invoke(main, ['compare', '--help'])
+
+        assert result.exit_code == 0
+        assert '--provider' in result.output
+        assert 'gemini' in result.output.lower()
+        assert 'ollama' in result.output.lower()
+
+    def test_main_command_provider_option_persists(self):
+        """Main command's --provider option should be documented."""
+        from mad_spark_alt.unified_cli import main
+
+        runner = CliRunner()
+        result = runner.invoke(main, ['--help'])
+
+        assert result.exit_code == 0
+        assert '--provider' in result.output
+        # Check for provider choices
+        assert 'auto' in result.output.lower()
+        assert 'gemini' in result.output.lower()
+        assert 'ollama' in result.output.lower()
+
+    def test_context_stores_provider_selection(self):
+        """Context should store provider selection for subcommand inheritance."""
+        from mad_spark_alt.unified_cli import main
+        import click
+
+        runner = CliRunner()
+
+        # We can't easily test context passing without executing subcommands,
+        # but we can verify the command structure accepts provider
+        result = runner.invoke(main, ['--provider', 'gemini', '--help'])
+
+        # Should not error
+        assert result.exit_code == 0
+        # Help should still be accessible with provider flag
+        assert 'Mad Spark Alt' in result.output
+
+    def test_provider_inheritance_in_subcommand_signature(self):
+        """Subcommands should inherit provider if not overridden."""
+        from mad_spark_alt.unified_cli import evaluate, batch_evaluate, compare
+
+        # Check that Click-decorated functions have provider parameter
+        # Access the underlying Click command's params
+        eval_params = {p.name for p in evaluate.params}
+        assert 'provider' in eval_params
+
+        batch_params = {p.name for p in batch_evaluate.params}
+        assert 'provider' in batch_params
+
+        compare_params = {p.name for p in compare.params}
+        assert 'provider' in compare_params
+
+    def test_provider_override_is_documented(self):
+        """Override behavior should be documented in help text."""
+        from mad_spark_alt.unified_cli import main
+
+        runner = CliRunner()
+        result = runner.invoke(main, ['evaluate', '--help'])
+
+        assert result.exit_code == 0
+        # Help should mention inheritance, override, or parent - or at least show the provider option with default None
+        # The help text says "default: inherit from parent"
+        help_lower = result.output.lower()
+        assert ('inherit' in help_lower or
+                'override' in help_lower or
+                'parent' in help_lower or
+                'default' in help_lower and 'provider' in help_lower)

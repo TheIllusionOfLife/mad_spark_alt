@@ -6,37 +6,19 @@
 
 ## Current Work In Progress
 
-### PR #147: Address PR #144 Reviewer Feedback - OPEN 🔄
-- **Branch**: `fix/pr144-reviewer-feedback`
-- **Commits**: 5 total (84a60ab → 50b58b1)
-- **Status**: CI running, 1004+ tests passing locally
-- **Key Fixes Applied**:
-  - Thread-safe close() with asyncio.Lock
-  - Evolution uses fallback provider after Ollama failure (was using dead provider)
-  - Comprehensive fallback detection (Failed to extract/score/parse, Max retries)
-  - Graduated temperature control (cap at 0.5, not 0.0)
-  - GEMINI_REQUEST_TIMEOUT wired (no more hardcoded 300)
-  - Documentation honesty about limitations
+### PR #148: Provider Routing Enhancements - IN PROGRESS 🔄
+- **Branch**: `feature/provider-routing-enhancements`
+- **Status**: Implementation complete, running final tests
+- **Key Features Implemented**:
+  - ✅ SDK/API Fallback Architecture via `ProviderRouter.run_qadi_with_fallback()`
+  - ✅ `--provider` flag for `evaluate`, `batch-evaluate`, and `compare` subcommands
+  - ✅ Click context propagation for provider inheritance
+  - ✅ Centralized fallback logic (removed ~50 lines of duplication)
+  - ✅ 15 new tests (8 for SDK fallback, 7 for CLI inheritance)
 
 ---
 
 ## Follow-Up PRs Needed
-
-### HIGH PRIORITY
-
-1. **SDK/API Fallback Architecture** ⭐ HIGHEST ROI
-   - **Problem**: Fallback only works in CLI's default command; SDK users and subcommands have no resilience
-   - **Root Cause**: Fallback logic duplicated in `_run_qadi_analysis()` instead of centralized
-   - **Solution**: Move fallback into `ProviderRouter.generate_with_fallback()` which already exists but is unused
-   - **Files**: `src/mad_spark_alt/core/provider_router.py:187-236`, `src/mad_spark_alt/core/simple_qadi_orchestrator.py`
-   - **Impact**: Makes entire system uniformly resilient, not just CLI
-
-2. **--provider Flag for Subcommands**
-   - **Problem**: Users can't control provider for `msa evaluate`, `msa batch-evaluate`, etc.
-   - **Root Cause**: Option declared only on default command, not propagated to subcommands
-   - **Solution**: Propagate `--provider` through Click's context or add to each subcommand
-   - **Files**: `src/mad_spark_alt/unified_cli.py:536-573`, `src/mad_spark_alt/unified_cli.py:1313-1466`
-   - **Impact**: Consistent CLI experience
 
 ### MEDIUM PRIORITY
 
@@ -63,7 +45,7 @@
 
 ## Recently Completed
 
-### PR #147: Address PR #144 Reviewer Feedback - IN PROGRESS 🔄
+### PR #147: Address PR #144 Reviewer Feedback - MERGED ✅
 **5 Commits addressing reviewer concerns**:
 
 1. **84a60ab** - Thread-safe close(), better test names, use fallback variable

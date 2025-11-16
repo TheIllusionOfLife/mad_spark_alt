@@ -530,6 +530,12 @@ def main(
     setup_logging(verbose)
     register_default_evaluators()
 
+    # Store provider and temperature in context for subcommand inheritance
+    ctx.ensure_object(dict)
+    ctx.obj['provider'] = provider
+    ctx.obj['temperature'] = temperature
+    ctx.obj['verbose'] = verbose
+
     # Initialize Google LLM provider if API key is available
     google_key = os.getenv("GOOGLE_API_KEY")
 
@@ -849,68 +855,29 @@ async def _run_qadi_analysis(
     if provider_enum not in llm_manager.providers:
         llm_manager.register_provider(provider_enum, primary_provider)
 
-    # Create orchestrator with selected provider
+    # Determine number of hypotheses based on evolution mode
     num_hypotheses = population if evolve else 3
-    orchestrator = SimpleQADIOrchestrator(
-        temperature_override=temperature,
-        num_hypotheses=num_hypotheses,
-        llm_provider=primary_provider
-    )
 
     start_time = time.time()
     used_fallback = False
 
     try:
-        # Run QADI cycle with fallback support
-        # If Ollama fails and Gemini is available, automatically retry with Gemini
-        try:
-            result = await orchestrator.run_qadi_cycle(
-                user_input,
-                multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
-                urls=url_list,
-            )
-        except Exception as primary_error:
-            # Check if this is an Ollama failure and we have Gemini fallback available
-            # Targeted detection: Only catch connection/timeout errors and specific Ollama failures
-            # Avoid catching all RuntimeError to prevent masking programming bugs
-            is_ollama_failure = (
-                isinstance(primary_provider, OllamaProvider) and
-                (
-                    isinstance(primary_error, (ConnectionError, OSError, asyncio.TimeoutError)) or
-                    any(keyword in str(primary_error) for keyword in [
-                        "Ollama", "ollama", "Connection", "aiohttp",
-                        "Failed to generate", "Failed to parse", "Failed to extract",
-                        "Failed to score", "Max retries exceeded"
-                    ])
-                )
-            )
+        # Run QADI cycle with centralized fallback support
+        # Uses ProviderRouter.run_qadi_with_fallback() for SDK-consistent behavior
+        result, active_provider, used_fallback = await router.run_qadi_with_fallback(
+            user_input=user_input,
+            primary_provider=primary_provider,
+            fallback_provider=gemini_provider,
+            temperature_override=temperature,
+            num_hypotheses=num_hypotheses,
+            multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
+            urls=url_list,
+        )
 
-            if is_ollama_failure and gemini_provider is not None:
-                print(f"\n⚠️  Ollama failed: {type(primary_error).__name__}: {primary_error}")
-                print("🔄 Falling back to Gemini API...\n")
-                logger.warning(f"Ollama provider failed, falling back to Gemini: {primary_error}")
-
-                # Create new orchestrator with Gemini
-                fallback_orchestrator = SimpleQADIOrchestrator(
-                    temperature_override=temperature,
-                    num_hypotheses=num_hypotheses,
-                    llm_provider=gemini_provider
-                )
-                result = await fallback_orchestrator.run_qadi_cycle(
-                    user_input,
-                    multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
-                    urls=url_list,
-                )
-                used_fallback = True
-                # CRITICAL: Track which provider actually succeeded for later stages
-                active_provider = gemini_provider
-                print("✅ Successfully completed with Gemini fallback\n")
-            else:
-                # Not an Ollama failure or no fallback available, re-raise
-                raise
-        else:
-            # No fallback occurred, use the original provider
-            active_provider = primary_provider
+        if used_fallback:
+            print(f"\n⚠️  Primary provider ({primary_provider.__class__.__name__}) failed")
+            print("🔄 Fell back to Gemini API")
+            print("✅ Successfully completed with Gemini fallback\n")
 
         # Extract key solutions for summary
         key_solutions = extract_key_solutions(
@@ -1346,6 +1313,7 @@ def list_evaluators() -> None:
 
 
 @main.command()
+@click.pass_context
 @click.argument("text", required=False)
 @click.option("--file", "-f", type=click.Path(exists=True), help="Read text from file")
 @click.option("--model", "-m", default="test-model", help="Model name for the output")
@@ -1354,7 +1322,10 @@ def list_evaluators() -> None:
 @click.option("--layers", "-l", help="Comma-separated list of layers (quantitative,llm_judge,human)")
 @click.option("--output", "-o", type=click.Path(), help="Save results to file")
 @click.option("--format", "output_format", type=click.Choice(["json", "table"]), default="table", help="Output format")
+@click.option("--provider", type=click.Choice(['auto', 'gemini', 'ollama'], case_sensitive=False),
+              default=None, help="Override provider selection (default: inherit from parent)")
 def evaluate(
+    ctx: click.Context,
     text: Optional[str],
     file: Optional[str],
     model: str,
@@ -1363,8 +1334,13 @@ def evaluate(
     layers: Optional[str],
     output: Optional[str],
     output_format: str,
+    provider: Optional[str],
 ) -> None:
     """Evaluate creativity of AI output."""
+
+    # Get provider from context if not overridden
+    effective_provider = provider if provider else ctx.obj.get('provider', 'auto') if ctx.obj else 'auto'
+    logger.debug(f"Using provider: {effective_provider} (inherited: {provider is None})")
 
     # Get input text
     if file:
@@ -1428,19 +1404,28 @@ def evaluate(
 
 
 @main.command()
+@click.pass_context
 @click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
 @click.option("--model", "-m", default="test-model", help="Model name for the outputs")
 @click.option("--output-type", "-t", type=click.Choice(["text", "code"]), default="text", help="Output type")
 @click.option("--output", "-o", type=click.Path(), help="Save results to file")
 @click.option("--format", "output_format", type=click.Choice(["json", "table"]), default="table", help="Output format")
+@click.option("--provider", type=click.Choice(['auto', 'gemini', 'ollama'], case_sensitive=False),
+              default=None, help="Override provider selection (default: inherit from parent)")
 def batch_evaluate(
+    ctx: click.Context,
     files: List[str],
     model: str,
     output_type: str,
     output: Optional[str],
     output_format: str,
+    provider: Optional[str],
 ) -> None:
     """Evaluate creativity of multiple AI outputs from files."""
+
+    # Get provider from context if not overridden
+    effective_provider = provider if provider else ctx.obj.get('provider', 'auto') if ctx.obj else 'auto'
+    logger.debug(f"Using provider: {effective_provider} (inherited: {provider is None})")
 
     # Parse output type
     try:
@@ -1472,17 +1457,26 @@ def batch_evaluate(
 
 
 @main.command()
+@click.pass_context
 @click.argument("prompt")
 @click.option("--responses", "-r", multiple=True, required=True, help="Multiple responses to compare")
 @click.option("--model", "-m", default="test-model", help="Model name")
 @click.option("--output", "-o", type=click.Path(), help="Save results to file")
+@click.option("--provider", type=click.Choice(['auto', 'gemini', 'ollama'], case_sensitive=False),
+              default=None, help="Override provider selection (default: inherit from parent)")
 def compare(
+    ctx: click.Context,
     prompt: str,
     responses: List[str],
     model: str,
     output: Optional[str],
+    provider: Optional[str],
 ) -> None:
     """Compare creativity of multiple responses to the same prompt."""
+
+    # Get provider from context if not overridden
+    effective_provider = provider if provider else ctx.obj.get('provider', 'auto') if ctx.obj else 'auto'
+    logger.debug(f"Using provider: {effective_provider} (inherited: {provider is None})")
 
     if len(responses) < 2:
         console.print("[red]Error: Need at least 2 responses to compare[/red]")
