@@ -17,39 +17,39 @@ None - All PRs merged, main branch clean.
 1. **Add CSV/Text Document Support**
    - **Problem**: Only PDFs supported for document extraction; CSV mentioned in docstrings but not implemented
    - **Solution**: Expand `extract_document_content()` to handle CSV, TXT, JSON
-   - **Files**: `provider_router.py:442-448`
+   - **Files**: `src/mad_spark_alt/core/provider_router.py:442-448`
    - **Effort**: ~2 hours
 
 2. **Content Size Limits for Hybrid Routing**
    - **Problem**: 4000 token extraction could exceed Ollama context limits
    - **Solution**: Add truncation strategy or warning for very long extracts
-   - **Files**: `provider_router.py:471`
+   - **Files**: `src/mad_spark_alt/core/provider_router.py:471`
    - **Effort**: ~1 hour
 
 3. **CLI Help Text for Hybrid Mode**
    - **Problem**: `--provider auto` help doesn't mention hybrid routing behavior
    - **Solution**: Update CLI help to document that `--document/--url` triggers hybrid mode
-   - **Files**: `unified_cli.py`
+   - **Files**: `src/mad_spark_alt/unified_cli.py`
    - **Effort**: ~30 minutes
+
+4. **URL Validation for Security**
+   - **Problem**: URLs passed directly to Gemini without validation (potential SSRF risk)
+   - **Solution**: Add basic URL format validation to prevent SSRF attacks
+   - **Files**: `src/mad_spark_alt/core/provider_router.py:469-470`
+   - **Effort**: ~1 hour
 
 ### LOW PRIORITY
 
-4. **Performance Benchmark Test Flakiness**
+5. **Performance Benchmark Test Flakiness**
    - **Problem**: `test_real_ollama_performance_benchmark` is flaky (38s > 30s threshold)
    - **Solution**: Increase threshold to 60s or skip in CI
    - **Files**: `tests/test_ollama_provider.py:394`
 
-5. **Content Caching for Repeated Queries**
+6. **Content Caching for Repeated Queries**
    - **Problem**: Re-extracting same documents wastes API calls
    - **Solution**: Cache extracted content by file hash
-   - **Files**: `provider_router.py`
+   - **Files**: `src/mad_spark_alt/core/provider_router.py`
    - **Effort**: ~3 hours
-
-6. **URL Validation for Security**
-   - **Problem**: URLs passed directly to Gemini without validation
-   - **Solution**: Add basic URL format validation
-   - **Files**: `provider_router.py:469-470`
-   - **Effort**: ~1 hour
 
 ---
 
