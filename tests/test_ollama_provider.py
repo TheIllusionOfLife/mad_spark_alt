@@ -711,7 +711,7 @@ class TestOllamaProviderResourceCleanup:
 
     @pytest.mark.asyncio
     async def test_temperature_respected_for_structured_output(self):
-        """Test that user temperature is respected for structured output (unless too high)."""
+        """Test that user temperature is fully respected for structured output (no capping)."""
         provider = OllamaProvider()
 
         mock_response_data = {
@@ -743,17 +743,17 @@ class TestOllamaProviderResourceCleanup:
             # Should respect user's low temperature
             assert captured_payloads[-1]["options"]["temperature"] == 0.3
 
-            # Test 2: High temperature should be capped at 0.5
+            # Test 2: High temperature should now be passed through unchanged (no capping)
             request = LLMRequest(
                 user_prompt="Test",
                 response_schema=HypothesisListResponse,
-                temperature=0.95,  # High temperature
+                temperature=0.95,  # High temperature - no longer capped
                 max_tokens=100
             )
             await provider.generate(request)
 
-            # Should cap to 0.5 for schema compliance (not 0.0)
-            assert captured_payloads[-1]["options"]["temperature"] == 0.5
+            # User has full control - temperature is NOT capped anymore
+            assert captured_payloads[-1]["options"]["temperature"] == 0.95
 
         await provider.close()
 
