@@ -453,7 +453,7 @@ class GoogleProvider(LLMProviderInterface):
                 headers=headers,
                 retry_config=self.retry_config,
                 circuit_breaker=self.circuit_breaker,
-                timeout=300,  # 5 minutes timeout for complex questions
+                timeout=CONSTANTS.TIMEOUTS.GEMINI_REQUEST_TIMEOUT,
             )
         except Exception as e:
             raise LLMError(f"Google API request failed: {str(e)}", ErrorType.API_ERROR)
@@ -782,7 +782,7 @@ class GoogleProvider(LLMProviderInterface):
             url=url,
             headers=headers,
             json=payload,
-            timeout=300,
+            timeout=CONSTANTS.TIMEOUTS.GEMINI_REQUEST_TIMEOUT,
             retry_config=self.retry_config,
             circuit_breaker=self.circuit_breaker,
         )

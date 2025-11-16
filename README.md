@@ -134,8 +134,9 @@ msa "Your question" --provider ollama
 
 **Current Limitations:**
 - **Hybrid routing (PDF → Ollama)** is not yet implemented - auto mode switches entirely to Gemini when documents/URLs present
-- **Subcommands** (evaluate, batch-evaluate, etc.) do not inherit `--provider` flag - must use global config or direct provider setup
+- **Subcommands** (evaluate, batch-evaluate, etc.) do not inherit `--provider` flag - these subcommands always use their default providers
 - **SDK/API** clients have no automatic fallback - fallback logic is CLI-specific only
+- **Ollama temperature clamping** - when using structured output (QADI phases), temperatures above 0.8 are silently capped to 0.5 for schema compliance (logged as warning)
 
 ### Advanced Options
 

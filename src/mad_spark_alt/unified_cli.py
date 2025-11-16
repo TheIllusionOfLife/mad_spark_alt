@@ -879,7 +879,8 @@ async def _run_qadi_analysis(
                     isinstance(primary_error, (ConnectionError, OSError, asyncio.TimeoutError)) or
                     any(keyword in str(primary_error) for keyword in [
                         "Ollama", "ollama", "Connection", "aiohttp",
-                        "Failed to generate", "Failed to parse"
+                        "Failed to generate", "Failed to parse", "Failed to extract",
+                        "Failed to score", "Max retries exceeded"
                     ])
                 )
             )

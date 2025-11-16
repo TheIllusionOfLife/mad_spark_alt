@@ -729,6 +729,11 @@ class TestOllamaFallbackDetection:
             RuntimeError("Failed to generate hypotheses after max retries"),
             RuntimeError("Failed to parse deduction response"),
             Exception("Failed to generate action plan"),
+            # Additional phase failures
+            RuntimeError("Failed to extract core question"),
+            RuntimeError("Failed to extract enough hypotheses"),
+            RuntimeError("Failed to score hypothesis"),
+            Exception("Max retries exceeded for LLM call"),
         ]
 
         for error in ollama_failures:
@@ -738,7 +743,8 @@ class TestOllamaFallbackDetection:
                     isinstance(error, (ConnectionError, OSError, asyncio.TimeoutError)) or
                     any(keyword in str(error) for keyword in [
                         "Ollama", "ollama", "Connection", "aiohttp",
-                        "Failed to generate", "Failed to parse"
+                        "Failed to generate", "Failed to parse", "Failed to extract",
+                        "Failed to score", "Max retries exceeded"
                     ])
                 )
             )
