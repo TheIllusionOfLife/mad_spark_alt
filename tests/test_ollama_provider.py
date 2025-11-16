@@ -215,6 +215,87 @@ class TestOllamaProviderUnit:
             assert response.usage["prompt_tokens"] == 42
             assert response.usage["completion_tokens"] == 156
 
+    @pytest.mark.asyncio
+    async def test_high_temperature_passed_through_unchanged(self):
+        """Test that high temperature (>0.8) is passed through without capping.
+
+        Previously, temperatures >0.8 were silently capped to 0.5 for structured output.
+        Now users have full control over temperature settings.
+        """
+        provider = OllamaProvider()
+
+        # Mock response for structured output
+        mock_json_response = {
+            "hypotheses": [
+                {"id": "H1", "content": "High temperature hypothesis"}
+            ]
+        }
+
+        mock_response_data = {
+            "message": {"content": json.dumps(mock_json_response)},
+            "done": True,
+            "prompt_eval_count": 10,
+            "eval_count": 20,
+        }
+
+        # Capture the actual payload sent to API
+        captured_payload = {}
+
+        async def capture_request(*args, **kwargs):
+            nonlocal captured_payload
+            captured_payload = kwargs.get("json", {})
+            return mock_response_data
+
+        with patch(
+            'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
+            new=AsyncMock(side_effect=capture_request)
+        ):
+            # Use very high temperature (1.5) with structured output
+            request = LLMRequest(
+                user_prompt="Generate hypothesis",
+                temperature=1.5,  # High temperature that was previously capped to 0.5
+                response_schema=HypothesisListResponse,
+                response_mime_type="application/json"
+            )
+
+            await provider.generate(request)
+
+            # Verify temperature was NOT capped - user's exact value passed through
+            assert captured_payload["options"]["temperature"] == 1.5
+            # If it was capped, this would be 0.5 (old behavior)
+
+    @pytest.mark.asyncio
+    async def test_temperature_0_9_passed_through_unchanged(self):
+        """Test that temperature 0.9 (just above old 0.8 threshold) passes through."""
+        provider = OllamaProvider()
+
+        mock_response_data = {
+            "message": {"content": "text response"},
+            "done": True,
+            "prompt_eval_count": 10,
+            "eval_count": 5,
+        }
+
+        captured_payload = {}
+
+        async def capture_request(*args, **kwargs):
+            nonlocal captured_payload
+            captured_payload = kwargs.get("json", {})
+            return mock_response_data
+
+        with patch(
+            'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
+            new=AsyncMock(side_effect=capture_request)
+        ):
+            request = LLMRequest(
+                user_prompt="Test",
+                temperature=0.9,  # Just above old threshold
+            )
+
+            await provider.generate(request)
+
+            assert captured_payload["options"]["temperature"] == 0.9
+
 
 @pytest.mark.ollama
 @pytest.mark.integration
