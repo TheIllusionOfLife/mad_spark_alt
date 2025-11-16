@@ -264,8 +264,8 @@ class TestProviderInheritance:
         assert 'gemini' in result.output.lower()
         assert 'ollama' in result.output.lower()
 
-    def test_context_stores_provider_selection(self):
-        """Context should store provider selection for QADI analysis."""
+    def test_main_command_accepts_provider_flag(self):
+        """Main command should accept --provider flag for QADI analysis."""
         from mad_spark_alt.unified_cli import main
 
         runner = CliRunner()

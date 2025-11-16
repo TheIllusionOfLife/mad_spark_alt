@@ -530,12 +530,6 @@ def main(
     setup_logging(verbose)
     register_default_evaluators()
 
-    # Store provider and temperature in context for subcommand inheritance
-    ctx.ensure_object(dict)
-    ctx.obj['provider'] = provider
-    ctx.obj['temperature'] = temperature
-    ctx.obj['verbose'] = verbose
-
     # Initialize Google LLM provider if API key is available
     google_key = os.getenv("GOOGLE_API_KEY")
 

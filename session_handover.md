@@ -8,13 +8,14 @@
 
 ### PR #148: Provider Routing Enhancements - IN PROGRESS 🔄
 - **Branch**: `feature/provider-routing-enhancements`
-- **Status**: Implementation complete, running final tests
+- **Status**: CI passing, awaiting merge
 - **Key Features Implemented**:
   - ✅ SDK/API Fallback Architecture via `ProviderRouter.run_qadi_with_fallback()`
-  - ✅ `--provider` flag for `evaluate`, `batch-evaluate`, and `compare` subcommands
-  - ✅ Click context propagation for provider inheritance
-  - ✅ Centralized fallback logic (removed ~50 lines of duplication)
-  - ✅ 15 new tests (8 for SDK fallback, 7 for CLI inheritance)
+  - ✅ Centralized fallback logic (removed ~50 lines of duplication from CLI)
+  - ✅ 11 new tests (8 for SDK fallback, 3 for CLI provider selection)
+- **NOT Implemented** (removed after review feedback):
+  - ❌ `--provider` flag for subcommands (evaluate, batch-evaluate, compare don't use LLM providers)
+  - ❌ Click context propagation (subcommands don't inherit provider selection)
 
 ---
 
