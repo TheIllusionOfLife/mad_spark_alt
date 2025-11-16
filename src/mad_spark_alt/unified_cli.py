@@ -1322,8 +1322,6 @@ def list_evaluators() -> None:
 @click.option("--layers", "-l", help="Comma-separated list of layers (quantitative,llm_judge,human)")
 @click.option("--output", "-o", type=click.Path(), help="Save results to file")
 @click.option("--format", "output_format", type=click.Choice(["json", "table"]), default="table", help="Output format")
-@click.option("--provider", type=click.Choice(['auto', 'gemini', 'ollama'], case_sensitive=False),
-              default=None, help="Override provider selection (default: inherit from parent)")
 def evaluate(
     ctx: click.Context,
     text: Optional[str],
@@ -1334,15 +1332,8 @@ def evaluate(
     layers: Optional[str],
     output: Optional[str],
     output_format: str,
-    provider: Optional[str],
 ) -> None:
     """Evaluate creativity of AI output."""
-
-    # TODO: Provider selection is captured but not yet used in evaluation.
-    # This is preparatory for future provider-aware evaluation (e.g., LLM judge using specified provider).
-    # For now, the --provider flag enables CLI consistency and context inheritance.
-    _ = provider if provider else ctx.obj.get('provider', 'auto') if ctx.obj else 'auto'  # noqa: F841
-
     # Get input text
     if file:
         with open(file, "r") as f:
@@ -1411,8 +1402,6 @@ def evaluate(
 @click.option("--output-type", "-t", type=click.Choice(["text", "code"]), default="text", help="Output type")
 @click.option("--output", "-o", type=click.Path(), help="Save results to file")
 @click.option("--format", "output_format", type=click.Choice(["json", "table"]), default="table", help="Output format")
-@click.option("--provider", type=click.Choice(['auto', 'gemini', 'ollama'], case_sensitive=False),
-              default=None, help="Override provider selection (default: inherit from parent)")
 def batch_evaluate(
     ctx: click.Context,
     files: List[str],
@@ -1420,15 +1409,8 @@ def batch_evaluate(
     output_type: str,
     output: Optional[str],
     output_format: str,
-    provider: Optional[str],
 ) -> None:
     """Evaluate creativity of multiple AI outputs from files."""
-
-    # TODO: Provider selection is captured but not yet used in evaluation.
-    # This is preparatory for future provider-aware evaluation (e.g., LLM judge using specified provider).
-    # For now, the --provider flag enables CLI consistency and context inheritance.
-    _ = provider if provider else ctx.obj.get('provider', 'auto') if ctx.obj else 'auto'  # noqa: F841
-
     # Parse output type
     try:
         output_type_enum = OutputType(output_type)
@@ -1464,23 +1446,14 @@ def batch_evaluate(
 @click.option("--responses", "-r", multiple=True, required=True, help="Multiple responses to compare")
 @click.option("--model", "-m", default="test-model", help="Model name")
 @click.option("--output", "-o", type=click.Path(), help="Save results to file")
-@click.option("--provider", type=click.Choice(['auto', 'gemini', 'ollama'], case_sensitive=False),
-              default=None, help="Override provider selection (default: inherit from parent)")
 def compare(
     ctx: click.Context,
     prompt: str,
     responses: List[str],
     model: str,
     output: Optional[str],
-    provider: Optional[str],
 ) -> None:
     """Compare creativity of multiple responses to the same prompt."""
-
-    # TODO: Provider selection is captured but not yet used in evaluation.
-    # This is preparatory for future provider-aware evaluation (e.g., LLM judge using specified provider).
-    # For now, the --provider flag enables CLI consistency and context inheritance.
-    _ = provider if provider else ctx.obj.get('provider', 'auto') if ctx.obj else 'auto'  # noqa: F841
-
     if len(responses) < 2:
         console.print("[red]Error: Need at least 2 responses to compare[/red]")
         sys.exit(1)

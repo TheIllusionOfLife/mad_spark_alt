@@ -135,10 +135,11 @@ msa "Your question" --provider ollama
 **Current Limitations:**
 - **Hybrid routing (PDF → Ollama)** is not yet implemented - auto mode switches entirely to Gemini when documents/URLs present
 - **Ollama temperature clamping** - when using structured output (QADI phases), temperatures above 0.8 are silently capped to 0.5 for schema compliance (logged as warning)
+- **Subcommand provider selection** - `evaluate`, `batch-evaluate`, and `compare` subcommands do not support provider selection yet (they use their own evaluator registry, not QADI orchestration)
 
 **Recent Improvements:**
 - ✅ **SDK/API fallback** - SDK users now have automatic fallback via `ProviderRouter.run_qadi_with_fallback()`
-- ✅ **Subcommand provider inheritance** - `msa evaluate`, `msa batch-evaluate`, and `msa compare` now support `--provider` flag
+- ✅ **Main command provider selection** - `msa --provider` flag allows explicit provider selection for QADI analysis
 
 ### Advanced Options
 

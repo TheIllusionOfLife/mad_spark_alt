@@ -248,43 +248,7 @@ class TestUnifiedCLIErrorHandling:
 
 
 class TestProviderInheritance:
-    """Test provider inheritance from parent command to subcommands."""
-
-    def test_evaluate_shows_provider_option(self):
-        """Evaluate subcommand should have --provider option."""
-        from mad_spark_alt.unified_cli import main
-
-        runner = CliRunner()
-        result = runner.invoke(main, ['evaluate', '--help'])
-
-        assert result.exit_code == 0
-        assert '--provider' in result.output
-        assert 'gemini' in result.output.lower()
-        assert 'ollama' in result.output.lower()
-
-    def test_batch_evaluate_shows_provider_option(self):
-        """Batch-evaluate subcommand should have --provider option."""
-        from mad_spark_alt.unified_cli import main
-
-        runner = CliRunner()
-        result = runner.invoke(main, ['batch-evaluate', '--help'])
-
-        assert result.exit_code == 0
-        assert '--provider' in result.output
-        assert 'gemini' in result.output.lower()
-        assert 'ollama' in result.output.lower()
-
-    def test_compare_shows_provider_option(self):
-        """Compare subcommand should have --provider option."""
-        from mad_spark_alt.unified_cli import main
-
-        runner = CliRunner()
-        result = runner.invoke(main, ['compare', '--help'])
-
-        assert result.exit_code == 0
-        assert '--provider' in result.output
-        assert 'gemini' in result.output.lower()
-        assert 'ollama' in result.output.lower()
+    """Test provider selection for main command (not subcommands - they don't use providers yet)."""
 
     def test_main_command_provider_option_persists(self):
         """Main command's --provider option should be documented."""
@@ -301,14 +265,12 @@ class TestProviderInheritance:
         assert 'ollama' in result.output.lower()
 
     def test_context_stores_provider_selection(self):
-        """Context should store provider selection for subcommand inheritance."""
+        """Context should store provider selection for QADI analysis."""
         from mad_spark_alt.unified_cli import main
-        import click
 
         runner = CliRunner()
 
-        # We can't easily test context passing without executing subcommands,
-        # but we can verify the command structure accepts provider
+        # Verify the command structure accepts provider
         result = runner.invoke(main, ['--provider', 'gemini', '--help'])
 
         # Should not error
@@ -316,33 +278,17 @@ class TestProviderInheritance:
         # Help should still be accessible with provider flag
         assert 'Mad Spark Alt' in result.output
 
-    def test_provider_inheritance_in_subcommand_signature(self):
-        """Subcommands should inherit provider if not overridden."""
+    def test_subcommands_do_not_have_provider_option(self):
+        """Subcommands should NOT have --provider option (not yet implemented)."""
         from mad_spark_alt.unified_cli import evaluate, batch_evaluate, compare
 
-        # Check that Click-decorated functions have provider parameter
+        # Check that Click-decorated functions do NOT have provider parameter
         # Access the underlying Click command's params
         eval_params = {p.name for p in evaluate.params}
-        assert 'provider' in eval_params
+        assert 'provider' not in eval_params
 
         batch_params = {p.name for p in batch_evaluate.params}
-        assert 'provider' in batch_params
+        assert 'provider' not in batch_params
 
         compare_params = {p.name for p in compare.params}
-        assert 'provider' in compare_params
-
-    def test_provider_override_is_documented(self):
-        """Override behavior should be documented in help text."""
-        from mad_spark_alt.unified_cli import main
-
-        runner = CliRunner()
-        result = runner.invoke(main, ['evaluate', '--help'])
-
-        assert result.exit_code == 0
-        # Help should mention inheritance, override, or parent - or at least show the provider option with default None
-        # The help text says "default: inherit from parent"
-        help_lower = result.output.lower()
-        assert ('inherit' in help_lower or
-                'override' in help_lower or
-                'parent' in help_lower or
-                'default' in help_lower and 'provider' in help_lower)
+        assert 'provider' not in compare_params
