@@ -28,6 +28,7 @@ from .retry import (
     safe_aiohttp_request,
 )
 from .cost_utils import calculate_llm_cost_from_config, get_model_costs
+from .system_constants import CONSTANTS
 
 if TYPE_CHECKING:
     from .multimodal import MultimodalInput, MultimodalInputType, MultimodalSourceType, URLContextMetadata
@@ -832,29 +833,31 @@ class OllamaProvider(LLMProviderInterface):
 
     def __init__(
         self,
-        model: str = "gemma3:12b-it-qat",
-        base_url: str = "http://localhost:11434",
+        model: Optional[str] = None,
+        base_url: Optional[str] = None,
         retry_config: Optional[RetryConfig] = None,
     ):
         """
         Initialize Ollama provider.
 
         Args:
-            model: Ollama model name (default: gemma3:12b-it-qat)
-            base_url: Ollama API base URL (default: http://localhost:11434)
+            model: Ollama model name (default from CONSTANTS.LLM.OLLAMA_DEFAULT_MODEL)
+            base_url: Ollama API base URL (default from CONSTANTS.LLM.OLLAMA_DEFAULT_BASE_URL)
             retry_config: Optional retry configuration
         """
-        self.model = model
-        self.base_url = base_url
+        self.model = model or CONSTANTS.LLM.OLLAMA_DEFAULT_MODEL
+        self.base_url = base_url or CONSTANTS.LLM.OLLAMA_DEFAULT_BASE_URL
         self._session: Optional[aiohttp.ClientSession] = None
+        self._session_lock = asyncio.Lock()  # Protect concurrent session creation
         self.retry_config = retry_config or RetryConfig()
         self.circuit_breaker = CircuitBreaker()
 
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create aiohttp session."""
-        if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
-        return self._session
+        """Get or create aiohttp session (thread-safe)."""
+        async with self._session_lock:
+            if self._session is None or self._session.closed:
+                self._session = aiohttp.ClientSession()
+            return self._session
 
     async def generate(self, request: LLMRequest) -> LLMResponse:
         """
@@ -896,8 +899,20 @@ class OllamaProvider(LLMProviderInterface):
         if request.response_schema:
             schema = request.get_json_schema()
             payload["format"] = schema  # Ollama's format parameter
-            # Best practice: Use temperature=0 for schema compliance
-            payload["options"]["temperature"] = 0.0
+            # Recommend temperature=0 for schema compliance, but respect user's explicit setting
+            # Only override if temperature is the default (0.7) or very high (>0.8)
+            # Users who explicitly set low temperature via --temperature are respected
+            if request.temperature > 0.8:
+                logger.warning(
+                    f"High temperature ({request.temperature}) may cause structured output failures. "
+                    f"Using temperature=0.0 for schema compliance."
+                )
+                payload["options"]["temperature"] = 0.0
+            else:
+                # Respect user's temperature setting for structured output
+                logger.debug(
+                    f"Using user-specified temperature ({request.temperature}) for structured output"
+                )
             schema_type = schema.get("type", "unknown") if schema else "unknown"
             logger.debug(f"Using structured output with schema: {schema_type}")
 
@@ -913,7 +928,7 @@ class OllamaProvider(LLMProviderInterface):
                 json=payload,
                 retry_config=self.retry_config,
                 circuit_breaker=self.circuit_breaker,
-                timeout=180,  # 3 minutes timeout for local inference
+                timeout=CONSTANTS.TIMEOUTS.OLLAMA_INFERENCE_TIMEOUT,
             )
         except Exception as e:
             raise LLMError(
@@ -933,14 +948,25 @@ class OllamaProvider(LLMProviderInterface):
                 ErrorType.API_ERROR,
             ) from e
 
-        # Ollama doesn't provide token counts, estimate them
-        # Use characters / 4 as rough approximation (1 token ≈ 4 chars)
-        prompt_text = request.user_prompt
-        if request.system_prompt:
-            prompt_text = f"{request.system_prompt}\n{prompt_text}"
-
-        prompt_tokens = len(prompt_text) // 4
-        completion_tokens = len(content) // 4
+        # Extract token counts from Ollama API response
+        # Ollama provides: prompt_eval_count (input) and eval_count (output)
+        # Fall back to character-based estimation if not available
+        if "prompt_eval_count" in response_data and "eval_count" in response_data:
+            prompt_tokens = response_data["prompt_eval_count"]
+            completion_tokens = response_data["eval_count"]
+            logger.debug(
+                f"Ollama token counts from API: prompt={prompt_tokens}, completion={completion_tokens}"
+            )
+        else:
+            # Fallback: estimate using character count (1 token ≈ 4 chars)
+            prompt_text = request.user_prompt
+            if request.system_prompt:
+                prompt_text = f"{request.system_prompt}\n{prompt_text}"
+            prompt_tokens = len(prompt_text) // 4
+            completion_tokens = len(content) // 4
+            logger.warning(
+                "Ollama response missing token counts, using character-based estimation"
+            )
         total_tokens = prompt_tokens + completion_tokens
 
         # Count multimodal inputs
@@ -1037,7 +1063,7 @@ class OllamaProvider(LLMProviderInterface):
                 model_size=ModelSize.MEDIUM,
                 input_cost_per_1k=0.0,  # Free (local)
                 output_cost_per_1k=0.0,  # Free (local)
-                max_tokens=8192,  # gemma3 context window
+                max_tokens=CONSTANTS.LLM.OLLAMA_DEFAULT_MAX_TOKENS,
                 temperature=0.7,
                 top_p=0.9,
             )

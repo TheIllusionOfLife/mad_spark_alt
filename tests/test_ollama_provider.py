@@ -67,11 +67,14 @@ class TestOllamaProviderUnit:
         provider = OllamaProvider()
 
         # Mock safe_aiohttp_request to return expected response
+        # Include actual token counts as Ollama API provides them
         mock_response_data = {
             "message": {
                 "content": "This is a test response from Ollama."
             },
-            "done": True
+            "done": True,
+            "prompt_eval_count": 15,  # Actual token count from Ollama
+            "eval_count": 8,  # Actual completion token count
         }
 
         with patch(
@@ -91,7 +94,73 @@ class TestOllamaProviderUnit:
             assert response.model == "gemma3:12b-it-qat"
             assert response.content == "This is a test response from Ollama."
             assert response.cost == 0.0  # Ollama is free
-            assert response.usage["total_tokens"] > 0
+            # Verify actual token counts from API are used
+            assert response.usage["prompt_tokens"] == 15
+            assert response.usage["completion_tokens"] == 8
+            assert response.usage["total_tokens"] == 23
+
+    @pytest.mark.asyncio
+    async def test_generate_with_token_count_fallback(self):
+        """Test token estimation falls back to character-based when API doesn't provide counts."""
+        provider = OllamaProvider()
+
+        # Mock response WITHOUT token counts (older Ollama versions)
+        mock_response_data = {
+            "message": {
+                "content": "Short response"  # 14 characters = ~3 tokens
+            },
+            "done": True
+            # No prompt_eval_count or eval_count
+        }
+
+        with patch(
+            'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
+            new=AsyncMock(return_value=mock_response_data)
+        ):
+            request = LLMRequest(
+                user_prompt="Test prompt here",  # 16 chars = ~4 tokens
+                temperature=0.7,
+                max_tokens=100
+            )
+
+            response = await provider.generate(request)
+
+            # Should fall back to character-based estimation (1 token ≈ 4 chars)
+            assert response.usage["prompt_tokens"] == 4  # 16 // 4
+            assert response.usage["completion_tokens"] == 3  # 14 // 4
+            assert response.usage["total_tokens"] == 7
+
+    @pytest.mark.asyncio
+    async def test_generate_with_system_prompt_token_fallback(self):
+        """Test character-based fallback includes system prompt in estimation."""
+        provider = OllamaProvider()
+
+        mock_response_data = {
+            "message": {
+                "content": "Response text here"  # 18 chars = 4 tokens
+            },
+            "done": True
+            # No token counts - will use fallback
+        }
+
+        with patch(
+            'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
+            new=AsyncMock(return_value=mock_response_data)
+        ):
+            request = LLMRequest(
+                system_prompt="System message",  # 14 chars
+                user_prompt="User message",  # 12 chars
+                # Total: 14 + 1 (newline) + 12 = 27 chars = 6 tokens
+                temperature=0.7,
+                max_tokens=100
+            )
+
+            response = await provider.generate(request)
+
+            # Character-based: (14 + 1 + 12) // 4 = 27 // 4 = 6
+            assert response.usage["prompt_tokens"] == 6
+            assert response.usage["completion_tokens"] == 4  # 18 // 4
+            assert response.usage["total_tokens"] == 10
 
     @pytest.mark.asyncio
     async def test_generate_with_pydantic_schema(self):
@@ -120,7 +189,9 @@ class TestOllamaProviderUnit:
             "message": {
                 "content": json.dumps(mock_json_response)
             },
-            "done": True
+            "done": True,
+            "prompt_eval_count": 42,
+            "eval_count": 156,
         }
 
         with patch(
@@ -140,6 +211,9 @@ class TestOllamaProviderUnit:
             assert len(result.hypotheses) == 3
             assert result.hypotheses[0].id == "H1"
             assert result.hypotheses[0].content == "First hypothesis about AI safety"
+            # Verify token counts from API
+            assert response.usage["prompt_tokens"] == 42
+            assert response.usage["completion_tokens"] == 156
 
 
 @pytest.mark.ollama
@@ -349,3 +423,234 @@ class TestOllamaProviderErrorHandling:
 
         with pytest.raises(LLMError):
             await provider.generate(request)
+
+
+class TestOllamaProviderResourceCleanup:
+    """Tests for resource management and session cleanup."""
+
+    @pytest.mark.asyncio
+    async def test_session_closes_properly(self):
+        """Test that close() properly closes the aiohttp session."""
+        provider = OllamaProvider()
+
+        # Force session creation
+        session = await provider._get_session()
+        assert session is not None
+        assert not session.closed
+
+        # Close provider
+        await provider.close()
+
+        # Verify session is closed
+        assert provider._session is not None  # Reference still exists
+        assert provider._session.closed  # But it's closed
+
+    @pytest.mark.asyncio
+    async def test_close_without_session(self):
+        """Test that close() is safe when no session was created."""
+        provider = OllamaProvider()
+
+        # Session is None initially
+        assert provider._session is None
+
+        # Should not raise any errors
+        await provider.close()
+
+        # Still None after close
+        assert provider._session is None
+
+    @pytest.mark.asyncio
+    async def test_close_idempotent(self):
+        """Test that calling close() multiple times is safe."""
+        provider = OllamaProvider()
+
+        # Create session
+        session = await provider._get_session()
+        assert not session.closed
+
+        # Close multiple times
+        await provider.close()
+        await provider.close()  # Should not raise
+
+        assert provider._session.closed
+
+    @pytest.mark.asyncio
+    async def test_session_reuse_after_close(self):
+        """Test that new session is created after close."""
+        provider = OllamaProvider()
+
+        # Create first session
+        session1 = await provider._get_session()
+        assert not session1.closed
+
+        # Close it
+        await provider.close()
+        assert session1.closed
+
+        # Get new session - should create a fresh one
+        session2 = await provider._get_session()
+        assert session2 is not session1  # Different object
+        assert not session2.closed  # New session is open
+
+        # Cleanup
+        await provider.close()
+
+    @pytest.mark.asyncio
+    async def test_concurrent_session_access(self):
+        """Test that concurrent requests share the same session."""
+        provider = OllamaProvider()
+
+        # Mock the actual HTTP request
+        mock_response_data = {
+            "message": {"content": "Response"},
+            "done": True,
+            "prompt_eval_count": 10,
+            "eval_count": 5,
+        }
+
+        with patch(
+            'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
+            new=AsyncMock(return_value=mock_response_data)
+        ):
+            # Get sessions from multiple requests
+            import asyncio
+            sessions = []
+
+            async def make_request():
+                request = LLMRequest(user_prompt="Test", max_tokens=50)
+                await provider.generate(request)
+                return provider._session
+
+            # Run concurrent requests
+            results = await asyncio.gather(
+                make_request(),
+                make_request(),
+                make_request()
+            )
+
+            # All should share the same session instance
+            assert results[0] is results[1]
+            assert results[1] is results[2]
+            assert not results[0].closed
+
+        # Cleanup
+        await provider.close()
+
+    @pytest.mark.asyncio
+    async def test_session_cleanup_after_error(self):
+        """Test that session can be cleaned up even after request errors."""
+        provider = OllamaProvider()
+
+        with patch(
+            'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
+            new=AsyncMock(side_effect=Exception("Network error"))
+        ):
+            request = LLMRequest(user_prompt="Test", max_tokens=50)
+
+            # Request fails
+            from mad_spark_alt.core.retry import LLMError
+            with pytest.raises(LLMError):
+                await provider.generate(request)
+
+            # Session was created before the error
+            assert provider._session is not None
+
+        # Should still be able to close cleanly
+        await provider.close()
+        assert provider._session.closed
+
+    @pytest.mark.asyncio
+    async def test_uses_centralized_timeout_constant(self):
+        """Test that OllamaProvider uses CONSTANTS for timeout values."""
+        from mad_spark_alt.core.system_constants import CONSTANTS
+
+        # Verify the constant exists and has expected value
+        assert hasattr(CONSTANTS.TIMEOUTS, 'OLLAMA_INFERENCE_TIMEOUT')
+        assert CONSTANTS.TIMEOUTS.OLLAMA_INFERENCE_TIMEOUT == 180
+
+        # Verify OllamaProvider uses centralized defaults
+        assert hasattr(CONSTANTS.LLM, 'OLLAMA_DEFAULT_BASE_URL')
+        assert CONSTANTS.LLM.OLLAMA_DEFAULT_BASE_URL == "http://localhost:11434"
+
+        assert hasattr(CONSTANTS.LLM, 'OLLAMA_DEFAULT_MODEL')
+        assert CONSTANTS.LLM.OLLAMA_DEFAULT_MODEL == "gemma3:12b-it-qat"
+
+    @pytest.mark.asyncio
+    async def test_provider_uses_default_constants(self):
+        """Test that OllamaProvider initializes with centralized constants."""
+        from mad_spark_alt.core.system_constants import CONSTANTS
+
+        provider = OllamaProvider()
+
+        # Should use centralized defaults
+        assert provider.model == CONSTANTS.LLM.OLLAMA_DEFAULT_MODEL
+        assert provider.base_url == CONSTANTS.LLM.OLLAMA_DEFAULT_BASE_URL
+
+    @pytest.mark.asyncio
+    async def test_provider_allows_custom_overrides(self):
+        """Test that custom values override the defaults."""
+        custom_model = "llama3:8b"
+        custom_url = "http://remote-host:11434"
+
+        provider = OllamaProvider(model=custom_model, base_url=custom_url)
+
+        assert provider.model == custom_model
+        assert provider.base_url == custom_url
+
+    @pytest.mark.asyncio
+    async def test_session_lock_exists(self):
+        """Test that OllamaProvider has session lock for thread safety."""
+        import asyncio
+        provider = OllamaProvider()
+
+        # Verify lock exists
+        assert hasattr(provider, '_session_lock')
+        assert isinstance(provider._session_lock, asyncio.Lock)
+
+    @pytest.mark.asyncio
+    async def test_temperature_respected_for_structured_output(self):
+        """Test that user temperature is respected for structured output (unless too high)."""
+        provider = OllamaProvider()
+
+        mock_response_data = {
+            "message": {"content": '{"hypotheses": []}'},
+            "done": True,
+            "prompt_eval_count": 10,
+            "eval_count": 5,
+        }
+
+        captured_payloads = []
+
+        async def capture_payload(**kwargs):
+            captured_payloads.append(kwargs.get('json', {}))
+            return mock_response_data
+
+        with patch(
+            'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
+            new=AsyncMock(side_effect=capture_payload)
+        ):
+            # Test 1: Low temperature should be respected
+            request = LLMRequest(
+                user_prompt="Test",
+                response_schema=HypothesisListResponse,
+                temperature=0.3,  # Low temperature
+                max_tokens=100
+            )
+            await provider.generate(request)
+
+            # Should respect user's low temperature
+            assert captured_payloads[-1]["options"]["temperature"] == 0.3
+
+            # Test 2: High temperature should be overridden to 0.0
+            request = LLMRequest(
+                user_prompt="Test",
+                response_schema=HypothesisListResponse,
+                temperature=0.95,  # High temperature
+                max_tokens=100
+            )
+            await provider.generate(request)
+
+            # Should override to 0.0 for schema compliance
+            assert captured_payloads[-1]["options"]["temperature"] == 0.0
+
+        await provider.close()
