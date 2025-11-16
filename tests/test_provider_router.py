@@ -784,7 +784,7 @@ class TestHybridRouting:
             mock_orchestrator.run_qadi_cycle = AsyncMock(return_value=mock_result)
             mock_orch_class.return_value = mock_orchestrator
 
-            result, provider, used_fallback, metadata = await router.run_hybrid_qadi(
+            _result, _provider, _used_fallback, _metadata = await router.run_hybrid_qadi(
                 user_input="Analyze the chart",
                 document_paths=(),
                 urls=("https://example.com",),
@@ -836,7 +836,7 @@ class TestHybridRouting:
             mock_orchestrator.run_qadi_cycle = AsyncMock(return_value=mock_result)
             mock_orch_class.return_value = mock_orchestrator
 
-            result, provider, used_fallback, metadata = await router.run_hybrid_qadi(
+            _result, provider, used_fallback, metadata = await router.run_hybrid_qadi(
                 user_input="Question",
                 document_paths=(str(pdf_file),),
                 urls=(),
@@ -897,7 +897,7 @@ class TestHybridRouting:
             mock_orchestrator.run_qadi_cycle = AsyncMock(side_effect=fail_on_first_call)
             mock_orch_class.return_value = mock_orchestrator
 
-            result, provider, used_fallback, metadata = await router.run_hybrid_qadi(
+            _result, provider, used_fallback, _metadata = await router.run_hybrid_qadi(
                 user_input="Question",
                 document_paths=(str(pdf_file),),
                 urls=(),
@@ -965,7 +965,7 @@ class TestHybridRouting:
             mock_orchestrator.run_qadi_cycle = AsyncMock(return_value=mock_result)
             mock_orch_class.return_value = mock_orchestrator
 
-            result, provider, used_fallback, metadata = await router.run_hybrid_qadi(
+            _result, _provider, _used_fallback, metadata = await router.run_hybrid_qadi(
                 user_input="Question",
                 document_paths=(str(pdf1), str(pdf2)),
                 urls=("https://url1.com", "https://url2.com", "https://url3.com"),

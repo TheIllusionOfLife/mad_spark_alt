@@ -241,7 +241,7 @@ class TestOllamaProviderUnit:
         # Capture the actual payload sent to API
         captured_payload = {}
 
-        async def capture_request(*args, **kwargs):
+        async def capture_request(**kwargs):
             nonlocal captured_payload
             captured_payload = kwargs.get("json", {})
             return mock_response_data
@@ -278,7 +278,7 @@ class TestOllamaProviderUnit:
 
         captured_payload = {}
 
-        async def capture_request(*args, **kwargs):
+        async def capture_request(**kwargs):
             nonlocal captured_payload
             captured_payload = kwargs.get("json", {})
             return mock_response_data

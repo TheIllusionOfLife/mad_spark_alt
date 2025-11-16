@@ -865,9 +865,10 @@ async def _run_qadi_analysis(
     hybrid_metadata = None
 
     try:
-        # Use hybrid routing if documents/URLs present AND Ollama is available
-        # Hybrid mode: Gemini extracts document/URL content, Ollama runs QADI
-        if is_hybrid_mode and ollama_provider:
+        # Use hybrid routing if documents/URLs present
+        # Hybrid mode: Gemini extracts document/URL content once, then runs QADI
+        # This is more efficient than re-processing documents in each QADI phase
+        if is_hybrid_mode:
             result, active_provider, used_fallback, hybrid_metadata = await router.run_hybrid_qadi(
                 user_input=user_input,
                 document_paths=document_paths,

@@ -116,6 +116,27 @@ class ProviderRouter:
             available.append("Ollama")
         logger.info(f"ProviderRouter initialized with: {', '.join(available) or 'No providers'}")
 
+    def _is_ollama_connection_error(self, error: Exception) -> bool:
+        """
+        Check if an exception is a common Ollama connection/runtime error.
+
+        This helper provides consistent fallback detection across methods,
+        avoiding duplication and ensuring all error types are handled uniformly.
+
+        Args:
+            error: The exception to check
+
+        Returns:
+            True if error indicates Ollama connection/timeout failure,
+            False otherwise (likely a programming bug that should be raised)
+        """
+        return isinstance(
+            error, (ConnectionError, OSError, asyncio.TimeoutError)
+        ) or any(
+            keyword in str(error)
+            for keyword in _OLLAMA_FAILURE_KEYWORDS
+        )
+
     def select_provider(
         self,
         has_documents: bool = False,
@@ -335,15 +356,7 @@ class ProviderRouter:
             # Avoid catching all RuntimeError to prevent masking programming bugs
             is_ollama_failure = isinstance(
                 primary_provider, OllamaProvider
-            ) and (
-                isinstance(
-                    primary_error, (ConnectionError, OSError, asyncio.TimeoutError)
-                )
-                or any(
-                    keyword in str(primary_error)
-                    for keyword in _OLLAMA_FAILURE_KEYWORDS
-                )
-            )
+            ) and self._is_ollama_connection_error(primary_error)
 
             if is_ollama_failure and fallback_provider is not None:
                 logger.warning(
@@ -375,7 +388,7 @@ class ProviderRouter:
         Use Gemini to extract text content from documents and URLs.
 
         This enables hybrid routing: Gemini extracts content that Ollama
-        (gemma3) cannot process directly (PDFs, CSVs, web pages), then
+        (gemma3) cannot process directly (e.g., PDFs, web pages), then
         passes the extracted text to Ollama for QADI reasoning.
 
         Args:
@@ -392,7 +405,7 @@ class ProviderRouter:
 
         Example:
             >>> text, cost = await router.extract_document_content(
-            ...     document_paths=("report.pdf", "data.csv"),
+            ...     document_paths=("report.pdf",),
             ...     urls=("https://example.com/article",)
             ... )
             >>> # text contains extracted content ready for Ollama
@@ -421,6 +434,11 @@ class ProviderRouter:
         # Build multimodal inputs for documents
         multimodal_inputs = []
         for doc_path in document_paths:
+            doc_path_obj = Path(doc_path)
+            if not doc_path_obj.exists():
+                logger.warning(f"Document not found, skipping: {doc_path}")
+                continue
+
             mime_type, _ = mimetypes.guess_type(doc_path)
             if mime_type != "application/pdf":
                 if not doc_path.lower().endswith('.pdf'):
@@ -429,7 +447,7 @@ class ProviderRouter:
                     continue
                 mime_type = "application/pdf"
 
-            doc_size = Path(doc_path).stat().st_size
+            doc_size = doc_path_obj.stat().st_size
             multimodal_inputs.append(
                 MultimodalInput(
                     input_type=MultimodalInputType.DOCUMENT,
@@ -439,6 +457,11 @@ class ProviderRouter:
                     file_size=doc_size,
                 )
             )
+
+        # Check if we have anything to extract
+        if not multimodal_inputs and not urls:
+            logger.warning("No valid documents or URLs to extract content from")
+            return "", 0.0  # Return empty string and zero cost
 
         # Create extraction request
         request = LLMRequest(
@@ -539,11 +562,16 @@ class ProviderRouter:
         # gemma3 can handle images natively, so pass them directly
         image_inputs = []
         for img_path in image_paths:
+            img_path_obj = Path(img_path)
+            if not img_path_obj.exists():
+                logger.warning(f"Image not found, skipping: {img_path}")
+                continue
+
             mime_type, _ = mimetypes.guess_type(img_path)
             if not mime_type or not mime_type.startswith("image/"):
                 mime_type = "image/png"
 
-            img_size = Path(img_path).stat().st_size
+            img_size = img_path_obj.stat().st_size
             image_inputs.append(
                 MultimodalInput(
                     input_type=MultimodalInputType.IMAGE,
@@ -580,12 +608,7 @@ class ProviderRouter:
                 return result, self.ollama_provider, False, metadata
             except Exception as ollama_error:
                 # Check if this is an Ollama-specific failure
-                is_ollama_failure = isinstance(
-                    ollama_error, (ConnectionError, OSError, asyncio.TimeoutError)
-                ) or any(
-                    keyword in str(ollama_error)
-                    for keyword in _OLLAMA_FAILURE_KEYWORDS
-                )
+                is_ollama_failure = self._is_ollama_connection_error(ollama_error)
 
                 if is_ollama_failure:
                     logger.warning(
