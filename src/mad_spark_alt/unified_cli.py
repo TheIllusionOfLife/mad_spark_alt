@@ -764,6 +764,12 @@ async def _run_qadi_analysis(
     # Process documents - only PDFs become multimodal inputs
     # Text files (CSV, TXT, JSON, MD) are handled by ProviderRouter.extract_document_content()
     # in hybrid mode, or read directly in non-hybrid mode
+    #
+    # NOTE: Text files are read here even in hybrid mode (which re-reads them later).
+    # This is acceptable because:
+    # 1. We can't determine is_hybrid_mode until after provider selection
+    # 2. The second read is cached (fast mtime check, not full file read)
+    # 3. Refactoring to defer would require significant architectural changes
     supported_text_exts = {".txt", ".csv", ".json", ".md", ".markdown"}
     text_document_contents = []  # Store text file contents for non-hybrid mode
 
@@ -776,8 +782,8 @@ async def _run_qadi_analysis(
             if not Path(doc_path).exists():
                 raise ValueError(f"Document not found: {doc_path}")
 
-            # Read text content for non-hybrid mode (hybrid mode will call extract_document_content)
-            # This ensures text files are never silently dropped
+            # Read text content for non-hybrid mode
+            # (Hybrid mode will re-read via extract_document_content, but cache makes this fast)
             try:
                 with open(doc_path, "r", encoding="utf-8") as f:
                     content = f.read()
@@ -915,6 +921,20 @@ async def _run_qadi_analysis(
     # (hybrid mode handles documents via extract_document_content, avoiding duplication)
     if not is_hybrid_mode and text_document_contents:
         text_context = "\n\n".join(text_document_contents)
+
+        # Apply size limits to prevent overwhelming the LLM
+        # Estimate tokens (1 token ≈ 4 chars)
+        estimated_tokens = len(text_context) // 4
+        max_context_tokens = 4000  # Reasonable limit for context
+
+        if estimated_tokens > max_context_tokens * 1.5:
+            # Truncate if significantly over limit
+            truncate_chars = int(max_context_tokens * 4)
+            original_length = len(text_context)
+            text_context = text_context[:truncate_chars]
+            text_context += f"\n\n[Content truncated from ~{original_length // 4} to ~{max_context_tokens} tokens]"
+            print(f"⚠️  Text documents truncated to ~{max_context_tokens} tokens")
+
         user_input = f"Context from text documents:\n{text_context}\n\nQuestion: {user_input}"
 
     try:

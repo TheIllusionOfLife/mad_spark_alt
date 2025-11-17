@@ -868,9 +868,15 @@ class ProviderRouter:
         )
 
         if text_contexts:
+            # Truncate text contexts BEFORE embedding in prompt to prevent overflow
+            combined_text_contexts = "".join(text_contexts)
+            # Use 50% of max_tokens for text contexts, rest for PDF/URL extraction
+            combined_text_contexts = self._apply_size_limits(
+                combined_text_contexts, max_tokens // 2, warn_on_large=False
+            )
             extraction_prompt = (
                 f"Additional document content:\n"
-                f"{''.join(text_contexts)}\n\n"
+                f"{combined_text_contexts}\n\n"
                 f"{base_prompt}"
             )
         else:
