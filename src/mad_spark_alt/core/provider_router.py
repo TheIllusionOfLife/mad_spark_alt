@@ -83,20 +83,30 @@ _BLOCKED_METADATA_PATTERNS = [
 class ContentCache:
     """Simple in-memory cache for extracted document content."""
 
-    def __init__(self, ttl_seconds: int = 3600):  # 1 hour default
+    def __init__(self, ttl_seconds: int = 3600, max_entries: int = 100):  # 1 hour default
         """
         Initialize content cache.
 
         Args:
             ttl_seconds: Time-to-live for cache entries in seconds
+            max_entries: Maximum number of entries to prevent unbounded memory growth
         """
         self._cache: Dict[str, Tuple[str, float, float]] = {}  # hash -> (content, cost, timestamp)
         self.ttl = ttl_seconds
+        self.max_entries = max_entries
 
     def _compute_hash(self, file_path: Path) -> str:
-        """Compute SHA256 hash of file content."""
+        """
+        Compute SHA256 hash of file content using streaming to avoid memory spikes.
+
+        Uses chunked reading to handle large files efficiently without loading
+        entire file into memory.
+        """
+        hasher = sha256()
         with open(file_path, "rb") as f:
-            return sha256(f.read()).hexdigest()
+            for chunk in iter(lambda: f.read(8192), b""):
+                hasher.update(chunk)
+        return hasher.hexdigest()
 
     def get(self, file_path: Path) -> Optional[Tuple[str, float]]:
         """
@@ -132,10 +142,22 @@ class ContentCache:
         """
         try:
             file_hash = self._compute_hash(file_path)
+            # Evict oldest entry if cache is full (LRU-style eviction)
+            if len(self._cache) >= self.max_entries and file_hash not in self._cache:
+                self._evict_oldest()
             self._cache[file_hash] = (content, cost, time())
             logger.debug(f"Cached content for {file_path.name}")
         except (OSError, IOError) as e:
             logger.debug(f"Failed to cache {file_path}: {e}")
+
+    def _evict_oldest(self) -> None:
+        """Evict the oldest cache entry to make room for new content."""
+        if not self._cache:
+            return
+        # Find entry with oldest timestamp
+        oldest_key = min(self._cache.keys(), key=lambda k: self._cache[k][2])
+        del self._cache[oldest_key]
+        logger.debug(f"Evicted oldest cache entry to stay within {self.max_entries} limit")
 
     def clear(self) -> None:
         """Clear all cached content."""

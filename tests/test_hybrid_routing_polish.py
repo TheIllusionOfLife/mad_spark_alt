@@ -625,6 +625,44 @@ class TestContentCaching:
         # API should be called twice
         assert gemini.generate.call_count == 2
 
+    @pytest.mark.asyncio
+    async def test_cache_size_limit(self, tmp_path):
+        """Test that cache evicts oldest entries when max_entries is reached."""
+        from mad_spark_alt.core.provider_router import ContentCache
+
+        # Create cache with max 2 entries
+        cache = ContentCache(ttl_seconds=3600, max_entries=2)
+
+        # Create 3 files
+        file1 = tmp_path / "file1.txt"
+        file2 = tmp_path / "file2.txt"
+        file3 = tmp_path / "file3.txt"
+        file1.write_text("Content 1")
+        file2.write_text("Content 2")
+        file3.write_text("Content 3")
+
+        # Add first two files
+        cache.set(file1, "Content 1", 0.0)
+        import time
+        time.sleep(0.01)  # Ensure different timestamps
+        cache.set(file2, "Content 2", 0.0)
+
+        # Cache should have 2 entries
+        assert len(cache._cache) == 2
+
+        # Add third file - should evict oldest (file1)
+        time.sleep(0.01)
+        cache.set(file3, "Content 3", 0.0)
+
+        # Cache should still have 2 entries
+        assert len(cache._cache) == 2
+
+        # file1 should be evicted, file2 and file3 should be present
+        assert cache.get(file2) is not None
+        assert cache.get(file3) is not None
+        # file1 was evicted, so get() will recompute hash and find nothing
+        # (note: we can't check directly since get() recomputes hash)
+
 
 class TestCLIHelpText:
     """Test CLI help text updates for hybrid mode documentation."""
