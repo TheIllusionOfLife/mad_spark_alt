@@ -553,6 +553,12 @@ class ProviderRouter:
             >>> if used_fallback:
             ...     print("Ollama failed, completed with Gemini")
         """
+        # Validate all URLs for SSRF prevention BEFORE processing
+        # This ensures security checks run regardless of hybrid vs non-hybrid path
+        if urls:
+            for url in urls:
+                self._validate_url_security(url)
+
         # Import here to avoid circular dependency
         from .simple_qadi_orchestrator import SimpleQADIOrchestrator
 

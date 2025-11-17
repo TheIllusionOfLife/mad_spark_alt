@@ -21,6 +21,7 @@ from mad_spark_alt.core.llm_provider import (
     GoogleProvider,
     LLMProvider,
     LLMResponse,
+    OllamaProvider,
 )
 from mad_spark_alt.core.provider_router import ProviderRouter
 
@@ -123,6 +124,29 @@ class TestURLValidation:
 
         # Gemini should NOT be called if URL is invalid
         assert not gemini.generate.called
+
+    @pytest.mark.asyncio
+    async def test_url_validation_in_non_hybrid_path(self):
+        """Test that URL validation runs in run_qadi_with_fallback (non-hybrid path)."""
+        gemini = AsyncMock(spec=GoogleProvider)
+        ollama = AsyncMock(spec=OllamaProvider)
+
+        router = ProviderRouter(gemini_provider=gemini, ollama_provider=ollama)
+
+        # This should raise ValueError due to cloud metadata URL (link-local IP)
+        # BEFORE any provider is called (SSRF prevention)
+        # May be caught as "Private/internal IP" or "Cloud metadata" - both are valid blocks
+        with pytest.raises(ValueError, match="(Private/internal IP|Cloud metadata)"):
+            await router.run_qadi_with_fallback(
+                user_input="Test question",
+                primary_provider=gemini,
+                fallback_provider=ollama,
+                urls=["http://169.254.169.254/latest/meta-data/"],
+            )
+
+        # Neither provider should be called if URL is invalid
+        assert not gemini.generate.called
+        assert not ollama.generate.called
 
 
 class TestContentSizeLimits:
