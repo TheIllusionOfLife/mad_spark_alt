@@ -297,13 +297,17 @@ class ProviderRouter:
         # 2. Block internal/private IPs
         hostname = parsed.hostname
         if hostname:
-            # Block localhost variants
-            if hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+            # Decode percent-encoding and normalize to prevent bypasses like http://127.0.0.1%2e/
+            from urllib.parse import unquote
+            hostname_decoded = unquote(hostname).lower().rstrip('.')
+
+            # Block localhost variants (check decoded value)
+            if hostname_decoded in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
                 raise ValueError(f"Internal URLs not allowed: {hostname}")
 
             # Block private IP ranges
             try:
-                ip = ipaddress.ip_address(hostname)
+                ip = ipaddress.ip_address(hostname_decoded)
             except ValueError:
                 pass  # Not an IP address, hostname is fine
             else:
@@ -314,8 +318,12 @@ class ProviderRouter:
         # 3. Block cloud metadata endpoints (common SSRF targets)
         # Check hostname only (not entire URL) to avoid false positives on paths/queries
         # Use lowercase comparison to prevent case-sensitivity bypass (e.g., METADATA.GOOGLE.INTERNAL)
-        if parsed.hostname and any(pattern in parsed.hostname.lower() for pattern in _BLOCKED_METADATA_PATTERNS):
-            raise ValueError(f"Cloud metadata endpoints not allowed: {url}")
+        # Also decode percent-encoding to prevent bypasses
+        if parsed.hostname:
+            from urllib.parse import unquote
+            hostname_decoded = unquote(parsed.hostname).lower()
+            if any(pattern in hostname_decoded for pattern in _BLOCKED_METADATA_PATTERNS):
+                raise ValueError(f"Cloud metadata endpoints not allowed: {url}")
 
     def _read_text_document(self, file_path: Path) -> str:
         """

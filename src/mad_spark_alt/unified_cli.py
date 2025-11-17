@@ -727,6 +727,13 @@ async def _run_qadi_analysis(
 ) -> None:
     """Run QADI analysis with multi-provider support and optional evolution."""
 
+    # Validate URL count limit
+    if len(urls) > 20:
+        raise click.BadParameter(
+            f"Too many URLs provided ({len(urls)}). Maximum is 20 URLs.",
+            param_hint="--url"
+        )
+
     print("🧠 QADI Analysis with Multi-Provider Support")
     print("=" * 50 + "\n")
 

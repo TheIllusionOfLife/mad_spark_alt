@@ -98,6 +98,11 @@ class TestURLValidation:
             router._validate_url_security("http://METADATA.GOOGLE.INTERNAL/computeMetadata/")
         with pytest.raises(ValueError, match="Cloud metadata endpoints not allowed"):
             router._validate_url_security("http://Metadata.Azure.Com/instance")
+        # Percent-encoded bypass prevention
+        with pytest.raises(ValueError, match="Internal URLs not allowed"):
+            router._validate_url_security("http://127.0.0.1%2e/admin")
+        with pytest.raises(ValueError, match="Internal URLs not allowed"):
+            router._validate_url_security("http://local%68ost:8080/")
 
     @pytest.mark.asyncio
     async def test_url_validation_called_during_extraction(self):
