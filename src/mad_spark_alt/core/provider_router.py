@@ -288,7 +288,7 @@ class ContentCache:
         """
         current_time = time()
         expired_keys = [
-            k for k, (_, _, timestamp) in self._cache.items()
+            k for k, (_, _, timestamp, _, _) in self._cache.items()
             if current_time - timestamp >= self.ttl
         ]
         for key in expired_keys:
