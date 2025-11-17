@@ -81,7 +81,12 @@ _BLOCKED_METADATA_PATTERNS = [
 
 
 class ContentCache:
-    """Simple in-memory cache for extracted document content."""
+    """
+    In-memory cache for extracted document content with mtime tracking.
+
+    Caches both text documents and expensive API extractions (PDFs, URLs).
+    Uses mtime+size for fast lookups without re-hashing.
+    """
 
     def __init__(self, ttl_seconds: int = 3600, max_entries: int = 100):  # 1 hour default
         """
@@ -91,22 +96,40 @@ class ContentCache:
             ttl_seconds: Time-to-live for cache entries in seconds
             max_entries: Maximum number of entries to prevent unbounded memory growth
         """
-        self._cache: Dict[str, Tuple[str, float, float]] = {}  # hash -> (content, cost, timestamp)
+        # Cache structure: key -> (content, cost, timestamp, mtime, size)
+        self._cache: Dict[str, Tuple[str, float, float, float, int]] = {}
         self.ttl = ttl_seconds
         self.max_entries = max_entries
 
-    def _compute_hash(self, file_path: Path) -> str:
+    def _make_file_key(self, file_path: Path) -> Optional[Tuple[str, float, int]]:
         """
-        Compute SHA256 hash of file content using streaming to avoid memory spikes.
+        Create cache key from file path with mtime+size metadata.
 
-        Uses chunked reading to handle large files efficiently without loading
-        entire file into memory.
+        Returns:
+            Tuple of (key, mtime, size) or None if file inaccessible
         """
-        hasher = sha256()
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(8192), b""):
-                hasher.update(chunk)
-        return hasher.hexdigest()
+        try:
+            stat = file_path.stat()
+            # Key is just the absolute path string for files
+            # We use mtime+size for invalidation instead of content hash
+            return (str(file_path.absolute()), stat.st_mtime, stat.st_size)
+        except (OSError, IOError):
+            return None
+
+    def _make_extraction_key(self, doc_paths: tuple, urls: tuple) -> str:
+        """
+        Create composite cache key for PDF/URL extractions.
+
+        Combines sorted file paths and URLs to create a stable key.
+        """
+        parts = []
+        if doc_paths:
+            parts.extend(sorted(str(p) for p in doc_paths))
+        if urls:
+            parts.extend(sorted(urls))
+        # Hash the composite to keep keys reasonable length
+        composite = "|".join(parts)
+        return "extraction:" + sha256(composite.encode()).hexdigest()[:16]
 
     def get(self, file_path: Path) -> Optional[Tuple[str, float]]:
         """
@@ -118,17 +141,22 @@ class ContentCache:
         Returns:
             Tuple of (content, cost) if cached and valid, None otherwise
         """
-        try:
-            file_hash = self._compute_hash(file_path)
-            if file_hash in self._cache:
-                content, cost, timestamp = self._cache[file_hash]
-                if time() - timestamp < self.ttl:
-                    logger.debug(f"Cache hit for {file_path.name}")
-                    return content, cost
-                else:
-                    del self._cache[file_hash]  # Expired
-        except (OSError, IOError) as e:
-            logger.debug(f"Cache lookup failed for {file_path}: {e}")
+        key_data = self._make_file_key(file_path)
+        if not key_data:
+            return None
+
+        key, current_mtime, current_size = key_data
+
+        if key in self._cache:
+            content, cost, timestamp, cached_mtime, cached_size = self._cache[key]
+            # Check TTL and file modification
+            if time() - timestamp < self.ttl and current_mtime == cached_mtime and current_size == cached_size:
+                logger.debug(f"Cache hit for {file_path.name}")
+                return content, cost
+            else:
+                # Expired or modified
+                del self._cache[key]
+
         return None
 
     def set(self, file_path: Path, content: str, cost: float) -> None:
@@ -140,15 +168,99 @@ class ContentCache:
             content: Extracted content
             cost: Extraction cost
         """
-        try:
-            file_hash = self._compute_hash(file_path)
-            # Evict oldest entry if cache is full (LRU-style eviction)
-            if len(self._cache) >= self.max_entries and file_hash not in self._cache:
-                self._evict_oldest()
-            self._cache[file_hash] = (content, cost, time())
-            logger.debug(f"Cached content for {file_path.name}")
-        except (OSError, IOError) as e:
-            logger.debug(f"Failed to cache {file_path}: {e}")
+        key_data = self._make_file_key(file_path)
+        if not key_data:
+            return
+
+        key, mtime, size = key_data
+
+        # Evict oldest entry if cache is full (LRU-style eviction)
+        if len(self._cache) >= self.max_entries and key not in self._cache:
+            self._evict_oldest()
+
+        self._cache[key] = (content, cost, time(), mtime, size)
+        logger.debug(f"Cached content for {file_path.name}")
+
+    def get_extraction(self, doc_paths: tuple, urls: tuple) -> Optional[Tuple[str, float]]:
+        """
+        Get cached extraction result for composite document+URL inputs.
+
+        Checks file mtimes to detect modifications.
+
+        Args:
+            doc_paths: Tuple of document paths
+            urls: Tuple of URLs
+
+        Returns:
+            Tuple of (content, cost) if cached and valid, None otherwise
+        """
+        key = self._make_extraction_key(doc_paths, urls)
+
+        if key in self._cache:
+            content, cost, timestamp, cached_mtime_hash, _ = self._cache[key]
+
+            # Check TTL
+            if time() - timestamp >= self.ttl:
+                del self._cache[key]
+                return None
+
+            # For extractions with files, verify files haven't changed
+            if doc_paths:
+                # Compute current mtime hash
+                current_mtimes = []
+                for doc_path in doc_paths:
+                    try:
+                        stat = Path(doc_path).stat()
+                        current_mtimes.append(f"{stat.st_mtime}:{stat.st_size}")
+                    except (OSError, IOError):
+                        # File disappeared, cache invalid
+                        del self._cache[key]
+                        return None
+
+                current_mtime_hash = hash(tuple(current_mtimes))
+                if current_mtime_hash != cached_mtime_hash:
+                    # Files modified, cache invalid
+                    del self._cache[key]
+                    return None
+
+            logger.debug(f"Cache hit for extraction ({len(doc_paths)} docs, {len(urls)} URLs)")
+            return content, cost
+
+        return None
+
+    def set_extraction(self, doc_paths: tuple, urls: tuple, content: str, cost: float) -> None:
+        """
+        Cache extraction result for composite document+URL inputs.
+
+        Stores mtime hash for file-based extractions to detect modifications.
+
+        Args:
+            doc_paths: Tuple of document paths
+            urls: Tuple of URLs
+            content: Extracted content
+            cost: Extraction cost
+        """
+        key = self._make_extraction_key(doc_paths, urls)
+
+        # Evict oldest entry if cache is full
+        if len(self._cache) >= self.max_entries and key not in self._cache:
+            self._evict_oldest()
+
+        # Compute mtime hash for files
+        mtime_hash = 0
+        if doc_paths:
+            mtimes = []
+            for doc_path in doc_paths:
+                try:
+                    stat = Path(doc_path).stat()
+                    mtimes.append(f"{stat.st_mtime}:{stat.st_size}")
+                except (OSError, IOError):
+                    pass
+            mtime_hash = hash(tuple(mtimes)) if mtimes else 0
+
+        # Store with mtime hash in the 4th position (where individual files store mtime)
+        self._cache[key] = (content, cost, time(), float(mtime_hash), 0)
+        logger.debug(f"Cached extraction ({len(doc_paths)} docs, {len(urls)} URLs)")
 
     def _evict_oldest(self) -> None:
         """Evict the oldest cache entry to make room for new content."""
@@ -667,6 +779,14 @@ class ProviderRouter:
         for url in urls:
             self._validate_url_security(url)
 
+        # Check cache for full extraction (PDFs + URLs composite)
+        if document_paths or urls:
+            cached_extraction = self._content_cache.get_extraction(document_paths, urls)
+            if cached_extraction:
+                content, cost = cached_extraction
+                logger.info(f"Using cached extraction (saved ${cost:.6f})")
+                return content, cost
+
         # Build multimodal inputs for PDFs and text contexts for other files
         multimodal_inputs = []
         text_contexts = []
@@ -780,6 +900,10 @@ class ProviderRouter:
         logger.info(
             f"Extracted {len(extracted_content)} characters (cost: ${extraction_cost:.6f})"
         )
+
+        # Cache the extraction result (PDFs + URLs composite)
+        if multimodal_inputs or urls:
+            self._content_cache.set_extraction(document_paths, urls, extracted_content, extraction_cost)
 
         return extracted_content, extraction_cost
 
