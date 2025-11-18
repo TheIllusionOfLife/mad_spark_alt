@@ -166,14 +166,14 @@ class TestOllamaImagePathNormalization:
 
     @pytest.mark.asyncio
     async def test_path_traversal_rejected(self):
-        """Test that path traversal attempts are rejected.
+        """Test that relative path traversal attempts are rejected.
 
-        Security test: Ensures malicious paths like ../../../etc/passwd
+        Security test: Ensures malicious relative paths like ../../../etc/passwd
         are rejected before file reading.
         """
         provider = OllamaProvider()
         try:
-            with pytest.raises(ValueError, match="resolves outside project directory"):
+            with pytest.raises(ValueError, match="Relative path.*resolves outside project directory"):
                 multimodal_input = MultimodalInput(
                     input_type=MultimodalInputType.IMAGE,
                     source_type=MultimodalSourceType.FILE_PATH,
@@ -187,6 +187,45 @@ class TestOllamaImagePathNormalization:
                 await provider.generate(request)
         finally:
             await provider.close()
+
+    @pytest.mark.asyncio
+    async def test_absolute_path_outside_cwd_allowed(self):
+        """Test that absolute paths outside CWD are allowed.
+
+        Absolute paths like /tmp/image.png or /data/uploads/photo.jpg
+        should be allowed - users explicitly specified them.
+        Only relative paths that traverse outside CWD should be blocked.
+        """
+        provider = OllamaProvider()
+
+        def mock_read_base64(path):
+            # Mock successful read of absolute path outside CWD
+            return ("iVBORw0KGgoAAAANS==", "image/png")
+
+        with patch(
+            'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
+            new=AsyncMock(return_value={"message": {"content": "test"}, "done": True})
+        ), patch(
+            'mad_spark_alt.core.llm_provider.read_file_as_base64',
+            side_effect=mock_read_base64
+        ):
+            # Use absolute path outside CWD (e.g., /tmp)
+            multimodal_input = MultimodalInput(
+                input_type=MultimodalInputType.IMAGE,
+                source_type=MultimodalSourceType.FILE_PATH,
+                data="/tmp/test_image.png",
+                mime_type="image/png"
+            )
+            request = LLMRequest(
+                user_prompt="What does this say?",
+                multimodal_inputs=[multimodal_input]
+            )
+
+            # Should NOT raise ValueError - absolute paths are allowed
+            response = await provider.generate(request)
+            assert response is not None
+
+        await provider.close()
 
 
 @pytest.mark.ollama

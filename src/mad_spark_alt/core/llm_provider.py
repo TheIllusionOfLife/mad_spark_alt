@@ -1023,17 +1023,19 @@ class OllamaProvider(LLMProviderInterface):
                     if item.source_type == MultimodalSourceType.FILE_PATH:
                         # Normalize path to absolute for Ollama compatibility
                         # Ollama requires absolute paths or "./" prefix for images
-                        image_path = Path(item.data).resolve()
+                        original_path = Path(item.data)
+                        image_path = original_path.resolve()
 
-                        # Security: Prevent path traversal attacks
-                        # Ensure resolved path stays within project directory
-                        try:
-                            image_path.relative_to(Path.cwd())
-                        except ValueError:
-                            raise ValueError(
-                                f"Image path '{item.data}' resolves outside project directory. "
-                                f"Resolved to: {image_path}"
-                            ) from None
+                        # Security: Prevent path traversal attacks on relative paths
+                        # Only validate relative paths - absolute paths are user's responsibility
+                        if not original_path.is_absolute():
+                            try:
+                                image_path.relative_to(Path.cwd())
+                            except ValueError:
+                                raise ValueError(
+                                    f"Relative path '{item.data}' resolves outside project directory. "
+                                    f"Resolved to: {image_path}"
+                                ) from None
 
                         # Read file and convert to base64
                         base64_data, _ = read_file_as_base64(image_path)
