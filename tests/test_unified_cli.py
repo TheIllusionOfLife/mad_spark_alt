@@ -13,6 +13,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import tempfile
 from pathlib import Path
 
+from mad_spark_alt.core.provider_router import ProviderSelection
+
 
 class TestUnifiedCLIDefaultCommand:
     """Test default QADI command (no subcommand needed)."""
@@ -85,7 +87,6 @@ class TestUnifiedCLIDefaultCommand:
     def test_options_after_positional_argument(self):
         """Options should work AFTER positional argument with allow_interspersed_args=True."""
         from mad_spark_alt.unified_cli import main
-        from mad_spark_alt.core.provider_router import ProviderSelection
 
         with patch('mad_spark_alt.unified_cli._run_qadi_sync') as mock_qadi:
             with patch('os.getenv', return_value='fake-key'):
@@ -101,7 +102,6 @@ class TestUnifiedCLIDefaultCommand:
     def test_mixed_option_ordering(self):
         """Options should work in any order relative to positional argument."""
         from mad_spark_alt.unified_cli import main
-        from mad_spark_alt.core.provider_router import ProviderSelection
 
         with patch('mad_spark_alt.unified_cli._run_qadi_sync') as mock_qadi:
             with patch('os.getenv', return_value='fake-key'):
@@ -117,7 +117,6 @@ class TestUnifiedCLIDefaultCommand:
     def test_options_all_after_positional(self):
         """Multiple options should work when all placed after positional argument."""
         from mad_spark_alt.unified_cli import main
-        from mad_spark_alt.core.provider_router import ProviderSelection
 
         with patch('mad_spark_alt.unified_cli._run_qadi_sync') as mock_qadi:
             with patch('os.getenv', return_value='fake-key'):
@@ -134,7 +133,6 @@ class TestUnifiedCLIDefaultCommand:
     def test_backward_compatibility_options_before(self):
         """Verify backward compatibility: options before positional still work."""
         from mad_spark_alt.unified_cli import main
-        from mad_spark_alt.core.provider_router import ProviderSelection
 
         with patch('mad_spark_alt.unified_cli._run_qadi_sync') as mock_qadi:
             with patch('os.getenv', return_value='fake-key'):
