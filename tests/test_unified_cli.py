@@ -292,3 +292,67 @@ class TestProviderInheritance:
 
         compare_params = {p.name for p in compare.params}
         assert 'provider' not in compare_params
+
+
+class TestPDFValidation:
+    """Test PDF validation in --image flag."""
+
+    def test_pdf_rejected_in_image_flag(self):
+        """PDF files should be rejected when passed to --image."""
+        from mad_spark_alt.unified_cli import main
+
+        runner = CliRunner()
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
+            pdf_path = tmp.name
+            try:
+                result = runner.invoke(main, [
+                    '--image', pdf_path,
+                    'Test question'
+                ])
+
+                assert result.exit_code != 0
+                assert result.exception is not None
+                error_msg = str(result.exception)
+                assert 'PDF files should be passed to --document' in error_msg
+                assert '--document' in error_msg
+            finally:
+                Path(pdf_path).unlink(missing_ok=True)
+
+    def test_pdf_case_insensitive(self):
+        """PDF validation should be case-insensitive."""
+        from mad_spark_alt.unified_cli import main
+
+        runner = CliRunner()
+        with tempfile.NamedTemporaryFile(suffix='.PDF', delete=False) as tmp:
+            pdf_path = tmp.name
+            try:
+                result = runner.invoke(main, [
+                    '--image', pdf_path,
+                    'Test question'
+                ])
+
+                assert result.exit_code != 0
+                assert result.exception is not None
+                assert 'PDF files should be passed to --document' in str(result.exception)
+            finally:
+                Path(pdf_path).unlink(missing_ok=True)
+
+    def test_image_files_allowed(self):
+        """Non-PDF image files should be allowed in --image."""
+        from mad_spark_alt.unified_cli import main
+
+        runner = CliRunner()
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+            png_path = tmp.name
+            try:
+                with patch('mad_spark_alt.unified_cli._run_qadi_sync'):
+                    with patch('os.getenv', return_value='fake-key'):
+                        result = runner.invoke(main, [
+                            '--image', png_path,
+                            'Test question'
+                        ])
+
+                        # Should not fail with PDF error
+                        assert 'PDF files should be passed to --document' not in result.output
+            finally:
+                Path(png_path).unlink(missing_ok=True)
