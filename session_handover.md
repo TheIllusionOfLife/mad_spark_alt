@@ -1,31 +1,12 @@
 # Session Handover
 
-## Last Updated: November 18, 2025 5:35 PM JST
+## Last Updated: November 19, 2025 01:32 AM JST
 
 ---
 
 ## Current Work In Progress
 
-### PR #154: Fix Ollama Image Path Normalization - IN REVIEW ⏳
-
-**Branch**: `fix/ollama-image-paths`
-**Status**: Awaiting CI checks and code review
-**Created**: [PR #154](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/154)
-
-**Summary**: Normalize relative image paths to absolute for Ollama compatibility.
-
-**Work Completed**:
-- ✅ TDD approach: 7 comprehensive tests (4 unit + 3 integration)
-- ✅ Implementation: 5-line fix in `OllamaProvider._build_messages()`
-- ✅ All tests passing locally (4/4 new tests, 9/9 existing Ollama tests)
-- ✅ Manual user testing verified with real Ollama CLI
-- ✅ PR created with detailed documentation
-
-**Next Steps**:
-1. Monitor CI checks (pytest, mypy, build)
-2. Address any code review feedback
-3. Verify CI passes completely
-4. Merge after approval
+**No active work in progress** - All planned items completed ✅
 
 ---
 
@@ -79,19 +60,17 @@ Following systematic 4-PR approach from comprehensive UAT analysis:
 - ✅ All 25 CLI tests passing
 - ✅ No documentation changes needed (examples already use desired syntax)
 
-### PR #4: Fix Evaluate Subcommand - COMPLETED ✅ (November 18, 2025)
-**Actual Effort**: ~90 minutes (TDD approach)
+### PR #158: Convert Evaluate to Flag Mode - MERGED ✅ (November 19, 2025)
+**Actual Effort**: ~180 minutes (TDD + comprehensive review response)
 **Branch**: `fix/evaluate-flag-mode`
+**Merged**: [PR #158](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/158)
 
 ### Issue #4: Evaluate Subcommand Broken - RESOLVED ✅
 
+**Initial Implementation** (~90 minutes):
 - **Problem**: All evaluate examples fail with "No such command 'text'" due to Click argument parsing conflicts with subcommands
 - **Root Cause**: Click's `@click.argument()` on a group with `invoke_without_command=True` creates unsolvable parsing conflicts
 - **Solution**: Convert `evaluate` from broken subcommand to working `--evaluate` flag (similar to `--evolve`)
-- **Files Changed**:
-  - `src/mad_spark_alt/unified_cli.py`: Added --evaluate flag, mode routing, _run_evaluation_sync() helper, updated docstring/help
-  - `tests/test_unified_cli_evaluate.py`: New test file with 15 comprehensive tests
-  - `README.md`: Updated evaluate examples to use flag syntax
 
 **Changes Made**:
 - ✅ Added `--evaluate`/`--eval` flag for evaluation mode (flag-based like --evolve)
@@ -108,6 +87,26 @@ Following systematic 4-PR approach from comprehensive UAT analysis:
 - ✅ README updated with new evaluate syntax
 - ✅ PR #157 compatibility: Both `msa --evaluate "text"` and `msa "text" --evaluate` work
 
+**Review Feedback Response** (~90 minutes):
+- ✅ **Format Handling**: Added proper markdown support (`--format md` now produces actual markdown)
+  - Implemented `_display_markdown_results()` and `_save_markdown_results()`
+  - Fixed `--output` file format mismatch (table format saves JSON, md format saves .md)
+- ✅ **Documentation Updates**: Fixed `docs/cli_usage.md` and `docs/CLI_MIGRATION.md` to show new flag syntax
+- ✅ **Flag Guarding**: Added validation to prevent evaluate-only options without `--evaluate`
+  - Clear error listing problematic options
+  - Helpful usage hint: "Did you mean to run: msa --evaluate..."
+  - 4 new tests for flag guarding validation
+- ✅ **Total Test Coverage**: 19 tests (15 original + 4 flag guarding)
+- ✅ All 1110 tests passing, mypy clean, CI passing
+
+**Files Changed** (7 files, +673/-117 lines):
+- `src/mad_spark_alt/unified_cli.py`: Core implementation + format handling + flag guarding
+- `tests/test_unified_cli_evaluate.py`: Comprehensive test suite (290 lines)
+- `docs/cli_usage.md`: Updated examples
+- `docs/CLI_MIGRATION.md`: Corrected migration guide
+- `README.md`: Updated quick reference
+- `session_handover.md`: Documentation updates
+
 **Naming Scheme**:
 - `--evolve` / `-e` = Evolution mode
 - `--evaluate` / `--eval` = Evaluation mode
@@ -117,11 +116,11 @@ Following systematic 4-PR approach from comprehensive UAT analysis:
 
 ## Total Remaining Effort
 
-- **PR #154 Completion**: 15-30 minutes (CI monitoring + review responses)
-- **PR #2**: 65 minutes
-- **~~PR #3~~**: ~~90 minutes~~ ✅ **COMPLETED in 20 minutes**
-- **~~PR #4~~**: ~~60 minutes~~ ✅ **COMPLETED in 90 minutes**
-- **Total**: ~80 minutes remaining for complete resolution of all Japanese UAT issues (just PR #2)
+- **PR #2**: 65 minutes (Japanese language support + PDF validation)
+- **~~PR #154~~**: ✅ **MERGED** (Ollama image path normalization)
+- **~~PR #157~~**: ✅ **MERGED in 20 minutes** (CLI syntax flexibility)
+- **~~PR #158~~**: ✅ **MERGED in 180 minutes** (Evaluate flag mode + comprehensive review response)
+- **Total**: ~65 minutes remaining for complete resolution of all Japanese UAT issues (just PR #2)
 
 ---
 
@@ -156,6 +155,37 @@ Following systematic 4-PR approach from comprehensive UAT analysis:
 ---
 
 ## Recently Completed
+
+### PR #158: Evaluate Flag Mode - MERGED ✅ (November 19, 2025)
+**Effort**: 180 minutes (90min initial + 90min review response)
+**Files**: 7 files changed, +673/-117 lines
+
+**Summary**: Converted broken `evaluate` subcommand to working `--evaluate` flag mode, plus comprehensive review feedback implementation.
+
+**Key Achievements**:
+- ✅ Flag-based mode switching (like `--evolve`)
+- ✅ Proper markdown format support (`--format md` produces actual .md)
+- ✅ Flag guarding validation (evaluate-only options require `--evaluate`)
+- ✅ Documentation updates (cli_usage.md, CLI_MIGRATION.md)
+- ✅ 19 comprehensive tests (15 original + 4 flag guarding)
+- ✅ All 1110 tests passing
+
+### PR #157: CLI Syntax Flexibility - MERGED ✅ (November 18, 2025)
+**Effort**: 20 minutes
+**Files**: 2 files changed, +16 lines
+
+**Summary**: Enable flexible CLI argument ordering with `allow_interspersed_args=True`.
+- ✅ Both `msa --provider gemini "query"` and `msa "query" --provider gemini` work
+- ✅ 4 new tests for flexible ordering
+- ✅ Fully backward compatible
+
+### PR #154: Ollama Image Path Fix - MERGED ✅ (November 18, 2025)
+**Effort**: 45 minutes (TDD)
+**Files**: 2 files changed, +60 lines
+
+**Summary**: Normalize relative image paths to absolute for Ollama compatibility.
+- ✅ 7 comprehensive tests (4 unit + 3 integration)
+- ✅ 5-line fix in `OllamaProvider._build_messages()`
 
 ### PR #151: Hybrid Routing Polish - MERGED ✅ (November 18, 2025)
 **11 Commits with 1343 additions, 53 deletions across 6 files**:
@@ -222,6 +252,59 @@ Following systematic 4-PR approach from comprehensive UAT analysis:
 
 ## Session Learnings
 
+### Comprehensive Code Review Response (NEW - PR #158)
+- **Pattern**: Systematic review feedback handling with multiple rounds
+- **Approach**:
+  1. Identify ALL issues from review (5 issues across 3 categories)
+  2. Prioritize by severity (Evaluation Output > Documentation > Flag Guarding)
+  3. Implement fixes systematically with tests
+  4. Verify all fixes together before push
+- **Key Implementation**:
+  - **Format Handling**: Branch on `json`, `md`, `table` with appropriate display/save functions
+  - **Flag Guarding**: Validate evaluate-only options require `--evaluate` flag
+  - **Documentation**: Update ALL docs to match new syntax (cli_usage.md, CLI_MIGRATION.md)
+- **Test Coverage**: Add tests for new validation (4 flag guarding tests)
+- **Result**: Single comprehensive commit addressing all 5 issues + 4 new tests
+- **Files Modified**: `unified_cli.py` (+249 lines for markdown handling + validation), test file (+44 lines), 2 doc files
+
+### CLI Flag Guarding Pattern (NEW - PR #158)
+- **Problem**: Mode-specific options can be used without mode flag, causing silent mode switching
+- **Solution**: Validate option usage before mode routing
+- **Implementation**:
+  ```python
+  # Build dict of mode-specific options with values
+  mode_only_options = {
+      'option_name': option_value if option_value != default else None
+  }
+  # Check if any used without mode flag
+  if not mode_flag:
+      used_options = [name for name, value in mode_only_options.items() if value]
+      if used_options:
+          # Show error with helpful hint
+  ```
+- **Pattern**: `{option: value or None}` dict → filter non-None → show error with usage hint
+- **User Experience**: Clear error message + "Did you mean: ..." suggestion
+- **Added to**: Project-specific pattern (CLI validation)
+
+### Markdown Export for Evaluation Results (NEW - PR #158)
+- **Pattern**: Separate display vs save functions for each format
+- **Implementation**:
+  - `_display_markdown_results()`: Print to console
+  - `_save_markdown_results()`: Write to file
+  - Both use same formatting logic but different outputs
+- **Format Structure**:
+  ```markdown
+  # Evaluation Results
+  ## Summary (scores, timing)
+  ## Aggregate Scores (if available)
+  ## [Layer] Results
+  ### [Output] - [Evaluator]
+  **Scores:** (bulleted list)
+  **Explanations:** (if available)
+  ```
+- **Pattern**: Build `lines = []` → append sections → `"\n".join(lines)`
+- **Added to**: Project-specific pattern (evaluation output formatting)
+
 ### Cache Type Consistency (CRITICAL)
 - **Problem**: Type mismatch between cache set/get causes silent invalidation
 - **Root Cause**: Storing `float(hash_value)` but comparing against `int` from `hash()` → precision loss
@@ -283,11 +366,11 @@ Following systematic 4-PR approach from comprehensive UAT analysis:
 
 ## Code Quality Status
 
-- **Total Tests**: 1121 passing (29 new in PR #151)
-- **Type Checking**: mypy clean (80 source files)
-- **CI/CD**: All checks passing (test, build, claude-review, CodeRabbit)
-- **Documentation**: README, CLAUDE.md, session_handover.md, global patterns updated
-- **Coverage**: Comprehensive edge cases (SSRF attacks, cache invalidation, async I/O, size limits)
+- **Total Tests**: 1110 passing (19 evaluate tests in PR #158, including 4 flag guarding tests)
+- **Type Checking**: mypy clean (all source files)
+- **CI/CD**: All checks passing (test, build, claude-review)
+- **Documentation**: README, CLAUDE.md, session_handover.md, cli_usage.md, CLI_MIGRATION.md all updated
+- **Coverage**: CLI validation, format handling, flag guarding, comprehensive edge cases
 
 ---
 
@@ -303,7 +386,14 @@ Following systematic 4-PR approach from comprehensive UAT analysis:
 
 ## Previous Sessions Summary
 
-### Session: November 18, 2025 11:19 AM JST - Current
+### Session: November 18-19, 2025 5:35 PM JST - 01:32 AM JST
+- Completed 3 PRs: #154 (Ollama paths), #157 (CLI syntax), #158 (Evaluate flag)
+- PR #158: 180 minutes total (initial implementation + comprehensive review response)
+- 7 files changed (+673/-117), 19 tests, all passing
+- Key achievements: Flag guarding validation, markdown format support, documentation updates
+- Systematic review feedback handling (5 issues across 3 categories)
+
+### Session: November 18, 2025 11:19 AM JST - 5:35 PM JST
 - Hybrid routing polish (PR #151)
 - 1343 lines added, 29 new comprehensive tests
 - Fixed 5 critical bugs from code review (cache type mismatch, inline imports, async I/O)
