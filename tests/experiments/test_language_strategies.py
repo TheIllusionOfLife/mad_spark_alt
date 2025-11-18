@@ -135,8 +135,11 @@ class LanguageMirroringExperiment:
         finally:
             await provider.close()
 
-    async def run_all_experiments(self) -> List[ExperimentResult]:
-        """Run all 45 experiments in parallel.
+    async def run_all_experiments(self, batch_size: int = 5) -> List[ExperimentResult]:
+        """Run all 45 experiments in batches to avoid overwhelming Ollama.
+
+        Args:
+            batch_size: Number of concurrent requests (default: 5)
 
         Returns:
             List of all experiment results
@@ -149,20 +152,30 @@ class LanguageMirroringExperiment:
         for strategy in strategies:
             for lang_code, prompt in TEST_PROMPTS.items():
                 for run_num in range(1, runs_per_combo + 1):
-                    task = self.run_single_test(
-                        strategy=strategy,
-                        language=lang_code,
-                        prompt=prompt,
-                        run_num=run_num
-                    )
-                    tasks.append(task)
+                    task_params = (strategy, lang_code, prompt, run_num)
+                    tasks.append(task_params)
 
-        print(f"\nStarting {len(tasks)} language mirroring experiments in parallel...")
-        print("This may take 10-15 minutes with Ollama...")
+        print(f"\nStarting {len(tasks)} language mirroring experiments in batches of {batch_size}...")
+        print("This may take 20-30 minutes with Ollama...")
 
-        results = await asyncio.gather(*tasks)
+        results = []
+        for i in range(0, len(tasks), batch_size):
+            batch = tasks[i:i + batch_size]
+            print(f"\nProcessing batch {i//batch_size + 1}/{(len(tasks) + batch_size - 1)//batch_size} ({len(batch)} tests)...")
 
-        print(f"✅ All {len(results)} experiments completed!")
+            batch_coroutines = [
+                self.run_single_test(strategy, lang, prompt, run_num)
+                for strategy, lang, prompt, run_num in batch
+            ]
+            batch_results = await asyncio.gather(*batch_coroutines)
+            results.extend(batch_results)
+
+            # Show progress
+            completed = len(results)
+            success_count = sum(1 for r in results if r.success)
+            print(f"  Progress: {completed}/{len(tasks)} tests | {success_count} successes ({success_count/completed*100:.1f}%)")
+
+        print(f"\n✅ All {len(results)} experiments completed!")
         return results
 
     def analyze_results(self) -> Dict:

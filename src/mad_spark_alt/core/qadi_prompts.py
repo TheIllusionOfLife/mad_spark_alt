@@ -13,6 +13,7 @@ The QADI process:
 
 from typing import Dict
 
+from .language_utils import get_strategy_1_instruction
 from .system_constants import CONSTANTS
 
 
@@ -22,7 +23,7 @@ class QADIPrompts:
     @staticmethod
     def get_questioning_prompt(user_input: str) -> str:
         """Get the prompt for extracting the core question."""
-        return f"""As an analytical expert, identify THE single most important question to answer based on the user's input.
+        return f"""{get_strategy_1_instruction()}As an analytical expert, identify THE single most important question to answer based on the user's input.
 
 User's input:
 {user_input}
@@ -39,7 +40,7 @@ Format: "Q: [Your core question]"
     @staticmethod
     def get_abduction_prompt(user_input: str, core_question: str, num_hypotheses: int = 3) -> str:
         """Get the prompt for generating hypotheses."""
-        return f"""As a creative problem-solver, generate {num_hypotheses} distinct approaches that could answer this core question.
+        return f"""{get_strategy_1_instruction()}As a creative problem-solver, generate {num_hypotheses} distinct approaches that could answer this core question.
 
 Core Question: {core_question}
 
@@ -85,7 +86,7 @@ IMPORTANT OUTPUT FORMAT - You MUST follow this exact format without any modifica
         user_input: str, core_question: str, hypotheses: str
     ) -> str:
         """Get the prompt for evaluating hypotheses and determining the answer."""
-        return f"""As an analytical expert, evaluate each approach and determine the best answer to our core question.
+        return f"""{get_strategy_1_instruction()}As an analytical expert, evaluate each approach and determine the best answer to our core question.
 
 Core Question: {core_question}
 
@@ -139,7 +140,7 @@ Action Plan:
     @staticmethod
     def get_induction_prompt(user_input: str, core_question: str, answer: str) -> str:
         """Get the prompt for verifying the answer with examples."""
-        return f"""As a thoughtful analyst, verify the recommended approach by examining real-world applications.
+        return f"""{get_strategy_1_instruction()}As a thoughtful analyst, verify the recommended approach by examining real-world applications.
 
 Core Question: {core_question}
 Recommended Approach: {answer}

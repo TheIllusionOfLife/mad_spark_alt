@@ -9,6 +9,7 @@ and philosophical viewpoints.
 from typing import Dict
 
 from .intent_detector import QuestionIntent
+from .language_utils import get_strategy_1_instruction
 
 
 class MultiPerspectivePrompts:
@@ -73,7 +74,7 @@ class MultiPerspectivePrompts:
     ) -> str:
         """Get perspective-specific questioning prompt."""
         config = self.perspective_prompts[perspective]
-        return f"""As a {config['role']}, identify THE single most important question focusing on {config['question_focus']}.
+        return f"""{get_strategy_1_instruction()}As a {config['role']}, identify THE single most important question focusing on {config['question_focus']}.
 
 User's input:
 {user_input}
@@ -92,7 +93,7 @@ Format: "Q: [Your core question]"
     ) -> str:
         """Get perspective-specific hypothesis generation prompt."""
         config = self.perspective_prompts[perspective]
-        return f"""As a {config['role']}, generate 3 specific hypotheses focusing on {config['hypothesis_focus']}.
+        return f"""{get_strategy_1_instruction()}As a {config['role']}, generate 3 specific hypotheses focusing on {config['hypothesis_focus']}.
 
 Core Question: {core_question}
 
@@ -139,7 +140,7 @@ H3: [Third hypothesis]
             [f"* {name}: [score] - [brief explanation]" for name in criteria_names]
         )
 
-        return f"""As a {config['role']}, evaluate each hypothesis based on {config['evaluation_criteria']}.
+        return f"""{get_strategy_1_instruction()}As a {config['role']}, evaluate each hypothesis based on {config['evaluation_criteria']}.
 
 Core Question: {core_question}
 
@@ -181,7 +182,7 @@ Action Plan:
     ) -> str:
         """Get perspective-specific verification prompt."""
         config = self.perspective_prompts[perspective]
-        return f"""As a {config['role']}, verify the answer by examining {config['verification_focus']}.
+        return f"""{get_strategy_1_instruction()}As a {config['role']}, verify the answer by examining {config['verification_focus']}.
 
 Core Question: {core_question}
 Our Answer: {answer}
