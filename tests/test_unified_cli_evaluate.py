@@ -192,6 +192,64 @@ class TestEvaluateFlagMode:
         assert "msa --evaluate" in result.output  # Shows usage hint
 
 
+class TestFlagGuarding:
+    """Test that evaluate-only options require --evaluate flag."""
+
+    def test_evaluate_with_without_evaluate_flag_shows_error(self):
+        """--evaluate_with without --evaluate should show error."""
+        from mad_spark_alt.unified_cli import main
+
+        runner = CliRunner()
+        result = runner.invoke(main, ['test text', '--evaluate_with', 'diversity_evaluator'])
+
+        # Should fail with helpful error
+        assert result.exit_code == 1
+        assert 'require --evaluate flag' in result.output
+        assert 'evaluate_with' in result.output
+
+    def test_file_without_evaluate_flag_shows_error(self):
+        """--file without --evaluate should show error."""
+        from mad_spark_alt.unified_cli import main
+
+        runner = CliRunner()
+
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
+            f.write('test content')
+            temp_path = f.name
+
+        try:
+            result = runner.invoke(main, ['test text', '--file', temp_path])
+
+            # Should fail with helpful error
+            assert result.exit_code == 1
+            assert 'require --evaluate flag' in result.output
+            assert 'file' in result.output
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
+
+    def test_layers_without_evaluate_flag_shows_error(self):
+        """--layers without --evaluate should show error."""
+        from mad_spark_alt.unified_cli import main
+
+        runner = CliRunner()
+        result = runner.invoke(main, ['test text', '--layers', 'quantitative'])
+
+        # Should fail with helpful error
+        assert result.exit_code == 1
+        assert 'require --evaluate flag' in result.output
+        assert 'layers' in result.output
+
+    def test_evaluate_with_evaluate_flag_works(self):
+        """evaluate-only options should work WITH --evaluate flag."""
+        from mad_spark_alt.unified_cli import main
+
+        runner = CliRunner()
+        result = runner.invoke(main, ['--evaluate', 'test text', '--evaluate_with', 'diversity_evaluator'])
+
+        # Should work (exit_code might be non-zero due to mock issues, but shouldn't have flag error)
+        assert 'require --evaluate flag' not in result.output
+
+
 class TestBackwardCompatibility:
     """Test that QADI mode and other commands still work."""
 

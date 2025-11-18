@@ -14,7 +14,7 @@ Mad Spark Alt has unified its command-line interface under a single `msa` comman
 | `uv run mad_spark_alt "q" --evolve` | `msa "q" --evolve` | With evolution |
 | `uv run mad-spark evolve "question"` | `msa "question" --evolve` | Evolution is now a flag |
 | `uv run mad-spark list-evaluators` | `msa list-evaluators` | Unchanged |
-| `uv run mad-spark evaluate "text"` | `msa evaluate "text"` | Unchanged |
+| `uv run mad-spark evaluate "text"` | `msa --evaluate "text"` | Now uses --evaluate flag |
 
 ## Detailed Migration
 
@@ -94,7 +94,8 @@ uv run mad-spark evaluate "text" --evaluators diversity_evaluator
 
 **After:**
 ```bash
-msa evaluate "text" --evaluators diversity_evaluator  # Unchanged
+msa --evaluate "text" --evaluate_with diversity_evaluator
+# Note: Changed from subcommand to --evaluate flag, and --evaluators renamed to --evaluate_with
 ```
 
 ## Key Changes

@@ -557,6 +557,26 @@ def main(
     setup_logging(verbose)
     register_default_evaluators()
 
+    # Validate evaluate-only options are used with --evaluate flag
+    evaluate_only_options = {
+        'evaluate_with': evaluate_with,
+        'file': file,
+        'model': model if model != 'test-model' else None,  # Ignore default
+        'output_type': output_type if output_type != 'text' else None,  # Ignore default
+        'layers': layers,
+    }
+
+    # Check if any evaluate-only options are used without --evaluate
+    if not evaluate_mode:
+        used_evaluate_options = [name for name, value in evaluate_only_options.items() if value]
+        if used_evaluate_options:
+            console.print("[red]Error: The following options require --evaluate flag:[/red]")
+            for opt_name in used_evaluate_options:
+                console.print(f"  • --{opt_name}")
+            console.print("\n[yellow]Did you mean to run:[/yellow]")
+            console.print(f"  msa --evaluate {input or '<text>'} --{used_evaluate_options[0]} ...")
+            ctx.exit(1)
+
     # Route to evaluation mode if --evaluate flag is set
     if evaluate_mode:
         # Validate incompatible options
@@ -1665,14 +1685,23 @@ async def _run_evaluation(
 
         progress.update(task, completed=True)
 
-    # Display results
+    # Display and export results based on format
     if output_format == "json":
         _display_json_results(summary, output_file)
-    else:
-        _display_table_results(summary, compare_mode)
-
+    elif output_format == "md":
+        _display_markdown_results(summary, compare_mode)
         if output_file:
-            _save_json_results(summary, output_file)
+            _save_markdown_results(summary, output_file)
+    else:  # table
+        _display_table_results(summary, compare_mode)
+        if output_file:
+            # Save in requested format
+            if output_format == "table":
+                # For table format, we need to save something machine-readable
+                # Default to JSON since tables are for display only
+                _save_json_results(summary, output_file)
+            else:
+                _save_json_results(summary, output_file)
 
 
 def _display_json_results(
@@ -1739,6 +1768,152 @@ def _display_table_results(
 
         console.print(table)
         console.print()
+
+
+def _display_markdown_results(
+    summary: EvaluationSummary, compare_mode: bool = False
+) -> None:
+    """Display results in Markdown format."""
+    lines = []
+
+    # Header
+    lines.append("# Evaluation Results")
+    lines.append("")
+
+    # Summary
+    overall_score = summary.get_overall_creativity_score()
+    overall_score_str = f"{overall_score:.3f}" if overall_score is not None else "N/A"
+
+    lines.append("## Summary")
+    lines.append("")
+    lines.append(f"- **Total outputs:** {summary.total_outputs}")
+    lines.append(f"- **Total evaluators:** {summary.total_evaluators}")
+    lines.append(f"- **Execution time:** {summary.execution_time:.2f}s")
+    lines.append(f"- **Overall creativity score:** {overall_score_str}")
+    lines.append("")
+
+    # Aggregate scores if available
+    if summary.aggregate_scores:
+        lines.append("## Aggregate Scores")
+        lines.append("")
+        for metric, score in summary.aggregate_scores.items():
+            if isinstance(score, float):
+                lines.append(f"- **{metric}:** {score:.3f}")
+            else:
+                lines.append(f"- **{metric}:** {score}")
+        lines.append("")
+
+    # Results by layer
+    for layer, results in summary.layer_results.items():
+        if not results:
+            continue
+
+        lines.append(f"## {layer.value.title()} Layer Results")
+        lines.append("")
+
+        for result in results:
+            # Get output identifier
+            output_id = result.metadata.get("output_index", 0)
+            if compare_mode:
+                output_label = f"Response {output_id + 1}"
+            else:
+                output_label = f"Output {output_id + 1}"
+
+            lines.append(f"### {output_label} - {result.evaluator_name}")
+            lines.append("")
+
+            # Scores
+            lines.append("**Scores:**")
+            lines.append("")
+            for metric, score in result.scores.items():
+                if isinstance(score, float):
+                    lines.append(f"- {metric}: {score:.3f}")
+                else:
+                    lines.append(f"- {metric}: {score}")
+            lines.append("")
+
+            # Explanations if available
+            if result.explanations:
+                lines.append("**Explanations:**")
+                lines.append("")
+                for metric, explanation in result.explanations.items():
+                    lines.append(f"- **{metric}:** {explanation}")
+                lines.append("")
+
+    # Print to console
+    console.print("\n".join(lines))
+
+
+def _save_markdown_results(summary: EvaluationSummary, output_file: str) -> None:
+    """Save results to Markdown file."""
+    lines = []
+
+    # Header
+    lines.append("# Evaluation Results")
+    lines.append("")
+
+    # Summary
+    overall_score = summary.get_overall_creativity_score()
+    overall_score_str = f"{overall_score:.3f}" if overall_score is not None else "N/A"
+
+    lines.append("## Summary")
+    lines.append("")
+    lines.append(f"- **Total outputs:** {summary.total_outputs}")
+    lines.append(f"- **Total evaluators:** {summary.total_evaluators}")
+    lines.append(f"- **Execution time:** {summary.execution_time:.2f}s")
+    lines.append(f"- **Overall creativity score:** {overall_score_str}")
+    lines.append("")
+
+    # Aggregate scores if available
+    if summary.aggregate_scores:
+        lines.append("## Aggregate Scores")
+        lines.append("")
+        for metric, score in summary.aggregate_scores.items():
+            if isinstance(score, float):
+                lines.append(f"- **{metric}:** {score:.3f}")
+            else:
+                lines.append(f"- **{metric}:** {score}")
+        lines.append("")
+
+    # Results by layer
+    for layer, results in summary.layer_results.items():
+        if not results:
+            continue
+
+        lines.append(f"## {layer.value.title()} Layer Results")
+        lines.append("")
+
+        for result in results:
+            # Get output identifier
+            output_id = result.metadata.get("output_index", 0)
+            output_label = f"Output {output_id + 1}"
+
+            lines.append(f"### {output_label} - {result.evaluator_name}")
+            lines.append("")
+
+            # Scores
+            lines.append("**Scores:**")
+            lines.append("")
+            for metric, score in result.scores.items():
+                if isinstance(score, float):
+                    lines.append(f"- {metric}: {score:.3f}")
+                else:
+                    lines.append(f"- {metric}: {score}")
+            lines.append("")
+
+            # Explanations if available
+            if result.explanations:
+                lines.append("**Explanations:**")
+                lines.append("")
+                for metric, explanation in result.explanations.items():
+                    lines.append(f"- **{metric}:** {explanation}")
+                lines.append("")
+
+    # Write to file
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
+    console.print(f"[green]Results saved to {output_file}[/green]")
 
 
 def _save_json_results(summary: EvaluationSummary, output_file: str) -> None:

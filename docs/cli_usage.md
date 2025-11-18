@@ -166,16 +166,20 @@ msa list-evaluators
 
 ```bash
 # Evaluate creativity of text
-msa evaluate "The quantum cat leaped through dimensions"
+msa --evaluate "The quantum cat leaped through dimensions"
 
 # With specific evaluators
-msa evaluate "text" --evaluators diversity_evaluator
+msa --evaluate "text" --evaluate_with diversity_evaluator
 
 # With multiple evaluators
-msa evaluate "text" --evaluators diversity_evaluator,quality_evaluator
+msa --evaluate "text" --evaluate_with diversity_evaluator,quality_evaluator
 
-# Use all evaluators (default)
-msa evaluate "text"
+# From a file
+msa --evaluate --file generated_output.txt
+
+# Save results to file
+msa --evaluate "text" --output results.json --format json
+msa --evaluate "text" --output results.md --format md
 ```
 
 ## Example Outputs
