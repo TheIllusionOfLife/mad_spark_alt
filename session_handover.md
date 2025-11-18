@@ -58,24 +58,26 @@ Following systematic 4-PR approach from comprehensive UAT analysis:
 - Output quality review: full Japanese, no English mixing
 - Documentation: README, CLI help, error messages
 
-### PR #3: CLI Syntax Flexibility (Planned)
-**Estimated Effort**: 90 minutes
-**Branch**: `feature/cli-query-option` (to be created)
+### PR #3: CLI Syntax Flexibility - COMPLETED ✅ (November 18, 2025)
+**Actual Effort**: 20 minutes
+**Branch**: `feature/cli-syntax-flexibility`
 
-### Issue #5: Option Order Flexibility
+### Issue #5: Option Order Flexibility - RESOLVED ✅
 
 - **Problem**: Users expect `msa "query" --provider gemini` but must use `msa --provider gemini "query"`
-- **Root Cause**: Click requires positional arguments before options
-- **Fix**: Convert `@click.argument('input')` to `@click.option('--query', '-q')`
-- **Files**: `src/mad_spark_alt/unified_cli.py` (lines 467-572)
-- **Breaking Change**: YES - requires migration guide
+- **Root Cause**: Click requires positional arguments before options by default
+- **Solution**: Add `context_settings={"allow_interspersed_args": True}` to `@click.group()` decorator
+- **Files Changed**:
+  - `src/mad_spark_alt/unified_cli.py` (line 467): One-line fix
+  - `tests/test_unified_cli.py`: Added 4 new tests for flexible ordering
+- **Breaking Change**: NO - Fully backward compatible
 
-**Testing Requirements**:
-- --query in various positions
-- All multimodal combinations
-- Comprehensive CLI regression tests
-- Update README with new syntax and migration guide
-- Update all CLI help text
+**Changes Made**:
+- ✅ Added `context_settings={"allow_interspersed_args": True}` to main CLI group
+- ✅ 4 comprehensive tests for flexible argument ordering
+- ✅ Verified backward compatibility (options before positional still works)
+- ✅ All 25 CLI tests passing
+- ✅ No documentation changes needed (examples already use desired syntax)
 
 ### PR #4: Fix Evaluate Subcommand (Planned)
 **Estimated Effort**: 60 minutes
@@ -102,9 +104,9 @@ Following systematic 4-PR approach from comprehensive UAT analysis:
 
 - **PR #154 Completion**: 15-30 minutes (CI monitoring + review responses)
 - **PR #2**: 65 minutes
-- **PR #3**: 90 minutes
+- **~~PR #3~~**: ~~90 minutes~~ ✅ **COMPLETED in 20 minutes**
 - **PR #4**: 60 minutes
-- **Total**: ~3.5-4 hours for complete resolution of all Japanese UAT issues
+- **Total**: ~2.5 hours remaining for complete resolution of all Japanese UAT issues
 
 ---
 

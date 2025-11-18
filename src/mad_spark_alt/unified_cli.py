@@ -464,7 +464,7 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
 
 # ===== MAIN CLI GROUP WITH INVOKE_WITHOUT_COMMAND =====
 
-@click.group(invoke_without_command=True)
+@click.group(invoke_without_command=True, context_settings={"allow_interspersed_args": True})
 @click.pass_context
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging and detailed output')
 @click.option('--provider', type=click.Choice(['auto', 'gemini', 'ollama'], case_sensitive=False),
