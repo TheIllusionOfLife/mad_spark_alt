@@ -18,11 +18,16 @@ Provider selection follows a clear hierarchy:
 """
 
 import asyncio
+import ipaddress
+import json
 import logging
 import mimetypes
 from enum import Enum
+from hashlib import sha256
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from time import time
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from urllib.parse import unquote, urlparse
 
 if TYPE_CHECKING:
     from .simple_qadi_orchestrator import SimpleQADIResult
@@ -57,6 +62,242 @@ _OLLAMA_FAILURE_KEYWORDS = [
     "Failed to score",
     "Max retries exceeded",
 ]
+
+# Content extraction limits
+DEFAULT_EXTRACTION_MAX_TOKENS = 4000
+OLLAMA_CONTEXT_WARNING_THRESHOLD = 6000  # Leave room for QADI prompts
+MAX_CSV_ROWS = 100  # Truncate large CSVs
+
+# Supported document extensions for text-based processing
+SUPPORTED_TEXT_EXTENSIONS = {".txt", ".csv", ".json", ".md", ".markdown"}
+SUPPORTED_DOCUMENT_EXTENSIONS = {".pdf"} | SUPPORTED_TEXT_EXTENSIONS
+
+# SSRF prevention: blocked patterns
+_BLOCKED_METADATA_PATTERNS = [
+    "169.254.169.254",
+    "metadata.google",
+    "metadata.azure",
+]
+
+
+class ContentCache:
+    """
+    In-memory cache for extracted document content with mtime tracking.
+
+    Caches both text documents and expensive API extractions (PDFs, URLs).
+    Uses mtime+size for fast lookups without re-hashing.
+    """
+
+    def __init__(self, ttl_seconds: int = 3600, max_entries: int = 100):  # 1 hour default
+        """
+        Initialize content cache.
+
+        Args:
+            ttl_seconds: Time-to-live for cache entries in seconds
+            max_entries: Maximum number of entries to prevent unbounded memory growth
+        """
+        # Cache structure: key -> (content, cost, timestamp, mtime_or_hash, size)
+        # mtime_or_hash is float (mtime) for individual files, int (hash) for extractions
+        self._cache: Dict[str, Tuple[str, float, float, Union[float, int], int]] = {}
+        self.ttl = ttl_seconds
+        self.max_entries = max_entries
+
+    def _make_file_key(self, file_path: Path) -> Optional[Tuple[str, float, int]]:
+        """
+        Create cache key from file path with mtime+size metadata.
+
+        Returns:
+            Tuple of (key, mtime, size) or None if file inaccessible
+        """
+        try:
+            stat = file_path.stat()
+            # Key is just the absolute path string for files
+            # We use mtime+size for invalidation instead of content hash
+            return (str(file_path.absolute()), stat.st_mtime, stat.st_size)
+        except (OSError, IOError):
+            return None
+
+    def _make_extraction_key(self, doc_paths: tuple, urls: tuple) -> str:
+        """
+        Create composite cache key for PDF/URL extractions.
+
+        Combines sorted file paths and URLs to create a stable key.
+        """
+        parts = []
+        if doc_paths:
+            parts.extend(sorted(str(p) for p in doc_paths))
+        if urls:
+            parts.extend(sorted(urls))
+        # Hash the composite to keep keys reasonable length
+        composite = "|".join(parts)
+        return "extraction:" + sha256(composite.encode()).hexdigest()[:16]
+
+    def get(self, file_path: Path) -> Optional[Tuple[str, float]]:
+        """
+        Get cached content if exists and not expired.
+
+        Args:
+            file_path: Path to the file
+
+        Returns:
+            Tuple of (content, cost) if cached and valid, None otherwise
+        """
+        key_data = self._make_file_key(file_path)
+        if not key_data:
+            return None
+
+        key, current_mtime, current_size = key_data
+
+        if key in self._cache:
+            content, cost, timestamp, cached_mtime, cached_size = self._cache[key]
+            # Check TTL and file modification
+            if time() - timestamp < self.ttl and current_mtime == cached_mtime and current_size == cached_size:
+                logger.debug(f"Cache hit for {file_path.name}")
+                return content, cost
+            else:
+                # Expired or modified
+                del self._cache[key]
+
+        return None
+
+    def set(self, file_path: Path, content: str, cost: float) -> None:
+        """
+        Cache extracted content.
+
+        Args:
+            file_path: Path to the file
+            content: Extracted content
+            cost: Extraction cost
+        """
+        key_data = self._make_file_key(file_path)
+        if not key_data:
+            return
+
+        key, mtime, size = key_data
+
+        # Evict oldest entry if cache is full (LRU-style eviction)
+        if len(self._cache) >= self.max_entries and key not in self._cache:
+            self._evict_oldest()
+
+        self._cache[key] = (content, cost, time(), mtime, size)
+        logger.debug(f"Cached content for {file_path.name}")
+
+    def get_extraction(self, doc_paths: tuple, urls: tuple) -> Optional[Tuple[str, float]]:
+        """
+        Get cached extraction result for composite document+URL inputs.
+
+        Checks file mtimes to detect modifications.
+
+        Args:
+            doc_paths: Tuple of document paths
+            urls: Tuple of URLs
+
+        Returns:
+            Tuple of (content, cost) if cached and valid, None otherwise
+        """
+        key = self._make_extraction_key(doc_paths, urls)
+
+        if key in self._cache:
+            content, cost, timestamp, cached_mtime_hash, _ = self._cache[key]
+
+            # Check TTL
+            if time() - timestamp >= self.ttl:
+                del self._cache[key]
+                return None
+
+            # For extractions with files, verify files haven't changed
+            if doc_paths:
+                # Compute current mtime hash (sort paths for consistency with cache key)
+                current_mtimes = []
+                for doc_path in sorted(doc_paths):  # Sort to match _make_extraction_key
+                    try:
+                        stat = Path(doc_path).stat()
+                        current_mtimes.append(f"{stat.st_mtime}:{stat.st_size}")
+                    except (OSError, IOError):
+                        # File disappeared, cache invalid
+                        del self._cache[key]
+                        return None
+
+                current_mtime_hash = hash(tuple(current_mtimes))
+                if current_mtime_hash != cached_mtime_hash:
+                    # Files modified, cache invalid
+                    del self._cache[key]
+                    return None
+
+            logger.debug(f"Cache hit for extraction ({len(doc_paths)} docs, {len(urls)} URLs)")
+            return content, cost
+
+        return None
+
+    def set_extraction(self, doc_paths: tuple, urls: tuple, content: str, cost: float) -> None:
+        """
+        Cache extraction result for composite document+URL inputs.
+
+        Stores mtime hash for file-based extractions to detect modifications.
+
+        Args:
+            doc_paths: Tuple of document paths
+            urls: Tuple of URLs
+            content: Extracted content
+            cost: Extraction cost
+        """
+        key = self._make_extraction_key(doc_paths, urls)
+
+        # Evict oldest entry if cache is full
+        if len(self._cache) >= self.max_entries and key not in self._cache:
+            self._evict_oldest()
+
+        # Compute mtime hash for files (sort paths for consistency with cache key)
+        mtime_hash = 0
+        if doc_paths:
+            mtimes = []
+            for doc_path in sorted(doc_paths):  # Sort to match _make_extraction_key
+                try:
+                    stat = Path(doc_path).stat()
+                    mtimes.append(f"{stat.st_mtime}:{stat.st_size}")
+                except (OSError, IOError):
+                    pass
+            mtime_hash = hash(tuple(mtimes)) if mtimes else 0
+
+        # Store with mtime hash in the 4th position (where individual files store mtime)
+        # Note: Keep mtime_hash as int to match hash() return type for reliable comparison
+        self._cache[key] = (content, cost, time(), mtime_hash, 0)
+        logger.debug(f"Cached extraction ({len(doc_paths)} docs, {len(urls)} URLs)")
+
+    def _evict_oldest(self) -> None:
+        """Evict the oldest cache entry to make room for new content."""
+        if not self._cache:
+            return
+        # Find entry with oldest timestamp
+        oldest_key = min(self._cache.keys(), key=lambda k: self._cache[k][2])
+        del self._cache[oldest_key]
+        logger.debug(f"Evicted oldest cache entry to stay within {self.max_entries} limit")
+
+    def clear(self) -> None:
+        """Clear all cached content."""
+        self._cache.clear()
+        logger.debug("Content cache cleared")
+
+    def cleanup_expired(self) -> int:
+        """
+        Remove all expired entries from cache.
+
+        This prevents memory leaks in long-running processes by proactively
+        cleaning up stale entries rather than waiting for access.
+
+        Returns:
+            Number of entries removed
+        """
+        current_time = time()
+        expired_keys = [
+            k for k, (_, _, timestamp, _, _) in self._cache.items()
+            if current_time - timestamp >= self.ttl
+        ]
+        for key in expired_keys:
+            del self._cache[key]
+        if expired_keys:
+            logger.debug(f"Cleaned up {len(expired_keys)} expired cache entries")
+        return len(expired_keys)
 
 
 class ProviderSelection(Enum):
@@ -107,6 +348,7 @@ class ProviderRouter:
         self.gemini_provider = gemini_provider
         self.ollama_provider = ollama_provider
         self.default_strategy = default_strategy
+        self._content_cache = ContentCache()
 
         # Log available providers
         available = []
@@ -136,6 +378,109 @@ class ProviderRouter:
             keyword in str(error)
             for keyword in _OLLAMA_FAILURE_KEYWORDS
         )
+
+    def _validate_url_security(self, url: str) -> None:
+        """
+        Validate URL is safe to fetch (prevent SSRF attacks).
+
+        This blocks:
+        - Non-HTTP(S) schemes (file://, ftp://, etc.)
+        - Internal/private IPs (localhost, 127.0.0.1, 10.x.x.x, etc.)
+        - Cloud metadata endpoints (AWS, GCP, Azure)
+
+        Known Limitation:
+            This validation checks the URL hostname but does NOT resolve DNS.
+            Hostnames that resolve to private IPs (DNS rebinding attacks) are not
+            blocked. For maximum security in production, consider using a DNS resolver
+            to verify the resolved IP is not private before fetching.
+
+        Args:
+            url: URL string to validate
+
+        Raises:
+            ValueError: If URL is not safe for external fetching
+        """
+        parsed = urlparse(url)
+
+        # 1. Scheme whitelist - only HTTP(S) allowed
+        if parsed.scheme not in ("https", "http"):
+            raise ValueError(
+                f"Unsupported URL scheme: {parsed.scheme}. Only http/https allowed."
+            )
+
+        # 2. Block internal/private IPs
+        hostname = parsed.hostname
+        if hostname:
+            # Decode percent-encoding and normalize to prevent bypasses like http://127.0.0.1%2e/
+            hostname_decoded = unquote(hostname).lower().rstrip('.')
+
+            # Block localhost variants (check decoded value)
+            if hostname_decoded in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+                raise ValueError(f"Internal URLs not allowed: {hostname}")
+
+            # Block private IP ranges
+            try:
+                ip = ipaddress.ip_address(hostname_decoded)
+            except ValueError:
+                pass  # Not an IP address, hostname is fine
+            else:
+                # Successfully parsed as IP, check if it's private
+                if ip.is_private or ip.is_loopback or ip.is_link_local:
+                    raise ValueError(f"Private/internal IP not allowed: {hostname}")
+
+            # 3. Block cloud metadata endpoints (common SSRF targets)
+            # Check hostname only (not entire URL) to avoid false positives on paths/queries
+            # Use lowercase comparison to prevent case-sensitivity bypass (e.g., METADATA.GOOGLE.INTERNAL)
+            if any(pattern in hostname_decoded for pattern in _BLOCKED_METADATA_PATTERNS):
+                raise ValueError(f"Cloud metadata endpoints not allowed: {url}")
+
+    async def _read_text_document(self, file_path: Path) -> str:
+        """
+        Read text-based documents directly.
+
+        Handles different file formats:
+        - .csv: Format as readable table with row truncation
+        - .json: Pretty-print JSON data
+        - .txt, .md, .markdown: Read as plain text
+
+        Args:
+            file_path: Path to text-based document
+
+        Returns:
+            Formatted document content as string
+
+        Note:
+            Uses asyncio.to_thread to avoid blocking the event loop during file I/O.
+        """
+        suffix = file_path.suffix.lower()
+
+        # Offload blocking file I/O to thread pool to avoid blocking event loop
+        def _blocking_read() -> str:
+            with open(file_path, "r", encoding="utf-8") as f:
+                return f.read()
+
+        loop = asyncio.get_event_loop()
+        content = await loop.run_in_executor(None, _blocking_read)
+
+        if suffix == ".csv":
+            # Format CSV as readable table with truncation for large files
+            lines = content.strip().split("\n")
+            if len(lines) > MAX_CSV_ROWS:
+                truncated_content = "\n".join(lines[:MAX_CSV_ROWS])
+                return f"CSV Data:\n{truncated_content}\n... ({len(lines) - MAX_CSV_ROWS} more rows)"
+            return f"CSV Data:\n{content}"
+
+        elif suffix == ".json":
+            # Pretty-print JSON for readability
+            try:
+                data = json.loads(content)
+                # Use ensure_ascii=False to preserve non-ASCII characters (accents, scripts)
+                return f"JSON Data:\n{json.dumps(data, indent=2, ensure_ascii=False)}"
+            except json.JSONDecodeError:
+                return f"JSON File (invalid format):\n{content}"
+
+        else:  # .txt, .md, .markdown
+            return content
 
     def select_provider(
         self,
@@ -334,6 +679,12 @@ class ProviderRouter:
             >>> if used_fallback:
             ...     print("Ollama failed, completed with Gemini")
         """
+        # Validate all URLs for SSRF prevention BEFORE processing
+        # This ensures security checks run regardless of hybrid vs non-hybrid path
+        if urls:
+            for url in urls:
+                self._validate_url_security(url)
+
         # Import here to avoid circular dependency
         from .simple_qadi_orchestrator import SimpleQADIOrchestrator
 
@@ -383,6 +734,8 @@ class ProviderRouter:
         self,
         document_paths: Optional[tuple] = None,
         urls: Optional[tuple] = None,
+        max_tokens: int = DEFAULT_EXTRACTION_MAX_TOKENS,
+        warn_on_large: bool = True,
     ) -> Tuple[str, float]:
         """
         Use Gemini to extract text content from documents and URLs.
@@ -391,9 +744,17 @@ class ProviderRouter:
         (gemma3) cannot process directly (e.g., PDFs, web pages), then
         passes the extracted text to Ollama for QADI reasoning.
 
+        Supports multiple document formats:
+        - PDF: Processed via Gemini multimodal API
+        - TXT, MD: Read as plain text
+        - CSV: Formatted as table with row truncation
+        - JSON: Pretty-printed for readability
+
         Args:
             document_paths: Tuple of document file paths (from --document flag)
             urls: Tuple of URL strings (from --url flag)
+            max_tokens: Maximum tokens for extraction (default: 4000)
+            warn_on_large: Whether to warn about large content (default: True)
 
         Returns:
             Tuple of (extracted_text, extraction_cost):
@@ -401,11 +762,11 @@ class ProviderRouter:
             - extraction_cost: LLM cost for the extraction operation
 
         Raises:
-            ValueError: If Gemini provider is not available
+            ValueError: If Gemini provider is not available or URLs are unsafe
 
         Example:
             >>> text, cost = await router.extract_document_content(
-            ...     document_paths=("report.pdf",),
+            ...     document_paths=("report.pdf", "data.csv"),
             ...     urls=("https://example.com/article",)
             ... )
             >>> # text contains extracted content ready for Ollama
@@ -420,8 +781,89 @@ class ProviderRouter:
         document_paths = document_paths or ()
         urls = urls or ()
 
-        # Build extraction prompt
-        extraction_prompt = (
+        # Validate URLs for security (SSRF prevention)
+        for url in urls:
+            self._validate_url_security(url)
+
+        # Check cache for full extraction (PDFs + URLs composite)
+        if document_paths or urls:
+            cached_extraction = self._content_cache.get_extraction(document_paths, urls)
+            if cached_extraction:
+                content, cost = cached_extraction
+                logger.info(f"Using cached extraction (saved ${cost:.6f})")
+                return content, cost
+
+        # Build multimodal inputs for PDFs and text contexts for other files
+        multimodal_inputs = []
+        text_contexts = []
+        total_cost = 0.0
+
+        for doc_path in document_paths:
+            doc_path_obj = Path(doc_path)
+            if not doc_path_obj.exists():
+                logger.warning(f"Document not found, skipping: {doc_path}")
+                continue
+
+            file_ext = doc_path_obj.suffix.lower()
+
+            # Check if extension is supported
+            if file_ext not in SUPPORTED_DOCUMENT_EXTENSIONS:
+                logger.warning(
+                    f"Skipping unsupported document type: {doc_path} "
+                    f"(supported: {', '.join(sorted(SUPPORTED_DOCUMENT_EXTENSIONS))})"
+                )
+                continue
+
+            # Check cache for this document
+            cached = self._content_cache.get(doc_path_obj)
+            if cached:
+                content, cost = cached
+                text_contexts.append(f"=== {doc_path_obj.name} ===\n{content}")
+                total_cost += cost
+                continue
+
+            if file_ext == ".pdf":
+                # PDF: Process via Gemini multimodal API
+                mime_type = "application/pdf"
+                doc_size = doc_path_obj.stat().st_size
+                multimodal_inputs.append(
+                    MultimodalInput(
+                        input_type=MultimodalInputType.DOCUMENT,
+                        source_type=MultimodalSourceType.FILE_PATH,
+                        data=str(doc_path_obj.absolute()),
+                        mime_type=mime_type,
+                        file_size=doc_size,
+                    )
+                )
+            else:
+                # Text-based documents: read directly
+                try:
+                    text_content = await self._read_text_document(doc_path_obj)
+                    text_contexts.append(f"=== {doc_path_obj.name} ===\n{text_content}")
+                    # Cache the text content (cost is 0 since no API call)
+                    self._content_cache.set(doc_path_obj, text_content, 0.0)
+                except (OSError, IOError, UnicodeDecodeError) as e:
+                    logger.warning(f"Failed to read {doc_path}: {e}")
+                    continue
+
+        # Check if we have anything to extract
+        if not multimodal_inputs and not urls and not text_contexts:
+            raise ValueError(
+                "No valid documents or URLs to extract content from.\n"
+                f"All provided documents were either not found or not supported.\n"
+                f"Supported formats: {', '.join(sorted(SUPPORTED_DOCUMENT_EXTENSIONS))}\n"
+                "Please check your file paths and ensure documents exist."
+            )
+
+        # If we only have text contexts (no PDFs or URLs), return them directly
+        if not multimodal_inputs and not urls:
+            combined_text = "\n\n".join(text_contexts)
+            # Check size limits
+            combined_text = self._apply_size_limits(combined_text, max_tokens, warn_on_large)
+            return combined_text, total_cost
+
+        # Build extraction prompt including any text contexts
+        base_prompt = (
             "Extract and summarize the key content from the provided documents and/or URLs.\n"
             "Focus on:\n"
             "- Main facts, data, and statistics\n"
@@ -431,47 +873,27 @@ class ProviderRouter:
             "Do not add your own analysis - just extract and organize the information."
         )
 
-        # Build multimodal inputs for documents
-        multimodal_inputs = []
-        for doc_path in document_paths:
-            doc_path_obj = Path(doc_path)
-            if not doc_path_obj.exists():
-                logger.warning(f"Document not found, skipping: {doc_path}")
-                continue
-
-            mime_type, _ = mimetypes.guess_type(doc_path)
-            if mime_type != "application/pdf":
-                if not str(doc_path).lower().endswith('.pdf'):
-                    # Skip non-PDF documents for now
-                    logger.warning(f"Skipping non-PDF document: {doc_path}")
-                    continue
-                mime_type = "application/pdf"
-
-            doc_size = doc_path_obj.stat().st_size
-            multimodal_inputs.append(
-                MultimodalInput(
-                    input_type=MultimodalInputType.DOCUMENT,
-                    source_type=MultimodalSourceType.FILE_PATH,
-                    data=str(doc_path_obj.absolute()),
-                    mime_type=mime_type,
-                    file_size=doc_size,
-                )
+        if text_contexts:
+            # Truncate text contexts BEFORE embedding in prompt to prevent overflow
+            combined_text_contexts = "".join(text_contexts)
+            # Use 50% of max_tokens for text contexts, rest for PDF/URL extraction
+            combined_text_contexts = self._apply_size_limits(
+                combined_text_contexts, max_tokens // 2, warn_on_large=False
             )
-
-        # Check if we have anything to extract
-        if not multimodal_inputs and not urls:
-            raise ValueError(
-                "No valid documents or URLs to extract content from.\n"
-                "All provided documents were either not found or not supported (only PDFs are supported).\n"
-                "Please check your file paths and ensure documents exist."
+            extraction_prompt = (
+                f"Additional document content:\n"
+                f"{combined_text_contexts}\n\n"
+                f"{base_prompt}"
             )
+        else:
+            extraction_prompt = base_prompt
 
         # Create extraction request
         request = LLMRequest(
             user_prompt=extraction_prompt,
             multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
             urls=list(urls) if urls else None,
-            max_tokens=4000,  # Allow detailed extraction
+            max_tokens=max_tokens,
             temperature=0.3,  # Low temperature for factual extraction
         )
 
@@ -480,13 +902,55 @@ class ProviderRouter:
         )
 
         response = await self.gemini_provider.generate(request)
-        extraction_cost = response.cost
+        extraction_cost = response.cost + total_cost
+
+        extracted_content = response.content
+
+        # Apply size limits and warnings
+        extracted_content = self._apply_size_limits(extracted_content, max_tokens, warn_on_large)
 
         logger.info(
-            f"Extracted {len(response.content)} characters (cost: ${extraction_cost:.6f})"
+            f"Extracted {len(extracted_content)} characters (cost: ${extraction_cost:.6f})"
         )
 
-        return response.content, extraction_cost
+        # Cache the extraction result (PDFs + URLs composite)
+        if multimodal_inputs or urls:
+            self._content_cache.set_extraction(document_paths, urls, extracted_content, extraction_cost)
+
+        return extracted_content, extraction_cost
+
+    def _apply_size_limits(
+        self, content: str, max_tokens: int, warn_on_large: bool
+    ) -> str:
+        """
+        Apply size limits and warnings to extracted content.
+
+        Args:
+            content: Extracted content string
+            max_tokens: Maximum allowed tokens
+            warn_on_large: Whether to emit warnings for large content
+
+        Returns:
+            Content, potentially truncated with notice
+        """
+        # Estimate token count (rough: 1 token ≈ 4 chars)
+        estimated_tokens = len(content) // 4
+
+        if warn_on_large and estimated_tokens > OLLAMA_CONTEXT_WARNING_THRESHOLD:
+            logger.warning(
+                f"Extracted content is large (~{estimated_tokens} tokens). "
+                f"May exceed Ollama context limits. Consider using --provider gemini for large documents."
+            )
+
+        # Truncate if significantly over limit (50% over)
+        if estimated_tokens > max_tokens * 1.5:
+            truncate_chars = int(max_tokens * 4)
+            original_length = len(content)
+            content = content[:truncate_chars]
+            content += f"\n\n[Content truncated from ~{original_length // 4} to ~{max_tokens} tokens]"
+            logger.info(f"Content truncated from ~{original_length // 4} to ~{max_tokens} tokens")
+
+        return content
 
     async def run_hybrid_qadi(
         self,

@@ -128,15 +128,18 @@ msa "Your question" --provider ollama
 
 | Provider | Cost | Speed | Multimodal | Notes |
 |----------|------|-------|------------|-------|
-| Gemini | ~$0.01/query | Fast (10s) | ✅ Images, PDFs, URLs | Requires API key |
+| Gemini | ~$0.01/query | Fast (10s) | ✅ Images, PDFs, URLs, TXT, CSV, JSON, MD | Requires API key |
 | Ollama | Free | Slower (20-30s) | ✅ Images only | Requires local setup |
-| Auto | Mixed | Variable | ✅ Full support | Ollama-first with fallback |
+| Auto | Mixed | Variable | ✅ Full support (hybrid mode for docs) | Ollama-first with fallback |
 
 **Current Limitations:**
 - **Subcommand provider selection** - `evaluate`, `batch-evaluate`, and `compare` subcommands do not support provider selection yet (they use their own evaluator registry, not QADI orchestration)
 
 **Recent Improvements:**
 - ✅ **Hybrid routing** - When using `--document` or `--url` flags with auto mode, Gemini extracts content once, then Ollama runs QADI phases locally (cost optimization)
+- ✅ **Multi-format documents** - Support for PDF, TXT, CSV, JSON, and Markdown files (text files read directly without API calls)
+- ✅ **URL security** - SSRF prevention blocks internal URLs, private IPs, and cloud metadata endpoints
+- ✅ **Content caching** - SHA256-based caching prevents redundant file reads (1-hour TTL)
 - ✅ **Temperature control** - Users now have full control over temperature settings without automatic clamping
 - ✅ **SDK/API fallback** - SDK users now have automatic fallback via `ProviderRouter.run_qadi_with_fallback()`
 - ✅ **Main command provider selection** - `msa --provider` flag allows explicit provider selection for QADI analysis
@@ -159,14 +162,15 @@ msa "Your question" --temperature 2.0 --evolve --generations 2 --population 10 -
 # Analyze an image with QADI (works with both Gemini and Ollama)
 msa "Analyze this design for improvement" --image design.png
 
-# Process a PDF document (requires Gemini)
+# Process documents (PDF, TXT, CSV, JSON, MD supported)
 msa "Summarize key findings" --document research.pdf
+msa "Analyze this data" --document data.csv --document notes.md
 
-# Combine multiple modalities (requires Gemini)
+# Combine multiple modalities (requires Gemini for PDFs/URLs)
 msa "Compare these approaches" --image chart1.png --image chart2.png --url https://example.com/article
 
-# Multiple documents and URLs
-msa "Synthesize insights" --document report1.pdf --document report2.pdf --url https://source1.com --url https://source2.com
+# Multiple documents and URLs (hybrid mode: Gemini extracts, Ollama runs QADI)
+msa "Synthesize insights" --document report.pdf --document analysis.txt --url https://source.com
 ```
 
 ### Export Results

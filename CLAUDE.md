@@ -138,6 +138,19 @@ Mad Spark Alt is a Multi-Agent Idea Generation System powered by LLMs using the 
 - **Example**: `/fix_pr_since_commit 1916eed` passes "1916eed" as `$ARGUMENTS`
 - **Implementation**: Use `${ARGUMENTS:-default_value}` for optional parameters
 
+## Known Limitations
+
+### Hybrid Routing Security (PR #151)
+1. **DNS Rebinding**: URL validation checks hostnames but does NOT resolve DNS. Hostnames that resolve to private IPs (DNS rebinding attacks) are not blocked. For maximum security in production, consider using a DNS resolver to verify the resolved IP is not private before fetching.
+
+2. **CSV Parsing**: Simple line-based parsing (`content.strip().split("\n")`) may not handle quoted values with embedded newlines or non-comma delimiters. Consider using Python's `csv` module for more robust parsing in future enhancements.
+
+3. **Token Estimation**: Uses rough approximation (1 token ≈ 4 characters). This varies significantly between content types (code vs prose, different languages). Current warning thresholds provide sufficient buffer.
+
+4. **PDF Caching**: Cache stores text file content but not PDF extraction results. Same PDF processed twice calls Gemini API both times. This is intentional (PDF extraction prompts may evolve), but costs more.
+
+5. **CSV/JSON Formatting Duplication**: CSV and JSON formatting logic exists in both `unified_cli.py` (non-hybrid path) and `provider_router.py._read_text_document()` (hybrid path). This creates maintenance burden where future changes must be applied to both locations. Refactoring to share a single helper would require significant architectural changes (CLI is synchronous, provider_router is async). Current implementation keeps behavior consistent across both paths with test coverage.
+
 ## Completed Features Reference
 
 | PR | Feature | Key Pattern |

@@ -468,7 +468,7 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
 @click.pass_context
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging and detailed output')
 @click.option('--provider', type=click.Choice(['auto', 'gemini', 'ollama'], case_sensitive=False),
-              default='auto', help='LLM provider: auto (smart routing), gemini (API only), ollama (local only)')
+              default='auto', help='LLM provider: auto (hybrid mode - Gemini extracts docs/URLs, Ollama runs QADI), gemini (API only), ollama (local only)')
 @click.option('--temperature', '-t', type=click.FloatRange(0.0, 2.0), help='Temperature for hypothesis generation (0.0-2.0, default: 0.8)')
 @click.option('--evolve', '-e', is_flag=True, help='Evolve ideas using genetic algorithm after QADI analysis')
 @click.option('--generations', '-g', type=int, default=2, help='Number of evolution generations (default: 2, with --evolve)')
@@ -479,8 +479,8 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
 @click.option('--image', '-i', multiple=True, type=click.Path(exists=True),
               help='Path to image file(s) to include in analysis (PNG, JPEG, GIF, WEBP supported)')
 @click.option('--document', '-d', multiple=True, type=click.Path(exists=True),
-              help='Path to document file(s) to include in analysis (PDF supported)')
-@click.option('--url', '-u', multiple=True, help='URL(s) for context retrieval (max 20)')
+              help='Path to document file(s) to include in analysis (PDF, TXT, CSV, JSON, MD supported). With --provider auto, triggers hybrid mode.')
+@click.option('--url', '-u', multiple=True, help='URL(s) for context retrieval (max 20). With --provider auto, triggers hybrid mode using Gemini for extraction.')
 @click.option('--output', '-o', type=click.Path(), help='Export results to file (JSON or Markdown)')
 @click.option('--format', 'export_format', type=click.Choice(['json', 'md'], case_sensitive=False),
               default='json', help='Export format: json or md (default: json)')
@@ -727,6 +727,13 @@ async def _run_qadi_analysis(
 ) -> None:
     """Run QADI analysis with multi-provider support and optional evolution."""
 
+    # Validate URL count limit
+    if len(urls) > 20:
+        raise click.BadParameter(
+            f"Too many URLs provided ({len(urls)}). Maximum is 20 URLs.",
+            param_hint="--url"
+        )
+
     print("🧠 QADI Analysis with Multi-Provider Support")
     print("=" * 50 + "\n")
 
@@ -754,16 +761,60 @@ async def _run_qadi_analysis(
             )
         )
 
-    # Process documents
+    # Process documents - only PDFs become multimodal inputs
+    # Text files (CSV, TXT, JSON, MD) are handled by ProviderRouter.extract_document_content()
+    # in hybrid mode, or read directly in non-hybrid mode
+    #
+    # NOTE: Text files are read here even in hybrid mode (which re-reads them later).
+    # This is acceptable because:
+    # 1. We can't determine is_hybrid_mode until after provider selection
+    # 2. The second read is cached (fast mtime check, not full file read)
+    # 3. Refactoring to defer would require significant architectural changes
+    supported_text_exts = {".txt", ".csv", ".json", ".md", ".markdown"}
+    text_document_contents = []  # Store text file contents for non-hybrid mode
+
     for doc_path in document_paths:
+        file_ext = Path(doc_path).suffix.lower()
+
+        # Handle text files - store content for later use
+        if file_ext in supported_text_exts:
+            # Validate file exists
+            if not Path(doc_path).exists():
+                raise ValueError(f"Document not found: {doc_path}")
+
+            # Read text content for non-hybrid mode
+            # (Hybrid mode will re-read via extract_document_content, but cache makes this fast)
+            try:
+                with open(doc_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                # Format based on file type
+                if file_ext == ".csv":
+                    lines = content.strip().split("\n")
+                    if len(lines) > 100:
+                        content = "\n".join(lines[:100]) + f"\n... ({len(lines) - 100} more rows)"
+                    text_document_contents.append(f"=== {Path(doc_path).name} (CSV) ===\n{content}")
+                elif file_ext == ".json":
+                    try:
+                        data = json.loads(content)
+                        # Use ensure_ascii=False to preserve non-ASCII characters (accents, scripts)
+                        text_document_contents.append(f"=== {Path(doc_path).name} (JSON) ===\n{json.dumps(data, indent=2, ensure_ascii=False)}")
+                    except json.JSONDecodeError:
+                        text_document_contents.append(f"=== {Path(doc_path).name} (JSON) ===\n{content}")
+                else:
+                    text_document_contents.append(f"=== {Path(doc_path).name} ===\n{content}")
+            except (OSError, IOError, UnicodeDecodeError) as e:
+                raise ValueError(f"Failed to read text document {doc_path}: {e}") from e
+            continue
+
         mime_type, _ = mimetypes.guess_type(doc_path)
 
-        # Validate document type - currently only PDF supported
+        # Validate document type - PDF for multimodal input
         if mime_type != "application/pdf":
             if not doc_path.lower().endswith('.pdf'):
                 raise ValueError(
                     f"Unsupported document type for {doc_path}. "
-                    f"Only PDF files are currently supported. "
+                    f"Supported formats: PDF, TXT, CSV, JSON, MD. "
                     f"Detected type: {mime_type or 'unknown'}"
                 )
             mime_type = "application/pdf"
@@ -778,6 +829,9 @@ async def _run_qadi_analysis(
                 file_size=doc_size,
             )
         )
+
+    # Note: Text document contents will be prepended AFTER provider selection
+    # to avoid duplication in hybrid mode (which processes documents separately)
 
     # Convert URLs tuple to list
     url_list = list(urls) if urls else None
@@ -863,6 +917,26 @@ async def _run_qadi_analysis(
     start_time = time.time()
     used_fallback = False
     hybrid_metadata: Optional[Dict[str, Any]] = None
+
+    # Prepend text document contents to user input ONLY for non-hybrid mode
+    # (hybrid mode handles documents via extract_document_content, avoiding duplication)
+    if not is_hybrid_mode and text_document_contents:
+        text_context = "\n\n".join(text_document_contents)
+
+        # Apply size limits to prevent overwhelming the LLM
+        # Estimate tokens (1 token ≈ 4 chars)
+        estimated_tokens = len(text_context) // 4
+        max_context_tokens = 4000  # Reasonable limit for context
+
+        if estimated_tokens > max_context_tokens * 1.5:
+            # Truncate if significantly over limit
+            truncate_chars = int(max_context_tokens * 4)
+            original_length = len(text_context)
+            text_context = text_context[:truncate_chars]
+            text_context += f"\n\n[Content truncated from ~{original_length // 4} to ~{max_context_tokens} tokens]"
+            print(f"⚠️  Text documents truncated to ~{max_context_tokens} tokens")
+
+        user_input = f"Context from text documents:\n{text_context}\n\nQuestion: {user_input}"
 
     try:
         # Use hybrid routing if documents/URLs present
