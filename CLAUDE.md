@@ -149,6 +149,8 @@ Mad Spark Alt is a Multi-Agent Idea Generation System powered by LLMs using the 
 
 4. **PDF Caching**: Cache stores text file content but not PDF extraction results. Same PDF processed twice calls Gemini API both times. This is intentional (PDF extraction prompts may evolve), but costs more.
 
+5. **CSV/JSON Formatting Duplication**: CSV and JSON formatting logic exists in both `unified_cli.py` (non-hybrid path) and `provider_router.py._read_text_document()` (hybrid path). This creates maintenance burden where future changes must be applied to both locations. Refactoring to share a single helper would require significant architectural changes (CLI is synchronous, provider_router is async). Current implementation keeps behavior consistent across both paths with test coverage.
+
 ## Completed Features Reference
 
 | PR | Feature | Key Pattern |
