@@ -26,8 +26,8 @@ from enum import Enum
 from hashlib import sha256
 from pathlib import Path
 from time import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
-from urllib.parse import urlparse
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from urllib.parse import unquote, urlparse
 
 if TYPE_CHECKING:
     from .simple_qadi_orchestrator import SimpleQADIResult
@@ -96,8 +96,9 @@ class ContentCache:
             ttl_seconds: Time-to-live for cache entries in seconds
             max_entries: Maximum number of entries to prevent unbounded memory growth
         """
-        # Cache structure: key -> (content, cost, timestamp, mtime, size)
-        self._cache: Dict[str, Tuple[str, float, float, float, int]] = {}
+        # Cache structure: key -> (content, cost, timestamp, mtime_or_hash, size)
+        # mtime_or_hash is float (mtime) for individual files, int (hash) for extractions
+        self._cache: Dict[str, Tuple[str, float, float, Union[float, int], int]] = {}
         self.ttl = ttl_seconds
         self.max_entries = max_entries
 
@@ -206,9 +207,9 @@ class ContentCache:
 
             # For extractions with files, verify files haven't changed
             if doc_paths:
-                # Compute current mtime hash
+                # Compute current mtime hash (sort paths for consistency with cache key)
                 current_mtimes = []
-                for doc_path in doc_paths:
+                for doc_path in sorted(doc_paths):  # Sort to match _make_extraction_key
                     try:
                         stat = Path(doc_path).stat()
                         current_mtimes.append(f"{stat.st_mtime}:{stat.st_size}")
@@ -246,11 +247,11 @@ class ContentCache:
         if len(self._cache) >= self.max_entries and key not in self._cache:
             self._evict_oldest()
 
-        # Compute mtime hash for files
+        # Compute mtime hash for files (sort paths for consistency with cache key)
         mtime_hash = 0
         if doc_paths:
             mtimes = []
-            for doc_path in doc_paths:
+            for doc_path in sorted(doc_paths):  # Sort to match _make_extraction_key
                 try:
                     stat = Path(doc_path).stat()
                     mtimes.append(f"{stat.st_mtime}:{stat.st_size}")
@@ -259,7 +260,8 @@ class ContentCache:
             mtime_hash = hash(tuple(mtimes)) if mtimes else 0
 
         # Store with mtime hash in the 4th position (where individual files store mtime)
-        self._cache[key] = (content, cost, time(), float(mtime_hash), 0)
+        # Note: Keep mtime_hash as int to match hash() return type for reliable comparison
+        self._cache[key] = (content, cost, time(), mtime_hash, 0)
         logger.debug(f"Cached extraction ({len(doc_paths)} docs, {len(urls)} URLs)")
 
     def _evict_oldest(self) -> None:
@@ -410,7 +412,6 @@ class ProviderRouter:
         hostname = parsed.hostname
         if hostname:
             # Decode percent-encoding and normalize to prevent bypasses like http://127.0.0.1%2e/
-            from urllib.parse import unquote
             hostname_decoded = unquote(hostname).lower().rstrip('.')
 
             # Block localhost variants (check decoded value)
@@ -427,13 +428,9 @@ class ProviderRouter:
                 if ip.is_private or ip.is_loopback or ip.is_link_local:
                     raise ValueError(f"Private/internal IP not allowed: {hostname}")
 
-        # 3. Block cloud metadata endpoints (common SSRF targets)
-        # Check hostname only (not entire URL) to avoid false positives on paths/queries
-        # Use lowercase comparison to prevent case-sensitivity bypass (e.g., METADATA.GOOGLE.INTERNAL)
-        # Also decode percent-encoding to prevent bypasses
-        if parsed.hostname:
-            from urllib.parse import unquote
-            hostname_decoded = unquote(parsed.hostname).lower()
+            # 3. Block cloud metadata endpoints (common SSRF targets)
+            # Check hostname only (not entire URL) to avoid false positives on paths/queries
+            # Use lowercase comparison to prevent case-sensitivity bypass (e.g., METADATA.GOOGLE.INTERNAL)
             if any(pattern in hostname_decoded for pattern in _BLOCKED_METADATA_PATTERNS):
                 raise ValueError(f"Cloud metadata endpoints not allowed: {url}")
 
@@ -469,7 +466,8 @@ class ProviderRouter:
             # Pretty-print JSON for readability
             try:
                 data = json.loads(content)
-                return f"JSON Data:\n{json.dumps(data, indent=2)}"
+                # Use ensure_ascii=False to preserve non-ASCII characters (accents, scripts)
+                return f"JSON Data:\n{json.dumps(data, indent=2, ensure_ascii=False)}"
             except json.JSONDecodeError:
                 return f"JSON File (invalid format):\n{content}"
 

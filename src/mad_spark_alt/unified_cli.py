@@ -797,7 +797,8 @@ async def _run_qadi_analysis(
                 elif file_ext == ".json":
                     try:
                         data = json.loads(content)
-                        text_document_contents.append(f"=== {Path(doc_path).name} (JSON) ===\n{json.dumps(data, indent=2)}")
+                        # Use ensure_ascii=False to preserve non-ASCII characters (accents, scripts)
+                        text_document_contents.append(f"=== {Path(doc_path).name} (JSON) ===\n{json.dumps(data, indent=2, ensure_ascii=False)}")
                     except json.JSONDecodeError:
                         text_document_contents.append(f"=== {Path(doc_path).name} (JSON) ===\n{content}")
                 else:
