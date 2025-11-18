@@ -1,12 +1,125 @@
 # Session Handover
 
-## Last Updated: November 18, 2025 11:19 AM JST
+## Last Updated: November 18, 2025 5:35 PM JST
 
 ---
 
 ## Current Work In Progress
 
-None - All PRs merged, main branch clean.
+### PR #154: Fix Ollama Image Path Normalization - IN REVIEW ⏳
+
+**Branch**: `fix/ollama-image-paths`
+**Status**: Awaiting CI checks and code review
+**Created**: https://github.com/TheIllusionOfLife/mad_spark_alt/pull/154
+
+**Summary**: Normalize relative image paths to absolute for Ollama compatibility.
+
+**Work Completed**:
+- ✅ TDD approach: 7 comprehensive tests (4 unit + 3 integration)
+- ✅ Implementation: 5-line fix in `OllamaProvider._build_messages()`
+- ✅ All tests passing locally (4/4 new tests, 9/9 existing Ollama tests)
+- ✅ Manual user testing verified with real Ollama CLI
+- ✅ PR created with detailed documentation
+
+**Next Steps**:
+1. Monitor CI checks (pytest, mypy, build)
+2. Address any code review feedback
+3. Verify CI passes completely
+4. Merge after approval
+
+---
+
+## Planned Work - Japanese UAT Issue Fixes
+
+Following systematic 4-PR approach from comprehensive UAT analysis:
+
+### PR #2: Japanese Support + PDF Error Handling (Planned)
+**Estimated Effort**: 65 minutes
+**Branch**: `feature/japanese-pdf-handling` (to be created)
+
+**Issue #2: Japanese Language Support**
+- **Problem**: Ollama responds in English despite Japanese prompts
+- **Root Cause**: No system-level language instruction
+- **Fix**: Add language detection and enhanced Japanese system prompt
+- **Files**: `src/mad_spark_alt/core/llm_provider.py`
+- **Tests**: Unit tests for language detection, integration tests with Japanese prompts
+
+**Issue #3: PDF Error Handling**
+- **Problem**: Confusing errors when PDF passed to `--image` flag
+- **Fix**: Validate file extension early with helpful error message
+- **Files**: `src/mad_spark_alt/unified_cli.py` (~line 750)
+- **Tests**: Unit tests for validation, user testing with PDFs
+
+**Testing Requirements**:
+- Japanese prompts: basic, image, evolve
+- PDF validation: various document formats
+- Output quality review: full Japanese, no English mixing
+- Documentation: README, CLI help, error messages
+
+### PR #3: CLI Syntax Flexibility (Planned)
+**Estimated Effort**: 90 minutes
+**Branch**: `feature/cli-query-option` (to be created)
+
+**Issue #5: Option Order Flexibility**
+- **Problem**: Users expect `msa "query" --provider gemini` but must use `msa --provider gemini "query"`
+- **Root Cause**: Click requires positional arguments before options
+- **Fix**: Convert `@click.argument('input')` to `@click.option('--query', '-q')`
+- **Files**: `src/mad_spark_alt/unified_cli.py` (lines 467-572)
+- **Breaking Change**: YES - requires migration guide
+
+**Testing Requirements**:
+- --query in various positions
+- All multimodal combinations
+- Comprehensive CLI regression tests
+- Update README with new syntax and migration guide
+- Update all CLI help text
+
+### PR #4: Fix Evaluate Subcommand (Planned)
+**Estimated Effort**: 60 minutes
+**Branch**: `fix/evaluate-subcommand` (to be created)
+**Dependencies**: Requires PR #3 completion
+
+**Issue #4: Evaluate Subcommand Broken**
+- **Problem**: All evaluate examples fail with "No such command 'text'"
+- **Root Cause**: Click argument parsing conflicts with subcommands
+- **Fix**: Remove manual subcommand detection workaround (lines 538-572)
+- **Files**: `src/mad_spark_alt/unified_cli.py`
+
+**Testing Requirements**:
+- All README evaluate examples
+- `evaluate --help` shows correct help
+- File input validation
+- Update documentation
+- Remove BUG_REPORT_evaluate_command.txt
+
+---
+
+## Total Remaining Effort
+
+- **PR #154 Completion**: 15-30 minutes (CI monitoring + review responses)
+- **PR #2**: 65 minutes
+- **PR #3**: 90 minutes
+- **PR #4**: 60 minutes
+- **Total**: ~3.5-4 hours for complete resolution of all Japanese UAT issues
+
+---
+
+## Testing Strategy for Remaining PRs
+
+**Each PR Must Include**:
+1. ✅ TDD: Failing tests first, then implementation
+2. ✅ Integration tests with real API keys (marked appropriately)
+3. ✅ Manual user testing from README perspective
+4. ✅ Output quality verification (no timeouts, truncation, errors)
+5. ✅ CI verification before merge
+6. ✅ Documentation updates (README, CLI help, error messages)
+
+**Quality Standards**:
+- No timeouts acceptable
+- No broken formats acceptable
+- No truncated content acceptable
+- No repeated content acceptable
+- No placeholder content acceptable
 
 ---
 
