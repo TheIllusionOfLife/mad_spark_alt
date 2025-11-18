@@ -32,7 +32,7 @@ if [ ! -f ".venv/bin/msa" ]; then
 fi
 
 echo "Starting Mad Spark Alt with evolution..."
-echo "Command: .venv/bin/msa $@"
+echo "Command: .venv/bin/msa $*"
 echo ""
 echo "⚠️  WARNING: This may timeout after 2 minutes in some environments."
 echo "   If you experience timeout issues, use scripts/run_nohup.sh instead."
