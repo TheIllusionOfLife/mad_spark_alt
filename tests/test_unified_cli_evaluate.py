@@ -179,15 +179,17 @@ class TestEvaluateFlagMode:
         finally:
             Path(temp_path).unlink(missing_ok=True)
 
-    def test_evaluate_no_input_shows_help(self):
-        """--evaluate without input should show help or error."""
+    def test_evaluate_no_input_shows_error(self):
+        """--evaluate without input should show a helpful error message."""
         from mad_spark_alt.unified_cli import main
 
         runner = CliRunner()
         result = runner.invoke(main, ['--evaluate'])
 
-        # Should either show help or error message
-        assert result.exit_code != 0 or '--help' in result.output.lower()
+        # Should show clear error message (fail fast)
+        assert result.exit_code == 1
+        assert "Text to evaluate cannot be empty" in result.output
+        assert "msa --evaluate" in result.output  # Shows usage hint
 
 
 class TestBackwardCompatibility:

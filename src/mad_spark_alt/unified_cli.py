@@ -581,7 +581,6 @@ def main(
             layers=layers,
             output_file=output,
             output_format=export_format,
-            verbose=verbose
         )
         return
 
@@ -1464,7 +1463,6 @@ def _run_evaluation_sync(
     layers: Optional[str],
     output_file: Optional[str],
     output_format: str,
-    verbose: bool
 ) -> None:
     """Run evaluation mode (helper function for --evaluate flag)."""
     # Get input text
