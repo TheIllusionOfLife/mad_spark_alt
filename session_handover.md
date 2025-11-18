@@ -10,7 +10,7 @@
 
 **Branch**: `fix/ollama-image-paths`
 **Status**: Awaiting CI checks and code review
-**Created**: https://github.com/TheIllusionOfLife/mad_spark_alt/pull/154
+**Created**: [PR #154](https://github.com/TheIllusionOfLife/mad_spark_alt/pull/154)
 
 **Summary**: Normalize relative image paths to absolute for Ollama compatibility.
 
@@ -37,14 +37,16 @@ Following systematic 4-PR approach from comprehensive UAT analysis:
 **Estimated Effort**: 65 minutes
 **Branch**: `feature/japanese-pdf-handling` (to be created)
 
-**Issue #2: Japanese Language Support**
+### Issue #2: Japanese Language Support
+
 - **Problem**: Ollama responds in English despite Japanese prompts
 - **Root Cause**: No system-level language instruction
 - **Fix**: Add language detection and enhanced Japanese system prompt
 - **Files**: `src/mad_spark_alt/core/llm_provider.py`
 - **Tests**: Unit tests for language detection, integration tests with Japanese prompts
 
-**Issue #3: PDF Error Handling**
+### Issue #3: PDF Error Handling
+
 - **Problem**: Confusing errors when PDF passed to `--image` flag
 - **Fix**: Validate file extension early with helpful error message
 - **Files**: `src/mad_spark_alt/unified_cli.py` (~line 750)
@@ -60,7 +62,8 @@ Following systematic 4-PR approach from comprehensive UAT analysis:
 **Estimated Effort**: 90 minutes
 **Branch**: `feature/cli-query-option` (to be created)
 
-**Issue #5: Option Order Flexibility**
+### Issue #5: Option Order Flexibility
+
 - **Problem**: Users expect `msa "query" --provider gemini` but must use `msa --provider gemini "query"`
 - **Root Cause**: Click requires positional arguments before options
 - **Fix**: Convert `@click.argument('input')` to `@click.option('--query', '-q')`
@@ -79,7 +82,8 @@ Following systematic 4-PR approach from comprehensive UAT analysis:
 **Branch**: `fix/evaluate-subcommand` (to be created)
 **Dependencies**: Requires PR #3 completion
 
-**Issue #4: Evaluate Subcommand Broken**
+### Issue #4: Evaluate Subcommand Broken
+
 - **Problem**: All evaluate examples fail with "No such command 'text'"
 - **Root Cause**: Click argument parsing conflicts with subcommands
 - **Fix**: Remove manual subcommand detection workaround (lines 538-572)
