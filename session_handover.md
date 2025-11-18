@@ -1,6 +1,6 @@
 # Session Handover
 
-## Last Updated: November 16, 2025 08:46 PM JST
+## Last Updated: November 18, 2025 11:19 AM JST
 
 ---
 
@@ -12,48 +12,46 @@ None - All PRs merged, main branch clean.
 
 ## Follow-Up PRs Needed
 
-### MEDIUM PRIORITY
-
-1. **Add CSV/Text Document Support**
-   - **Problem**: Only PDFs supported for document extraction; CSV mentioned in docstrings but not implemented
-   - **Solution**: Expand `extract_document_content()` to handle CSV, TXT, JSON
-   - **Files**: `src/mad_spark_alt/core/provider_router.py:442-448`
-   - **Effort**: ~2 hours
-
-2. **Content Size Limits for Hybrid Routing**
-   - **Problem**: 4000 token extraction could exceed Ollama context limits
-   - **Solution**: Add truncation strategy or warning for very long extracts
-   - **Files**: `src/mad_spark_alt/core/provider_router.py:471`
-   - **Effort**: ~1 hour
-
-3. **CLI Help Text for Hybrid Mode**
-   - **Problem**: `--provider auto` help doesn't mention hybrid routing behavior
-   - **Solution**: Update CLI help to document that `--document/--url` triggers hybrid mode
-   - **Files**: `src/mad_spark_alt/unified_cli.py`
-   - **Effort**: ~30 minutes
-
-4. **URL Validation for Security**
-   - **Problem**: URLs passed directly to Gemini without validation (potential SSRF risk)
-   - **Solution**: Add basic URL format validation to prevent SSRF attacks
-   - **Files**: `src/mad_spark_alt/core/provider_router.py:469-470`
-   - **Effort**: ~1 hour
-
 ### LOW PRIORITY
 
-5. **Performance Benchmark Test Flakiness**
+1. **Performance Benchmark Test Flakiness**
    - **Problem**: `test_real_ollama_performance_benchmark` is flaky (38s > 30s threshold)
    - **Solution**: Increase threshold to 60s or skip in CI
    - **Files**: `tests/test_ollama_provider.py:394`
 
-6. **Content Caching for Repeated Queries**
-   - **Problem**: Re-extracting same documents wastes API calls
-   - **Solution**: Cache extracted content by file hash
-   - **Files**: `src/mad_spark_alt/core/provider_router.py`
-   - **Effort**: ~3 hours
-
 ---
 
 ## Recently Completed
+
+### PR #151: Hybrid Routing Polish - MERGED ✅ (November 18, 2025)
+**11 Commits with 1343 additions, 53 deletions across 6 files**:
+
+**Key Features Implemented**:
+- ✅ **Security**: SSRF prevention with comprehensive URL validation (schemes, private IPs, cloud metadata, percent-encoding bypasses)
+- ✅ **Format Support**: TXT, CSV, JSON, MD documents processed directly without API calls (cost optimization)
+- ✅ **Content Caching**: SHA256-based cache with mtime tracking prevents redundant processing
+- ✅ **Size Limits**: Token estimation and content truncation prevents prompt overflow
+- ✅ **CLI Help**: Updated help text to document hybrid mode behavior
+- ✅ **29 Comprehensive Tests**: Full coverage for security, caching, formats, size limits
+
+**Critical Bug Fixes During Review**:
+1. **Cache Type Mismatch** (CRITICAL): `float(mtime_hash)` vs `int` comparison → precision loss → cache always invalidated
+   - Fixed by keeping hash as `int` throughout lifecycle
+2. **Inline Imports**: Violated CLAUDE.md pattern, moved `unquote` to module-level
+3. **Cache Order Sensitivity**: Same documents in different order caused cache miss
+   - Fixed by sorting `doc_paths` before mtime hash computation
+4. **JSON ASCII Encoding**: Non-ASCII characters escaped to `\uXXXX`, bloating context
+   - Fixed with `ensure_ascii=False`
+5. **Blocking I/O in Async Path**: File reads blocked event loop
+   - Fixed with `loop.run_in_executor()` for non-blocking I/O
+
+**Technical Debt Addressed**:
+- CSV/JSON formatting duplication documented as known limitation (architectural constraint)
+- All 10 code review issues addressed (9 fixed, 1 documented)
+
+**Test Results**: 29/29 passing, mypy clean, all CI checks passing
+
+---
 
 ### PR #149: Hybrid Routing & Temperature Control - MERGED ✅
 **8 Commits with 989 lines of new code**:
@@ -90,6 +88,31 @@ None - All PRs merged, main branch clean.
 
 ## Session Learnings
 
+### Cache Type Consistency (CRITICAL)
+- **Problem**: Type mismatch between cache set/get causes silent invalidation
+- **Root Cause**: Storing `float(hash_value)` but comparing against `int` from `hash()` → precision loss
+- **Solution**: Keep hash values as integers throughout cache lifecycle
+- **Pattern**: Use `Union[float, int]` type hint if field serves dual purpose
+- **Added to**: `~/.claude/core-patterns.md` - Database & Caching section
+
+### Async I/O in LLM Pipelines
+- **Problem**: Blocking file I/O in async extraction paths blocks event loop
+- **Solution**: Offload synchronous I/O to thread pool with `run_in_executor()`
+- **Pattern**: Wrap blocking operations in typed inner function, await executor
+- **Why**: Large document processing shouldn't block LLM API calls
+- **Added to**: `~/.claude/domain-patterns.md` - LLM Integration Patterns
+
+### Comprehensive Code Review Workflow
+- **Pattern**: Systematic review → prioritize by severity → fix in batches → verify all
+- **Critical**: Check ALL feedback sources (PR comments, PR reviews, line comments, CI annotations)
+- **Efficiency**: Group related fixes into coherent commits (security, performance, quality)
+- **Verification**: Run full test suite + mypy after each batch
+
+### Inline Imports Are Anti-Patterns
+- **Problem**: Violates CLAUDE.md "No Inline Imports" rule, affects CI
+- **Solution**: Always import at module level, deduplicate if used multiple times
+- **Why**: Better for static analysis, cleaner code structure
+
 ### Hybrid Routing Architecture
 - **Pattern**: Preprocess with capable provider (Gemini), run reasoning with cost-effective provider (Ollama)
 - **Benefit**: Single extraction avoids reprocessing in each QADI phase
@@ -119,18 +142,18 @@ None - All PRs merged, main branch clean.
 ## Known Issues / Blockers
 
 - **CI Performance**: Test job takes 6-7 minutes (acceptable)
-- **PDF-Only Support**: Other document formats (CSV, TXT) not yet supported
-- **Token Limits**: Large extractions could exceed Ollama context limits
+- **DNS Rebinding**: URL validation doesn't resolve hostnames - documented limitation in CLAUDE.md
+- **CSV/JSON Duplication**: Formatting logic duplicated between CLI and provider_router - documented as technical debt
 
 ---
 
 ## Code Quality Status
 
-- **Total Tests**: 1046+ passing (42 new in this session)
-- **Type Checking**: mypy clean
+- **Total Tests**: 1121 passing (29 new in PR #151)
+- **Type Checking**: mypy clean (80 source files)
 - **CI/CD**: All checks passing (test, build, claude-review, CodeRabbit)
-- **Documentation**: README, CLAUDE.md, patterns updated
-- **Coverage**: Comprehensive edge cases (empty inputs, file validation, type errors)
+- **Documentation**: README, CLAUDE.md, session_handover.md, global patterns updated
+- **Coverage**: Comprehensive edge cases (SSRF attacks, cache invalidation, async I/O, size limits)
 
 ---
 
@@ -146,7 +169,14 @@ None - All PRs merged, main branch clean.
 
 ## Previous Sessions Summary
 
-### Session: November 16, 2025 (Evening) - Current
+### Session: November 18, 2025 11:19 AM JST - Current
+- Hybrid routing polish (PR #151)
+- 1343 lines added, 29 new comprehensive tests
+- Fixed 5 critical bugs from code review (cache type mismatch, inline imports, async I/O)
+- Comprehensive security hardening (SSRF prevention)
+- All 10 review issues addressed
+
+### Session: November 16, 2025 (Evening)
 - Implemented hybrid routing (PR #149)
 - 989 lines of new code, 42 new tests
 - Addressed 3 rounds of reviewer feedback
