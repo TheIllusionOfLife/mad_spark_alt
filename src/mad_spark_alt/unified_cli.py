@@ -482,8 +482,20 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
               help='Path to document file(s) to include in analysis (PDF, TXT, CSV, JSON, MD supported). With --provider auto, triggers hybrid mode.')
 @click.option('--url', '-u', multiple=True, help='URL(s) for context retrieval (max 20). With --provider auto, triggers hybrid mode using Gemini for extraction.')
 @click.option('--output', '-o', type=click.Path(), help='Export results to file (JSON or Markdown)')
-@click.option('--format', 'export_format', type=click.Choice(['json', 'md'], case_sensitive=False),
-              default='json', help='Export format: json or md (default: json)')
+@click.option('--format', 'export_format', type=click.Choice(['json', 'md', 'table'], case_sensitive=False),
+              default='json', help='Output format: json (default), md (markdown), or table')
+@click.option('--evaluate', '--eval', 'evaluate_mode', is_flag=True,
+              help='Evaluate creativity of existing text instead of generating new ideas via QADI')
+@click.option('--evaluate_with',
+              help='Comma-separated evaluators to use with --evaluate (e.g., diversity_evaluator,quality_evaluator)')
+@click.option('--file', '-f', type=click.Path(exists=True),
+              help='Read text from file (used with --evaluate)')
+@click.option('--model', default='test-model',
+              help='Model name for the evaluated output (used with --evaluate)')
+@click.option('--output-type', type=click.Choice(['text', 'code']), default='text',
+              help='Type of output being evaluated: text or code (used with --evaluate)')
+@click.option('--layers',
+              help='Evaluation layers: quantitative,llm_judge,human (used with --evaluate)')
 @click.argument('input', required=False)
 def main(
     ctx: click.Context,
@@ -500,35 +512,78 @@ def main(
     url: tuple,
     output: Optional[str],
     export_format: str,
+    evaluate_mode: bool,
+    evaluate_with: Optional[str],
+    file: Optional[str],
+    model: str,
+    output_type: str,
+    layers: Optional[str],
     input: Optional[str],
 ) -> None:
-    """Mad Spark Alt - QADI Analysis & AI Creativity Evaluation System
+    """Mad Spark Alt - QADI Analysis & AI Creativity Evaluation
 
-    Run QADI analysis on any question or problem. Optionally evolve ideas with genetic algorithm.
+    Two modes available:
+
+    1. QADI MODE (default): Generate creative solutions to problems
+       - Question: Extract core problem
+       - Abduction: Generate diverse hypotheses
+       - Deduction: Evaluate and select best solutions
+       - Induction: Verify with real-world examples
+
+    2. EVALUATE MODE (--evaluate): Score creativity of existing text
+       - Uses quantitative metrics and optional LLM judges
+       - Analyzes diversity, quality, novelty of given text
 
     Examples:
 
-      # Basic QADI analysis
-      msa "How can we reduce food waste?"
+      QADI Mode (idea generation):
+        msa "How can we reduce food waste?"
+        msa "Improve remote work" --evolve --generations 3
+        msa "Analyze this design" --image design.png --document context.pdf
+        msa "New product ideas" --temperature 1.5 --provider gemini
 
-      # QADI with evolution
-      msa "Improve remote work" --evolve --generations 3
+      Evaluate Mode (creativity scoring):
+        msa --evaluate "Here's my innovative solution..."
+        msa "My idea text" --eval --evaluate_with diversity_evaluator
+        msa --evaluate --file generated_output.txt --output scores.json
 
-      # With multimodal inputs
-      msa "Analyze this design" --image design.png
-
-      # With temperature control
-      msa "New product ideas" --temperature 1.5
-
-    Use subcommands for evaluation features:
-
-      msa evaluate "text to evaluate"
-      msa list-evaluators
+      Other Commands:
+        msa list-evaluators           # Show available evaluators
+        msa batch-evaluate files/     # Bulk evaluation
+        msa compare output1.txt output2.txt  # Compare responses
     """
     # Load environment variables
     load_env_file()
     setup_logging(verbose)
     register_default_evaluators()
+
+    # Route to evaluation mode if --evaluate flag is set
+    if evaluate_mode:
+        # Validate incompatible options
+        if evolve:
+            console.print("[red]Error: Cannot use --evolve with --evaluate[/red]")
+            console.print("[yellow]Choose one: Generate ideas (QADI) OR evaluate existing text[/yellow]")
+            ctx.exit(1)
+
+        # Show warnings for ignored options
+        if temperature is not None and temperature != 0.8:
+            console.print("[yellow]Warning: --temperature is ignored in evaluate mode (uses default)[/yellow]")
+        if image or document or url:
+            console.print("[yellow]Warning: --image, --document, --url are ignored in evaluate mode[/yellow]")
+
+        # Run evaluation mode
+        _run_evaluation_sync(
+            input_text=input,
+            file_path=file,
+            model=model,
+            output_type=output_type,
+            evaluators=evaluate_with,
+            layers=layers,
+            output_file=output,
+            output_format=export_format,
+            verbose=verbose
+        )
+        return
 
     # Initialize Google LLM provider if API key is available
     google_key = os.getenv("GOOGLE_API_KEY")
@@ -1400,65 +1455,35 @@ def _display_evolution_results(
             print(f"   • LLM calls saved: {cache_stats.get('hits', 0)}")
 
 
-# ===== EVALUATION SUBCOMMANDS =====
-
-@main.command()
-def list_evaluators() -> None:
-    """List all registered evaluators with usage examples."""
-    evaluators = registry.list_evaluators()
-
-    if not evaluators:
-        console.print("[yellow]No evaluators registered.[/yellow]")
-        return
-
-    table = Table(title="Registered Evaluators")
-    table.add_column("Name", style="cyan")
-    table.add_column("Layer", style="green")
-    table.add_column("Supported Types", style="blue")
-
-    for name, info in evaluators.items():
-        table.add_row(name, info["layer"], ", ".join(info["supported_output_types"]))
-
-    console.print(table)
-    console.print("\n[bold]Usage Examples:[/bold]")
-    console.print("  # Use a single evaluator:")
-    console.print("  msa evaluate 'text' --evaluators diversity_evaluator")
-    console.print("\n  # Use multiple evaluators:")
-    console.print("  msa evaluate 'text' --evaluators diversity_evaluator,quality_evaluator")
-    console.print("\n  # Use all evaluators (default):")
-    console.print("  msa evaluate 'text'")
-
-
-@main.command()
-@click.argument("text", required=False)
-@click.option("--file", "-f", type=click.Path(exists=True), help="Read text from file")
-@click.option("--model", "-m", default="test-model", help="Model name for the output")
-@click.option("--output-type", "-t", type=click.Choice(["text", "code"]), default="text", help="Output type")
-@click.option("--evaluators", "-e", help="Comma-separated list of evaluators to use")
-@click.option("--layers", "-l", help="Comma-separated list of layers (quantitative,llm_judge,human)")
-@click.option("--output", "-o", type=click.Path(), help="Save results to file")
-@click.option("--format", "output_format", type=click.Choice(["json", "table"]), default="table", help="Output format")
-def evaluate(
-    text: Optional[str],
-    file: Optional[str],
+def _run_evaluation_sync(
+    input_text: Optional[str],
+    file_path: Optional[str],
     model: str,
     output_type: str,
     evaluators: Optional[str],
     layers: Optional[str],
-    output: Optional[str],
+    output_file: Optional[str],
     output_format: str,
+    verbose: bool
 ) -> None:
-    """Evaluate creativity of AI output."""
+    """Run evaluation mode (helper function for --evaluate flag)."""
     # Get input text
-    if file:
-        with open(file, "r") as f:
-            input_text = f.read()
-    elif text:
-        input_text = text
+    if file_path:
+        with open(file_path, "r") as f:
+            text_to_evaluate = f.read()
+    elif input_text:
+        text_to_evaluate = input_text
     elif not sys.stdin.isatty():
-        input_text = sys.stdin.read().strip()
+        text_to_evaluate = sys.stdin.read().strip()
     else:
         console.print("[red]Error: Provide text via argument, --file option, or stdin[/red]")
+        sys.exit(1)
+
+    # Validate we have non-empty text
+    if not text_to_evaluate or not text_to_evaluate.strip():
+        console.print("[red]Error: Text to evaluate cannot be empty[/red]")
+        console.print("[yellow]Usage: msa --evaluate 'your text here'[/yellow]")
+        console.print("[yellow]   or: msa --evaluate --file input.txt[/yellow]")
         sys.exit(1)
 
     # Parse output type
@@ -1494,7 +1519,7 @@ def evaluate(
 
     # Create model output
     model_output = ModelOutput(
-        content=input_text,
+        content=text_to_evaluate,
         output_type=output_type_enum,
         model_name=model,
     )
@@ -1507,7 +1532,36 @@ def evaluate(
     )
 
     # Run evaluation
-    asyncio.run(_run_evaluation(request, output, output_format))
+    asyncio.run(_run_evaluation(request, output_file, output_format))
+
+
+# ===== EVALUATION SUBCOMMANDS =====
+
+@main.command()
+def list_evaluators() -> None:
+    """List all registered evaluators with usage examples."""
+    evaluators = registry.list_evaluators()
+
+    if not evaluators:
+        console.print("[yellow]No evaluators registered.[/yellow]")
+        return
+
+    table = Table(title="Registered Evaluators")
+    table.add_column("Name", style="cyan")
+    table.add_column("Layer", style="green")
+    table.add_column("Supported Types", style="blue")
+
+    for name, info in evaluators.items():
+        table.add_row(name, info["layer"], ", ".join(info["supported_output_types"]))
+
+    console.print(table)
+    console.print("\n[bold]Usage Examples:[/bold]")
+    console.print("  # Use a single evaluator:")
+    console.print("  msa --evaluate 'text' --evaluate_with diversity_evaluator")
+    console.print("\n  # Use multiple evaluators:")
+    console.print("  msa --evaluate 'text' --evaluate_with diversity_evaluator,quality_evaluator")
+    console.print("\n  # Use all evaluators (default):")
+    console.print("  msa --evaluate 'text'")
 
 
 @main.command()

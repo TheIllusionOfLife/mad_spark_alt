@@ -133,7 +133,7 @@ msa "Your question" --provider ollama
 | Auto | Mixed | Variable | ✅ Full support (hybrid mode for docs) | Ollama-first with fallback |
 
 **Current Limitations:**
-- **Subcommand provider selection** - `evaluate`, `batch-evaluate`, and `compare` subcommands do not support provider selection yet (they use their own evaluator registry, not QADI orchestration)
+- **Subcommand provider selection** - `batch-evaluate` and `compare` subcommands do not support provider selection yet (they use their own evaluator registry, not QADI orchestration)
 
 **Recent Improvements:**
 - ✅ **Hybrid routing** - When using `--document` or `--url` flags with auto mode, Gemini extracts content once, then Ollama runs QADI phases locally (cost optimization)
@@ -246,22 +246,43 @@ msa "Your question here"
 msa --help
 ```
 
-### Subcommands
+### Evaluate Mode
 
-While QADI analysis is the default (no subcommand needed), additional commands are available:
+Evaluate creativity of existing text instead of generating new ideas:
+
+```bash
+# Evaluate text with all evaluators (default)
+msa --evaluate "Here's my innovative solution..."
+
+# Use short flag
+msa --eval "My creative idea"
+
+# Evaluate with specific evaluators
+msa --evaluate "text" --evaluate_with diversity_evaluator
+
+# Use multiple evaluators
+msa --evaluate "text" --evaluate_with diversity_evaluator,quality_evaluator
+
+# Read text from file
+msa --evaluate --file generated_output.txt
+
+# Export evaluation results
+msa --evaluate "text" --output scores.json --format json
+```
+
+### Other Subcommands
+
+Additional commands for batch processing and comparison:
 
 ```bash
 # List available evaluators
 msa list-evaluators
 
-# Evaluate text with specific evaluators
-msa evaluate "text" --evaluators diversity_evaluator
+# Batch evaluate multiple files
+msa batch-evaluate files/
 
-# Use multiple evaluators
-msa evaluate "text" --evaluators diversity_evaluator,quality_evaluator
-
-# Use all evaluators (default)
-msa evaluate "text"
+# Compare multiple responses
+msa compare output1.txt output2.txt
 ```
 
 ## How QADI Works
