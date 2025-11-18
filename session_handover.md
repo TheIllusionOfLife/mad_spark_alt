@@ -79,24 +79,72 @@ Following systematic 4-PR approach from comprehensive UAT analysis:
 - ✅ All 25 CLI tests passing
 - ✅ No documentation changes needed (examples already use desired syntax)
 
-### PR #4: Fix Evaluate Subcommand (Planned)
-**Estimated Effort**: 60 minutes
-**Branch**: `fix/evaluate-subcommand` (to be created)
-**Dependencies**: Requires PR #3 completion
+### PR #4: Fix Evaluate Subcommand - BLOCKED, NEEDS ARCHITECTURE DECISION ⚠️
+**Estimated Effort**: TBD (architectural complexity discovered)
+**Branch**: `fix/evaluate-subcommand` (created with failing tests)
+**Status**: Implementation blocked by Click framework limitations
 
-### Issue #4: Evaluate Subcommand Broken
+### Issue #4: Evaluate Subcommand Broken - ROOT CAUSE ANALYSIS COMPLETE
 
-- **Problem**: All evaluate examples fail with "No such command 'text'"
-- **Root Cause**: Click argument parsing conflicts with subcommands
-- **Fix**: Remove manual subcommand detection workaround (lines 538-572)
-- **Files**: `src/mad_spark_alt/unified_cli.py`
+- **Problem**: All evaluate examples fail with "No such command 'text'" (verified on main branch)
+- **Root Cause**: Fundamental Click limitation - `@click.group()` with `@click.argument()` and `invoke_without_command=True` creates unsolvable parsing conflict
+- **Current Workaround**: Lines 536-572 attempt manual routing, but **does not actually work** (confirmed by testing main branch)
+- **Files**: `src/mad_spark_alt/unified_cli.py`, `tests/test_unified_cli.py`
 
-**Testing Requirements**:
-- All README evaluate examples
-- `evaluate --help` shows correct help
-- File input validation
-- Update documentation
-- Remove BUG_REPORT_evaluate_command.txt
+**Work Completed**:
+- ✅ Created feature branch `fix/evaluate-subcommand`
+- ✅ Wrote 8 comprehensive failing tests for evaluate functionality
+- ✅ Verified tests fail as expected (exit code 2, "No such command")
+- ✅ Root cause analysis: Click parses `@click.argument` BEFORE recognizing subcommands
+- ✅ Tested multiple approaches (ctx.args, decorator reordering, allow_interspersed_args combinations)
+- ✅ Confirmed evaluate subcommand is broken on main branch (not a regression)
+
+**Architectural Conflict Discovered**:
+1. PR #157 enabled `allow_interspersed_args=True` to support `msa "question" --provider gemini`
+2. This causes parent group to parse ALL options, including those meant for subcommands
+3. When parent has `@click.argument`, Click consumes first positional before checking subcommands
+4. Result: `msa evaluate "text"` → `input="evaluate"`, tries to find subcommand "text"
+5. Workaround code runs AFTER Click's parser fails, so it can't prevent the error
+
+**Attempted Solutions** (all failed):
+1. ❌ Remove `@click.argument`, use `ctx.args` → Breaks default QADI command
+2. ❌ Add `ignore_unknown_options=True` → Breaks subcommand routing entirely
+3. ❌ Remove `allow_interspersed_args` from parent → Breaks PR #157's feature
+4. ❌ Add `allow_interspersed_args` to evaluate subcommand only → Parent still consumes options
+5. ❌ Reorder decorators → No effect, Click's parsing order is fixed
+
+**Architecture Decision Required**:
+Three mutually exclusive goals:
+1. **PR #157**: `msa "question" --provider gemini` (options after positional for main command)
+2. **PR #4**: `msa evaluate "text" --evaluators diversity` (evaluate subcommand works)
+3. **Current**: Single CLI with both default command AND subcommands
+
+**Possible Solutions**:
+A. **Accept Breaking Change**: Remove `allow_interspersed_args`, require options-before-positional everywhere
+   - `msa --provider gemini "question"` ✅
+   - `msa evaluate --evaluators diversity "text"` ✅
+   - All README examples must be updated ⚠️
+
+B. **Separate CLIs**: Split into `msa` (QADI only) and `msa-evaluate` (evaluation only)
+   - Both can have `allow_interspersed_args` ✅
+   - Two commands instead of one ⚠️
+
+C. **Revert PR #157**: Accept options-before-positional was the correct pattern all along
+   - Consistent Click conventions ✅
+   - Breaks user expectations from PR #157 ⚠️
+
+**Recommendation**: Option A (options-before-positional) is most sustainable. Click framework was designed this way for good reasons. The 5+ hours spent on this issue demonstrates the complexity of fighting Click's design.
+
+**Next Steps** (User Decision Required):
+1. Choose architectural direction (A, B, or C)
+2. If A: Update README examples, document new syntax
+3. If B: Refactor into separate CLI commands
+4. If C: Revert PR #157, update all documentation
+
+**Testing Coverage** (already complete):
+- 8 new tests in `tests/test_unified_cli.py::TestEvaluateSubcommandFunctionality`
+- Tests verify: text argument, --evaluators option, --file option, list-evaluators, help messages
+- All tests currently failing as expected (evaluate subcommand is broken)
 
 ---
 
