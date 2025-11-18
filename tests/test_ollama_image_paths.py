@@ -172,21 +172,21 @@ class TestOllamaImagePathNormalization:
         are rejected before file reading.
         """
         provider = OllamaProvider()
-
-        with pytest.raises(ValueError, match="resolves outside project directory"):
-            multimodal_input = MultimodalInput(
-                input_type=MultimodalInputType.IMAGE,
-                source_type=MultimodalSourceType.FILE_PATH,
-                data="../../../etc/passwd",
-                mime_type="image/png"
-            )
-            request = LLMRequest(
-                user_prompt="What does this say?",
-                multimodal_inputs=[multimodal_input]
-            )
-            await provider.generate(request)
-
-        await provider.close()
+        try:
+            with pytest.raises(ValueError, match="resolves outside project directory"):
+                multimodal_input = MultimodalInput(
+                    input_type=MultimodalInputType.IMAGE,
+                    source_type=MultimodalSourceType.FILE_PATH,
+                    data="../../../etc/passwd",
+                    mime_type="image/png"
+                )
+                request = LLMRequest(
+                    user_prompt="What does this say?",
+                    multimodal_inputs=[multimodal_input]
+                )
+                await provider.generate(request)
+        finally:
+            await provider.close()
 
 
 @pytest.mark.ollama

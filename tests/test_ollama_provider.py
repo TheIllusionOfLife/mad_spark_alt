@@ -170,38 +170,38 @@ class TestOllamaProviderUnit:
         This test uses mocks to run in CI without Ollama server.
         """
         provider = OllamaProvider()
+        try:
+            # Track what path gets processed
+            captured_paths = []
 
-        # Track what path gets processed
-        captured_paths = []
+            def capture_path(path):
+                captured_paths.append(str(path))
+                return ("iVBORw0KGgoAAAANS==", "image/png")
 
-        def capture_path(path):
-            captured_paths.append(str(path))
-            return ("iVBORw0KGgoAAAANS==", "image/png")
+            with patch(
+                'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
+                new=AsyncMock(return_value={"message": {"content": "test"}, "done": True})
+            ), patch(
+                'mad_spark_alt.core.llm_provider.read_file_as_base64',
+                side_effect=capture_path
+            ):
 
-        with patch(
-            'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
-            new=AsyncMock(return_value={"message": {"content": "test"}, "done": True})
-        ), patch(
-            'mad_spark_alt.core.llm_provider.read_file_as_base64',
-            side_effect=capture_path
-        ):
+                request = LLMRequest(
+                    user_prompt="What does this say?",
+                    multimodal_inputs=[MultimodalInput(
+                        input_type=MultimodalInputType.IMAGE,
+                        source_type=MultimodalSourceType.FILE_PATH,
+                        data="relative.png",
+                        mime_type="image/png"
+                    )]
+                )
+                await provider.generate(request)
 
-            request = LLMRequest(
-                user_prompt="What does this say?",
-                multimodal_inputs=[MultimodalInput(
-                    input_type=MultimodalInputType.IMAGE,
-                    source_type=MultimodalSourceType.FILE_PATH,
-                    data="relative.png",
-                    mime_type="image/png"
-                )]
-            )
-            await provider.generate(request)
-
-        # Verify path was normalized to absolute
-        assert len(captured_paths) == 1
-        assert Path(captured_paths[0]).is_absolute()
-
-        await provider.close()
+            # Verify path was normalized to absolute
+            assert len(captured_paths) == 1
+            assert Path(captured_paths[0]).is_absolute()
+        finally:
+            await provider.close()
 
     @pytest.mark.asyncio
     async def test_generate_with_pydantic_schema(self):
