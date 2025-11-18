@@ -96,7 +96,6 @@ async def test_enhanced_semantic_operators():
         metadata={
             "generation": 2,
             "overall_fitness": 0.88,  # High fitness - should trigger breakthrough
-            "overall_fitness": 0.85
         }
     )
     
