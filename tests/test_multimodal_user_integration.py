@@ -54,7 +54,7 @@ async def test_image_analysis(provider: GoogleProvider):
     print_section("TEST 1: Image Analysis")
 
     # Use the test image fixture
-    image_path = str(Path(__file__).parent / "tests" / "fixtures" / "test_image.png")
+    image_path = str(Path(__file__).parent / "fixtures" / "test_image.png")
 
     image_input = MultimodalInput(
         input_type=MultimodalInputType.IMAGE,
@@ -86,7 +86,7 @@ async def test_pdf_processing(provider: GoogleProvider):
     print_section("TEST 2: PDF Document Processing")
 
     # Use the test PDF fixture
-    pdf_path = str(Path(__file__).parent / "tests" / "fixtures" / "test_document.pdf")
+    pdf_path = str(Path(__file__).parent / "fixtures" / "test_document.pdf")
 
     doc_input = MultimodalInput(
         input_type=MultimodalInputType.DOCUMENT,
@@ -139,7 +139,7 @@ async def test_mixed_multimodal(provider: GoogleProvider):
     """Test 4: Mixed Multimodal Inputs"""
     print_section("TEST 4: Mixed Multimodal (Image + URL)")
 
-    image_path = str(Path(__file__).parent / "tests" / "fixtures" / "test_image.png")
+    image_path = str(Path(__file__).parent / "fixtures" / "test_image.png")
 
     image_input = MultimodalInput(
         input_type=MultimodalInputType.IMAGE,
