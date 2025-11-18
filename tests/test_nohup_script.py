@@ -27,15 +27,15 @@ class TestNohupScript:
     
     def test_script_exists_after_rename(self, script_dir):
         """Test that run_nohup.sh exists after renaming."""
-        script_path = script_dir / "run_nohup.sh"
-        assert script_path.exists(), "run_nohup.sh should exist"
+        script_path = script_dir / "scripts" / "run_nohup.sh"
+        assert script_path.exists(), "scripts/run_nohup.sh should exist"
         assert os.access(script_path, os.X_OK), "run_nohup.sh should be executable"
     
     def test_outputs_directory_used(self, script_dir, outputs_dir):
         """Test that script saves output to outputs directory."""
         # This test will verify the script creates files in outputs/
         # We'll check this by examining the script content
-        script_path = script_dir / "run_nohup.sh"
+        script_path = script_dir / "scripts" / "run_nohup.sh"
         if script_path.exists():
             with open(script_path, 'r') as f:
                 content = f.read()
@@ -43,7 +43,7 @@ class TestNohupScript:
     
     def test_script_handles_no_arguments(self, script_dir):
         """Test script shows usage when no arguments provided."""
-        script_path = script_dir / "run_nohup.sh"
+        script_path = script_dir / "scripts" / "run_nohup.sh"
         if not script_path.exists():
             pytest.skip("Script not yet created")
             
@@ -61,8 +61,8 @@ class TestNohupScript:
         """Test script checks for virtual environment."""
         # Create a temporary script location without .venv
         temp_script = tmp_path / "run_nohup.sh"
-        
-        script_path = script_dir / "run_nohup.sh"
+
+        script_path = script_dir / "scripts" / "run_nohup.sh"
         if not script_path.exists():
             pytest.skip("Script not yet created")
             
@@ -84,7 +84,7 @@ class TestNohupScript:
     def test_output_file_naming(self, script_dir, outputs_dir):
         """Test that output files have timestamp in name."""
         # Check script content for timestamp pattern
-        script_path = script_dir / "run_nohup.sh"
+        script_path = script_dir / "scripts" / "run_nohup.sh"
         if script_path.exists():
             with open(script_path, 'r') as f:
                 content = f.read()
@@ -93,7 +93,7 @@ class TestNohupScript:
     
     def test_script_shows_monitoring_instructions(self, script_dir):
         """Test that script provides monitoring instructions."""
-        script_path = script_dir / "run_nohup.sh"
+        script_path = script_dir / "scripts" / "run_nohup.sh"
         if not script_path.exists():
             pytest.skip("Script not yet created")
             
@@ -114,7 +114,7 @@ class TestEvolutionScript:
     
     def test_script_has_timeout_warning(self, script_dir):
         """Test that run_evolution.sh warns about potential timeout."""
-        script_path = script_dir / "run_evolution.sh"
+        script_path = script_dir / "scripts" / "run_evolution.sh"
         if script_path.exists():
             with open(script_path, 'r') as f:
                 content = f.read()
@@ -209,7 +209,7 @@ class TestScriptIntegration:
     
     def test_nohup_script_creates_output_file(self, script_dir):
         """Test that nohup script creates an output file and cleans it up."""
-        script_path = script_dir / "run_nohup.sh"
+        script_path = script_dir / "scripts" / "run_nohup.sh"
         if not script_path.exists():
             pytest.skip("Script not yet created")
 

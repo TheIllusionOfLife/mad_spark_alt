@@ -404,15 +404,15 @@ This is caused by the execution environment (terminal/shell/IDE), not the applic
 **Solution**: Use the provided nohup wrapper script for long-running tasks:
 ```bash
 # Instead of: msa "prompt" --evolve
-# Use: ./run_nohup.sh "prompt" --evolve
+# Use: scripts/run_nohup.sh "prompt" --evolve
 
 # Example
-./run_nohup.sh "Create a game concept" --evolve --generations 3 --population 10
+scripts/run_nohup.sh "Create a game concept" --evolve --generations 3 --population 10
 ```
 
-Output will be saved to `outputs/msa_output_TIMESTAMP.txt`. 
+Output will be saved to `outputs/msa_output_TIMESTAMP.txt`.
 
-See the `run_nohup.sh` script for our solution to terminal timeout issues.
+See the `scripts/run_nohup.sh` script for our solution to terminal timeout issues.
 
 ## Documentation
 

@@ -5,12 +5,14 @@ User testing script for Phase 2 multimodal functionality.
 This script tests the implementation with real API calls using simple Python code
 that mimics how users would use the system.
 
-Run with: python test_multimodal_user.py
+Run with: pytest tests/test_multimodal_user_integration.py -m integration
 """
 
 import asyncio
 import os
 from pathlib import Path
+
+import pytest
 
 from mad_spark_alt.core.llm_provider import GoogleProvider, LLMRequest
 from mad_spark_alt.core.multimodal import (
@@ -46,12 +48,13 @@ def print_result(response, test_name: str):
     print()
 
 
+@pytest.mark.integration
 async def test_image_analysis(provider: GoogleProvider):
     """Test 1: Image Analysis"""
     print_section("TEST 1: Image Analysis")
 
     # Use the test image fixture
-    image_path = str(Path(__file__).parent / "tests" / "fixtures" / "test_image.png")
+    image_path = str(Path(__file__).parent / "fixtures" / "test_image.png")
 
     image_input = MultimodalInput(
         input_type=MultimodalInputType.IMAGE,
@@ -77,12 +80,13 @@ async def test_image_analysis(provider: GoogleProvider):
     print("✅ Quality checks passed!\n")
 
 
+@pytest.mark.integration
 async def test_pdf_processing(provider: GoogleProvider):
     """Test 2: PDF Document Processing"""
     print_section("TEST 2: PDF Document Processing")
 
     # Use the test PDF fixture
-    pdf_path = str(Path(__file__).parent / "tests" / "fixtures" / "test_document.pdf")
+    pdf_path = str(Path(__file__).parent / "fixtures" / "test_document.pdf")
 
     doc_input = MultimodalInput(
         input_type=MultimodalInputType.DOCUMENT,
@@ -109,6 +113,7 @@ async def test_pdf_processing(provider: GoogleProvider):
     print("✅ Quality checks passed!\n")
 
 
+@pytest.mark.integration
 async def test_url_context(provider: GoogleProvider):
     """Test 3: URL Context Retrieval"""
     print_section("TEST 3: URL Context Retrieval")
@@ -129,11 +134,12 @@ async def test_url_context(provider: GoogleProvider):
     print("✅ Quality checks passed!\n")
 
 
+@pytest.mark.integration
 async def test_mixed_multimodal(provider: GoogleProvider):
     """Test 4: Mixed Multimodal Inputs"""
     print_section("TEST 4: Mixed Multimodal (Image + URL)")
 
-    image_path = str(Path(__file__).parent / "tests" / "fixtures" / "test_image.png")
+    image_path = str(Path(__file__).parent / "fixtures" / "test_image.png")
 
     image_input = MultimodalInput(
         input_type=MultimodalInputType.IMAGE,
@@ -163,6 +169,7 @@ async def test_mixed_multimodal(provider: GoogleProvider):
     print("✅ Quality checks passed!\n")
 
 
+@pytest.mark.integration
 async def test_backward_compatibility(provider: GoogleProvider):
     """Test 5: Backward Compatibility (Text-only)"""
     print_section("TEST 5: Backward Compatibility (Text-only)")
