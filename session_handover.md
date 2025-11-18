@@ -79,24 +79,39 @@ Following systematic 4-PR approach from comprehensive UAT analysis:
 - ✅ All 25 CLI tests passing
 - ✅ No documentation changes needed (examples already use desired syntax)
 
-### PR #4: Fix Evaluate Subcommand (Planned)
-**Estimated Effort**: 60 minutes
-**Branch**: `fix/evaluate-subcommand` (to be created)
-**Dependencies**: Requires PR #3 completion
+### PR #4: Fix Evaluate Subcommand - COMPLETED ✅ (November 18, 2025)
+**Actual Effort**: ~90 minutes (TDD approach)
+**Branch**: `fix/evaluate-flag-mode`
 
-### Issue #4: Evaluate Subcommand Broken
+### Issue #4: Evaluate Subcommand Broken - RESOLVED ✅
 
-- **Problem**: All evaluate examples fail with "No such command 'text'"
-- **Root Cause**: Click argument parsing conflicts with subcommands
-- **Fix**: Remove manual subcommand detection workaround (lines 538-572)
-- **Files**: `src/mad_spark_alt/unified_cli.py`
+- **Problem**: All evaluate examples fail with "No such command 'text'" due to Click argument parsing conflicts with subcommands
+- **Root Cause**: Click's `@click.argument()` on a group with `invoke_without_command=True` creates unsolvable parsing conflicts
+- **Solution**: Convert `evaluate` from broken subcommand to working `--evaluate` flag (similar to `--evolve`)
+- **Files Changed**:
+  - `src/mad_spark_alt/unified_cli.py`: Added --evaluate flag, mode routing, _run_evaluation_sync() helper, updated docstring/help
+  - `tests/test_unified_cli_evaluate.py`: New test file with 15 comprehensive tests
+  - `README.md`: Updated evaluate examples to use flag syntax
 
-**Testing Requirements**:
-- All README evaluate examples
-- `evaluate --help` shows correct help
-- File input validation
-- Update documentation
-- Remove BUG_REPORT_evaluate_command.txt
+**Changes Made**:
+- ✅ Added `--evaluate`/`--eval` flag for evaluation mode (flag-based like --evolve)
+- ✅ Added `--evaluate_with` option to select specific evaluators (renamed from --evaluators to avoid -e conflict)
+- ✅ Added evaluation-specific options: --file, --model, --output-type, --layers
+- ✅ Implemented mode routing with validation (--evaluate + --evolve shows clear error)
+- ✅ Warning system for ignored options (temperature, multimodal inputs)
+- ✅ Empty input validation with helpful error messages
+- ✅ Removed old broken `evaluate` subcommand (~80 lines)
+- ✅ Updated list_evaluators examples to show new syntax
+- ✅ 15 comprehensive tests (all passing)
+- ✅ Real user testing with actual evaluators
+- ✅ Backward compatibility verified (QADI mode unchanged, all 25 CLI tests passing)
+- ✅ README updated with new evaluate syntax
+- ✅ PR #157 compatibility: Both `msa --evaluate "text"` and `msa "text" --evaluate` work
+
+**Naming Scheme**:
+- `--evolve` / `-e` = Evolution mode
+- `--evaluate` / `--eval` = Evaluation mode
+- `--evaluate_with` = Select which evaluators to use (no short flag to avoid conflict)
 
 ---
 
@@ -105,8 +120,8 @@ Following systematic 4-PR approach from comprehensive UAT analysis:
 - **PR #154 Completion**: 15-30 minutes (CI monitoring + review responses)
 - **PR #2**: 65 minutes
 - **~~PR #3~~**: ~~90 minutes~~ ✅ **COMPLETED in 20 minutes**
-- **PR #4**: 60 minutes
-- **Total**: ~2.5 hours remaining for complete resolution of all Japanese UAT issues
+- **~~PR #4~~**: ~~60 minutes~~ ✅ **COMPLETED in 90 minutes**
+- **Total**: ~80 minutes remaining for complete resolution of all Japanese UAT issues (just PR #2)
 
 ---
 

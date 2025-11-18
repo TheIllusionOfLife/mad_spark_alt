@@ -482,8 +482,20 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
               help='Path to document file(s) to include in analysis (PDF, TXT, CSV, JSON, MD supported). With --provider auto, triggers hybrid mode.')
 @click.option('--url', '-u', multiple=True, help='URL(s) for context retrieval (max 20). With --provider auto, triggers hybrid mode using Gemini for extraction.')
 @click.option('--output', '-o', type=click.Path(), help='Export results to file (JSON or Markdown)')
-@click.option('--format', 'export_format', type=click.Choice(['json', 'md'], case_sensitive=False),
-              default='json', help='Export format: json or md (default: json)')
+@click.option('--format', 'export_format', type=click.Choice(['json', 'md', 'table'], case_sensitive=False),
+              default='json', help='Output format: json (default), md (markdown), or table')
+@click.option('--evaluate', '--eval', 'evaluate_mode', is_flag=True,
+              help='Evaluate creativity of existing text instead of generating new ideas via QADI')
+@click.option('--evaluate_with',
+              help='Comma-separated evaluators to use with --evaluate (e.g., diversity_evaluator,quality_evaluator)')
+@click.option('--file', '-f', type=click.Path(exists=True),
+              help='Read text from file (used with --evaluate)')
+@click.option('--model', default='test-model',
+              help='Model name for the evaluated output (used with --evaluate)')
+@click.option('--output-type', type=click.Choice(['text', 'code']), default='text',
+              help='Type of output being evaluated: text or code (used with --evaluate)')
+@click.option('--layers',
+              help='Evaluation layers: quantitative,llm_judge,human (used with --evaluate)')
 @click.argument('input', required=False)
 def main(
     ctx: click.Context,
@@ -500,35 +512,97 @@ def main(
     url: tuple,
     output: Optional[str],
     export_format: str,
+    evaluate_mode: bool,
+    evaluate_with: Optional[str],
+    file: Optional[str],
+    model: str,
+    output_type: str,
+    layers: Optional[str],
     input: Optional[str],
 ) -> None:
-    """Mad Spark Alt - QADI Analysis & AI Creativity Evaluation System
+    """Mad Spark Alt - QADI Analysis & AI Creativity Evaluation
 
-    Run QADI analysis on any question or problem. Optionally evolve ideas with genetic algorithm.
+    Two modes available:
+
+    1. QADI MODE (default): Generate creative solutions to problems
+       - Question: Extract core problem
+       - Abduction: Generate diverse hypotheses
+       - Deduction: Evaluate and select best solutions
+       - Induction: Verify with real-world examples
+
+    2. EVALUATE MODE (--evaluate): Score creativity of existing text
+       - Uses quantitative metrics and optional LLM judges
+       - Analyzes diversity, quality, novelty of given text
 
     Examples:
 
-      # Basic QADI analysis
-      msa "How can we reduce food waste?"
+      QADI Mode (idea generation):
+        msa "How can we reduce food waste?"
+        msa "Improve remote work" --evolve --generations 3
+        msa "Analyze this design" --image design.png --document context.pdf
+        msa "New product ideas" --temperature 1.5 --provider gemini
 
-      # QADI with evolution
-      msa "Improve remote work" --evolve --generations 3
+      Evaluate Mode (creativity scoring):
+        msa --evaluate "Here's my innovative solution..."
+        msa "My idea text" --eval --evaluate_with diversity_evaluator
+        msa --evaluate --file generated_output.txt --output scores.json
 
-      # With multimodal inputs
-      msa "Analyze this design" --image design.png
-
-      # With temperature control
-      msa "New product ideas" --temperature 1.5
-
-    Use subcommands for evaluation features:
-
-      msa evaluate "text to evaluate"
-      msa list-evaluators
+      Other Commands:
+        msa list-evaluators           # Show available evaluators
+        msa batch-evaluate files/     # Bulk evaluation
+        msa compare output1.txt output2.txt  # Compare responses
     """
     # Load environment variables
     load_env_file()
     setup_logging(verbose)
     register_default_evaluators()
+
+    # Validate evaluate-only options are used with --evaluate flag
+    evaluate_only_options = {
+        'evaluate_with': evaluate_with,
+        'file': file,
+        'model': model if model != 'test-model' else None,  # Ignore default
+        'output_type': output_type if output_type != 'text' else None,  # Ignore default
+        'layers': layers,
+    }
+
+    # Check if any evaluate-only options are used without --evaluate
+    if not evaluate_mode:
+        used_evaluate_options = [name for name, value in evaluate_only_options.items() if value]
+        if used_evaluate_options:
+            console.print("[red]Error: The following options require --evaluate flag:[/red]")
+            for opt_name in used_evaluate_options:
+                console.print(f"  • --{opt_name}")
+            console.print("\n[yellow]Did you mean to run:[/yellow]")
+            console.print(f"  msa --evaluate {input or '<text>'} --{used_evaluate_options[0]} ...")
+            ctx.exit(1)
+
+    # Route to evaluation mode if --evaluate flag is set
+    if evaluate_mode:
+        # Validate incompatible options
+        if evolve:
+            console.print("[red]Error: Cannot use --evolve with --evaluate[/red]")
+            console.print("[yellow]Choose one: Generate ideas (QADI) OR evaluate existing text[/yellow]")
+            ctx.exit(1)
+
+        # Show warnings for ignored options
+        if temperature is not None and temperature != 0.8:
+            console.print("[yellow]Warning: --temperature is ignored in evaluate mode (uses default)[/yellow]")
+        if image or document or url:
+            console.print("[yellow]Warning: --image, --document, --url are ignored in evaluate mode[/yellow]")
+
+        # Run evaluation mode
+        _run_evaluation_sync(
+            input_text=input,
+            file_path=file,
+            model=model,
+            output_type=output_type,
+            evaluators=evaluate_with,
+            layers=layers,
+            output_file=output,
+            output_format=export_format,
+        )
+        return
 
     # Initialize Google LLM provider if API key is available
     google_key = os.getenv("GOOGLE_API_KEY")
@@ -1400,65 +1474,34 @@ def _display_evolution_results(
             print(f"   • LLM calls saved: {cache_stats.get('hits', 0)}")
 
 
-# ===== EVALUATION SUBCOMMANDS =====
-
-@main.command()
-def list_evaluators() -> None:
-    """List all registered evaluators with usage examples."""
-    evaluators = registry.list_evaluators()
-
-    if not evaluators:
-        console.print("[yellow]No evaluators registered.[/yellow]")
-        return
-
-    table = Table(title="Registered Evaluators")
-    table.add_column("Name", style="cyan")
-    table.add_column("Layer", style="green")
-    table.add_column("Supported Types", style="blue")
-
-    for name, info in evaluators.items():
-        table.add_row(name, info["layer"], ", ".join(info["supported_output_types"]))
-
-    console.print(table)
-    console.print("\n[bold]Usage Examples:[/bold]")
-    console.print("  # Use a single evaluator:")
-    console.print("  msa evaluate 'text' --evaluators diversity_evaluator")
-    console.print("\n  # Use multiple evaluators:")
-    console.print("  msa evaluate 'text' --evaluators diversity_evaluator,quality_evaluator")
-    console.print("\n  # Use all evaluators (default):")
-    console.print("  msa evaluate 'text'")
-
-
-@main.command()
-@click.argument("text", required=False)
-@click.option("--file", "-f", type=click.Path(exists=True), help="Read text from file")
-@click.option("--model", "-m", default="test-model", help="Model name for the output")
-@click.option("--output-type", "-t", type=click.Choice(["text", "code"]), default="text", help="Output type")
-@click.option("--evaluators", "-e", help="Comma-separated list of evaluators to use")
-@click.option("--layers", "-l", help="Comma-separated list of layers (quantitative,llm_judge,human)")
-@click.option("--output", "-o", type=click.Path(), help="Save results to file")
-@click.option("--format", "output_format", type=click.Choice(["json", "table"]), default="table", help="Output format")
-def evaluate(
-    text: Optional[str],
-    file: Optional[str],
+def _run_evaluation_sync(
+    input_text: Optional[str],
+    file_path: Optional[str],
     model: str,
     output_type: str,
     evaluators: Optional[str],
     layers: Optional[str],
-    output: Optional[str],
+    output_file: Optional[str],
     output_format: str,
 ) -> None:
-    """Evaluate creativity of AI output."""
+    """Run evaluation mode (helper function for --evaluate flag)."""
     # Get input text
-    if file:
-        with open(file, "r") as f:
-            input_text = f.read()
-    elif text:
-        input_text = text
+    if file_path:
+        with open(file_path, "r") as f:
+            text_to_evaluate = f.read()
+    elif input_text:
+        text_to_evaluate = input_text
     elif not sys.stdin.isatty():
-        input_text = sys.stdin.read().strip()
+        text_to_evaluate = sys.stdin.read().strip()
     else:
         console.print("[red]Error: Provide text via argument, --file option, or stdin[/red]")
+        sys.exit(1)
+
+    # Validate we have non-empty text
+    if not text_to_evaluate or not text_to_evaluate.strip():
+        console.print("[red]Error: Text to evaluate cannot be empty[/red]")
+        console.print("[yellow]Usage: msa --evaluate 'your text here'[/yellow]")
+        console.print("[yellow]   or: msa --evaluate --file input.txt[/yellow]")
         sys.exit(1)
 
     # Parse output type
@@ -1494,7 +1537,7 @@ def evaluate(
 
     # Create model output
     model_output = ModelOutput(
-        content=input_text,
+        content=text_to_evaluate,
         output_type=output_type_enum,
         model_name=model,
     )
@@ -1507,7 +1550,36 @@ def evaluate(
     )
 
     # Run evaluation
-    asyncio.run(_run_evaluation(request, output, output_format))
+    asyncio.run(_run_evaluation(request, output_file, output_format))
+
+
+# ===== EVALUATION SUBCOMMANDS =====
+
+@main.command()
+def list_evaluators() -> None:
+    """List all registered evaluators with usage examples."""
+    evaluators = registry.list_evaluators()
+
+    if not evaluators:
+        console.print("[yellow]No evaluators registered.[/yellow]")
+        return
+
+    table = Table(title="Registered Evaluators")
+    table.add_column("Name", style="cyan")
+    table.add_column("Layer", style="green")
+    table.add_column("Supported Types", style="blue")
+
+    for name, info in evaluators.items():
+        table.add_row(name, info["layer"], ", ".join(info["supported_output_types"]))
+
+    console.print(table)
+    console.print("\n[bold]Usage Examples:[/bold]")
+    console.print("  # Use a single evaluator:")
+    console.print("  msa --evaluate 'text' --evaluate_with diversity_evaluator")
+    console.print("\n  # Use multiple evaluators:")
+    console.print("  msa --evaluate 'text' --evaluate_with diversity_evaluator,quality_evaluator")
+    console.print("\n  # Use all evaluators (default):")
+    console.print("  msa --evaluate 'text'")
 
 
 @main.command()
@@ -1613,14 +1685,23 @@ async def _run_evaluation(
 
         progress.update(task, completed=True)
 
-    # Display results
+    # Display and export results based on format
     if output_format == "json":
         _display_json_results(summary, output_file)
-    else:
-        _display_table_results(summary, compare_mode)
-
+    elif output_format == "md":
+        _display_markdown_results(summary, compare_mode)
         if output_file:
-            _save_json_results(summary, output_file)
+            _save_markdown_results(summary, output_file)
+    else:  # table
+        _display_table_results(summary, compare_mode)
+        if output_file:
+            # Save in requested format
+            if output_format == "table":
+                # For table format, we need to save something machine-readable
+                # Default to JSON since tables are for display only
+                _save_json_results(summary, output_file)
+            else:
+                _save_json_results(summary, output_file)
 
 
 def _display_json_results(
@@ -1687,6 +1768,152 @@ def _display_table_results(
 
         console.print(table)
         console.print()
+
+
+def _display_markdown_results(
+    summary: EvaluationSummary, compare_mode: bool = False
+) -> None:
+    """Display results in Markdown format."""
+    lines = []
+
+    # Header
+    lines.append("# Evaluation Results")
+    lines.append("")
+
+    # Summary
+    overall_score = summary.get_overall_creativity_score()
+    overall_score_str = f"{overall_score:.3f}" if overall_score is not None else "N/A"
+
+    lines.append("## Summary")
+    lines.append("")
+    lines.append(f"- **Total outputs:** {summary.total_outputs}")
+    lines.append(f"- **Total evaluators:** {summary.total_evaluators}")
+    lines.append(f"- **Execution time:** {summary.execution_time:.2f}s")
+    lines.append(f"- **Overall creativity score:** {overall_score_str}")
+    lines.append("")
+
+    # Aggregate scores if available
+    if summary.aggregate_scores:
+        lines.append("## Aggregate Scores")
+        lines.append("")
+        for metric, score in summary.aggregate_scores.items():
+            if isinstance(score, float):
+                lines.append(f"- **{metric}:** {score:.3f}")
+            else:
+                lines.append(f"- **{metric}:** {score}")
+        lines.append("")
+
+    # Results by layer
+    for layer, results in summary.layer_results.items():
+        if not results:
+            continue
+
+        lines.append(f"## {layer.value.title()} Layer Results")
+        lines.append("")
+
+        for result in results:
+            # Get output identifier
+            output_id = result.metadata.get("output_index", 0)
+            if compare_mode:
+                output_label = f"Response {output_id + 1}"
+            else:
+                output_label = f"Output {output_id + 1}"
+
+            lines.append(f"### {output_label} - {result.evaluator_name}")
+            lines.append("")
+
+            # Scores
+            lines.append("**Scores:**")
+            lines.append("")
+            for metric, score in result.scores.items():
+                if isinstance(score, float):
+                    lines.append(f"- {metric}: {score:.3f}")
+                else:
+                    lines.append(f"- {metric}: {score}")
+            lines.append("")
+
+            # Explanations if available
+            if result.explanations:
+                lines.append("**Explanations:**")
+                lines.append("")
+                for metric, explanation in result.explanations.items():
+                    lines.append(f"- **{metric}:** {explanation}")
+                lines.append("")
+
+    # Print to console
+    console.print("\n".join(lines))
+
+
+def _save_markdown_results(summary: EvaluationSummary, output_file: str) -> None:
+    """Save results to Markdown file."""
+    lines = []
+
+    # Header
+    lines.append("# Evaluation Results")
+    lines.append("")
+
+    # Summary
+    overall_score = summary.get_overall_creativity_score()
+    overall_score_str = f"{overall_score:.3f}" if overall_score is not None else "N/A"
+
+    lines.append("## Summary")
+    lines.append("")
+    lines.append(f"- **Total outputs:** {summary.total_outputs}")
+    lines.append(f"- **Total evaluators:** {summary.total_evaluators}")
+    lines.append(f"- **Execution time:** {summary.execution_time:.2f}s")
+    lines.append(f"- **Overall creativity score:** {overall_score_str}")
+    lines.append("")
+
+    # Aggregate scores if available
+    if summary.aggregate_scores:
+        lines.append("## Aggregate Scores")
+        lines.append("")
+        for metric, score in summary.aggregate_scores.items():
+            if isinstance(score, float):
+                lines.append(f"- **{metric}:** {score:.3f}")
+            else:
+                lines.append(f"- **{metric}:** {score}")
+        lines.append("")
+
+    # Results by layer
+    for layer, results in summary.layer_results.items():
+        if not results:
+            continue
+
+        lines.append(f"## {layer.value.title()} Layer Results")
+        lines.append("")
+
+        for result in results:
+            # Get output identifier
+            output_id = result.metadata.get("output_index", 0)
+            output_label = f"Output {output_id + 1}"
+
+            lines.append(f"### {output_label} - {result.evaluator_name}")
+            lines.append("")
+
+            # Scores
+            lines.append("**Scores:**")
+            lines.append("")
+            for metric, score in result.scores.items():
+                if isinstance(score, float):
+                    lines.append(f"- {metric}: {score:.3f}")
+                else:
+                    lines.append(f"- {metric}: {score}")
+            lines.append("")
+
+            # Explanations if available
+            if result.explanations:
+                lines.append("**Explanations:**")
+                lines.append("")
+                for metric, explanation in result.explanations.items():
+                    lines.append(f"- **{metric}:** {explanation}")
+                lines.append("")
+
+    # Write to file
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
+    console.print(f"[green]Results saved to {output_file}[/green]")
 
 
 def _save_json_results(summary: EvaluationSummary, output_file: str) -> None:

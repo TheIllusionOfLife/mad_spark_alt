@@ -262,15 +262,15 @@ class TestUnifiedCLISubcommands:
         # 'evolve' should NOT appear in the commands section
         assert 'evolve' not in commands_section.lower() or '--evolve' in result.output
 
-    def test_evaluate_subcommand_exists(self):
-        """Evaluate subcommand should be available."""
+    def test_evaluate_flag_exists(self):
+        """Evaluate flag should be available in main command."""
         from mad_spark_alt.unified_cli import main
 
         runner = CliRunner()
-        result = runner.invoke(main, ['evaluate', '--help'])
+        result = runner.invoke(main, ['--help'])
 
         assert result.exit_code == 0
-        assert 'evaluate' in result.output.lower() or 'Evaluate' in result.output
+        assert '--evaluate' in result.output or '--eval' in result.output
 
     def test_list_evaluators_subcommand_exists(self):
         """List-evaluators subcommand should be available."""
@@ -343,13 +343,11 @@ class TestProviderInheritance:
 
     def test_subcommands_do_not_have_provider_option(self):
         """Subcommands should NOT have --provider option (not yet implemented)."""
-        from mad_spark_alt.unified_cli import evaluate, batch_evaluate, compare
+        from mad_spark_alt.unified_cli import batch_evaluate, compare
 
-        # Check that Click-decorated functions do NOT have provider parameter
+        # Note: evaluate is now a flag (--evaluate) on main command, not a subcommand
+        # Check that remaining Click subcommands do NOT have provider parameter
         # Access the underlying Click command's params
-        eval_params = {p.name for p in evaluate.params}
-        assert 'provider' not in eval_params
-
         batch_params = {p.name for p in batch_evaluate.params}
         assert 'provider' not in batch_params
 
