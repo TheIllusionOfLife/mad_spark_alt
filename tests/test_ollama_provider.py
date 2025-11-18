@@ -163,6 +163,47 @@ class TestOllamaProviderUnit:
             assert response.usage["total_tokens"] == 10
 
     @pytest.mark.asyncio
+    async def test_relative_image_path_normalized_to_absolute(self):
+        """Regression test for Japanese UAT Issue #1.
+
+        Verify relative paths are converted to absolute before processing.
+        This test uses mocks to run in CI without Ollama server.
+        """
+        provider = OllamaProvider()
+        try:
+            # Track what path gets processed
+            captured_paths = []
+
+            def capture_path(path):
+                captured_paths.append(str(path))
+                return ("iVBORw0KGgoAAAANS==", "image/png")
+
+            with patch(
+                'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
+                new=AsyncMock(return_value={"message": {"content": "test"}, "done": True})
+            ), patch(
+                'mad_spark_alt.core.llm_provider.read_file_as_base64',
+                side_effect=capture_path
+            ):
+
+                request = LLMRequest(
+                    user_prompt="What does this say?",
+                    multimodal_inputs=[MultimodalInput(
+                        input_type=MultimodalInputType.IMAGE,
+                        source_type=MultimodalSourceType.FILE_PATH,
+                        data="relative.png",
+                        mime_type="image/png"
+                    )]
+                )
+                await provider.generate(request)
+
+            # Verify path was normalized to absolute
+            assert len(captured_paths) == 1
+            assert Path(captured_paths[0]).is_absolute()
+        finally:
+            await provider.close()
+
+    @pytest.mark.asyncio
     async def test_generate_with_pydantic_schema(self):
         """Test structured output with Pydantic schema (mocked)."""
         provider = OllamaProvider()
