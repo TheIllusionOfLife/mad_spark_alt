@@ -746,6 +746,13 @@ async def _run_qadi_analysis(
 
     # Process images
     for img_path in image_paths:
+        # Validate that PDFs are not passed to --image
+        if img_path.lower().endswith('.pdf'):
+            raise ValueError(
+                f"PDF files should be passed to --document, not --image: {img_path}\n"
+                f"Usage: msa 'your question' --document {img_path}"
+            )
+
         mime_type, _ = mimetypes.guess_type(img_path)
         if not mime_type or not mime_type.startswith("image/"):
             mime_type = "image/png"  # Default to PNG
