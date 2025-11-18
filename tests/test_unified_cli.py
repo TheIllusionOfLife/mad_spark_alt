@@ -13,6 +13,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import tempfile
 from pathlib import Path
 
+from mad_spark_alt.core.provider_router import ProviderSelection
+
 
 class TestUnifiedCLIDefaultCommand:
     """Test default QADI command (no subcommand needed)."""
@@ -80,6 +82,67 @@ class TestUnifiedCLIDefaultCommand:
                 assert result.exit_code == 0
                 # Verify verbose was passed
                 call_kwargs = mock_qadi.call_args[1]
+                assert call_kwargs['verbose'] is True
+
+    def test_options_after_positional_argument(self):
+        """Options should work AFTER positional argument with allow_interspersed_args=True."""
+        from mad_spark_alt.unified_cli import main
+
+        with patch('mad_spark_alt.unified_cli._run_qadi_sync') as mock_qadi:
+            with patch('os.getenv', return_value='fake-key'):
+                runner = CliRunner()
+                # NEW: Options AFTER positional argument should now work
+                result = runner.invoke(main, ['Test question', '--provider', 'gemini'])
+
+                assert result.exit_code == 0
+                # Verify provider was parsed correctly
+                call_kwargs = mock_qadi.call_args[1]
+                assert call_kwargs['provider_selection'] == ProviderSelection.GEMINI
+
+    def test_mixed_option_ordering(self):
+        """Options should work in any order relative to positional argument."""
+        from mad_spark_alt.unified_cli import main
+
+        with patch('mad_spark_alt.unified_cli._run_qadi_sync') as mock_qadi:
+            with patch('os.getenv', return_value='fake-key'):
+                runner = CliRunner()
+                # Mix: option before, positional, option after
+                result = runner.invoke(main, ['--temperature', '1.5', 'Test question', '--provider', 'ollama'])
+
+                assert result.exit_code == 0
+                call_kwargs = mock_qadi.call_args[1]
+                assert call_kwargs['temperature'] == 1.5
+                assert call_kwargs['provider_selection'] == ProviderSelection.OLLAMA
+
+    def test_options_all_after_positional(self):
+        """Multiple options should work when all placed after positional argument."""
+        from mad_spark_alt.unified_cli import main
+
+        with patch('mad_spark_alt.unified_cli._run_qadi_sync') as mock_qadi:
+            with patch('os.getenv', return_value='fake-key'):
+                runner = CliRunner()
+                # All options AFTER positional
+                result = runner.invoke(main, ['Test question', '--verbose', '--temperature', '0.9', '--provider', 'gemini'])
+
+                assert result.exit_code == 0
+                call_kwargs = mock_qadi.call_args[1]
+                assert call_kwargs['verbose'] is True
+                assert call_kwargs['temperature'] == 0.9
+                assert call_kwargs['provider_selection'] == ProviderSelection.GEMINI
+
+    def test_backward_compatibility_options_before(self):
+        """Verify backward compatibility: options before positional still work."""
+        from mad_spark_alt.unified_cli import main
+
+        with patch('mad_spark_alt.unified_cli._run_qadi_sync') as mock_qadi:
+            with patch('os.getenv', return_value='fake-key'):
+                runner = CliRunner()
+                # OLD style: options BEFORE positional (should still work)
+                result = runner.invoke(main, ['--provider', 'gemini', '--verbose', 'Test question'])
+
+                assert result.exit_code == 0
+                call_kwargs = mock_qadi.call_args[1]
+                assert call_kwargs['provider_selection'] == ProviderSelection.GEMINI
                 assert call_kwargs['verbose'] is True
 
 
