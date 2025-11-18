@@ -1021,8 +1021,14 @@ class OllamaProvider(LLMProviderInterface):
 
                 if item.input_type == MultimodalInputType.IMAGE:
                     if item.source_type == MultimodalSourceType.FILE_PATH:
+                        # Normalize path to absolute for Ollama compatibility
+                        # Ollama requires absolute paths or "./" prefix for images
+                        image_path = Path(item.data)
+                        if not image_path.is_absolute():
+                            image_path = image_path.resolve()
+
                         # Read file and convert to base64
-                        base64_data, _ = read_file_as_base64(Path(item.data))
+                        base64_data, _ = read_file_as_base64(image_path)
                         images.append(base64_data)
                     elif item.source_type == MultimodalSourceType.BASE64:
                         # Already base64 encoded
