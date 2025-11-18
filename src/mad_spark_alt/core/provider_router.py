@@ -434,7 +434,7 @@ class ProviderRouter:
             if any(pattern in hostname_decoded for pattern in _BLOCKED_METADATA_PATTERNS):
                 raise ValueError(f"Cloud metadata endpoints not allowed: {url}")
 
-    def _read_text_document(self, file_path: Path) -> str:
+    async def _read_text_document(self, file_path: Path) -> str:
         """
         Read text-based documents directly.
 
@@ -448,11 +448,19 @@ class ProviderRouter:
 
         Returns:
             Formatted document content as string
+
+        Note:
+            Uses asyncio.to_thread to avoid blocking the event loop during file I/O.
         """
         suffix = file_path.suffix.lower()
 
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
+        # Offload blocking file I/O to thread pool to avoid blocking event loop
+        def _blocking_read() -> str:
+            with open(file_path, "r", encoding="utf-8") as f:
+                return f.read()
+
+        loop = asyncio.get_event_loop()
+        content = await loop.run_in_executor(None, _blocking_read)
 
         if suffix == ".csv":
             # Format CSV as readable table with truncation for large files
@@ -830,7 +838,7 @@ class ProviderRouter:
             else:
                 # Text-based documents: read directly
                 try:
-                    text_content = self._read_text_document(doc_path_obj)
+                    text_content = await self._read_text_document(doc_path_obj)
                     text_contexts.append(f"=== {doc_path_obj.name} ===\n{text_content}")
                     # Cache the text content (cost is 0 since no API call)
                     self._content_cache.set(doc_path_obj, text_content, 0.0)
