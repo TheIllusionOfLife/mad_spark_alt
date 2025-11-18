@@ -1,0 +1,12 @@
+This is a test document for multimodal processing.
+
+Key Points:
+1. Multimodal support enables processing of images, documents, and URLs
+2. The system uses Google's Gemini API for analysis
+3. All modalities are integrated into the QADI reasoning cycle
+
+Testing Goals:
+- Verify image processing works correctly
+- Verify document processing works correctly
+- Verify URL processing works correctly
+- Verify combined multimodal processing works correctly
