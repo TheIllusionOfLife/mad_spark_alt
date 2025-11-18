@@ -12,6 +12,7 @@ Test Matrix:
 
 import asyncio
 import json
+import os
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
@@ -309,17 +310,21 @@ class LanguageMirroringExperiment:
 @pytest.mark.ollama
 @pytest.mark.integration
 @pytest.mark.asyncio
+@pytest.mark.skipif(
+    os.getenv("CI") == "true",
+    reason="Long-running experimental test (10-15 min) - skip in CI"
+)
 async def test_language_mirroring_strategies():
     """Run comprehensive language mirroring strategy experiments.
 
     This test runs 45 experiments (3 strategies × 3 languages × 5 runs)
-    in parallel to determine which language instruction strategy works best.
+    in batches to determine which language instruction strategy works best.
 
     Requires:
     - Ollama server running locally (localhost:11434)
     - gemma3:12b-it-qat model available
 
-    Expected duration: 10-15 minutes (parallel execution)
+    Expected duration: 10-15 minutes with batched execution
     """
     experiment = LanguageMirroringExperiment()
 

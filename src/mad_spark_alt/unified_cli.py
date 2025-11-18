@@ -747,7 +747,7 @@ async def _run_qadi_analysis(
     # Process images
     for img_path in image_paths:
         # Validate that PDFs are not passed to --image
-        if img_path.lower().endswith('.pdf'):
+        if Path(img_path).suffix.lower() == '.pdf':
             raise ValueError(
                 f"PDF files should be passed to --document, not --image: {img_path}\n"
                 f"Usage: msa 'your question' --document {img_path}"

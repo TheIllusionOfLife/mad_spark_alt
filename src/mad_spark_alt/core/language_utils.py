@@ -5,6 +5,9 @@ language as the user's input. Since LLMs are non-deterministic, these utilities
 increase the probability of language matching but don't guarantee it.
 """
 
+# Language detection thresholds (for test validation only)
+JAPANESE_CHAR_RATIO_THRESHOLD = 0.20  # Min ratio of Japanese chars to consider text Japanese
+
 
 def get_strategy_1_instruction() -> str:
     """Get Strategy 1: Direct instruction for language mirroring.
@@ -49,10 +52,15 @@ def get_combined_instruction() -> str:
 
 
 def detect_language(text: str) -> str:
-    """Detect the primary language in text.
+    """Detect the primary language in text FOR TEST VALIDATION ONLY.
 
-    This is used for test validation only, not for input processing.
-    The LLM handles language detection itself.
+    ⚠️ WARNING: This is a simple heuristic for validating experimental results.
+    DO NOT use in production code. The LLM handles language detection itself.
+
+    Limitations:
+    - Only supports EN/JA/ES
+    - Character-based heuristic, not ML-based
+    - Spanish detection may have false positives with Romance languages
 
     Args:
         text: Text to analyze
@@ -125,7 +133,7 @@ def detect_language(text: str) -> str:
 
     # Decision logic
     # If >20% Japanese characters, it's Japanese
-    if japanese_ratio > 0.20:
+    if japanese_ratio > JAPANESE_CHAR_RATIO_THRESHOLD:
         return "ja"
 
     # If has Spanish-specific characters or punctuation, it's Spanish
