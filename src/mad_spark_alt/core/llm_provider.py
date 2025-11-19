@@ -409,14 +409,15 @@ class GoogleProvider(LLMProviderInterface):
 
         # Check for URL context + structured output incompatibility
         # Gemini API does not support using url_context tool with structured output
-        disable_structured_output = False
-        if request.urls and request.response_schema:
+        disable_structured_output = bool(
+            request.urls and request.response_schema and request.response_mime_type
+        )
+        if disable_structured_output:
             logger.warning(
                 "URL context tool is incompatible with structured output "
                 "(Gemini API limitation). Disabling structured output and using "
                 "text parsing fallback for this request."
             )
-            disable_structured_output = True
 
         # Adjust max_tokens for Gemini 2.5-flash reasoning overhead
         max_output_tokens = request.max_tokens

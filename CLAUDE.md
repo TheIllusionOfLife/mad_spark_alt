@@ -151,7 +151,9 @@ Mad Spark Alt is a Multi-Agent Idea Generation System powered by LLMs using the 
 
 5. **CSV/JSON Formatting Duplication**: CSV and JSON formatting logic exists in both `unified_cli.py` (non-hybrid path) and `provider_router.py._read_text_document()` (hybrid path). This creates maintenance burden where future changes must be applied to both locations. Refactoring to share a single helper would require significant architectural changes (CLI is synchronous, provider_router is async). Current implementation keeps behavior consistent across both paths with test coverage.
 
-### Gemini API Limitations (PR #2)
+### Gemini API Limitations (Japanese UAT Fixes - GitHub PR #160)
+
+**Note**: These limitations were discovered during Japanese User Acceptance Testing and documented as part of the planned "PR #2" in the Japanese UAT issue sequence (not to be confused with GitHub PR numbers).
 
 6. **URL Context + Structured Output Incompatibility**: Gemini API does not support using the `url_context` tool with structured output (`responseMimeType` + `responseJsonSchema`). When URLs are present in a request, the system automatically disables structured output and falls back to text parsing. This ensures URL processing works correctly but may reduce parsing reliability for complex JSON responses.
 
