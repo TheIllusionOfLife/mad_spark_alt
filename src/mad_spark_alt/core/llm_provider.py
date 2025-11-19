@@ -407,6 +407,17 @@ class GoogleProvider(LLMProviderInterface):
         # Build contents with multimodal support
         contents = self._build_contents(request)
 
+        # Check for URL context + structured output incompatibility
+        # Gemini API does not support using url_context tool with structured output
+        disable_structured_output = False
+        if request.urls and request.response_schema:
+            logger.warning(
+                "URL context tool is incompatible with structured output "
+                "(Gemini API limitation). Disabling structured output and using "
+                "text parsing fallback for this request."
+            )
+            disable_structured_output = True
+
         # Adjust max_tokens for Gemini 2.5-flash reasoning overhead
         max_output_tokens = request.max_tokens
         if model_config.model_name == DEFAULT_GEMINI_MODEL:
@@ -423,8 +434,8 @@ class GoogleProvider(LLMProviderInterface):
             "topK": 40,
         }
 
-        # Add structured output configuration if provided
-        if request.response_schema and request.response_mime_type:
+        # Add structured output configuration if provided and not disabled
+        if request.response_schema and request.response_mime_type and not disable_structured_output:
             generation_config["responseMimeType"] = request.response_mime_type
             # Use get_json_schema() to convert Pydantic models to JSON Schema
             generation_config["responseJsonSchema"] = request.get_json_schema()

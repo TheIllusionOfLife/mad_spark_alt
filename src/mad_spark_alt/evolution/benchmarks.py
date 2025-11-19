@@ -280,8 +280,8 @@ class EvolutionBenchmark:
         filename = f"{results['name']}_{timestamp}.json"
         filepath = self.output_dir / filename
 
-        with open(filepath, "w") as f:
-            json.dump(results, f, indent=2)
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(results, f, indent=2, ensure_ascii=False)
 
         print(f"Benchmark results saved to: {filepath}")
 
@@ -337,8 +337,8 @@ class EvolutionBenchmark:
 
         # Save comparison
         output_path = self.output_dir / output_file
-        with open(output_path, "w") as f:
-            json.dump(comparison, f, indent=2)
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(comparison, f, indent=2, ensure_ascii=False)
 
         return comparison
 

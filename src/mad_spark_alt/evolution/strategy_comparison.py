@@ -446,8 +446,8 @@ class StrategyComparator:
             )
 
         if path.endswith(".json"):
-            with open(path, "w") as f:
-                json.dump(data, f, indent=2)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
         elif path.endswith(".csv"):
             if data:
                 with open(path, "w", newline="") as f:

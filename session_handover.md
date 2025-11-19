@@ -1,43 +1,49 @@
 # Session Handover
 
-## Last Updated: November 19, 2025 01:32 AM JST
+## Last Updated: November 20, 2025
 
 ---
 
 ## Current Work In Progress
 
-**No active work in progress** - All planned items completed ✅
+**PR #2: URL Processing + JSON Export Fixes (In Progress)**
+**Branch**: `fix/url-json-issues`
+**Status**: Implementation complete, pending tests and manual verification
+
+### Completed Phases:
+- ✅ Phase 1: Fix URL processing (disable structured output when URLs present)
+- ✅ Phase 2: Fix JSON Unicode export (ensure_ascii=False for all json.dump calls)
+- ✅ Phase 3: Stack trace polishing (already handled by 3-layer fallback)
+- ✅ Phase 4: Documentation updates (CLAUDE.md Known Limitations)
+
+### Modified Files (6 files):
+1. `src/mad_spark_alt/core/llm_provider.py` - URL + structured output detection
+2. `src/mad_spark_alt/unified_cli.py` - JSON export encoding (2 locations)
+3. `src/mad_spark_alt/evolution/checkpointing.py` - JSON export encoding
+4. `src/mad_spark_alt/evolution/strategy_comparison.py` - JSON export encoding
+5. `src/mad_spark_alt/evolution/benchmarks.py` - JSON export encoding (2 locations)
+6. `CLAUDE.md` - Known Limitations documentation
+
+### Next Steps:
+- Run full test suite (1110+ tests)
+- Manual testing verification
+- Create PR with detailed description
 
 ---
 
-## Planned Work - Japanese UAT Issue Fixes
+## Deferred Items - Japanese UAT Issues
 
-Following systematic 4-PR approach from comprehensive UAT analysis:
-
-### PR #2: Japanese Support + PDF Error Handling (Planned)
-**Estimated Effort**: 65 minutes
-**Branch**: `feature/japanese-pdf-handling` (to be created)
-
-### Issue #2: Japanese Language Support
-
+### Issue #1: Ollama Language Mirroring (DOCUMENTED as Known Limitation)
 - **Problem**: Ollama responds in English despite Japanese prompts
-- **Root Cause**: No system-level language instruction
-- **Fix**: Add language detection and enhanced Japanese system prompt
-- **Files**: `src/mad_spark_alt/core/llm_provider.py`
-- **Tests**: Unit tests for language detection, integration tests with Japanese prompts
+- **Root Cause**: Ollama models (gemma3:12b-it-qat) don't respect language instructions
+- **Resolution**: Documented in CLAUDE.md; users should use `--provider gemini` for non-English
+- **No code fix required** - This is a model limitation, not a code issue
 
-### Issue #3: PDF Error Handling
-
-- **Problem**: Confusing errors when PDF passed to `--image` flag
-- **Fix**: Validate file extension early with helpful error message
-- **Files**: `src/mad_spark_alt/unified_cli.py` (~line 750)
-- **Tests**: Unit tests for validation, user testing with PDFs
-
-**Testing Requirements**:
-- Japanese prompts: basic, image, evolve
-- PDF validation: various document formats
-- Output quality review: full Japanese, no English mixing
-- Documentation: README, CLI help, error messages
+### Issue #3: PDF Validation (ALREADY FIXED in PR #156)
+- **Problem**: PDF passed to `--image` flag causes confusing errors
+- **Status**: Already fixed in PR #156 (merged November 18, 2025)
+- **Implementation**: Early validation with clear error message
+- **No additional work needed**
 
 ---
 
