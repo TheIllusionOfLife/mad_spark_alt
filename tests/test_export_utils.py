@@ -178,6 +178,50 @@ class TestJSONExport:
         assert filepath.exists()
         assert filepath.parent.exists()
 
+    def test_export_preserves_unicode_characters(self, tmp_path):
+        """Test that JSON export preserves non-ASCII characters (Japanese UAT fix)."""
+        # Create result with Japanese, French, and Cyrillic text
+        result = SimpleQADIResult(
+            core_question="この質問は日本語です",  # Japanese text
+            hypotheses=["Café société", "Ответ на русском"],  # French accents, Cyrillic
+            hypothesis_scores=[
+                HypothesisScore(0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+                HypothesisScore(0.6, 0.6, 0.6, 0.6, 0.6, 0.6),
+            ],
+            final_answer="これは結論です",  # Japanese conclusion
+            action_plan=["étape 1", "шаг 2"],  # French + Cyrillic
+            verification_examples=["例１", "例２"],  # Japanese examples
+            verification_conclusion="完了",  # Japanese "complete"
+        )
+
+        filepath = tmp_path / "unicode_test.json"
+        export_to_json(result, filepath)
+
+        # Read raw file content
+        with open(filepath, encoding="utf-8") as f:
+            raw_content = f.read()
+
+        # Verify characters are NOT escaped (should be readable, not \uXXXX)
+        assert "この質問は日本語です" in raw_content
+        assert "Café société" in raw_content
+        assert "Ответ на русском" in raw_content
+        assert "これは結論です" in raw_content
+        assert "完了" in raw_content
+
+        # Verify no Unicode escape sequences present
+        assert "\\u" not in raw_content, "Found Unicode escape sequences in exported JSON"
+
+        # Verify it's still valid JSON that can be loaded
+        with open(filepath, encoding="utf-8") as f:
+            data = json.load(f)
+
+        # Verify content matches original
+        assert data["core_question"] == "この質問は日本語です"
+        assert data["hypotheses"][0] == "Café société"
+        assert data["hypotheses"][1] == "Ответ на русском"
+        assert data["final_answer"] == "これは結論です"
+        assert data["verification_conclusion"] == "完了"
+
 
 class TestMarkdownExport:
     """Test Markdown export functionality."""

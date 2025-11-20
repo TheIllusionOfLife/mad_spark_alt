@@ -391,6 +391,68 @@ class TestGoogleProviderStructuredOutput:
         assert "responseMimeType" in gen_config
         assert gen_config["responseMimeType"] == "application/json"
 
+    @pytest.mark.asyncio
+    async def test_url_context_disables_structured_output(self, sample_model_config: ModelConfig):
+        """Test that URLs disable structured output (Gemini API limitation)."""
+        provider = GoogleProvider("test_api_key")
+
+        config = sample_model_config
+
+        # Create request with BOTH URLs and response_schema
+        request = LLMRequest(
+            user_prompt="Summarize this page",
+            urls=["https://example.com"],
+            max_tokens=1000,
+            temperature=0.7,
+            model_configuration=config,
+            response_schema={
+                "type": "object",
+                "properties": {
+                    "summary": {"type": "string"}
+                }
+            },
+            response_mime_type="application/json"
+        )
+
+        # Mock the safe_aiohttp_request to capture the payload
+        captured_payload = {}
+
+        mock_response_data = {
+            "candidates": [{
+                "content": {
+                    "parts": [{"text": 'Example Domain summary'}]
+                },
+                "finishReason": "STOP"
+            }],
+            "usageMetadata": {
+                "promptTokenCount": 100,
+                "candidatesTokenCount": 50
+            }
+        }
+
+        async def mock_safe_request(**kwargs):
+            nonlocal captured_payload
+            if 'json' in kwargs:
+                captured_payload = kwargs['json']
+            return mock_response_data
+
+        with patch('mad_spark_alt.core.llm_provider.safe_aiohttp_request', new=mock_safe_request):
+            await provider.generate(request)
+
+        # Verify the payload structure
+        assert "generationConfig" in captured_payload
+        gen_config = captured_payload["generationConfig"]
+
+        # CRITICAL: Structured output should be DISABLED when URLs are present
+        assert "responseMimeType" not in gen_config, \
+            "URL context incompatible with structured output - responseMimeType should be disabled"
+        assert "responseJsonSchema" not in gen_config, \
+            "URL context incompatible with structured output - responseJsonSchema should be disabled"
+
+        # Verify URL tool is still present
+        assert "tools" in captured_payload
+        # Tools configuration varies, just verify structured output was disabled
+
 
 @pytest.mark.asyncio
 class TestIntegration:

@@ -1711,8 +1711,8 @@ def _display_json_results(
     result_data = _summary_to_dict(summary)
 
     if output_file:
-        with open(output_file, "w") as f:
-            json.dump(result_data, f, indent=2)
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(result_data, f, indent=2, ensure_ascii=False)
         console.print(f"[green]Results saved to {output_file}[/green]")
     else:
         console.print(JSON.from_data(result_data))
@@ -1919,8 +1919,8 @@ def _save_markdown_results(summary: EvaluationSummary, output_file: str) -> None
 def _save_json_results(summary: EvaluationSummary, output_file: str) -> None:
     """Save results to JSON file."""
     result_data = _summary_to_dict(summary)
-    with open(output_file, "w") as f:
-        json.dump(result_data, f, indent=2)
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump(result_data, f, indent=2, ensure_ascii=False)
     console.print(f"[green]Results saved to {output_file}[/green]")
 
 

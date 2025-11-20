@@ -133,8 +133,8 @@ class EvolutionCheckpointer:
         # Save to file
         checkpoint_path = self.checkpoint_dir / f"{safe_checkpoint_id}.json"
         try:
-            with open(checkpoint_path, "w") as f:
-                json.dump(checkpoint_data, f, indent=2)
+            with open(checkpoint_path, "w", encoding="utf-8") as f:
+                json.dump(checkpoint_data, f, indent=2, ensure_ascii=False)
             logger.info(
                 f"Saved checkpoint {checkpoint_id} at generation {checkpoint.generation}"
             )
