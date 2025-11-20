@@ -451,7 +451,6 @@ class TestGoogleProviderStructuredOutput:
 
         # Verify URL tool is still present
         assert "tools" in captured_payload
-        tool_names = [tool.get("google_search") for tool in captured_payload["tools"] if "google_search" in tool]
         # Tools configuration varies, just verify structured output was disabled
 
 
