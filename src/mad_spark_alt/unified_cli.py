@@ -1291,10 +1291,10 @@ async def _run_evolution(
         print(f"   (Note: Generated {len(qadi_result.synthesized_ideas)} hypotheses, but {population} were requested)")
         print(f"   (Using all {actual_population} available ideas for evolution)")
 
-    # Configure logging to suppress debug messages during evolution
+    # Configure logging level based on verbose flag (match main logger behavior)
     evolution_logger = logging.getLogger('mad_spark_alt.evolution')
     original_level = evolution_logger.level
-    evolution_logger.setLevel(logging.INFO)
+    evolution_logger.setLevel(logging.DEBUG if verbose else logging.WARNING)
 
     try:
         # Get LLM provider for semantic operators unless --traditional is used
@@ -1483,7 +1483,12 @@ def _display_evolution_results(
 
     for individual in unique_individuals:
         idea = individual.idea
-        content_normalized = idea.content.strip().lower() if idea.content else ""
+        content = idea.content.strip() if idea.content else ""
+        content_normalized = content.lower()
+
+        # Skip fallback text (generated when LLM API fails)
+        if "[FALLBACK TEXT]" in content or "[FALLBACK" in content:
+            continue
 
         # Check for duplicates
         is_duplicate = False
