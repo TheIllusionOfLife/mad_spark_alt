@@ -70,6 +70,15 @@ Mad Spark Alt is a Multi-Agent Idea Generation System powered by LLMs using the 
 - **Fix**: `Impact: [score] - [explanation]` in both description and format sections
 - **Testing**: Full prompt-to-response cycle with real LLM catches mismatches
 
+### Structured Output Over Prompt Engineering (CRITICAL)
+- **NEVER** request formatting (numbers, bullets) in prompts when using structured output
+- **DO** use Pydantic schema field descriptions to guide content
+- **DO** use `min_length`/`max_length` constraints in Pydantic fields
+- **Rule**: Prompts describe WHAT content to provide; schemas define HOW to structure it
+- **Anti-pattern**: Prompt `"1. [First item]"` + Schema `List[str]` → LLM includes "1." → double numbering on display
+- **Correct**: Prompt `"Provide 3 items"` + Schema `List[str] = Field(min_length=3)` → clean output
+- **Never** use regex to "fix" LLM formatting - fix the prompt/schema instead
+
 ### Type Safety Requirements
 - **Pattern**: `field if field is not None else default_value` for Optional fields
 - **CI Failure**: mypy errors common; run `uv run mypy src/` before push
