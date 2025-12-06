@@ -288,24 +288,26 @@ Use `--verbose` flag to see detailed output for each phase.
 
 ### Example Output
 
-When you run `msa "How can we reduce plastic waste?"`, you'll see:
+When you run `msa "How can we reduce plastic waste?"`, you'll see each QADI phase:
 
 ```
 🧠 QADI Analysis with Multi-Provider Support
 ==================================================
-
 📝 User Input: How can we reduce plastic waste?
-
 ──────────────────────────────────────────────────
 🤖 Using Ollama for analysis
 
-## 💡 Hypotheses Generated
+## 🔍 Q (Question): Core Problem
+
+**What are the most effective strategies for reducing plastic waste?**
+
+## 💡 A (Abduction): Hypotheses
 
   1. Community-Based Recycling Programs
   2. Single-Use Plastic Bans
   3. Biodegradable Alternative Materials
 
-## 📊 Evaluation Scores
+## 📊 D (Deduction): Evaluation
 
 ┌──────────┬────────┬─────────────┬────────┬─────────┬───────┬─────────┐
 │ Approach │ Impact │ Feasibility │ Access │ Sustain │ Scale │ Overall │
@@ -315,13 +317,13 @@ When you run `msa "How can we reduce plastic waste?"`, you'll see:
 │ 3        │ 0.75   │ 0.55        │ 0.70   │ 0.80    │ 0.75  │ 0.71    │
 └──────────┴────────┴─────────────┴────────┴─────────┴───────┴─────────┘
 
-## 🔍 Analysis: Comparing the Approaches
+### Analysis
 
 Based on the evaluation, Approach 1 (Community-Based Recycling) scores
 highest overall at 0.76, offering the best balance of feasibility and
 sustainability...
 
-## 🎯 Your Recommended Path (Final Synthesis)
+## 🎯 I (Induction): Action Plan
 
 1. Start with community awareness programs
 2. Partner with local businesses for collection points

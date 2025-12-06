@@ -1118,9 +1118,16 @@ async def _run_qadi_analysis(
                 )
                 print(formatted_scores)
 
+        # ========== Q (Question) Phase ==========
+        # Always show the extracted core question
+        if result.core_question and not verbose:
+            print("\n## 🔍 Q (Question): Core Problem\n")
+            render_markdown(f"**{result.core_question}**")
+
+        # ========== A (Abduction) Phase ==========
         # Display hypotheses (always shown, compact format in non-verbose mode)
         if result.hypotheses and not verbose:
-            print("\n## 💡 Hypotheses Generated\n")
+            print("\n## 💡 A (Abduction): Hypotheses\n")
             for i, hypothesis in enumerate(result.hypotheses):
                 # Clean ANSI codes from hypothesis
                 hypothesis_clean = clean_ansi_codes(hypothesis)
@@ -1134,9 +1141,10 @@ async def _run_qadi_analysis(
                 title = extract_hypothesis_title(hypothesis_clean, i + 1)
                 print(f"  {i+1}. {title}")
 
+        # ========== D (Deduction) Phase ==========
         # Display score table (always shown if scores available)
         if result.hypothesis_scores and result.hypotheses:
-            print("\n## 📊 Evaluation Scores\n")
+            print("\n## 📊 D (Deduction): Evaluation\n")
             score_table = Table(show_header=True, header_style="bold")
             score_table.add_column("Approach", style="cyan", width=10)
             score_table.add_column("Impact", justify="right", width=8)
@@ -1158,18 +1166,19 @@ async def _run_qadi_analysis(
                 )
             console.print(score_table)
 
-        # Main output - focused on solutions
-        print("\n## 🔍 Analysis: Comparing the Approaches\n")
+        # Analysis (part of Deduction)
+        print("\n### Analysis\n")
         render_markdown(result.final_answer)
 
+        # ========== I (Induction) Phase ==========
         if result.action_plan:
-            print("\n## 🎯 Your Recommended Path (Final Synthesis)\n")
+            print("\n## 🎯 I (Induction): Action Plan\n")
             for i, action in enumerate(result.action_plan):
                 render_markdown(f"{i+1}. {action}")
 
-        # Examples section
+        # Verification examples (part of Induction)
         if result.verification_examples and (verbose or len(result.verification_examples) <= 2):
-            print("\n## 💡 Real-World Examples\n")
+            print("\n### Real-World Examples\n")
 
             examples_to_show = result.verification_examples if verbose else result.verification_examples[:2]
 
