@@ -1132,10 +1132,10 @@ async def _run_qadi_analysis(
             for i, hypothesis in enumerate(result.hypotheses):
                 # Clean ANSI codes from hypothesis
                 hypothesis_clean = clean_ansi_codes(hypothesis)
-                # Remove existing "Approach X:" prefix (we'll add our own)
+                # Backward compatibility: Clean legacy formatting from older cached responses
+                # New structured output should not include these prefixes (see schemas.py)
                 approach_prefix_pattern = r'^Approach\s+\d+:\s*'
                 hypothesis_clean = re.sub(approach_prefix_pattern, '', hypothesis_clean, flags=re.IGNORECASE)
-                # Remove duplicate numbering like "1. " at the start
                 duplicate_number_pattern = r'^\d+\.\s*'
                 hypothesis_clean = re.sub(duplicate_number_pattern, '', hypothesis_clean, flags=re.MULTILINE)
                 # Display full hypothesis with approach number header
@@ -1464,8 +1464,7 @@ def _display_evolution_results(
         is_duplicate = False
         for existing in unique_individuals:
             existing_content = existing.idea.content.strip() if existing.idea.content else ""
-            similarity = SequenceMatcher(None, normalized_content.lower(), existing_content.lower()).ratio()
-            if similarity > CONSTANTS.SIMILARITY.DEDUP_THRESHOLD:
+            if is_similar(normalized_content, existing_content):
                 is_duplicate = True
                 break
 
@@ -1487,13 +1486,14 @@ def _display_evolution_results(
         content_normalized = content.lower()
 
         # Skip fallback text (generated when LLM API fails)
-        if "[FALLBACK TEXT]" in content or "[FALLBACK" in content:
+        # Use startswith to avoid false positives (e.g., "implement a fallback strategy")
+        if "[FALLBACK TEXT]" in content or content.strip().startswith("[FALLBACK"):
             continue
 
         # Check for duplicates
         is_duplicate = False
         for displayed in displayed_contents:
-            if SequenceMatcher(None, content_normalized, displayed).ratio() > 0.9:
+            if is_similar(content_normalized, displayed, threshold=0.9):
                 is_duplicate = True
                 break
 
