@@ -448,7 +448,8 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
         for action in action_plan[:3]:
             if len(solutions) < 3 and action and action.strip():
                 action_clean = clean_markdown_text(action)
-                # Remove numbering from start
+                # Fallback: remove numbering for backward compatibility with legacy data
+                # New structured output should not include numbering (see schemas.py)
                 action_clean = re.sub(r'^\d+\.\s*', '', action_clean)
 
                 # Take first sentence if it's meaningful
@@ -1174,9 +1175,8 @@ async def _run_qadi_analysis(
         if result.action_plan:
             print("\n## 🎯 I (Induction): Action Plan\n")
             for i, action in enumerate(result.action_plan):
-                # Strip any existing leading numbering (e.g., "1. " or "1) ")
-                action_clean = re.sub(r'^\d+[\.\)]\s*', '', action.strip())
-                render_markdown(f"{i+1}. {action_clean}")
+                # Structured output ensures items are clean (no numbering included)
+                render_markdown(f"{i+1}. {action.strip()}")
 
         # Verification examples (part of Induction)
         if result.verification_examples and (verbose or len(result.verification_examples) <= 2):
