@@ -352,6 +352,9 @@ async def safe_aiohttp_request(
             ) as response:
                 try:
                     response_data = await response.json()
+                    # Handle case where JSON is a string (e.g., Ollama error responses)
+                    if isinstance(response_data, str):
+                        response_data = {"error": {"message": response_data}}
                 except Exception:
                     response_data = {"error": {"message": await response.text()}}
 
