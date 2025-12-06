@@ -1174,7 +1174,9 @@ async def _run_qadi_analysis(
         if result.action_plan:
             print("\n## 🎯 I (Induction): Action Plan\n")
             for i, action in enumerate(result.action_plan):
-                render_markdown(f"{i+1}. {action}")
+                # Strip any existing leading numbering (e.g., "1. " or "1) ")
+                action_clean = re.sub(r'^\d+[\.\)]\s*', '', action.strip())
+                render_markdown(f"{i+1}. {action_clean}")
 
         # Verification examples (part of Induction)
         if result.verification_examples and (verbose or len(result.verification_examples) <= 2):
