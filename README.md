@@ -14,7 +14,7 @@ Intelligent analysis system using QADI methodology (Question → Abduction → D
 - **Structured Output**: Utilizes Gemini's structured output API for reliable parsing of hypotheses and scores
 - **Multimodal Support**: Analyze images (both providers), PDFs and URLs (Gemini only) alongside text
 
-### Multimodal Capabilities (New!)
+### Multimodal Capabilities
 
 Mad Spark Alt now supports multimodal analysis. Both Gemini and Ollama support image analysis, while PDFs and URLs require Gemini:
 
@@ -132,17 +132,7 @@ msa "Your question" --provider ollama
 | Ollama | Free | Slower (20-30s) | ✅ Images only | Requires local setup |
 | Auto | Mixed | Variable | ✅ Full support (hybrid mode for docs) | Ollama-first with fallback |
 
-**Current Limitations:**
-- **Subcommand provider selection** - `batch-evaluate` and `compare` subcommands do not support provider selection yet (they use their own evaluator registry, not QADI orchestration)
-
-**Recent Improvements:**
-- ✅ **Hybrid routing** - When using `--document` or `--url` flags with auto mode, Gemini extracts content once, then Ollama runs QADI phases locally (cost optimization)
-- ✅ **Multi-format documents** - Support for PDF, TXT, CSV, JSON, and Markdown files (text files read directly without API calls)
-- ✅ **URL security** - SSRF prevention blocks internal URLs, private IPs, and cloud metadata endpoints
-- ✅ **Content caching** - SHA256-based caching prevents redundant file reads (1-hour TTL)
-- ✅ **Temperature control** - Users now have full control over temperature settings without automatic clamping
-- ✅ **SDK/API fallback** - SDK users now have automatic fallback via `ProviderRouter.run_qadi_with_fallback()`
-- ✅ **Main command provider selection** - `msa --provider` flag allows explicit provider selection for QADI analysis
+**Note:** `batch-evaluate` and `compare` subcommands currently use the default provider only.
 
 ### Advanced Options
 
@@ -287,10 +277,59 @@ msa compare output1.txt output2.txt
 
 ## How QADI Works
 
-1. **Q**: Extract core question
-2. **A**: Generate hypotheses
-3. **D**: Evaluate & determine best answer
-4. **I**: Verify with real examples
+The QADI methodology provides structured, multi-perspective analysis:
+
+1. **Q (Question)**: Extract and clarify the core question from your input
+2. **A (Abduction)**: Generate 3 diverse hypotheses/approaches to address the question
+3. **D (Deduction)**: Evaluate each hypothesis on 5 criteria (Impact, Feasibility, Accessibility, Sustainability, Scalability) and select the best approach
+4. **I (Induction)**: Verify the recommendation with real-world examples
+
+Use `--verbose` flag to see detailed output for each phase.
+
+### Example Output
+
+When you run `msa "How can we reduce plastic waste?"`, you'll see:
+
+```
+🧠 QADI Analysis with Multi-Provider Support
+==================================================
+
+📝 User Input: How can we reduce plastic waste?
+
+──────────────────────────────────────────────────
+🤖 Using Ollama for analysis
+
+## 💡 Hypotheses Generated
+
+  1. Community-Based Recycling Programs
+  2. Single-Use Plastic Bans
+  3. Biodegradable Alternative Materials
+
+## 📊 Evaluation Scores
+
+┌──────────┬────────┬─────────────┬────────┬─────────┬───────┬─────────┐
+│ Approach │ Impact │ Feasibility │ Access │ Sustain │ Scale │ Overall │
+├──────────┼────────┼─────────────┼────────┼─────────┼───────┼─────────┤
+│ 1        │ 0.70   │ 0.80        │ 0.75   │ 0.85    │ 0.70  │ 0.76    │
+│ 2        │ 0.85   │ 0.50        │ 0.60   │ 0.90    │ 0.65  │ 0.70    │
+│ 3        │ 0.75   │ 0.55        │ 0.70   │ 0.80    │ 0.75  │ 0.71    │
+└──────────┴────────┴─────────────┴────────┴─────────┴───────┴─────────┘
+
+## 🔍 Analysis: Comparing the Approaches
+
+Based on the evaluation, Approach 1 (Community-Based Recycling) scores
+highest overall at 0.76, offering the best balance of feasibility and
+sustainability...
+
+## 🎯 Your Recommended Path (Final Synthesis)
+
+1. Start with community awareness programs
+2. Partner with local businesses for collection points
+3. Implement gradual policy changes at municipal level
+
+──────────────────────────────────────────────────
+⏱️  Time: 45.2s | 💰 Cost: $0.0000
+```
 
 ## Diversity Calculation Methods
 
@@ -437,75 +476,10 @@ See the `scripts/run_nohup.sh` script for our solution to terminal timeout issue
 
 ## Documentation
 
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete system architecture, data flows, and technical standards (single source of truth)
-- **[CLAUDE.md](CLAUDE.md)** - AI assistant instructions and development patterns
-- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Architecture, API reference, contribution guide
-- **[RESEARCH.md](RESEARCH.md)** - QADI methodology background
-- **[session_handover.md](session_handover.md)** - Development history and learnings
-- **[STRUCTURED_OUTPUT.md](docs/STRUCTURED_OUTPUT.md)** - Gemini structured output implementation
-- **[docs/](docs/)** - Additional documentation including CLI usage, examples, and API reference
-
-## Development Roadmap
-
-### Current Priorities
-
-**Active Development:**
-1. **Performance Optimization: Diversity Calculation** - Reduce O(n²) complexity to enable larger population sizes
-2. **Directed Evolution Mode** - Intelligent evolution with targeted mutations and multi-stage strategies
-
-**Recently Completed:**
-- ✅ **Pydantic Validation Migration - COMPLETE** (PR #141, #142) - All 6 phases implemented with 962 tests passing
-- ✅ **Result Export & Persistence** (PR #130) - JSON/Markdown export with security validation
-- ✅ **Unified CLI Architecture** (PR #126) - Single `msa` command with -4,164 lines reduction
-- ✅ **Phase 1 Performance Optimizations** (PR #97) - 60-70% execution time improvement through batch operations
-- ✅ **Semantic Diversity Calculator** (PR #93) - Gemini embeddings for true semantic understanding
-
-For detailed development history, completed tasks, and session learnings, see **[SESSION_HANDOVER.md](SESSION_HANDOVER.md)**.
-
-## Technical Notes
-
-### Structured Output Implementation
-
-The system now uses Gemini's structured output feature (`responseMimeType` and `responseSchema`) to improve reliability of hypothesis generation and score parsing. This addresses previous issues with brittle regex-based parsing:
-
-- **Hypothesis Generation**: Uses JSON schema to ensure consistent hypothesis extraction
-- **Score Parsing**: Structured output for reliable extraction of evaluation scores
-- **Evolution Operators**: Mutation and crossover operations use structured schemas
-- **Fallback Mechanism**: Gracefully falls back to text parsing if structured output fails
-
-This implementation significantly reduces "Failed to extract enough hypotheses" errors and ensures more reliable parsing of LLM responses.
-
-## Documentation Map
-
-- **[README.md](README.md)** (you are here) - Quick start, installation, and overview
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design, components, and technical architecture
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development setup, contribution guide, and testing
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design, components, and technical architecture
 - **[RESEARCH.md](RESEARCH.md)** - QADI methodology and academic background
-- **[CLAUDE.md](CLAUDE.md)** - AI assistant development patterns and learned practices
-- **[session_handover.md](session_handover.md)** - Development progress, learnings, and future roadmap
-- **[DEPRECATED.md](DEPRECATED.md)** - Deprecated features and migration notes
-- **[docs/](docs/)** - API reference, CLI usage, code examples, and detailed guides
-
-## Session Status
-
-**Last Updated**: November 15, 2025 04:05 PM JST
-
-**Recent Highlights**:
-- ✅ PR #142: Complete Pydantic Validation Migration (Phases 3b, 4, 5, 6) - 962/962 tests passing
-- ✅ PR #141: Pydantic Schema Foundation (Phases 1, 2, 3a) - Multi-provider compatibility
-- ✅ Addressed all reviewer feedback from 4 bot reviewers (8 actionable issues fixed)
-- ✅ 3-Layer graceful fallback pattern implemented (Pydantic → JSON → Text)
-- ✅ Real API integration tests passing (8/8 tests with Google Gemini)
-- ✅ All CI checks passing, system stable
-
-**Migration Complete**: Pydantic validation now used across all QADI phases and evolution operators with comprehensive test coverage and backward compatibility.
-
-**Next Priorities**:
-- Monitor production Pydantic validation performance
-- Performance Optimization: Diversity Calculation (O(n²) → O(n))
-- Consider adding OpenAI/Anthropic integration tests
-
-For complete session details, see **[session_handover.md](session_handover.md)**.
+- **[docs/](docs/)** - API reference, CLI examples, and detailed guides
 
 ## License
 
