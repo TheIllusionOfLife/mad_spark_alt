@@ -1176,8 +1176,10 @@ async def _run_qadi_analysis(
         if result.action_plan:
             print("\n## 🎯 I (Induction): Action Plan\n")
             for i, action in enumerate(result.action_plan):
-                # Structured output ensures items are clean (no numbering included)
-                render_markdown(f"{i+1}. {action.strip()}")
+                # Backward compatibility: Strip existing numbering from non-structured fallbacks
+                # New structured output should not include numbering (see schemas.py)
+                action_clean = re.sub(r'^\d+[\.\)]\s*', '', action.strip())
+                render_markdown(f"{i+1}. {action_clean}")
 
         # Verification examples (part of Induction)
         if result.verification_examples and (verbose or len(result.verification_examples) <= 2):
@@ -1457,6 +1459,8 @@ def _display_evolution_results(
             all_individuals.append(qadi_individual)
 
     # Collect unique ideas with fuzzy matching
+    # Collect 2x the limit to allow for fallback text filtering later
+    collection_limit = CONSTANTS.TEXT.MAX_DISPLAY_IDEAS * 2
     unique_individuals: List[IndividualFitness] = []
     for ind in sorted(all_individuals, key=lambda x: x.overall_fitness, reverse=True):
         normalized_content = ind.idea.content.strip() if ind.idea.content else ""
@@ -1470,7 +1474,7 @@ def _display_evolution_results(
 
         if not is_duplicate:
             unique_individuals.append(ind)
-            if len(unique_individuals) >= CONSTANTS.TEXT.MAX_DISPLAY_IDEAS:
+            if len(unique_individuals) >= collection_limit:
                 break
 
     # Display evolved ideas
