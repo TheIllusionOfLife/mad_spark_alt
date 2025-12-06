@@ -106,7 +106,9 @@ class DeductionResponse(BaseModel):
     )
     answer: str = Field(description="Synthesized answer based on the highest-scoring hypothesis")
     action_plan: List[str] = Field(
-        description="Step-by-step action plan for implementing the solution"
+        min_length=3,
+        max_length=3,
+        description="Exactly 3 action items: (1) immediate action for today, (2) short-term weekly/monthly goal, (3) long-term strategy. Each item is a clean sentence WITHOUT numbering or bullet points - the list structure handles ordering.",
     )
 
 
