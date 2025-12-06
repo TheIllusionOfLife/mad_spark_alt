@@ -1126,21 +1126,22 @@ async def _run_qadi_analysis(
             render_markdown(f"**{result.core_question}**")
 
         # ========== A (Abduction) Phase ==========
-        # Display hypotheses (always shown, compact format in non-verbose mode)
+        # Display full hypotheses so users can understand each approach
         if result.hypotheses and not verbose:
             print("\n## 💡 A (Abduction): Hypotheses\n")
             for i, hypothesis in enumerate(result.hypotheses):
                 # Clean ANSI codes from hypothesis
                 hypothesis_clean = clean_ansi_codes(hypothesis)
-                # Remove existing "Approach X:" prefix
+                # Remove existing "Approach X:" prefix (we'll add our own)
                 approach_prefix_pattern = r'^Approach\s+\d+:\s*'
                 hypothesis_clean = re.sub(approach_prefix_pattern, '', hypothesis_clean, flags=re.IGNORECASE)
                 # Remove duplicate numbering like "1. " at the start
                 duplicate_number_pattern = r'^\d+\.\s*'
                 hypothesis_clean = re.sub(duplicate_number_pattern, '', hypothesis_clean, flags=re.MULTILINE)
-                # Extract compact title for display
-                title = extract_hypothesis_title(hypothesis_clean, i + 1)
-                print(f"  {i+1}. {title}")
+                # Display full hypothesis with approach number header
+                print(f"### Approach {i + 1}\n")
+                render_markdown(hypothesis_clean.strip())
+                print()  # Add spacing between approaches
 
         # ========== D (Deduction) Phase ==========
         # Display score table (always shown if scores available)
