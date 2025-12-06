@@ -1118,6 +1118,46 @@ async def _run_qadi_analysis(
                 )
                 print(formatted_scores)
 
+        # Display hypotheses (always shown, compact format in non-verbose mode)
+        if result.hypotheses and not verbose:
+            print("\n## 💡 Hypotheses Generated\n")
+            for i, hypothesis in enumerate(result.hypotheses):
+                # Clean ANSI codes from hypothesis
+                hypothesis_clean = clean_ansi_codes(hypothesis)
+                # Remove existing "Approach X:" prefix
+                approach_prefix_pattern = r'^Approach\s+\d+:\s*'
+                hypothesis_clean = re.sub(approach_prefix_pattern, '', hypothesis_clean, flags=re.IGNORECASE)
+                # Remove duplicate numbering like "1. " at the start
+                duplicate_number_pattern = r'^\d+\.\s*'
+                hypothesis_clean = re.sub(duplicate_number_pattern, '', hypothesis_clean, flags=re.MULTILINE)
+                # Extract compact title for display
+                title = extract_hypothesis_title(hypothesis_clean, i + 1)
+                print(f"  {i+1}. {title}")
+
+        # Display score table (always shown if scores available)
+        if result.hypothesis_scores and result.hypotheses:
+            print("\n## 📊 Evaluation Scores\n")
+            score_table = Table(show_header=True, header_style="bold")
+            score_table.add_column("Approach", style="cyan", width=10)
+            score_table.add_column("Impact", justify="right", width=8)
+            score_table.add_column("Feasibility", justify="right", width=11)
+            score_table.add_column("Access", justify="right", width=8)
+            score_table.add_column("Sustain", justify="right", width=8)
+            score_table.add_column("Scale", justify="right", width=8)
+            score_table.add_column("Overall", justify="right", style="green", width=8)
+
+            for i, score in enumerate(result.hypothesis_scores):
+                score_table.add_row(
+                    str(i + 1),
+                    f"{score.impact:.2f}",
+                    f"{score.feasibility:.2f}",
+                    f"{score.accessibility:.2f}",
+                    f"{score.sustainability:.2f}",
+                    f"{score.scalability:.2f}",
+                    f"{score.overall:.2f}",
+                )
+            console.print(score_table)
+
         # Main output - focused on solutions
         print("\n## 🔍 Analysis: Comparing the Approaches\n")
         render_markdown(result.final_answer)
