@@ -278,6 +278,26 @@ class CircuitBreaker:
             raise
 
 
+def _extract_error_message(response_data: dict, default: str) -> str:
+    """Extract error message from response data, handling various formats.
+
+    Handles:
+    - {"error": {"message": "..."}} - Standard format
+    - {"error": "..."} - Simple string format (Ollama)
+    - {"message": "..."} - Direct message
+    - {} - Empty response
+    """
+    error = response_data.get("error")
+    if isinstance(error, str):
+        return error
+    if isinstance(error, dict):
+        message = error.get("message")
+        return str(message) if message is not None else default
+    # No "error" key - check for top-level "message"
+    message = response_data.get("message")
+    return str(message) if message is not None else default
+
+
 def handle_aiohttp_errors(
     response: aiohttp.ClientResponse, response_data: dict
 ) -> None:
@@ -293,9 +313,7 @@ def handle_aiohttp_errors(
             except ValueError:
                 pass
 
-        error_message = response_data.get("error", {}).get(
-            "message", "Rate limit exceeded"
-        )
+        error_message = _extract_error_message(response_data, "Rate limit exceeded")
 
         if "quota" in error_message.lower():
             raise QuotaExceededError(error_message)
@@ -303,14 +321,14 @@ def handle_aiohttp_errors(
             raise RateLimitError(error_message, retry_after)
 
     elif response.status >= 500:
-        error_message = response_data.get("error", {}).get(
-            "message", f"Server error: {response.status}"
+        error_message = _extract_error_message(
+            response_data, f"Server error: {response.status}"
         )
         raise APIError(error_message, response.status)
 
     elif response.status >= 400:
-        error_message = response_data.get("error", {}).get(
-            "message", f"Client error: {response.status}"
+        error_message = _extract_error_message(
+            response_data, f"Client error: {response.status}"
         )
         raise APIError(error_message, response.status)
 
