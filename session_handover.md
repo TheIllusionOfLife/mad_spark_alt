@@ -99,8 +99,8 @@ if not mode_flag:
 |------|-----|----------|
 | Dec 7, 2025 | #161 | CLI output improvements, QADI phases |
 | Nov 20, 2025 | #160 | Japanese UAT fixes |
-| Nov 18-19 | #154, #157, #158 | Ollama paths, CLI syntax, evaluate flag |
-| Nov 18 | #151 | Hybrid routing polish, 29 tests |
-| Nov 16 | #148, #149 | Hybrid routing, centralized fallback |
-| Nov 15-16 | #144, #146, #147 | Multi-provider, documentation |
-| Nov 14-15 | #141, #142 | Pydantic migration |
+| Nov 18-19, 2025 | #154, #157, #158 | Ollama paths, CLI syntax, evaluate flag |
+| Nov 18, 2025 | #151 | Hybrid routing polish, 29 tests |
+| Nov 16, 2025 | #148, #149 | Hybrid routing, centralized fallback |
+| Nov 15-16, 2025 | #144, #146, #147 | Multi-provider, documentation |
+| Nov 14-15, 2025 | #141, #142 | Pydantic migration |
