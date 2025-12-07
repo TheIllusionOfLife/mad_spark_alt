@@ -51,7 +51,7 @@ class TimeoutConstants:
 
     Note: CLI and orchestrator use different timeout strategies:
     - Orchestrator: Fixed base timeout (90s) + total cap (900s)
-    - CLI: Dynamic calculation based on population/generations (25s per evaluation)
+    - CLI: Dynamic calculation based on population/generations (see CLI_EVOLUTION_TIMEOUT_PER_EVAL)
 
     This difference is intentional - orchestrator handles individual phases,
     while CLI estimates total runtime including all phases and evolution.
