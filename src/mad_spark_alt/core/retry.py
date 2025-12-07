@@ -287,12 +287,15 @@ def _extract_error_message(response_data: dict, default: str) -> str:
     - {"message": "..."} - Direct message
     - {} - Empty response
     """
-    error = response_data.get("error", {})
+    error = response_data.get("error")
     if isinstance(error, str):
         return error
     if isinstance(error, dict):
-        return str(error.get("message", default))
-    return str(response_data.get("message", default))
+        message = error.get("message")
+        return str(message) if message is not None else default
+    # No "error" key - check for top-level "message"
+    message = response_data.get("message")
+    return str(message) if message is not None else default
 
 
 def handle_aiohttp_errors(

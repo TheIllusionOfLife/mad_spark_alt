@@ -68,7 +68,7 @@ class TimeoutConstants:
     CLI_BASE_TIMEOUT_SECONDS: float = 300.0
     """Base timeout for CLI operations before evolution."""
 
-    CLI_SECONDS_PER_EVALUATION: int = 20
+    CLI_SECONDS_PER_EVALUATION: int = 60
     """Estimated seconds per evaluation for timeout calculation display."""
 
     CLI_EVOLUTION_TIMEOUT_PER_EVAL: int = 60

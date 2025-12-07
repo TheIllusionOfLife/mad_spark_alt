@@ -127,7 +127,7 @@ def calculate_evolution_timeout(generations: int, population: int) -> float:
     Returns:
         Timeout in seconds (min 120s, max 900s)
     """
-    # Use configured timeout per evaluation (25s)
+    # Use configured timeout per evaluation (60s)
     estimated_time = generations * population * CONSTANTS.TIMEOUTS.CLI_EVOLUTION_TIMEOUT_PER_EVAL
     return min(
         max(CONSTANTS.TIMEOUTS.CLI_BASE_TIMEOUT_SECONDS, estimated_time),
