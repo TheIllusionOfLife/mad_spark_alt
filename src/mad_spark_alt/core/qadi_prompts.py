@@ -131,10 +131,11 @@ Approach 3:
 
 ANSWER: [Clear, comprehensive answer explaining which approach works best and why, written for a general audience]
 
-Action Plan:
-1. [Immediate action anyone can take today]
-2. [Short-term goal to work toward this week/month]
-3. [Long-term strategy for lasting change]
+Action Plan - MUST be specific to the best approach above. Provide exactly 3 items as plain sentences without any formatting (no numbers, bullets, or dashes). The schema handles the list structure.
+
+First item: An immediate first step to START implementing the recommended approach today
+Second item: A concrete milestone to achieve this week/month using the recommended approach
+Third item: A long-term goal that fully realizes the recommended approach
 """
 
     @staticmethod

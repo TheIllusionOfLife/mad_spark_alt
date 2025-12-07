@@ -155,7 +155,7 @@ def load_env_file() -> None:
 
 def setup_logging(verbose: bool = False) -> None:
     """Set up logging configuration."""
-    level = logging.DEBUG if verbose else logging.INFO
+    level = logging.DEBUG if verbose else logging.WARNING
     logging.basicConfig(
         level=level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
@@ -448,7 +448,8 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
         for action in action_plan[:3]:
             if len(solutions) < 3 and action and action.strip():
                 action_clean = clean_markdown_text(action)
-                # Remove numbering from start
+                # Fallback: remove numbering for backward compatibility with legacy data
+                # New structured output should not include numbering (see schemas.py)
                 action_clean = re.sub(r'^\d+\.\s*', '', action_clean)
 
                 # Take first sentence if it's meaningful
@@ -1118,18 +1119,71 @@ async def _run_qadi_analysis(
                 )
                 print(formatted_scores)
 
-        # Main output - focused on solutions
-        print("\n## 🔍 Analysis: Comparing the Approaches\n")
+        # ========== Q (Question) Phase ==========
+        # Always show the extracted core question
+        if result.core_question and not verbose:
+            print("\n## 🔍 Q (Question): Core Problem\n")
+            render_markdown(f"**{result.core_question}**")
+
+        # ========== A (Abduction) Phase ==========
+        # Display full hypotheses so users can understand each approach
+        if result.hypotheses and not verbose:
+            print("\n## 💡 A (Abduction): Hypotheses\n")
+            for i, hypothesis in enumerate(result.hypotheses):
+                # Clean ANSI codes from hypothesis
+                hypothesis_clean = clean_ansi_codes(hypothesis)
+                # Backward compatibility: Clean legacy formatting from older cached responses
+                # New structured output should not include these prefixes (see schemas.py)
+                approach_prefix_pattern = r'^Approach\s+\d+:\s*'
+                hypothesis_clean = re.sub(approach_prefix_pattern, '', hypothesis_clean, flags=re.IGNORECASE)
+                duplicate_number_pattern = r'^\d+\.\s*'
+                hypothesis_clean = re.sub(duplicate_number_pattern, '', hypothesis_clean, flags=re.MULTILINE)
+                # Display full hypothesis with approach number header
+                print(f"### Approach {i + 1}\n")
+                render_markdown(hypothesis_clean.strip())
+                print()  # Add spacing between approaches
+
+        # ========== D (Deduction) Phase ==========
+        # Display score table (always shown if scores available)
+        if result.hypothesis_scores and result.hypotheses:
+            print("\n## 📊 D (Deduction): Evaluation\n")
+            score_table = Table(show_header=True, header_style="bold")
+            score_table.add_column("Approach", style="cyan", width=10)
+            score_table.add_column("Impact", justify="right", width=8)
+            score_table.add_column("Feasibility", justify="right", width=11)
+            score_table.add_column("Access", justify="right", width=8)
+            score_table.add_column("Sustain", justify="right", width=8)
+            score_table.add_column("Scale", justify="right", width=8)
+            score_table.add_column("Overall", justify="right", style="green", width=8)
+
+            for i, score in enumerate(result.hypothesis_scores):
+                score_table.add_row(
+                    str(i + 1),
+                    f"{score.impact:.2f}",
+                    f"{score.feasibility:.2f}",
+                    f"{score.accessibility:.2f}",
+                    f"{score.sustainability:.2f}",
+                    f"{score.scalability:.2f}",
+                    f"{score.overall:.2f}",
+                )
+            console.print(score_table)
+
+        # Analysis (part of Deduction)
+        print("\n### Analysis\n")
         render_markdown(result.final_answer)
 
+        # ========== I (Induction) Phase ==========
         if result.action_plan:
-            print("\n## 🎯 Your Recommended Path (Final Synthesis)\n")
+            print("\n## 🎯 I (Induction): Action Plan\n")
             for i, action in enumerate(result.action_plan):
-                render_markdown(f"{i+1}. {action}")
+                # Backward compatibility: Strip existing numbering from non-structured fallbacks
+                # New structured output should not include numbering (see schemas.py)
+                action_clean = re.sub(r'^\d+[\.\)]\s*', '', action.strip())
+                render_markdown(f"{i+1}. {action_clean}")
 
-        # Examples section
+        # Verification examples (part of Induction)
         if result.verification_examples and (verbose or len(result.verification_examples) <= 2):
-            print("\n## 💡 Real-World Examples\n")
+            print("\n### Real-World Examples\n")
 
             examples_to_show = result.verification_examples if verbose else result.verification_examples[:2]
 
@@ -1239,10 +1293,10 @@ async def _run_evolution(
         print(f"   (Note: Generated {len(qadi_result.synthesized_ideas)} hypotheses, but {population} were requested)")
         print(f"   (Using all {actual_population} available ideas for evolution)")
 
-    # Configure logging to suppress debug messages during evolution
+    # Configure logging level based on verbose flag (match main logger behavior)
     evolution_logger = logging.getLogger('mad_spark_alt.evolution')
     original_level = evolution_logger.level
-    evolution_logger.setLevel(logging.INFO)
+    evolution_logger.setLevel(logging.DEBUG if verbose else logging.WARNING)
 
     try:
         # Get LLM provider for semantic operators unless --traditional is used
@@ -1405,6 +1459,8 @@ def _display_evolution_results(
             all_individuals.append(qadi_individual)
 
     # Collect unique ideas with fuzzy matching
+    # Collect 2x the limit to allow for fallback text filtering later
+    collection_limit = CONSTANTS.TEXT.MAX_DISPLAY_IDEAS * 2
     unique_individuals: List[IndividualFitness] = []
     for ind in sorted(all_individuals, key=lambda x: x.overall_fitness, reverse=True):
         normalized_content = ind.idea.content.strip() if ind.idea.content else ""
@@ -1412,14 +1468,13 @@ def _display_evolution_results(
         is_duplicate = False
         for existing in unique_individuals:
             existing_content = existing.idea.content.strip() if existing.idea.content else ""
-            similarity = SequenceMatcher(None, normalized_content.lower(), existing_content.lower()).ratio()
-            if similarity > CONSTANTS.SIMILARITY.DEDUP_THRESHOLD:
+            if is_similar(normalized_content, existing_content):
                 is_duplicate = True
                 break
 
         if not is_duplicate:
             unique_individuals.append(ind)
-            if len(unique_individuals) >= CONSTANTS.TEXT.MAX_DISPLAY_IDEAS:
+            if len(unique_individuals) >= collection_limit:
                 break
 
     # Display evolved ideas
@@ -1431,12 +1486,18 @@ def _display_evolution_results(
 
     for individual in unique_individuals:
         idea = individual.idea
-        content_normalized = idea.content.strip().lower() if idea.content else ""
+        content = idea.content.strip() if idea.content else ""
+        content_normalized = content.lower()
+
+        # Skip fallback text (generated when LLM API fails)
+        # Use startswith to avoid false positives (e.g., "implement a fallback strategy")
+        if "[FALLBACK TEXT]" in content or content.strip().startswith("[FALLBACK"):
+            continue
 
         # Check for duplicates
         is_duplicate = False
         for displayed in displayed_contents:
-            if SequenceMatcher(None, content_normalized, displayed).ratio() > 0.9:
+            if is_similar(content_normalized, displayed, threshold=0.9):
                 is_duplicate = True
                 break
 
