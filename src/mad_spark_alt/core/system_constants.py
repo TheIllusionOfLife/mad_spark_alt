@@ -65,13 +65,13 @@ class TimeoutConstants:
     """Total timeout in seconds for complete orchestration (15 minutes)."""
 
     # CLI timeouts (for total process estimation)
-    CLI_BASE_TIMEOUT_SECONDS: float = 120.0
+    CLI_BASE_TIMEOUT_SECONDS: float = 300.0
     """Base timeout for CLI operations before evolution."""
 
     CLI_SECONDS_PER_EVALUATION: int = 20
     """Estimated seconds per evaluation for timeout calculation display."""
 
-    CLI_EVOLUTION_TIMEOUT_PER_EVAL: int = 25
+    CLI_EVOLUTION_TIMEOUT_PER_EVAL: int = 60
     """Actual seconds allocated per evaluation in evolution timeout calculation."""
 
     CLI_MAX_TIMEOUT_SECONDS: float = 900.0

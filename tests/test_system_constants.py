@@ -251,20 +251,32 @@ class TestConstantsIntegration:
     def test_timeout_calculation_compatibility(self):
         """Test that timeout constants support expected calculations."""
         # CLI timeout calculation: min(max(base, gens × pop × per_eval), max_timeout)
-        # Test with moderate values
-        gens = 3
-        pop = 5
-        estimated_time = gens * pop * CONSTANTS.TIMEOUTS.CLI_EVOLUTION_TIMEOUT_PER_EVAL  # 375s
+        # Test with small values (should use base timeout)
+        gens = 2
+        pop = 2
+        estimated_time = gens * pop * CONSTANTS.TIMEOUTS.CLI_EVOLUTION_TIMEOUT_PER_EVAL  # 240s
         calculated_timeout = min(
             max(CONSTANTS.TIMEOUTS.CLI_BASE_TIMEOUT_SECONDS, estimated_time),
             CONSTANTS.TIMEOUTS.CLI_MAX_TIMEOUT_SECONDS
         )
-        assert calculated_timeout == 375.0
+        # With base=300, per_eval=60: max(300, 240) = 300
+        assert calculated_timeout == CONSTANTS.TIMEOUTS.CLI_BASE_TIMEOUT_SECONDS
+
+        # Test with moderate values (should use estimated time)
+        gens = 2
+        pop = 5
+        estimated_time = gens * pop * CONSTANTS.TIMEOUTS.CLI_EVOLUTION_TIMEOUT_PER_EVAL  # 600s
+        calculated_timeout = min(
+            max(CONSTANTS.TIMEOUTS.CLI_BASE_TIMEOUT_SECONDS, estimated_time),
+            CONSTANTS.TIMEOUTS.CLI_MAX_TIMEOUT_SECONDS
+        )
+        # max(300, 600) = 600, min(600, 900) = 600
+        assert calculated_timeout == 600.0
 
         # Test with max values (should be capped)
         max_gens = CONSTANTS.EVOLUTION.MAX_GENERATIONS  # 5
         max_pop = CONSTANTS.EVOLUTION.MAX_POPULATION_SIZE  # 10
-        max_estimated_time = max_gens * max_pop * CONSTANTS.TIMEOUTS.CLI_EVOLUTION_TIMEOUT_PER_EVAL  # 1250s
+        max_estimated_time = max_gens * max_pop * CONSTANTS.TIMEOUTS.CLI_EVOLUTION_TIMEOUT_PER_EVAL  # 3000s
         max_calculated_timeout = min(
             max(CONSTANTS.TIMEOUTS.CLI_BASE_TIMEOUT_SECONDS, max_estimated_time),
             CONSTANTS.TIMEOUTS.CLI_MAX_TIMEOUT_SECONDS
