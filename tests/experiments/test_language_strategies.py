@@ -252,7 +252,7 @@ class LanguageMirroringExperiment:
         print(f"  Languages: 3 (English, Japanese, Spanish)")
         print(f"  Runs per combination: 5")
         print(f"  Total tests: {analysis['total_tests']}")
-        print(f"  Model: gemma3:12b-it-qat (Ollama)")
+        print(f"  Model: gemma3:12b (Ollama)")
 
         print(f"\nOverall Results:")
         print(f"  Success Rate: {analysis['overall_success_rate']:.1f}%")
@@ -322,7 +322,7 @@ async def test_language_mirroring_strategies():
 
     Requires:
     - Ollama server running locally (localhost:11434)
-    - gemma3:12b-it-qat model available
+    - gemma3:12b model available
 
     Expected duration: 10-15 minutes with batched execution
     """

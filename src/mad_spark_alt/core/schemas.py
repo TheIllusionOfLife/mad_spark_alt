@@ -75,7 +75,11 @@ class Hypothesis(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(description="Unique hypothesis identifier (e.g., 'H1', 'H2')")
-    content: str = Field(description="The hypothesis text describing the approach or solution")
+    content: str = Field(
+        description="Comprehensive hypothesis with title and detailed explanation. "
+        "Include specific implementation steps, technologies, methodologies, resources needed, "
+        "and why this approach addresses the core question effectively. Should be at least 100 words.",
+    )
 
 
 class HypothesisEvaluation(BaseModel):
@@ -149,9 +153,9 @@ class MutationResult(BaseModel):
 
     id: int = Field(description="Mutation ID for maintaining order (1-based indexing)")
     mutated_idea: str = Field(description="The mutated idea content")
-    mutation_type: Optional[str] = Field(
-        default=None,
-        description="Type of mutation applied (e.g., 'paradigm_shift', 'scale_amplification')",
+    mutation_type: str = Field(
+        default="",
+        description="Type of mutation applied (e.g., 'paradigm_shift', 'scale_amplification'). Empty string if not specified.",
     )
 
 

@@ -826,3 +826,160 @@ class TestMultimodalLLMResponse:
         assert len(response.url_context_metadata) == 1
         assert response.total_images_processed == 2
         assert response.total_pages_processed == 10
+
+
+class TestInlineSchemaDefsFunction:
+    """Test inline_schema_defs() utility for Ollama compatibility."""
+
+    def test_passthrough_schema_without_defs(self):
+        """Test that schema without $defs is returned unchanged."""
+        from mad_spark_alt.core.llm_provider import inline_schema_defs
+
+        schema = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "age": {"type": "integer"}
+            },
+            "required": ["name", "age"]
+        }
+
+        result = inline_schema_defs(schema)
+
+        # Should be unchanged (no $defs to inline)
+        assert result == schema
+        assert "$defs" not in result
+
+    def test_inline_single_ref(self):
+        """Test inlining a single $ref to $defs."""
+        from mad_spark_alt.core.llm_provider import inline_schema_defs
+
+        schema = {
+            "$defs": {
+                "Person": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"}
+                    }
+                }
+            },
+            "type": "object",
+            "properties": {
+                "owner": {"$ref": "#/$defs/Person"}
+            }
+        }
+
+        result = inline_schema_defs(schema)
+
+        # $defs should be removed
+        assert "$defs" not in result
+        # Reference should be inlined
+        assert result["properties"]["owner"]["type"] == "object"
+        assert "name" in result["properties"]["owner"]["properties"]
+
+    def test_inline_nested_refs(self):
+        """Test inlining nested $refs within arrays."""
+        from mad_spark_alt.core.llm_provider import inline_schema_defs
+
+        schema = {
+            "$defs": {
+                "Item": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "integer"},
+                        "value": {"type": "string"}
+                    }
+                }
+            },
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {"$ref": "#/$defs/Item"}
+                }
+            }
+        }
+
+        result = inline_schema_defs(schema)
+
+        # $defs should be removed
+        assert "$defs" not in result
+        # Array items should have inlined definition
+        items_schema = result["properties"]["items"]["items"]
+        assert items_schema["type"] == "object"
+        assert "id" in items_schema["properties"]
+        assert "value" in items_schema["properties"]
+
+    def test_inline_multiple_refs_to_same_def(self):
+        """Test inlining multiple references to the same definition."""
+        from mad_spark_alt.core.llm_provider import inline_schema_defs
+
+        schema = {
+            "$defs": {
+                "Address": {
+                    "type": "object",
+                    "properties": {
+                        "street": {"type": "string"}
+                    }
+                }
+            },
+            "type": "object",
+            "properties": {
+                "home_address": {"$ref": "#/$defs/Address"},
+                "work_address": {"$ref": "#/$defs/Address"}
+            }
+        }
+
+        result = inline_schema_defs(schema)
+
+        # $defs should be removed
+        assert "$defs" not in result
+        # Both references should be inlined independently
+        assert result["properties"]["home_address"]["type"] == "object"
+        assert result["properties"]["work_address"]["type"] == "object"
+        assert "street" in result["properties"]["home_address"]["properties"]
+        assert "street" in result["properties"]["work_address"]["properties"]
+
+    def test_empty_schema_passthrough(self):
+        """Test that empty or None schema returns unchanged."""
+        from mad_spark_alt.core.llm_provider import inline_schema_defs
+
+        assert inline_schema_defs({}) == {}
+        assert inline_schema_defs(None) is None
+
+    def test_pydantic_batch_mutation_schema(self):
+        """Test with real Pydantic BatchMutationResponse schema."""
+        from mad_spark_alt.core.llm_provider import inline_schema_defs
+        from mad_spark_alt.core.schemas import BatchMutationResponse
+
+        original = BatchMutationResponse.model_json_schema()
+        result = inline_schema_defs(original)
+
+        # $defs should be removed
+        assert "$defs" not in result
+        # Should still have the mutations array
+        assert "mutations" in result["properties"]
+        # Items should be inlined (not a $ref)
+        items = result["properties"]["mutations"]["items"]
+        assert "$ref" not in items
+        assert items["type"] == "object"
+        assert "mutated_idea" in items["properties"]
+
+    def test_pydantic_batch_crossover_schema(self):
+        """Test with real Pydantic BatchCrossoverResponse schema."""
+        from mad_spark_alt.core.llm_provider import inline_schema_defs
+        from mad_spark_alt.core.schemas import BatchCrossoverResponse
+
+        original = BatchCrossoverResponse.model_json_schema()
+        result = inline_schema_defs(original)
+
+        # $defs should be removed
+        assert "$defs" not in result
+        # Should still have the crossovers array
+        assert "crossovers" in result["properties"]
+        # Items should be inlined (not a $ref)
+        items = result["properties"]["crossovers"]["items"]
+        assert "$ref" not in items
+        assert items["type"] == "object"
+        assert "pair_id" in items["properties"]
+        assert "offspring1" in items["properties"]

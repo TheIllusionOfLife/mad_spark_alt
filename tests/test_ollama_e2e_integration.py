@@ -95,59 +95,57 @@ class TestOllamaEndToEndIntegration:
         from click.testing import CliRunner
         from mad_spark_alt.unified_cli import main
         from mad_spark_alt.core.llm_provider import GoogleProvider
+        from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIResult
 
         runner = CliRunner()
 
-        # Mock Ollama provider to avoid real API calls in this test
-        mock_ollama_response = LLMResponse(
-            content="Quantum computing uses quantum mechanics principles.",
-            provider=LLMProvider.OLLAMA,
-            model="gemma3:12b-it-qat",
-            cost=0.0,
-            usage={"prompt_tokens": 20, "completion_tokens": 10, "total_tokens": 30},
-            response_time=1.5
+        # Create a proper SimpleQADIResult mock (not MagicMock) to avoid attribute issues
+        mock_result = SimpleQADIResult(
+            core_question="Test question",
+            hypotheses=["H1"],
+            hypothesis_scores=[],
+            final_answer="Test answer",
+            action_plan=["Step 1", "Step 2", "Step 3"],
+            verification_examples=[],
+            verification_conclusion="Test",
+            total_llm_cost=0.0,
+            synthesized_ideas=[],
         )
 
+        # Capture the primary_provider passed to run_qadi_with_fallback
+        captured_provider = {}
+
+        async def mock_run_qadi(**kwargs):
+            captured_provider['primary'] = kwargs.get('primary_provider')
+            return (mock_result, kwargs.get('primary_provider'), False)
+
         # Setup complete mock environment
-        with patch('mad_spark_alt.unified_cli.SimpleQADIOrchestrator') as MockOrchestrator:
-            mock_instance = MagicMock()
-            mock_result = MagicMock()
-            mock_result.core_question = "Test question"
-            mock_result.hypotheses = ["H1"]
-            mock_result.hypothesis_scores = []
-            mock_result.final_answer = "Test answer"
-            mock_result.action_plan = []
-            mock_result.verification_examples = []
-            mock_result.verification_conclusion = "Test"
-            mock_result.total_llm_cost = 0.0
-            mock_result.synthesized_ideas = []
-            mock_instance.run_qadi_cycle = AsyncMock(return_value=mock_result)
-            MockOrchestrator.return_value = mock_instance
+        with patch('mad_spark_alt.unified_cli.load_env_file'):
+            with patch('mad_spark_alt.unified_cli.os.getenv', return_value='test-key'):
+                with patch('mad_spark_alt.unified_cli.setup_llm_providers', new_callable=AsyncMock):
+                    mock_gemini = MagicMock(spec=GoogleProvider)
+                    with patch('mad_spark_alt.unified_cli.get_google_provider', return_value=mock_gemini):
+                        # Mock Ollama connectivity check to succeed
+                        with patch('aiohttp.ClientSession.get') as mock_get:
+                            mock_resp = AsyncMock()
+                            mock_resp.status = 200
+                            mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
+                            mock_resp.__aexit__ = AsyncMock(return_value=False)
+                            mock_get.return_value = mock_resp
 
-            with patch('mad_spark_alt.unified_cli.load_env_file'):
-                with patch('mad_spark_alt.unified_cli.os.getenv', return_value='test-key'):
-                    with patch('mad_spark_alt.unified_cli.setup_llm_providers', new_callable=AsyncMock):
-                        mock_gemini = MagicMock(spec=GoogleProvider)
-                        with patch('mad_spark_alt.unified_cli.get_google_provider', return_value=mock_gemini):
-                            # Mock Ollama connectivity check to succeed
-                            with patch('mad_spark_alt.core.llm_provider.OllamaProvider.generate', new=AsyncMock(return_value=mock_ollama_response)):
-                                with patch('aiohttp.ClientSession.get') as mock_get:
-                                    mock_resp = AsyncMock()
-                                    mock_resp.status = 200
-                                    mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
-                                    mock_resp.__aexit__ = AsyncMock(return_value=False)
-                                    mock_get.return_value = mock_resp
-
-                                    # This simulates: msa "test" --provider ollama
-                                    result = runner.invoke(main, ['--provider', 'ollama', 'What is quantum computing?'])
+                            # Mock the provider router's run_qadi_with_fallback method
+                            with patch(
+                                'mad_spark_alt.core.provider_router.ProviderRouter.run_qadi_with_fallback',
+                                new=AsyncMock(side_effect=mock_run_qadi)
+                            ):
+                                # This simulates: msa "test" --provider ollama
+                                result = runner.invoke(main, ['--provider', 'ollama', 'What is quantum computing?'])
 
         # Verify command completed successfully
         assert result.exit_code == 0
-        # Verify orchestrator was called with OllamaProvider
-        MockOrchestrator.assert_called_once()
-        call_kwargs = MockOrchestrator.call_args[1]
-        assert 'llm_provider' in call_kwargs
-        assert isinstance(call_kwargs['llm_provider'], OllamaProvider)
+        # Verify Ollama provider was passed as primary
+        assert 'primary' in captured_provider
+        assert isinstance(captured_provider['primary'], OllamaProvider)
 
     @pytest.mark.asyncio
     async def test_ollama_fallback_to_gemini(self):

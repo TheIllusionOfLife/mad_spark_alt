@@ -58,28 +58,7 @@ Each hypothesis should:
 - Provide comprehensive explanation (minimum 100 words per hypothesis)
 - Offer a meaningfully different path forward
 
-IMPORTANT OUTPUT FORMAT - You MUST follow this exact format without any modifications:
-
-1. [First approach title]
-[Detailed explanation of the first approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]
-
-2. [Second approach title]
-[Detailed explanation of the second approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]
-
-3. [Third approach title]
-[Detailed explanation of the third approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]""" + ("""
-
-4. [Fourth approach title]
-[Detailed explanation of the fourth approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]
-
-5. [Fifth approach title]
-[Detailed explanation of the fifth approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]""" if num_hypotheses > 3 else "") + ("""
-
-6. [Sixth approach title]
-[Detailed explanation of the sixth approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]
-
-7. [Seventh approach title]
-[Detailed explanation of the seventh approach with specific steps, technologies, methodologies, and implementation details. This should be a comprehensive paragraph explaining how this approach works, what resources it requires, and why it addresses the core question effectively.]""" if num_hypotheses > 5 else "")
+Generate exactly {num_hypotheses} hypotheses, each with a unique ID (H1, H2, H3, etc.) and comprehensive content."""
 
     @staticmethod
     def get_deduction_prompt(

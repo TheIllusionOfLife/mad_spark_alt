@@ -166,7 +166,7 @@ Mad Spark Alt is a Multi-Agent Idea Generation System powered by LLMs using the 
 
 6. **URL Context + Structured Output Incompatibility**: Gemini API does not support using the `url_context` tool with structured output (`responseMimeType` + `responseJsonSchema`). When URLs are present in a request, the system automatically disables structured output and falls back to text parsing. This ensures URL processing works correctly but may reduce parsing reliability for complex JSON responses.
 
-7. **Ollama Language Mirroring**: Ollama models (tested with gemma3:12b-it-qat) do not reliably respect language mirroring instructions. Japanese input may produce English output. For non-English languages, use `--provider gemini` which handles language mirroring correctly.
+7. **Ollama Language Mirroring**: Ollama models (tested with gemma3:12b) do not reliably respect language mirroring instructions. Japanese input may produce English output. For non-English languages, use `--provider gemini` which handles language mirroring correctly.
 
 ## Completed Features Reference
 

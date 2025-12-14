@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This document captures the decision-making process and implementation plan for integrating Ollama (local LLM) support into Mad Spark Alt, creating a hybrid system that balances cost (Gemini API) and free local inference (Ollama gemma3:12b-it-qat).
+This document captures the decision-making process and implementation plan for integrating Ollama (local LLM) support into Mad Spark Alt, creating a hybrid system that balances cost (Gemini API) and free local inference (Ollama gemma3:12b).
 
 **Target Cost Reduction:** 70-90% via local Ollama for text-only queries
 

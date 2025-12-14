@@ -3,7 +3,7 @@ name = "mad-spark-alt"
 version = "0.1.0"
 description = "AI Creativity Evaluation System - Multi-layer framework for evaluating AI model creativity"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = [
     "numpy>=1.21.0",
     "scipy>=1.7.0",
@@ -20,6 +20,8 @@ dependencies = [
     "aiohttp>=3.8.0",
     "asyncio-throttle>=1.0.0",
     "python-dotenv>=1.0.0",
+    "outlines[ollama]>=0.1.0",
+    "ollama>=0.4.0",
 ]
 
 
@@ -37,14 +39,14 @@ build-backend = "hatchling.build"
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
+target-version = ['py39']
 
 [tool.isort]
 profile = "black"
 line_length = 88
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

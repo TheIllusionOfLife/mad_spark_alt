@@ -49,6 +49,60 @@ TOKEN_ESTIMATION_FACTOR = 1.3
 EMBEDDING_COST_PER_1K_TOKENS = 0.0002
 
 
+def inline_schema_defs(schema: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """
+    Inline all $defs references in a JSON Schema for Ollama compatibility.
+
+    Ollama has known issues with $defs/$ref JSON Schema features:
+    - Issue #8444: $defs ordering bug causes incorrect grammar generation
+    - Issue #8462: Limited support for arrays and complex types
+
+    This function transforms schemas like:
+        { "$defs": {"X": {...}}, "properties": {"field": {"$ref": "#/$defs/X"}} }
+
+    Into:
+        { "properties": {"field": {...}} }
+
+    Args:
+        schema: JSON Schema dict (typically from Pydantic's model_json_schema())
+
+    Returns:
+        Transformed schema with all $ref inlined and $defs removed, or None if input is None
+    """
+    import copy
+
+    if not schema or "$defs" not in schema:
+        return schema
+
+    # Deep copy to avoid mutating original
+    result = copy.deepcopy(schema)
+    defs = result.pop("$defs", {})
+
+    def resolve_ref(obj: Any) -> Any:
+        """Recursively resolve $ref references."""
+        if isinstance(obj, dict):
+            if "$ref" in obj:
+                ref_path = obj["$ref"]
+                # Handle #/$defs/Name format
+                if ref_path.startswith("#/$defs/"):
+                    def_name = ref_path.split("/")[-1]
+                    if def_name in defs:
+                        # Recursively resolve in case the definition has $refs too
+                        return resolve_ref(copy.deepcopy(defs[def_name]))
+                # Return original if we can't resolve
+                return obj
+            else:
+                # Recursively process all values
+                return {k: resolve_ref(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [resolve_ref(item) for item in obj]
+        else:
+            return obj
+
+    resolved: Dict[str, Any] = resolve_ref(result)
+    return resolved
+
+
 class LLMProvider(Enum):
     """Supported LLM providers."""
 
@@ -871,6 +925,78 @@ class OllamaProvider(LLMProviderInterface):
                 self._session = aiohttp.ClientSession()
             return self._session
 
+    async def _generate_with_outlines(
+        self, request: LLMRequest, pydantic_model: Type[BaseModel]
+    ) -> LLMResponse:
+        """
+        Generate structured output using Outlines library.
+
+        Outlines provides better structured output support for Ollama by using
+        constrained grammar generation at the token level.
+
+        Args:
+            request: LLMRequest with prompt
+            pydantic_model: Pydantic model class for output schema
+
+        Returns:
+            LLMResponse with generated content matching the schema
+        """
+        import ollama
+        import outlines
+
+        start_time = time.time()
+
+        try:
+            # Create Outlines model with async Ollama client
+            # Use host parameter to set base URL
+            async_client = ollama.AsyncClient(host=self.base_url)
+            outlines_model = outlines.from_ollama(async_client, self.model)
+
+            # Build prompt from request
+            prompt = request.user_prompt
+            if request.system_prompt:
+                prompt = f"{request.system_prompt}\n\n{prompt}"
+
+            # Generate with Outlines - pass Pydantic model as output_type
+            # Ollama expects options in 'options' dict, not as direct kwargs
+            logger.debug(f"Using Outlines for structured output with model: {pydantic_model.__name__}")
+            result = await outlines_model(
+                prompt,
+                pydantic_model,
+                options={
+                    "temperature": request.temperature,
+                    "num_predict": request.max_tokens,
+                    "top_p": request.top_p,
+                },
+            )
+
+            end_time = time.time()
+
+            # Estimate tokens (Outlines doesn't provide token counts directly)
+            prompt_tokens = len(prompt) // 4
+            completion_tokens = len(result) // 4
+            total_tokens = prompt_tokens + completion_tokens
+
+            return LLMResponse(
+                content=result,
+                provider=LLMProvider.OLLAMA,
+                model=self.model,
+                usage={
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": total_tokens,
+                },
+                cost=0.0,  # Local model, no cost
+                metadata={
+                    "response_time": end_time - start_time,
+                    "method": "outlines",
+                },
+            )
+
+        except Exception as e:
+            logger.warning(f"Outlines generation failed: {e}, falling back to raw API")
+            raise  # Re-raise to trigger fallback
+
     async def generate(self, request: LLMRequest) -> LLMResponse:
         """
         Generate text using Ollama API with Pydantic schema support.
@@ -878,8 +1004,12 @@ class OllamaProvider(LLMProviderInterface):
         Supports:
         - Text generation
         - Image inputs (via base64 encoding)
-        - Structured output (JSON schema via format parameter)
-        - Pydantic model schemas
+        - Structured output via Outlines library (for Pydantic models)
+        - Structured output via JSON schema format parameter (fallback)
+
+        When a Pydantic model is provided as response_schema, this method
+        attempts to use the Outlines library for better constrained generation.
+        If Outlines fails, it falls back to Ollama's native JSON schema support.
 
         Args:
             request: LLMRequest with prompt and optional schema
@@ -890,6 +1020,22 @@ class OllamaProvider(LLMProviderInterface):
         Raises:
             LLMError: If Ollama API request fails
         """
+        # Try Outlines for Pydantic model schemas (better structured output)
+        if request.response_schema is not None:
+            # Check if it's a Pydantic model class
+            if isinstance(request.response_schema, type) and issubclass(
+                request.response_schema, BaseModel
+            ):
+                try:
+                    return await self._generate_with_outlines(
+                        request, request.response_schema
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Outlines generation failed ({e}), falling back to raw Ollama API"
+                    )
+                    # Fall through to raw API
+
         session = await self._get_session()
 
         # Build messages in Ollama format
@@ -910,6 +1056,8 @@ class OllamaProvider(LLMProviderInterface):
         # Add structured output schema if provided
         if request.response_schema:
             schema = request.get_json_schema()
+            # Inline $defs for Ollama compatibility (Issue #8444, #8462)
+            schema = inline_schema_defs(schema)
             payload["format"] = schema  # Ollama's format parameter
             # User controls temperature directly - no automatic capping
             # High temperature may affect schema compliance, but user has full control

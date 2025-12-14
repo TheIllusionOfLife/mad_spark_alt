@@ -155,9 +155,11 @@ def load_env_file() -> None:
 
 def setup_logging(verbose: bool = False) -> None:
     """Set up logging configuration."""
-    level = logging.DEBUG if verbose else logging.WARNING
+    level = logging.DEBUG if verbose else logging.ERROR
     logging.basicConfig(
-        level=level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        level=level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        stream=sys.stderr,
     )
 
 

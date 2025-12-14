@@ -428,8 +428,8 @@ class TestBatchMutationResponse:
         assert response.mutations[0].mutation_type == "paradigm_shift"
         assert response.mutations[1].mutation_type == "scale_amplification"
 
-    def test_mutation_type_optional(self):
-        """Verify mutation_type is optional (for regular mutations)."""
+    def test_mutation_type_defaults_to_empty_string(self):
+        """Verify mutation_type defaults to empty string when not provided."""
         from mad_spark_alt.core.schemas import BatchMutationResponse
 
         json_str = json.dumps(
@@ -437,7 +437,9 @@ class TestBatchMutationResponse:
         )
 
         response = BatchMutationResponse.model_validate_json(json_str)
-        assert response.mutations[0].mutation_type is None
+        # mutation_type defaults to empty string for Ollama JSON Schema compatibility
+        # (avoids anyOf pattern that Ollama doesn't support)
+        assert response.mutations[0].mutation_type == ""
 
 
 class TestCrossoverResponse:
