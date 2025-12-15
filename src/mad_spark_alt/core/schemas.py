@@ -153,6 +153,9 @@ class MutationResult(BaseModel):
 
     id: int = Field(description="Mutation ID for maintaining order (1-based indexing)")
     mutated_idea: str = Field(description="The mutated idea content")
+    # Note: Changed from Optional[str] to str with empty default for Ollama compatibility.
+    # Ollama's structured output has issues with Optional/anyOf patterns in JSON schemas.
+    # No codebase uses `mutation_type is None` checks (verified via grep).
     mutation_type: str = Field(
         default="",
         description="Type of mutation applied (e.g., 'paradigm_shift', 'scale_amplification'). Empty string if not specified.",

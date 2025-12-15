@@ -107,9 +107,13 @@ class LLMConstants:
     DEFAULT_QADI_TOP_P: float = 0.95
     """Default top_p for QADI phases."""
 
-    # Token limits (increased to prevent content truncation during evolution)
+    # Token limits for evolution operations
+    # Increased from previous values (1500/2000) to prevent content truncation when:
+    # 1. Ideas contain detailed explanations or multi-part solutions
+    # 2. Outlines grammar constraints require additional tokens for schema compliance
+    # 3. Evolution operators (crossover, mutation) combine/transform ideas
     SEMANTIC_MUTATION_MAX_TOKENS: int = 2000
-    """Maximum tokens for semantic mutation operations."""
+    """Maximum tokens for semantic mutation operations (increased from 1500)."""
 
     SEMANTIC_BATCH_MUTATION_BASE_TOKENS: int = 2000
     """Base token allocation for batch mutations."""
@@ -118,7 +122,7 @@ class LLMConstants:
     """Maximum tokens for batch mutation operations."""
 
     SEMANTIC_CROSSOVER_MAX_TOKENS: int = 3000
-    """Maximum tokens for semantic crossover operations."""
+    """Maximum tokens for semantic crossover operations (increased from 2000)."""
 
     # Breakthrough mutation parameters
     BREAKTHROUGH_TOKEN_MULTIPLIER: int = 2

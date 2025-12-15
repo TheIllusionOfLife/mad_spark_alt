@@ -168,6 +168,18 @@ Mad Spark Alt is a Multi-Agent Idea Generation System powered by LLMs using the 
 
 7. **Ollama Language Mirroring**: Ollama models (tested with gemma3:12b) do not reliably respect language mirroring instructions. Japanese input may produce English output. For non-English languages, use `--provider gemini` which handles language mirroring correctly.
 
+### Outlines/Ollama Structured Output (PR #165)
+
+8. **Token Estimation**: Outlines library doesn't provide token counts. Uses rough approximation (1 token ≈ 4 characters) for usage tracking. Actual token usage may vary.
+
+9. **Pydantic Model Requirement**: Outlines path requires Pydantic model classes as `response_schema`. Dict-based JSON schemas use the fallback path (native Ollama API with `format` parameter).
+
+10. **$defs Inlining**: Ollama has issues with `$defs`/`$ref` JSON Schema features (issues #8444, #8462). Schemas are pre-processed with `inline_schema_defs()` to expand all references inline. This increases schema size but ensures compatibility.
+
+11. **AsyncClient Caching**: Ollama AsyncClient and Outlines models are cached per-provider instance to avoid resource leaks. Call `provider.close()` when done to release resources.
+
+12. **Optional[T] Incompatibility**: Ollama's structured output has issues with `Optional`/`anyOf` patterns in JSON schemas. Use non-optional fields with default values instead (e.g., `str = Field(default="")` instead of `Optional[str]`).
+
 ## Completed Features Reference
 
 | PR | Feature | Key Pattern |

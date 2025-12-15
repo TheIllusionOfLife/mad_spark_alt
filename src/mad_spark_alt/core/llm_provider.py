@@ -21,6 +21,17 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union
 import aiohttp
 from pydantic import BaseModel, Field
 
+# Optional imports for Outlines-based structured generation
+# These are runtime dependencies that may not be installed
+try:
+    import ollama
+    import outlines
+    OUTLINES_AVAILABLE = True
+except ImportError:
+    ollama = None  # type: ignore
+    outlines = None  # type: ignore
+    OUTLINES_AVAILABLE = False
+
 from .retry import (
     CircuitBreaker,
     ErrorType,
@@ -42,6 +53,9 @@ logger = logging.getLogger(__name__)
 
 # Model constants
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+
+# Cache for inlined schemas to avoid repeated deep copy + traversal
+_INLINED_SCHEMA_CACHE: Dict[str, Dict[str, Any]] = {}
 
 # Embedding constants
 # Approximate ratio of tokens to words for estimation when API doesn't provide token count
@@ -73,6 +87,11 @@ def inline_schema_defs(schema: Optional[Dict[str, Any]]) -> Optional[Dict[str, A
     if not schema or "$defs" not in schema:
         return schema
 
+    # Check cache first for performance (schemas are often reused)
+    cache_key = json.dumps(schema, sort_keys=True)
+    if cache_key in _INLINED_SCHEMA_CACHE:
+        return copy.deepcopy(_INLINED_SCHEMA_CACHE[cache_key])
+
     # Deep copy to avoid mutating original
     result = copy.deepcopy(schema)
     defs = result.pop("$defs", {})
@@ -99,7 +118,9 @@ def inline_schema_defs(schema: Optional[Dict[str, Any]]) -> Optional[Dict[str, A
             return obj
 
     resolved: Dict[str, Any] = resolve_ref(result)
-    return resolved
+    # Cache the result for future calls with same schema
+    _INLINED_SCHEMA_CACHE[cache_key] = resolved
+    return copy.deepcopy(resolved)
 
 
 class LLMProvider(Enum):
@@ -916,6 +937,9 @@ class OllamaProvider(LLMProviderInterface):
         self._session_lock: asyncio.Lock = asyncio.Lock()  # Protect concurrent session creation
         self.retry_config = retry_config or RetryConfig()
         self.circuit_breaker = CircuitBreaker()
+        # Cache for Outlines client and models to avoid resource leaks
+        self._ollama_client: Optional[Any] = None  # ollama.AsyncClient
+        self._outlines_models: Dict[Type[BaseModel], Any] = {}  # model class -> outlines model
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session (thread-safe)."""
@@ -940,23 +964,25 @@ class OllamaProvider(LLMProviderInterface):
         Returns:
             LLMResponse with generated content matching the schema
         """
-        try:
-            import ollama
-            import outlines
-        except ImportError as e:
+        if not OUTLINES_AVAILABLE:
             raise LLMError(
-                f"Outlines-based generation requires 'outlines' and 'ollama' packages. "
-                f"Install with: pip install 'outlines[ollama]>=1.0.0' ollama. Error: {e}",
+                "Outlines-based generation requires 'outlines' and 'ollama' packages. "
+                "Install with: pip install 'outlines[ollama]>=1.0.0' ollama",
                 ErrorType.API_ERROR,
-            ) from e
+            )
 
         start_time = time.time()
 
         try:
-            # Create Outlines model with async Ollama client
-            # Use host parameter to set base URL
-            async_client = ollama.AsyncClient(host=self.base_url)
-            outlines_model = outlines.from_ollama(async_client, self.model)
+            # Reuse or create Ollama AsyncClient (cached to avoid resource leaks)
+            if self._ollama_client is None:
+                self._ollama_client = ollama.AsyncClient(host=self.base_url)
+
+            # Reuse or create Outlines model for this Pydantic class (cached)
+            if pydantic_model not in self._outlines_models:
+                self._outlines_models[pydantic_model] = outlines.from_ollama(
+                    self._ollama_client, self.model
+                )
 
             # Build prompt from request
             prompt = request.user_prompt
@@ -966,6 +992,7 @@ class OllamaProvider(LLMProviderInterface):
             # Generate with Outlines - pass Pydantic model as output_type
             # Ollama expects options in 'options' dict, not as direct kwargs
             logger.debug(f"Using Outlines for structured output with model: {pydantic_model.__name__}")
+            outlines_model = self._outlines_models[pydantic_model]
             result_obj = await outlines_model(
                 prompt,
                 pydantic_model,
@@ -1007,7 +1034,7 @@ class OllamaProvider(LLMProviderInterface):
             )
 
         except Exception as e:
-            logger.warning(f"Outlines generation failed: {e}, falling back to raw API")
+            logger.warning(f"Outlines generation failed ({type(e).__name__}: {e}), falling back to raw API")
             raise  # Re-raise to trigger fallback
 
     async def generate(self, request: LLMRequest) -> LLMResponse:
@@ -1264,10 +1291,13 @@ class OllamaProvider(LLMProviderInterface):
         return 0.0
 
     async def close(self) -> None:
-        """Close the session (thread-safe with respect to _get_session)."""
+        """Close the session and cleanup cached resources (thread-safe)."""
         async with self._session_lock:
             if self._session and not self._session.closed:
                 await self._session.close()
+            # Clear cached Outlines resources
+            self._ollama_client = None
+            self._outlines_models.clear()
 
 
 class LLMManager:
