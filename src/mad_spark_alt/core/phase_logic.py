@@ -833,6 +833,14 @@ async def execute_induction_phase(
     action_plan_str = ""
 
     if deduction_result:
+        # Validate that hypotheses and scores have the same length
+        if len(hypotheses) != len(deduction_result.hypothesis_scores):
+            raise ValueError(
+                f"Mismatch between hypotheses ({len(hypotheses)}) and "
+                f"scores ({len(deduction_result.hypothesis_scores)}). "
+                "Cannot build complete context for induction phase."
+            )
+
         # Build formatted hypotheses with scores
         hyp_lines = []
         for i, (hyp, score) in enumerate(
@@ -902,20 +910,26 @@ async def execute_induction_phase(
 
             # Try to parse as structured output first
             synthesis = ""
+            structured_parse_failed = False
             try:
                 induction_response = InductionResponse.model_validate_json(response.content)
                 synthesis = induction_response.synthesis
                 logger.debug("Successfully parsed induction response via Pydantic validation")
             except (ValidationError, json.JSONDecodeError) as parse_error:
                 # Fallback: use raw response content as synthesis
-                logger.debug(
-                    "Pydantic parsing failed (%s), using raw response as synthesis",
+                structured_parse_failed = True
+                logger.warning(
+                    "Structured output parsing failed for induction phase, "
+                    "falling back to raw text: %s",
                     parse_error,
                 )
                 synthesis = clean_ansi_codes(response.content.strip())
 
             # Clean up synthesis
             synthesis = clean_ansi_codes(synthesis)
+
+            # Add parse status to metadata for downstream visibility
+            multimodal_metadata["structured_parse_failed"] = structured_parse_failed
 
             return InductionResult(
                 synthesis=synthesis,
