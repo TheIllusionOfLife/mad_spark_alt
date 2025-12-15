@@ -6,6 +6,7 @@ with features for cost tracking, rate limiting, and async request handling.
 """
 
 import asyncio
+import copy
 import json
 import logging
 import os
@@ -69,8 +70,6 @@ def inline_schema_defs(schema: Optional[Dict[str, Any]]) -> Optional[Dict[str, A
     Returns:
         Transformed schema with all $ref inlined and $defs removed, or None if input is None
     """
-    import copy
-
     if not schema or "$defs" not in schema:
         return schema
 
@@ -941,8 +940,15 @@ class OllamaProvider(LLMProviderInterface):
         Returns:
             LLMResponse with generated content matching the schema
         """
-        import ollama
-        import outlines
+        try:
+            import ollama
+            import outlines
+        except ImportError as e:
+            raise LLMError(
+                f"Outlines-based generation requires 'outlines' and 'ollama' packages. "
+                f"Install with: pip install 'outlines[ollama]>=1.0.0' ollama. Error: {e}",
+                ErrorType.API_ERROR,
+            ) from e
 
         start_time = time.time()
 
@@ -960,7 +966,7 @@ class OllamaProvider(LLMProviderInterface):
             # Generate with Outlines - pass Pydantic model as output_type
             # Ollama expects options in 'options' dict, not as direct kwargs
             logger.debug(f"Using Outlines for structured output with model: {pydantic_model.__name__}")
-            result = await outlines_model(
+            result_obj = await outlines_model(
                 prompt,
                 pydantic_model,
                 options={
@@ -970,15 +976,22 @@ class OllamaProvider(LLMProviderInterface):
                 },
             )
 
+            # Serialize Pydantic model to JSON string (handle both Pydantic model and string)
+            if hasattr(result_obj, 'model_dump_json'):
+                result_json = result_obj.model_dump_json()
+            else:
+                # Already a string or other type
+                result_json = str(result_obj)
+
             end_time = time.time()
 
             # Estimate tokens (Outlines doesn't provide token counts directly)
             prompt_tokens = len(prompt) // 4
-            completion_tokens = len(result) // 4
+            completion_tokens = len(result_json) // 4
             total_tokens = prompt_tokens + completion_tokens
 
             return LLMResponse(
-                content=result,
+                content=result_json,
                 provider=LLMProvider.OLLAMA,
                 model=self.model,
                 usage={

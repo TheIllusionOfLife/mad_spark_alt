@@ -20,7 +20,7 @@ dependencies = [
     "aiohttp>=3.8.0",
     "asyncio-throttle>=1.0.0",
     "python-dotenv>=1.0.0",
-    "outlines[ollama]>=0.1.0",
+    "outlines[ollama]>=1.0.0",
     "ollama>=0.4.0",
 ]
 

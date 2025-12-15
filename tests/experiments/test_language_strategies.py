@@ -252,7 +252,7 @@ class LanguageMirroringExperiment:
         print(f"  Languages: 3 (English, Japanese, Spanish)")
         print(f"  Runs per combination: 5")
         print(f"  Total tests: {analysis['total_tests']}")
-        print(f"  Model: gemma3:12b (Ollama)")
+        print("  Model: gemma3:12b (Ollama)")
 
         print(f"\nOverall Results:")
         print(f"  Success Rate: {analysis['overall_success_rate']:.1f}%")
