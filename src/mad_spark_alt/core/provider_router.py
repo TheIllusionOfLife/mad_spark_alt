@@ -1129,7 +1129,7 @@ class ProviderRouter:
             >>> print(status)
             {
                 "gemini": {"available": True, "model": "gemini-2.5-flash"},
-                "ollama": {"available": True, "model": "gemma3:12b-it-qat"}
+                "ollama": {"available": True, "model": "gemma3:12b"}
             }
         """
         status = {}

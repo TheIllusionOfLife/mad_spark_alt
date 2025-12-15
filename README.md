@@ -66,6 +66,8 @@ asyncio.run(analyze_image())
 
 ## Installation
 
+**Requirements:** Python 3.9+
+
 ```bash
 git clone https://github.com/TheIllusionOfLife/mad_spark_alt.git
 cd mad_spark_alt
@@ -120,7 +122,7 @@ msa "Your question" --provider ollama
 # Ollama setup (one-time)
 # 1. Install: https://ollama.ai
 # 2. Run: ollama serve
-# 3. Pull model: ollama pull gemma3:12b-it-qat
+# 3. Pull model: ollama pull gemma3:12b
 # 4. Use: msa "Your question" --provider ollama
 ```
 

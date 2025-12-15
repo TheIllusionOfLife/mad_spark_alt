@@ -107,18 +107,22 @@ class LLMConstants:
     DEFAULT_QADI_TOP_P: float = 0.95
     """Default top_p for QADI phases."""
 
-    # Token limits
-    SEMANTIC_MUTATION_MAX_TOKENS: int = 1500
-    """Maximum tokens for semantic mutation operations."""
+    # Token limits for evolution operations
+    # Increased from previous values (1500/2000) to prevent content truncation when:
+    # 1. Ideas contain detailed explanations or multi-part solutions
+    # 2. Outlines grammar constraints require additional tokens for schema compliance
+    # 3. Evolution operators (crossover, mutation) combine/transform ideas
+    SEMANTIC_MUTATION_MAX_TOKENS: int = 2000
+    """Maximum tokens for semantic mutation operations (increased from 1500)."""
 
-    SEMANTIC_BATCH_MUTATION_BASE_TOKENS: int = 1500
+    SEMANTIC_BATCH_MUTATION_BASE_TOKENS: int = 2000
     """Base token allocation for batch mutations."""
 
-    SEMANTIC_BATCH_MUTATION_MAX_TOKENS: int = 6000
+    SEMANTIC_BATCH_MUTATION_MAX_TOKENS: int = 8000
     """Maximum tokens for batch mutation operations."""
 
-    SEMANTIC_CROSSOVER_MAX_TOKENS: int = 2000
-    """Maximum tokens for semantic crossover operations."""
+    SEMANTIC_CROSSOVER_MAX_TOKENS: int = 3000
+    """Maximum tokens for semantic crossover operations (increased from 2000)."""
 
     # Breakthrough mutation parameters
     BREAKTHROUGH_TOKEN_MULTIPLIER: int = 2
@@ -144,8 +148,8 @@ class LLMConstants:
     OLLAMA_DEFAULT_BASE_URL: str = "http://localhost:11434"
     """Default base URL for Ollama local server."""
 
-    OLLAMA_DEFAULT_MODEL: str = "gemma3:12b-it-qat"
-    """Default Ollama model for QADI operations."""
+    OLLAMA_DEFAULT_MODEL: str = "gemma3:12b"
+    """Default Ollama model for QADI operations. Supports multimodal (images). Note: -qat variants have broken structured output."""
 
     OLLAMA_DEFAULT_MAX_TOKENS: int = 8192
     """Default context window for Ollama models."""

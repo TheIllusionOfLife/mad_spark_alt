@@ -826,3 +826,397 @@ class TestMultimodalLLMResponse:
         assert len(response.url_context_metadata) == 1
         assert response.total_images_processed == 2
         assert response.total_pages_processed == 10
+
+
+class TestInlineSchemaDefsFunction:
+    """Test inline_schema_defs() utility for Ollama compatibility."""
+
+    def test_passthrough_schema_without_defs(self):
+        """Test that schema without $defs is returned unchanged."""
+        from mad_spark_alt.core.llm_provider import inline_schema_defs
+
+        schema = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "age": {"type": "integer"}
+            },
+            "required": ["name", "age"]
+        }
+
+        result = inline_schema_defs(schema)
+
+        # Should be unchanged (no $defs to inline)
+        assert result == schema
+        assert "$defs" not in result
+
+    def test_inline_single_ref(self):
+        """Test inlining a single $ref to $defs."""
+        from mad_spark_alt.core.llm_provider import inline_schema_defs
+
+        schema = {
+            "$defs": {
+                "Person": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"}
+                    }
+                }
+            },
+            "type": "object",
+            "properties": {
+                "owner": {"$ref": "#/$defs/Person"}
+            }
+        }
+
+        result = inline_schema_defs(schema)
+
+        # $defs should be removed
+        assert "$defs" not in result
+        # Reference should be inlined
+        assert result["properties"]["owner"]["type"] == "object"
+        assert "name" in result["properties"]["owner"]["properties"]
+
+    def test_inline_nested_refs(self):
+        """Test inlining nested $refs within arrays."""
+        from mad_spark_alt.core.llm_provider import inline_schema_defs
+
+        schema = {
+            "$defs": {
+                "Item": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "integer"},
+                        "value": {"type": "string"}
+                    }
+                }
+            },
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {"$ref": "#/$defs/Item"}
+                }
+            }
+        }
+
+        result = inline_schema_defs(schema)
+
+        # $defs should be removed
+        assert "$defs" not in result
+        # Array items should have inlined definition
+        items_schema = result["properties"]["items"]["items"]
+        assert items_schema["type"] == "object"
+        assert "id" in items_schema["properties"]
+        assert "value" in items_schema["properties"]
+
+    def test_inline_multiple_refs_to_same_def(self):
+        """Test inlining multiple references to the same definition."""
+        from mad_spark_alt.core.llm_provider import inline_schema_defs
+
+        schema = {
+            "$defs": {
+                "Address": {
+                    "type": "object",
+                    "properties": {
+                        "street": {"type": "string"}
+                    }
+                }
+            },
+            "type": "object",
+            "properties": {
+                "home_address": {"$ref": "#/$defs/Address"},
+                "work_address": {"$ref": "#/$defs/Address"}
+            }
+        }
+
+        result = inline_schema_defs(schema)
+
+        # $defs should be removed
+        assert "$defs" not in result
+        # Both references should be inlined independently
+        assert result["properties"]["home_address"]["type"] == "object"
+        assert result["properties"]["work_address"]["type"] == "object"
+        assert "street" in result["properties"]["home_address"]["properties"]
+        assert "street" in result["properties"]["work_address"]["properties"]
+
+    def test_empty_schema_passthrough(self):
+        """Test that empty or None schema returns unchanged."""
+        from mad_spark_alt.core.llm_provider import inline_schema_defs
+
+        assert inline_schema_defs({}) == {}
+        assert inline_schema_defs(None) is None
+
+    def test_pydantic_batch_mutation_schema(self):
+        """Test with real Pydantic BatchMutationResponse schema."""
+        from mad_spark_alt.core.llm_provider import inline_schema_defs
+        from mad_spark_alt.core.schemas import BatchMutationResponse
+
+        original = BatchMutationResponse.model_json_schema()
+        result = inline_schema_defs(original)
+
+        # $defs should be removed
+        assert "$defs" not in result
+        # Should still have the mutations array
+        assert "mutations" in result["properties"]
+        # Items should be inlined (not a $ref)
+        items = result["properties"]["mutations"]["items"]
+        assert "$ref" not in items
+        assert items["type"] == "object"
+        assert "mutated_idea" in items["properties"]
+
+    def test_pydantic_batch_crossover_schema(self):
+        """Test with real Pydantic BatchCrossoverResponse schema."""
+        from mad_spark_alt.core.llm_provider import inline_schema_defs
+        from mad_spark_alt.core.schemas import BatchCrossoverResponse
+
+        original = BatchCrossoverResponse.model_json_schema()
+        result = inline_schema_defs(original)
+
+        # $defs should be removed
+        assert "$defs" not in result
+        # Should still have the crossovers array
+        assert "crossovers" in result["properties"]
+        # Items should be inlined (not a $ref)
+        items = result["properties"]["crossovers"]["items"]
+        assert "$ref" not in items
+        assert items["type"] == "object"
+        assert "pair_id" in items["properties"]
+        assert "offspring1" in items["properties"]
+
+    def test_recursive_defs_resolution(self):
+        """Test resolution of definitions that reference other definitions."""
+        from mad_spark_alt.core.llm_provider import inline_schema_defs
+
+        schema = {
+            "$defs": {
+                "Address": {
+                    "type": "object",
+                    "properties": {
+                        "street": {"type": "string"},
+                        "city": {"type": "string"}
+                    }
+                },
+                "Person": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "address": {"$ref": "#/$defs/Address"}
+                    }
+                }
+            },
+            "type": "object",
+            "properties": {
+                "employee": {"$ref": "#/$defs/Person"}
+            }
+        }
+
+        result = inline_schema_defs(schema)
+
+        # $defs should be removed
+        assert "$defs" not in result
+        # Person should be inlined
+        employee = result["properties"]["employee"]
+        assert employee["type"] == "object"
+        assert "name" in employee["properties"]
+        # Address within Person should also be inlined
+        address = employee["properties"]["address"]
+        assert address["type"] == "object"
+        assert "street" in address["properties"]
+        assert "city" in address["properties"]
+
+    def test_schema_caching_performance(self):
+        """Test that schema caching works (same input returns cached result)."""
+        from mad_spark_alt.core.llm_provider import inline_schema_defs, _INLINED_SCHEMA_CACHE
+
+        # Clear cache for clean test
+        _INLINED_SCHEMA_CACHE.clear()
+
+        schema = {
+            "$defs": {
+                "Item": {"type": "object", "properties": {"id": {"type": "integer"}}}
+            },
+            "type": "object",
+            "properties": {"item": {"$ref": "#/$defs/Item"}}
+        }
+
+        # First call should populate cache
+        result1 = inline_schema_defs(schema)
+
+        # Verify cache was populated
+        assert len(_INLINED_SCHEMA_CACHE) == 1
+
+        # Second call with same schema should use cache
+        result2 = inline_schema_defs(schema)
+
+        # Results should be equal but not the same object (deep copy)
+        assert result1 == result2
+        assert result1 is not result2
+
+
+class TestOllamaOutlinesFallback:
+    """Tests for Outlines integration and fallback behavior."""
+
+    @pytest.mark.asyncio
+    async def test_outlines_fallback_logs_exception_type(self):
+        """Test that fallback path logs exception type for debugging."""
+        from unittest.mock import patch, AsyncMock, MagicMock
+        from mad_spark_alt.core.llm_provider import OllamaProvider, LLMRequest, OUTLINES_AVAILABLE
+        from mad_spark_alt.core.schemas import HypothesisListResponse
+
+        if not OUTLINES_AVAILABLE:
+            pytest.skip("Outlines not installed")
+
+        provider = OllamaProvider()
+
+        # Mock to force Outlines failure
+        with patch.object(
+            provider, '_generate_with_outlines',
+            side_effect=RuntimeError("Test error")
+        ):
+            with patch(
+                'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
+                new=AsyncMock(return_value={
+                    "message": {"content": '{"hypotheses": []}'},
+                    "prompt_eval_count": 10,
+                    "eval_count": 5
+                })
+            ):
+                request = LLMRequest(
+                    user_prompt="Test",
+                    response_schema=HypothesisListResponse
+                )
+
+                # Should fall back to raw API without raising
+                response = await provider.generate(request)
+
+                # Verify we got a response (fallback worked)
+                assert response is not None
+                assert response.provider.value == "ollama"
+
+        await provider.close()
+
+    @pytest.mark.asyncio
+    async def test_outlines_unavailable_raises_clear_error(self):
+        """Test that missing Outlines raises clear error message."""
+        from unittest.mock import patch
+        from mad_spark_alt.core.llm_provider import OllamaProvider, LLMRequest
+        from mad_spark_alt.core.retry import LLMError
+        from mad_spark_alt.core.schemas import HypothesisListResponse
+
+        provider = OllamaProvider()
+
+        # Simulate Outlines not being available
+        with patch('mad_spark_alt.core.llm_provider.OUTLINES_AVAILABLE', False):
+            request = LLMRequest(
+                user_prompt="Test",
+                response_schema=HypothesisListResponse
+            )
+
+            with pytest.raises(LLMError) as exc_info:
+                await provider._generate_with_outlines(request, HypothesisListResponse)
+
+            assert "outlines" in str(exc_info.value).lower()
+            assert "pip install" in str(exc_info.value).lower()
+
+        await provider.close()
+
+    @pytest.mark.asyncio
+    async def test_outlines_timeout_protection(self):
+        """Test that Outlines call has timeout protection."""
+        from unittest.mock import patch, AsyncMock, MagicMock
+        from mad_spark_alt.core.llm_provider import OllamaProvider, LLMRequest, OUTLINES_AVAILABLE
+        from mad_spark_alt.core.retry import LLMError, ErrorType
+        from mad_spark_alt.core.schemas import HypothesisListResponse
+        import asyncio
+
+        if not OUTLINES_AVAILABLE:
+            pytest.skip("Outlines not installed")
+
+        provider = OllamaProvider()
+
+        # Create a slow async function that will be interrupted by timeout
+        async def slow_outlines_call(*args, **kwargs):
+            await asyncio.sleep(10)  # Simulate slow call
+            return HypothesisListResponse(hypotheses=[])
+
+        request = LLMRequest(
+            user_prompt="Test timeout",
+            response_schema=HypothesisListResponse
+        )
+
+        with patch('mad_spark_alt.core.llm_provider.outlines') as mock_outlines:
+            # Mock the model creation
+            mock_model = MagicMock()
+            mock_model.return_value = slow_outlines_call()  # Returns a coroutine
+            mock_outlines.models.ollama.return_value = mock_model
+
+            # Mock asyncio.wait_for to raise TimeoutError immediately
+            async def immediate_timeout(*args, **kwargs):
+                raise asyncio.TimeoutError()
+
+            with patch('asyncio.wait_for', new=immediate_timeout):
+                with pytest.raises(LLMError) as exc_info:
+                    await provider._generate_with_outlines(request, HypothesisListResponse)
+
+                # Should raise timeout error
+                assert exc_info.value.error_type == ErrorType.TIMEOUT
+                assert "timed out" in str(exc_info.value).lower()
+
+        await provider.close()
+
+    @pytest.mark.asyncio
+    async def test_outlines_skipped_for_multimodal_requests(self):
+        """Test that Outlines is skipped when multimodal inputs are present.
+
+        Outlines flattens the prompt to plain text and loses image context.
+        The native Ollama API properly handles images via the messages format.
+        """
+        from unittest.mock import patch, AsyncMock, MagicMock
+        from mad_spark_alt.core.llm_provider import OllamaProvider, LLMRequest, OUTLINES_AVAILABLE
+        from mad_spark_alt.core.schemas import HypothesisListResponse
+        from mad_spark_alt.core.multimodal import MultimodalInput, MultimodalInputType, MultimodalSourceType
+
+        provider = OllamaProvider()
+
+        # Create a request with multimodal inputs (image)
+        multimodal_input = MultimodalInput(
+            input_type=MultimodalInputType.IMAGE,
+            source_type=MultimodalSourceType.BASE64,
+            data="base64encodedimagedata",
+            mime_type="image/png"
+        )
+
+        request = LLMRequest(
+            user_prompt="Describe this image",
+            response_schema=HypothesisListResponse,
+            multimodal_inputs=[multimodal_input]
+        )
+
+        # Mock the raw API call (should be used instead of Outlines)
+        with patch(
+            'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
+            new=AsyncMock(return_value={
+                "message": {"content": '{"hypotheses": []}'},
+                "prompt_eval_count": 10,
+                "eval_count": 5
+            })
+        ) as mock_api:
+            # Mock _generate_with_outlines to track if it's called
+            with patch.object(
+                provider, '_generate_with_outlines',
+                new=AsyncMock()
+            ) as mock_outlines:
+                response = await provider.generate(request)
+
+                # Outlines should NOT have been called due to multimodal inputs
+                mock_outlines.assert_not_called()
+
+                # Raw API should have been called instead
+                mock_api.assert_called_once()
+
+                # Verify response came from raw API
+                assert response is not None
+                assert response.provider.value == "ollama"
+
+        await provider.close()

@@ -157,7 +157,7 @@ class TestProviderRouterFallback:
         mock_response = LLMResponse(
             content="Test response",
             provider=LLMProvider.OLLAMA,
-            model="gemma3:12b-it-qat",
+            model="gemma3:12b",
             usage={"total_tokens": 100},
             cost=0.0,
             response_time=1.0,
@@ -253,7 +253,7 @@ class TestProviderRouterStatus:
         ]
 
         ollama = MagicMock(spec=OllamaProvider)
-        ollama.model = "gemma3:12b-it-qat"
+        ollama.model = "gemma3:12b"
         ollama.base_url = "http://localhost:11434"
 
         router = ProviderRouter(gemini, ollama)
@@ -262,7 +262,7 @@ class TestProviderRouterStatus:
         assert status["gemini"]["available"] is True
         assert status["gemini"]["model"] == "gemini-2.5-flash"
         assert status["ollama"]["available"] is True
-        assert status["ollama"]["model"] == "gemma3:12b-it-qat"
+        assert status["ollama"]["model"] == "gemma3:12b"
 
     def test_status_with_only_gemini(self):
         """Test status when only Gemini available."""

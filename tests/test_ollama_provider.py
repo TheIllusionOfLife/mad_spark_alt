@@ -33,18 +33,18 @@ class TestOllamaProviderUnit:
         """Test OllamaProvider initializes with correct defaults."""
         provider = OllamaProvider()
 
-        assert provider.model == "gemma3:12b-it-qat"
+        assert provider.model == "gemma3:12b"
         assert provider.base_url == "http://localhost:11434"
         assert provider._session is None
 
     def test_ollama_provider_custom_config(self):
         """Test OllamaProvider accepts custom configuration."""
         provider = OllamaProvider(
-            model="gemma3:4b-it-qat",
+            model="gemma3:4b",
             base_url="http://custom-host:11434"
         )
 
-        assert provider.model == "gemma3:4b-it-qat"
+        assert provider.model == "gemma3:4b"
         assert provider.base_url == "http://custom-host:11434"
 
     def test_get_available_models(self):
@@ -55,7 +55,7 @@ class TestOllamaProviderUnit:
         assert len(models) == 1
         model = models[0]
         assert model.provider == LLMProvider.OLLAMA
-        assert model.model_name == "gemma3:12b-it-qat"
+        assert model.model_name == "gemma3:12b"
         assert model.model_size == ModelSize.MEDIUM
         assert model.input_cost_per_1k == 0.0  # Free
         assert model.output_cost_per_1k == 0.0
@@ -91,7 +91,7 @@ class TestOllamaProviderUnit:
 
             assert isinstance(response, LLMResponse)
             assert response.provider == LLMProvider.OLLAMA
-            assert response.model == "gemma3:12b-it-qat"
+            assert response.model == "gemma3:12b"
             assert response.content == "This is a test response from Ollama."
             assert response.cost == 0.0  # Ollama is free
             # Verify actual token counts from API are used
@@ -235,7 +235,11 @@ class TestOllamaProviderUnit:
             "eval_count": 156,
         }
 
-        with patch(
+        # Mock both Outlines (to force fallback) and raw API
+        with patch.object(
+            provider, '_generate_with_outlines',
+            side_effect=Exception("Outlines disabled for test")
+        ), patch(
             'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
             new=AsyncMock(return_value=mock_response_data)
         ):
@@ -287,7 +291,11 @@ class TestOllamaProviderUnit:
             captured_payload = kwargs.get("json", {})
             return mock_response_data
 
-        with patch(
+        # Mock both Outlines (to force fallback) and raw API
+        with patch.object(
+            provider, '_generate_with_outlines',
+            side_effect=Exception("Outlines disabled for test")
+        ), patch(
             'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
             new=AsyncMock(side_effect=capture_request)
         ):
@@ -374,7 +382,7 @@ class TestOllamaProviderIntegration:
         response = await ollama_provider.generate(request)
 
         assert response.provider == LLMProvider.OLLAMA
-        assert response.model == "gemma3:12b-it-qat"
+        assert response.model == "gemma3:12b"
         assert len(response.content) > 0
         assert response.cost == 0.0
         assert response.response_time > 0
@@ -716,7 +724,7 @@ class TestOllamaProviderResourceCleanup:
         assert CONSTANTS.LLM.OLLAMA_DEFAULT_BASE_URL == "http://localhost:11434"
 
         assert hasattr(CONSTANTS.LLM, 'OLLAMA_DEFAULT_MODEL')
-        assert CONSTANTS.LLM.OLLAMA_DEFAULT_MODEL == "gemma3:12b-it-qat"
+        assert CONSTANTS.LLM.OLLAMA_DEFAULT_MODEL == "gemma3:12b"
 
     @pytest.mark.asyncio
     async def test_provider_uses_default_constants(self):
@@ -768,7 +776,11 @@ class TestOllamaProviderResourceCleanup:
             captured_payloads.append(kwargs.get('json', {}))
             return mock_response_data
 
-        with patch(
+        # Mock both Outlines (to force fallback) and raw API
+        with patch.object(
+            provider, '_generate_with_outlines',
+            side_effect=Exception("Outlines disabled for test")
+        ), patch(
             'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
             new=AsyncMock(side_effect=capture_payload)
         ):
