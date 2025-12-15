@@ -125,36 +125,53 @@ Third item: A long-term goal that fully realizes the recommended approach
 """
 
     @staticmethod
-    def get_induction_prompt(user_input: str, core_question: str, answer: str) -> str:
-        """Get the prompt for verifying the answer with examples."""
-        return f"""{get_strategy_1_instruction()}As a thoughtful analyst, verify the recommended approach by examining real-world applications.
+    def get_induction_prompt(
+        user_input: str,
+        core_question: str,
+        answer: str,
+        hypotheses_with_scores: str = "",
+        action_plan: str = "",
+    ) -> str:
+        """Get the prompt for synthesizing all QADI findings into a final conclusion.
 
-Core Question: {core_question}
-Recommended Approach: {answer}
+        Args:
+            user_input: Original user question/context
+            core_question: Extracted core question from Phase 1
+            answer: Analysis from deduction phase explaining the recommended approach
+            hypotheses_with_scores: Formatted string of all hypotheses with their scores
+            action_plan: Formatted string of the 3 action items
 
-Original context:
-{user_input}
+        Note: Format instructions removed - relying on Pydantic schema field descriptions
+        for output structure. This follows the "Structured Output Over Prompt Engineering"
+        pattern - prompts describe WHAT content to provide, schemas define HOW to structure it.
+        """
+        # Build context section based on available data
+        context_parts = [f"Original question: {user_input}"]
 
-Provide 3 diverse examples that demonstrate this approach in action:
+        if hypotheses_with_scores:
+            context_parts.append(f"\nHYPOTHESES EVALUATED:\n{hypotheses_with_scores}")
 
-Format each example clearly:
+        if action_plan:
+            context_parts.append(f"\nACTION PLAN:\n{action_plan}")
 
-Example 1: [Individual/Personal Level]
-- Context: [Brief situation description]
-- Application: [How the approach was used]
-- Result: [What positive outcome occurred]
+        context = "\n".join(context_parts)
 
-Example 2: [Community/Group Level]
-- Context: [Brief situation description]
-- Application: [How the approach was used]
-- Result: [What positive outcome occurred]
+        return f"""{get_strategy_1_instruction()}You are synthesizing a QADI (Question-Abduction-Deduction-Induction) analysis into a final conclusion.
 
-Example 3: [Larger Scale/Future Application]
-- Context: [Brief situation description]
-- Application: [How the approach could be used]
-- Result: [Expected positive outcome]
+CORE QUESTION: {core_question}
 
-Conclusion: In 2-3 sentences, explain whether the recommended approach is broadly applicable or needs adaptation for specific contexts. Focus on one key practical insight.
+{context}
+
+ANALYSIS SUMMARY:
+{answer}
+
+Write a comprehensive synthesis (3-4 paragraphs) that:
+1. Directly answers the core question with the recommended approach
+2. Explains WHY this approach was chosen based on the evaluation criteria (reference specific scores if available)
+3. Acknowledges trade-offs compared to alternatives (e.g., "While Approach 2 scored higher on feasibility...")
+4. Provides practical guidance for implementation, contextualizing the action plan within the broader conclusion
+
+Do NOT simply repeat the action plan or analysis. Instead, synthesize the findings into a cohesive narrative that helps the reader understand both the conclusion and the reasoning behind it.
 """
 
 
@@ -177,8 +194,8 @@ PHASE_HYPERPARAMETERS = {
         "top_p": 0.9,
     },
     "induction": {
-        "temperature": 0.5,  # Medium - balanced examples
-        "max_tokens": 1200,  # Increased for complete examples without truncation
+        "temperature": 0.3,  # Low - synthesis requires analytical precision
+        "max_tokens": 1500,  # Sufficient for 3-4 paragraph synthesis
         "top_p": 0.9,
     },
 }

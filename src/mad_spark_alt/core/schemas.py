@@ -218,3 +218,25 @@ class BatchCrossoverResponse(BaseModel):
     crossovers: List[CrossoverResult] = Field(
         description="List of crossover results with pair IDs for ordering"
     )
+
+
+class InductionResponse(BaseModel):
+    """
+    Final synthesis from Induction phase (Phase 4).
+
+    Produces a comprehensive conclusion that synthesizes all Q/A/D findings,
+    explaining why the recommended approach was chosen and providing actionable guidance.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    synthesis: str = Field(
+        min_length=100,
+        description=(
+            "A comprehensive synthesis (3-4 paragraphs) that: "
+            "(1) Directly answers the core question with the recommended approach, "
+            "(2) Explains WHY this approach scored highest with specific evaluation criteria, "
+            "(3) Acknowledges trade-offs vs alternatives, "
+            "(4) Provides actionable next steps contextualized within the broader conclusion"
+        ),
+    )

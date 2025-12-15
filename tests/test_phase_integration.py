@@ -146,17 +146,16 @@ async def test_full_qadi_cycle_integration(mock_llm_manager, phase_input):
     assert all(score.overall > 0 for score in deduction_result.hypothesis_scores)
     total_cost += deduction_result.llm_cost
 
-    # Phase 4: Induction - Mock response
+    # Phase 4: Induction - Mock response (now uses structured output with synthesis)
+    synthesis_content = (
+        "The recommended approach has been successfully implemented across multiple contexts. "
+        "Amsterdam's biodegradable packaging mandates reduced plastic waste by 40%. "
+        "Singapore's Marina Bay filtration intercepts 80% of plastic debris. "
+        "The EU's comprehensive legislation reduced Mediterranean pollution by 35%. "
+        "These examples demonstrate both environmental effectiveness and economic viability at scale."
+    )
     mock_llm_manager.generate.return_value = LLMResponse(
-        content="""
-        Example 1: The city of Amsterdam implemented biodigradable packaging mandates in 2020, reducing plastic waste by 40% within 2 years while maintaining economic growth.
-
-        Example 2: Singapore's Marina Bay filtration system successfully intercepts 80% of plastic debris from entering the ocean, demonstrating the viability of river mouth installations.
-
-        Example 3: The European Union's comprehensive approach combining legislation and infrastructure investment has reduced Mediterranean plastic pollution by 35% since 2018.
-
-        Conclusion: The recommended approach has been successfully implemented across multiple contexts, demonstrating both environmental effectiveness and economic viability at scale.
-        """,
+        content=json.dumps({"synthesis": synthesis_content}),
         provider=LLMProvider.GOOGLE,
         model="gemini-1.5-flash",
         cost=0.004,
@@ -167,10 +166,12 @@ async def test_full_qadi_cycle_integration(mock_llm_manager, phase_input):
         questioning_result.core_question,
         deduction_result.answer,
         abduction_result.hypotheses,
+        deduction_result=deduction_result,  # Pass full context for new behavior
     )
-    assert len(induction_result.examples) >= 3
-    assert induction_result.conclusion
-    assert "recommended approach" in induction_result.conclusion.lower()
+    # New induction returns synthesis, not examples
+    assert induction_result.examples == []  # Empty by design
+    assert induction_result.synthesis  # Has synthesis content
+    assert "recommended approach" in induction_result.synthesis.lower()
     total_cost += induction_result.llm_cost
 
     # Verify cost accumulation (with floating point tolerance)
@@ -180,7 +181,7 @@ async def test_full_qadi_cycle_integration(mock_llm_manager, phase_input):
     assert "microplastics" in questioning_result.core_question.lower()
     assert len(abduction_result.hypotheses) == 3
     assert len(deduction_result.hypothesis_scores) == 3
-    assert len(induction_result.examples) >= 3
+    assert induction_result.synthesis  # Has synthesis instead of examples
 
 
 @pytest.mark.asyncio

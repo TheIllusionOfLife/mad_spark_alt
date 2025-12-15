@@ -284,20 +284,22 @@ class SimpleQADIOrchestrator:
                 deduction_result.multimodal_metadata.get("pages_processed", 0)
             )
 
-            # Phase 4: Induction - Verify answer
+            # Phase 4: Induction - Synthesize findings
             logger.info("Running Induction phase")
             induction_result = await execute_induction_phase(
                 phase_input,
                 questioning_result.core_question,
                 deduction_result.answer,
                 abduction_result.hypotheses,
+                deduction_result=deduction_result,  # Pass full context for rich synthesis
             )
-            result.verification_examples = induction_result.examples
-            result.verification_conclusion = induction_result.conclusion
+            result.verification_examples = induction_result.examples  # Backward compat (empty)
+            result.verification_conclusion = induction_result.synthesis  # Use synthesis
             result.total_llm_cost += induction_result.llm_cost
             result.phase_results["induction"] = {
-                "examples": induction_result.examples,
-                "conclusion": induction_result.conclusion,
+                "synthesis": induction_result.synthesis,
+                "examples": induction_result.examples,  # Backward compat (empty)
+                "conclusion": induction_result.conclusion,  # Alias to synthesis
                 "cost": induction_result.llm_cost,
             }
 

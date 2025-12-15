@@ -1,5 +1,6 @@
 """Tests for SimpleQADIOrchestrator - the true QADI hypothesis-driven implementation."""
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -115,15 +116,17 @@ Action Plan:
                 cost=0.005,
                 response_time=1.0,
             ),
-            # Induction phase
+            # Induction phase (now uses structured output with synthesis)
             LLMResponse(
-                content="""1. London's congestion charge reduced traffic by 30% and emissions by 20% in the charging zone.
-
-2. Singapore's Electronic Road Pricing cut peak hour traffic by 24% while improving air quality.
-
-3. Stockholm saw 22% emission reduction and generated €100M annually for transport improvements.
-
-Conclusion: Real-world implementations consistently demonstrate congestion pricing's effectiveness in reducing urban transport emissions.""",
+                content=json.dumps({
+                    "synthesis": (
+                        "Real-world implementations consistently demonstrate congestion pricing's "
+                        "effectiveness in reducing urban transport emissions. London's congestion charge "
+                        "reduced traffic by 30% and emissions by 20%. Singapore's Electronic Road Pricing "
+                        "cut peak hour traffic by 24%. Stockholm saw 22% emission reduction and generated "
+                        "€100M annually for transport improvements."
+                    )
+                }),
                 provider=LLMProvider.GOOGLE,
                 model="test-model",
                 usage={"prompt_tokens": 40, "completion_tokens": 80},
@@ -147,7 +150,8 @@ Conclusion: Real-world implementations consistently demonstrate congestion prici
         assert len(result.hypothesis_scores) == 3
         assert "congestion pricing" in result.final_answer.lower()
         assert len(result.action_plan) == 3
-        assert len(result.verification_examples) >= 3  # Should have at least 3 examples
+        # New induction returns synthesis, not examples
+        assert result.verification_examples == []  # Empty by design
         assert "Real-world implementations" in result.verification_conclusion
         assert pytest.approx(result.total_llm_cost, rel=1e-5) == 0.013  # Sum of all costs
 
