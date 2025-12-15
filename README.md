@@ -66,6 +66,8 @@ asyncio.run(analyze_image())
 
 ## Installation
 
+**Requirements:** Python 3.9+
+
 ```bash
 git clone https://github.com/TheIllusionOfLife/mad_spark_alt.git
 cd mad_spark_alt

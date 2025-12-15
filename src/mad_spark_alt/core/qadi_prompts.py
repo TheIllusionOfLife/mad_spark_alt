@@ -39,7 +39,14 @@ Format: "Q: [Your core question]"
 
     @staticmethod
     def get_abduction_prompt(user_input: str, core_question: str, num_hypotheses: int = 3) -> str:
-        """Get the prompt for generating hypotheses."""
+        """Get the prompt for generating hypotheses.
+
+        Note: Format instructions (e.g., "1. [Title]\\n[Explanation]") were removed.
+        Output structure is now controlled by Pydantic schema field descriptions
+        (see Hypothesis.content in schemas.py). This follows the "Structured Output
+        Over Prompt Engineering" pattern - prompts describe WHAT content to provide,
+        schemas define HOW to structure it.
+        """
         return f"""{get_strategy_1_instruction()}As a creative problem-solver, generate {num_hypotheses} distinct approaches that could answer this core question.
 
 Core Question: {core_question}

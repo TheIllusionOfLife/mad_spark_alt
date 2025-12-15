@@ -155,7 +155,9 @@ def load_env_file() -> None:
 
 def setup_logging(verbose: bool = False) -> None:
     """Set up logging configuration."""
-    level = logging.DEBUG if verbose else logging.ERROR
+    # Use WARNING by default to show important operational info (e.g., fallback paths)
+    # Use DEBUG for verbose mode to show all internal details
+    level = logging.DEBUG if verbose else logging.WARNING
     logging.basicConfig(
         level=level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",

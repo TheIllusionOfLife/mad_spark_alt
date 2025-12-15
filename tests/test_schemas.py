@@ -429,7 +429,12 @@ class TestBatchMutationResponse:
         assert response.mutations[1].mutation_type == "scale_amplification"
 
     def test_mutation_type_defaults_to_empty_string(self):
-        """Verify mutation_type defaults to empty string when not provided."""
+        """Verify mutation_type defaults to empty string when not provided.
+
+        Changed from Optional[str] to str with empty default for Ollama compatibility.
+        This test ensures backward compatibility - empty string should be falsy
+        so existing code using `if mutation_type:` continues to work correctly.
+        """
         from mad_spark_alt.core.schemas import BatchMutationResponse
 
         json_str = json.dumps(
@@ -440,6 +445,8 @@ class TestBatchMutationResponse:
         # mutation_type defaults to empty string for Ollama JSON Schema compatibility
         # (avoids anyOf pattern that Ollama doesn't support)
         assert response.mutations[0].mutation_type == ""
+        # Verify falsy behavior preserved for backward compatibility
+        assert not response.mutations[0].mutation_type  # Empty string is falsy
 
 
 class TestCrossoverResponse:

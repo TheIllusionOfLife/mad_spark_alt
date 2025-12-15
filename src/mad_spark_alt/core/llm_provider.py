@@ -118,9 +118,9 @@ def inline_schema_defs(schema: Optional[Dict[str, Any]]) -> Optional[Dict[str, A
             return obj
 
     resolved: Dict[str, Any] = resolve_ref(result)
-    # Cache the result for future calls with same schema
-    _INLINED_SCHEMA_CACHE[cache_key] = resolved
-    return copy.deepcopy(resolved)
+    # Cache a deep copy to prevent any mutation issues (consistent with cache retrieval)
+    _INLINED_SCHEMA_CACHE[cache_key] = copy.deepcopy(resolved)
+    return resolved  # Return original - caller gets fresh object from resolve_ref
 
 
 class LLMProvider(Enum):
