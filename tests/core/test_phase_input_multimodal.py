@@ -214,9 +214,10 @@ class TestPhaseResultMultimodalMetadata:
         # Assert
         assert result.multimodal_metadata is not None
         assert result.multimodal_metadata["images_processed"] == 1
-        # Backward compat fields
+        # Backward compat fields - testing dataclass defaults
+        # Note: execute_induction_phase explicitly sets conclusion=synthesis for backward compat
         assert result.examples == []
-        assert result.conclusion == ""  # Default empty, not set from synthesis automatically
+        assert result.conclusion == ""  # Dataclass default; phase function sets it to synthesis
 
     def test_phase_results_multimodal_metadata_defaults_to_empty_dict(self):
         """Multimodal metadata should default to empty dict if not provided."""

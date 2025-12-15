@@ -27,6 +27,7 @@ from pydantic import ValidationError
 from ..utils.text_cleaning import clean_ansi_codes
 from .interfaces import GeneratedIdea, ThinkingMethod
 from .llm_provider import LLMRequest, LLMResponse, ModelConfig, llm_manager
+from .retry import LLMError
 from .parsing_utils import ActionPlanParser, HypothesisParser, ParsedScores, ScoreParser
 from .qadi_prompts import PHASE_HYPERPARAMETERS, QADIPrompts, calculate_hypothesis_score
 from .schemas import DeductionResponse, HypothesisListResponse, InductionResponse
@@ -905,10 +906,11 @@ async def execute_induction_phase(
                 induction_response = InductionResponse.model_validate_json(response.content)
                 synthesis = induction_response.synthesis
                 logger.debug("Successfully parsed induction response via Pydantic validation")
-            except Exception as parse_error:
+            except (ValidationError, json.JSONDecodeError) as parse_error:
                 # Fallback: use raw response content as synthesis
                 logger.debug(
-                    f"Pydantic parsing failed ({parse_error}), using raw response as synthesis"
+                    "Pydantic parsing failed (%s), using raw response as synthesis",
+                    parse_error,
                 )
                 synthesis = clean_ansi_codes(response.content.strip())
 
@@ -925,18 +927,18 @@ async def execute_induction_phase(
                 examples=[],  # No longer generated
             )
 
-        except Exception as e:
+        except LLMError as e:
+            # Only retry on LLM-specific errors (API errors, timeouts, network issues)
             if attempt == phase_input.max_retries:
-                logger.error(
+                logger.exception(
                     "Failed to synthesize findings after %d attempts. "
-                    "Last error: %s. The synthesis process could not complete.",
+                    "The synthesis process could not complete.",
                     phase_input.max_retries + 1,
-                    e,
                 )
                 raise RuntimeError(
                     f"Failed to synthesize findings after {phase_input.max_retries + 1} attempts. "
                     f"Last error: {e}. The system will proceed with incomplete results."
-                )
+                ) from e
             logger.warning("Induction phase attempt %d failed: %s", attempt + 1, e)
             await asyncio.sleep(1)
 

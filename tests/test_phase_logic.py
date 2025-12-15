@@ -782,7 +782,7 @@ async def test_induction_synthesis_fallback(mock_llm_manager, phase_input):
 async def test_induction_with_deduction_context(mock_llm_manager, phase_input):
     """Test induction receives and uses deduction context."""
     import json
-    from mad_spark_alt.core.phase_logic import DeductionResult, HypothesisScore
+    # DeductionResult and HypothesisScore are already imported at module level
 
     synthesis_content = (
         "Based on the analysis, Approach 1 emerges as the best solution with an overall "
