@@ -1120,3 +1120,103 @@ class TestOllamaOutlinesFallback:
             assert "pip install" in str(exc_info.value).lower()
 
         await provider.close()
+
+    @pytest.mark.asyncio
+    async def test_outlines_timeout_protection(self):
+        """Test that Outlines call has timeout protection."""
+        from unittest.mock import patch, AsyncMock, MagicMock
+        from mad_spark_alt.core.llm_provider import OllamaProvider, LLMRequest, OUTLINES_AVAILABLE
+        from mad_spark_alt.core.retry import LLMError, ErrorType
+        from mad_spark_alt.core.schemas import HypothesisListResponse
+        import asyncio
+
+        if not OUTLINES_AVAILABLE:
+            pytest.skip("Outlines not installed")
+
+        provider = OllamaProvider()
+
+        # Create a slow async function that will be interrupted by timeout
+        async def slow_outlines_call(*args, **kwargs):
+            await asyncio.sleep(10)  # Simulate slow call
+            return HypothesisListResponse(hypotheses=[])
+
+        request = LLMRequest(
+            user_prompt="Test timeout",
+            response_schema=HypothesisListResponse
+        )
+
+        with patch('mad_spark_alt.core.llm_provider.outlines') as mock_outlines:
+            # Mock the model creation
+            mock_model = MagicMock()
+            mock_model.return_value = slow_outlines_call()  # Returns a coroutine
+            mock_outlines.models.ollama.return_value = mock_model
+
+            # Mock asyncio.wait_for to raise TimeoutError immediately
+            async def immediate_timeout(*args, **kwargs):
+                raise asyncio.TimeoutError()
+
+            with patch('asyncio.wait_for', new=immediate_timeout):
+                with pytest.raises(LLMError) as exc_info:
+                    await provider._generate_with_outlines(request, HypothesisListResponse)
+
+                # Should raise timeout error
+                assert exc_info.value.error_type == ErrorType.TIMEOUT
+                assert "timed out" in str(exc_info.value).lower()
+
+        await provider.close()
+
+    @pytest.mark.asyncio
+    async def test_outlines_skipped_for_multimodal_requests(self):
+        """Test that Outlines is skipped when multimodal inputs are present.
+
+        Outlines flattens the prompt to plain text and loses image context.
+        The native Ollama API properly handles images via the messages format.
+        """
+        from unittest.mock import patch, AsyncMock, MagicMock
+        from mad_spark_alt.core.llm_provider import OllamaProvider, LLMRequest, OUTLINES_AVAILABLE
+        from mad_spark_alt.core.schemas import HypothesisListResponse
+        from mad_spark_alt.core.multimodal import MultimodalInput, MultimodalInputType, MultimodalSourceType
+
+        provider = OllamaProvider()
+
+        # Create a request with multimodal inputs (image)
+        multimodal_input = MultimodalInput(
+            input_type=MultimodalInputType.IMAGE,
+            source_type=MultimodalSourceType.BASE64,
+            data="base64encodedimagedata",
+            mime_type="image/png"
+        )
+
+        request = LLMRequest(
+            user_prompt="Describe this image",
+            response_schema=HypothesisListResponse,
+            multimodal_inputs=[multimodal_input]
+        )
+
+        # Mock the raw API call (should be used instead of Outlines)
+        with patch(
+            'mad_spark_alt.core.llm_provider.safe_aiohttp_request',
+            new=AsyncMock(return_value={
+                "message": {"content": '{"hypotheses": []}'},
+                "prompt_eval_count": 10,
+                "eval_count": 5
+            })
+        ) as mock_api:
+            # Mock _generate_with_outlines to track if it's called
+            with patch.object(
+                provider, '_generate_with_outlines',
+                new=AsyncMock()
+            ) as mock_outlines:
+                response = await provider.generate(request)
+
+                # Outlines should NOT have been called due to multimodal inputs
+                mock_outlines.assert_not_called()
+
+                # Raw API should have been called instead
+                mock_api.assert_called_once()
+
+                # Verify response came from raw API
+                assert response is not None
+                assert response.provider.value == "ollama"
+
+        await provider.close()

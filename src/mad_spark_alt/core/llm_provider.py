@@ -993,15 +993,26 @@ class OllamaProvider(LLMProviderInterface):
             # Ollama expects options in 'options' dict, not as direct kwargs
             logger.debug(f"Using Outlines for structured output with model: {pydantic_model.__name__}")
             outlines_model = self._outlines_models[pydantic_model]
-            result_obj = await outlines_model(
-                prompt,
-                pydantic_model,
-                options={
-                    "temperature": request.temperature,
-                    "num_predict": request.max_tokens,
-                    "top_p": request.top_p,
-                },
-            )
+
+            # Wrap with timeout for resilience (same as fallback path)
+            try:
+                result_obj = await asyncio.wait_for(
+                    outlines_model(
+                        prompt,
+                        pydantic_model,
+                        options={
+                            "temperature": request.temperature,
+                            "num_predict": request.max_tokens,
+                            "top_p": request.top_p,
+                        },
+                    ),
+                    timeout=CONSTANTS.TIMEOUTS.OLLAMA_INFERENCE_TIMEOUT,
+                )
+            except asyncio.TimeoutError:
+                raise LLMError(
+                    f"Outlines generation timed out after {CONSTANTS.TIMEOUTS.OLLAMA_INFERENCE_TIMEOUT}s",
+                    ErrorType.TIMEOUT,
+                )
 
             # Serialize Pydantic model to JSON string (handle both Pydantic model and string)
             if hasattr(result_obj, 'model_dump_json'):
@@ -1027,8 +1038,8 @@ class OllamaProvider(LLMProviderInterface):
                     "total_tokens": total_tokens,
                 },
                 cost=0.0,  # Local model, no cost
+                response_time=end_time - start_time,  # Top-level field for parity with fallback
                 metadata={
-                    "response_time": end_time - start_time,
                     "method": "outlines",
                 },
             )
@@ -1066,15 +1077,23 @@ class OllamaProvider(LLMProviderInterface):
             if isinstance(request.response_schema, type) and issubclass(
                 request.response_schema, BaseModel
             ):
-                try:
-                    return await self._generate_with_outlines(
-                        request, request.response_schema
+                # Skip Outlines for multimodal requests - Outlines flattens to plain text
+                # prompt and loses image context. Use native Ollama API which properly
+                # handles images via the messages format.
+                if request.multimodal_inputs:
+                    logger.debug(
+                        "Skipping Outlines for multimodal request - using native Ollama API"
                     )
-                except Exception as e:
-                    logger.warning(
-                        f"Outlines generation failed ({e}), falling back to raw Ollama API"
-                    )
-                    # Fall through to raw API
+                else:
+                    try:
+                        return await self._generate_with_outlines(
+                            request, request.response_schema
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"Outlines generation failed ({e}), falling back to raw Ollama API"
+                        )
+                        # Fall through to raw API
 
         session = await self._get_session()
 
