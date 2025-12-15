@@ -99,15 +99,21 @@ class TestEndToEndStructuredOutput:
                 cost=0.003
             ))
 
-            # 4. Induction phase response
+            # 4. Induction phase response (now uses structured output with synthesis)
             responses.append(LLMResponse(
-                content="""Example 1: The EU's Single-Use Plastics Directive has shown 35% reduction in ocean plastic waste.
-
-Example 2: California's plastic bag ban reduced beach litter by 72% within two years.
-
-Example 3: Taiwan's comprehensive plastic restrictions led to 95% reduction in plastic straw usage.
-
-Conclusion: The evidence strongly supports that regulatory approaches are highly effective in reducing ocean plastic pollution.""",
+                content=json.dumps({
+                    "synthesis": (
+                        "The analysis strongly supports implementing strict regulations on single-use plastics "
+                        "as the most effective approach to reducing ocean plastic pollution. This hypothesis scored "
+                        "highest on impact (0.9) due to the demonstrated effectiveness of regulatory measures. "
+                        "Real-world evidence from the EU's Single-Use Plastics Directive shows a 35% reduction "
+                        "in ocean plastic waste, while California's plastic bag ban reduced beach litter by 72%. "
+                        "While economic incentives (H3) scored higher on accessibility and sustainability, the "
+                        "regulatory approach's proven track record of enforcement makes it the recommended path "
+                        "forward. The action plan should begin with drafting comprehensive regulations, followed "
+                        "by stakeholder engagement and robust monitoring systems."
+                    )
+                }),
                 provider=LLMProvider.GOOGLE,
                 model="gemini-2.5-flash",
                 usage={"prompt_tokens": 200, "completion_tokens": 150},
@@ -139,10 +145,10 @@ Conclusion: The evidence strongly supports that regulatory approaches are highly
             assert len(result.action_plan) == 3
             assert "Draft comprehensive" in result.action_plan[0]
 
-            # Check verification
-            assert len(result.verification_examples) == 3
-            assert "EU's Single-Use Plastics Directive" in result.verification_examples[0]
-            assert "evidence strongly supports" in result.verification_conclusion
+            # Check verification (new induction returns synthesis, not examples)
+            assert result.verification_examples == []  # Empty by design
+            assert "EU's Single-Use Plastics Directive" in result.verification_conclusion
+            assert "analysis strongly supports" in result.verification_conclusion
 
             # Verify structured output was used for appropriate phases
             assert mock_manager.generate.call_count == 4

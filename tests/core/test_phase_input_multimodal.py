@@ -199,10 +199,9 @@ class TestPhaseResultMultimodalMetadata:
         """InductionResult should have multimodal_metadata field."""
         from mad_spark_alt.core.phase_logic import InductionResult
 
-        # Act
+        # Act - synthesis is now the primary field
         result = InductionResult(
-            examples=["Example 1", "Example 2"],
-            conclusion="Conclusion text",
+            synthesis="Synthesis text that ties together all findings",
             llm_cost=0.001,
             raw_response="Response text",
             multimodal_metadata={
@@ -215,6 +214,10 @@ class TestPhaseResultMultimodalMetadata:
         # Assert
         assert result.multimodal_metadata is not None
         assert result.multimodal_metadata["images_processed"] == 1
+        # Backward compat fields - testing dataclass defaults
+        # Note: execute_induction_phase explicitly sets conclusion=synthesis for backward compat
+        assert result.examples == []
+        assert result.conclusion == ""  # Dataclass default; phase function sets it to synthesis
 
     def test_phase_results_multimodal_metadata_defaults_to_empty_dict(self):
         """Multimodal metadata should default to empty dict if not provided."""

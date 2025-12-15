@@ -27,9 +27,10 @@ from pydantic import ValidationError
 from ..utils.text_cleaning import clean_ansi_codes
 from .interfaces import GeneratedIdea, ThinkingMethod
 from .llm_provider import LLMRequest, LLMResponse, ModelConfig, llm_manager
+from .retry import LLMError
 from .parsing_utils import ActionPlanParser, HypothesisParser, ParsedScores, ScoreParser
 from .qadi_prompts import PHASE_HYPERPARAMETERS, QADIPrompts, calculate_hypothesis_score
-from .schemas import DeductionResponse, HypothesisListResponse
+from .schemas import DeductionResponse, HypothesisListResponse, InductionResponse
 
 if TYPE_CHECKING:
     from .multimodal import MultimodalInput
@@ -177,13 +178,20 @@ class DeductionResult:
 
 @dataclass
 class InductionResult:
-    """Result from induction phase."""
+    """Result from induction phase.
 
-    examples: List[str]
-    conclusion: str
+    The primary output is `synthesis` - a comprehensive conclusion that ties together
+    all Q/A/D findings. The `examples` and `conclusion` fields are kept for backward
+    compatibility but are no longer the primary output.
+    """
+
+    synthesis: str  # Primary output: rich conclusion synthesizing all findings
     llm_cost: float
     raw_response: str
     multimodal_metadata: Dict[str, Any] = field(default_factory=dict)
+    # Backward compatibility fields
+    examples: List[str] = field(default_factory=list)  # Deprecated, empty by default
+    conclusion: str = ""  # Deprecated, alias to synthesis for backward compat
 
 
 # ============================================================================
@@ -793,39 +801,81 @@ async def execute_induction_phase(
     core_question: str,
     answer: str,
     hypotheses: List[str],
+    deduction_result: Optional[DeductionResult] = None,
 ) -> InductionResult:
     """
-    Verify the answer with real-world examples.
+    Synthesize all QADI findings into a comprehensive final conclusion.
 
-    Generates concrete examples demonstrating the answer in practice,
-    and provides a conclusion about applicability.
+    Takes the core question, hypotheses, and deduction analysis to produce
+    a rich synthesis that ties together all findings and provides actionable guidance.
 
     Args:
         phase_input: Common phase inputs
-        core_question: Clarified question
-        answer: Recommended answer from deduction phase
-        hypotheses: Original hypotheses (for reference substitution)
+        core_question: Clarified question from questioning phase
+        answer: Analysis from deduction phase explaining the recommended approach
+        hypotheses: Original hypotheses from abduction phase
+        deduction_result: Full deduction result with scores and action plan (optional)
 
     Returns:
-        InductionResult with examples, conclusion, and cost
+        InductionResult with synthesis as the primary output
 
     Raises:
-        RuntimeError: If verification fails after max_retries
+        RuntimeError: If synthesis fails after max_retries
     """
     # Validate multimodal inputs before processing
     if phase_input.multimodal_inputs or phase_input.urls:
         _validate_multimodal_inputs(phase_input.multimodal_inputs, phase_input.urls)
 
-    CONCLUSION_PREFIX = "Conclusion:"
-
     prompts = QADIPrompts()
-    prompt = prompts.get_induction_prompt(phase_input.user_input, core_question, answer)
+
+    # Format hypotheses with scores if deduction_result is available
+    hypotheses_with_scores = ""
+    action_plan_str = ""
+
+    if deduction_result:
+        # Validate that hypotheses and scores have the same length
+        if len(hypotheses) != len(deduction_result.hypothesis_scores):
+            raise ValueError(
+                f"Mismatch between hypotheses ({len(hypotheses)}) and "
+                f"scores ({len(deduction_result.hypothesis_scores)}). "
+                "Cannot build complete context for induction phase."
+            )
+
+        # Build formatted hypotheses with scores
+        hyp_lines = []
+        for i, (hyp, score) in enumerate(
+            zip(hypotheses, deduction_result.hypothesis_scores), start=1
+        ):
+            # Truncate hypothesis for readability
+            hyp_brief = hyp[:200] + "..." if len(hyp) > 200 else hyp
+            hyp_lines.append(
+                f"Approach {i}: {hyp_brief}\n"
+                f"  Scores: Impact={score.impact:.2f}, Feasibility={score.feasibility:.2f}, "
+                f"Accessibility={score.accessibility:.2f}, Sustainability={score.sustainability:.2f}, "
+                f"Scalability={score.scalability:.2f} → Overall={score.overall:.2f}"
+            )
+        hypotheses_with_scores = "\n\n".join(hyp_lines)
+
+        # Format action plan
+        if deduction_result.action_plan:
+            action_plan_str = "\n".join(
+                f"{i+1}. {action}" for i, action in enumerate(deduction_result.action_plan)
+            )
+
+    # Build prompt with full context
+    prompt = prompts.get_induction_prompt(
+        user_input=phase_input.user_input,
+        core_question=core_question,
+        answer=answer,
+        hypotheses_with_scores=hypotheses_with_scores,
+        action_plan=action_plan_str,
+    )
 
     # Add multimodal context to prompt if present
     if phase_input.multimodal_inputs:
-        prompt += f"\n\n[Context: Verify using evidence from the {len(phase_input.multimodal_inputs)} multimodal input(s)]"
+        prompt += f"\n\n[Context: Consider evidence from the {len(phase_input.multimodal_inputs)} multimodal input(s)]"
     if phase_input.urls:
-        prompt += f"\n[Context: Draw examples from the content in {len(phase_input.urls)} URL(s)]"
+        prompt += f"\n[Context: Draw insights from the content in {len(phase_input.urls)} URL(s)]"
 
     hyperparams = PHASE_HYPERPARAMETERS["induction"]
 
@@ -843,12 +893,12 @@ async def execute_induction_phase(
                 multimodal_inputs=phase_input.multimodal_inputs,
                 urls=phase_input.urls,
                 tools=phase_input.tools,
+                response_schema=InductionResponse,  # Use structured output
             )
 
             response = await phase_input.llm_manager.generate(request)
             total_cost += response.cost
             raw_response = response.content
-            content = clean_ansi_codes(response.content.strip())
 
             # Extract multimodal metadata from response
             multimodal_metadata = {
@@ -858,132 +908,52 @@ async def execute_induction_phase(
                 "url_context_metadata": response.url_context_metadata,
             }
 
-            # Extract verification examples using pattern matching
-            examples = []
-
-            # Look for "Example N:" pattern
-            example_pattern = (
-                r"Example\s*(\d+):\s*(.+?)(?=Example\s*\d+:|Conclusion:|$)"
-            )
-            example_matches = re.findall(
-                example_pattern, content, re.DOTALL | re.IGNORECASE
-            )
-
-            for _, example_content in example_matches:
-                # Clean up the example content
-                example_text = example_content.strip()
-                # Replace bullet points with proper formatting
-                example_text = re.sub(r"^[-•]\s*", "", example_text, flags=re.MULTILINE)
-                examples.append(example_text)
-
-            # If no examples found with "Example N:" pattern, try numbered list
-            if not examples:
-                lines = content.split("\n")
-                current_example = ""
-                current_index = None
-
-                for line in lines:
-                    line = line.strip()
-                    if not line:
-                        continue
-
-                    # Check if line starts with "1.", "2.", or "3."
-                    example_match = re.match(r"^([123])\.\s*(.*)$", line)
-                    if example_match:
-                        # Save previous example if we have one
-                        if current_index is not None and current_example.strip():
-                            examples.append(current_example.strip())
-
-                        # Start new example
-                        current_index = int(example_match.group(1))
-                        current_example = example_match.group(2)
-                    elif line.startswith(CONCLUSION_PREFIX):
-                        # Save last example before conclusion
-                        if current_index is not None and current_example.strip():
-                            examples.append(current_example.strip())
-                        break
-                    elif current_index is not None:
-                        # Continue building current example
-                        current_example += " " + line
-
-                # Don't forget the last example if no conclusion found
-                if current_index is not None and current_example.strip():
-                    examples.append(current_example.strip())
-
-            # Extract conclusion
-            conclusion_match = re.search(
-                rf"{CONCLUSION_PREFIX}\s*(.+?)$", content, re.DOTALL
-            )
-            conclusion = conclusion_match.group(1).strip() if conclusion_match else ""
-
-            # Fix self-reference issues in conclusion
-            if conclusion and answer:
-                # Replace references like "(H1)", "(H2)", "(H3)" with the actual hypothesis content
-                for i, hypothesis in enumerate(hypotheses):
-                    # Handle various reference patterns
-                    patterns = [
-                        rf"\(H{i+1}\)",  # (H1), (H2), (H3)
-                        rf"H{i+1}",  # H1, H2, H3
-                        rf"hypothesis {i+1}",  # hypothesis 1, hypothesis 2, hypothesis 3
-                        rf"approach {i+1}",  # approach 1, approach 2, approach 3
-                    ]
-
-                    # Create a brief description of the hypothesis (first 50 chars)
-                    brief_hypothesis = (
-                        hypothesis[:50] + "..." if len(hypothesis) > 50 else hypothesis
-                    )
-                    replacement = f'"{brief_hypothesis}"'
-
-                    for pattern in patterns:
-                        # Only replace if it's referring to the chosen answer
-                        if re.search(
-                            rf"your answer.*{pattern}", conclusion, re.IGNORECASE
-                        ):
-                            conclusion = re.sub(
-                                rf"your answer\s*\({pattern}\)",
-                                f"the recommended approach {replacement}",
-                                conclusion,
-                                flags=re.IGNORECASE,
-                            )
-                        elif re.search(
-                            rf"the answer.*{pattern}", conclusion, re.IGNORECASE
-                        ):
-                            conclusion = re.sub(
-                                rf"the answer\s*\({pattern}\)",
-                                f"the recommended approach {replacement}",
-                                conclusion,
-                                flags=re.IGNORECASE,
-                            )
-
-                # Fix any remaining "your answer" references
-                conclusion = re.sub(
-                    r"your answer",
-                    "the recommended approach",
-                    conclusion,
-                    flags=re.IGNORECASE,
+            # Try to parse as structured output first
+            synthesis = ""
+            structured_parse_failed = False
+            try:
+                induction_response = InductionResponse.model_validate_json(response.content)
+                synthesis = induction_response.synthesis
+                logger.debug("Successfully parsed induction response via Pydantic validation")
+            except (ValidationError, json.JSONDecodeError) as parse_error:
+                # Fallback: use raw response content as synthesis
+                structured_parse_failed = True
+                logger.warning(
+                    "Structured output parsing failed for induction phase, "
+                    "falling back to raw text: %s",
+                    parse_error,
                 )
+                synthesis = clean_ansi_codes(response.content.strip())
+
+            # Clean up synthesis
+            synthesis = clean_ansi_codes(synthesis)
+
+            # Add parse status to metadata for downstream visibility
+            multimodal_metadata["structured_parse_failed"] = structured_parse_failed
 
             return InductionResult(
-                examples=examples,
-                conclusion=conclusion,
+                synthesis=synthesis,
                 llm_cost=total_cost,
                 raw_response=raw_response,
                 multimodal_metadata=multimodal_metadata,
+                # Backward compatibility: set conclusion to synthesis
+                conclusion=synthesis,
+                examples=[],  # No longer generated
             )
 
-        except Exception as e:
+        except LLMError as e:
+            # Only retry on LLM-specific errors (API errors, timeouts, network issues)
             if attempt == phase_input.max_retries:
-                logger.error(
-                    "Failed to verify answer after %d attempts. "
-                    "Last error: %s. The verification process could not complete.",
+                logger.exception(
+                    "Failed to synthesize findings after %d attempts. "
+                    "The synthesis process could not complete.",
                     phase_input.max_retries + 1,
-                    e,
                 )
                 raise RuntimeError(
-                    f"Failed to verify answer after {phase_input.max_retries + 1} attempts. "
-                    f"Last error: {e}. The system will proceed with unverified results."
-                )
+                    f"Failed to synthesize findings after {phase_input.max_retries + 1} attempts. "
+                    f"Last error: {e}. The system will proceed with incomplete results."
+                ) from e
             logger.warning("Induction phase attempt %d failed: %s", attempt + 1, e)
             await asyncio.sleep(1)
 
-    raise RuntimeError("Failed to verify answer")
+    raise RuntimeError("Failed to synthesize findings")

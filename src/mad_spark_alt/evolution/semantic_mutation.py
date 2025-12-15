@@ -342,11 +342,11 @@ Return JSON with mutations array containing id and content for each idea."""
             temperature = 0.8  # Standard temperature for creativity
             max_tokens = CONSTANTS.LLM.SEMANTIC_MUTATION_MAX_TOKENS
 
-        # Create single mutation schema
+        # Create single mutation schema (lowercase types for Ollama compatibility)
         single_schema = {
-            "type": "OBJECT",
+            "type": "object",
             "properties": {
-                "mutated_content": {"type": "STRING"}
+                "mutated_content": {"type": "string"}
             },
             "required": ["mutated_content"]
         }
@@ -504,18 +504,18 @@ Return JSON with mutations array containing id and content for each idea."""
                 context, "", "revolutionary breakthrough"
             )
 
-            # Create breakthrough schema with mutation type
+            # Create breakthrough schema with mutation type (lowercase types for Ollama compatibility)
             breakthrough_schema = {
-                "type": "OBJECT",
+                "type": "object",
                 "properties": {
                     "mutations": {
-                        "type": "ARRAY",
+                        "type": "array",
                         "items": {
-                            "type": "OBJECT",
+                            "type": "object",
                             "properties": {
-                                "id": {"type": "INTEGER"},
-                                "content": {"type": "STRING"},
-                                "mutation_type": {"type": "STRING"}
+                                "id": {"type": "integer"},
+                                "content": {"type": "string"},
+                                "mutation_type": {"type": "string"}
                             },
                             "required": ["id", "content", "mutation_type"]
                         }

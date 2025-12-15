@@ -1177,31 +1177,22 @@ async def _run_qadi_analysis(
         render_markdown(result.final_answer)
 
         # ========== I (Induction) Phase ==========
+        # Show action plan as part of Deduction summary (it comes from deduction phase)
         if result.action_plan:
-            print("\n## 🎯 I (Induction): Action Plan\n")
+            print("\n### Action Plan\n")
             for i, action in enumerate(result.action_plan):
                 # Backward compatibility: Strip existing numbering from non-structured fallbacks
                 # New structured output should not include numbering (see schemas.py)
                 action_clean = re.sub(r'^\d+[\.\)]\s*', '', action.strip())
                 render_markdown(f"{i+1}. {action_clean}")
 
-        # Verification examples (part of Induction)
-        if result.verification_examples and (verbose or len(result.verification_examples) <= 2):
-            print("\n### Real-World Examples\n")
-
-            examples_to_show = result.verification_examples if verbose else result.verification_examples[:2]
-
-            for i, example in enumerate(examples_to_show, 1):
-                formatted = format_example_output(example, i)
-                print(formatted)
-
-        # Show conclusion only in verbose mode
-        if verbose and result.verification_conclusion and result.verification_conclusion.strip():
-            print("\n### Conclusion\n")
-            cleaned_conclusion = result.verification_conclusion.strip()
-            cleaned_conclusion = re.sub(r'^\*{1,2}\s*', '', cleaned_conclusion)
-            cleaned_conclusion = re.sub(r'\*{3,}', '**', cleaned_conclusion)
-            render_markdown(cleaned_conclusion)
+        # Final synthesis (the new Induction output)
+        if result.verification_conclusion and result.verification_conclusion.strip():
+            print("\n## 🎯 I (Induction): Final Synthesis\n")
+            cleaned_synthesis = result.verification_conclusion.strip()
+            cleaned_synthesis = re.sub(r'^\*{1,2}\s*', '', cleaned_synthesis)
+            cleaned_synthesis = re.sub(r'\*{3,}', '**', cleaned_synthesis)
+            render_markdown(cleaned_synthesis)
 
         # Compact summary at the end
         elapsed_time = time.time() - start_time

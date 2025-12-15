@@ -585,18 +585,22 @@ Return the results as JSON with a "crossovers" array containing objects with:
 - "offspring2": detailed second offspring (min 150 words)"""
 
     def _get_batch_crossover_schema(self) -> Dict[str, Any]:
-        """Get JSON schema for batch crossover structured output."""
+        """Get JSON schema for batch crossover structured output.
+
+        Uses standard JSON Schema format (lowercase types) for Ollama compatibility.
+        Google Gemini also accepts lowercase types.
+        """
         return {
-            "type": "OBJECT",
+            "type": "object",
             "properties": {
                 "crossovers": {
-                    "type": "ARRAY",
+                    "type": "array",
                     "items": {
-                        "type": "OBJECT",
+                        "type": "object",
                         "properties": {
-                            "pair_id": {"type": "INTEGER"},
-                            "offspring1": {"type": "STRING"},
-                            "offspring2": {"type": "STRING"}
+                            "pair_id": {"type": "integer"},
+                            "offspring1": {"type": "string"},
+                            "offspring2": {"type": "string"}
                         },
                         "required": ["pair_id", "offspring1", "offspring2"]
                     }

@@ -723,16 +723,19 @@ async def test_deduction_cost_distribution(mock_llm_manager, phase_input):
 
 
 @pytest.mark.asyncio
-async def test_induction_example_pattern_1(mock_llm_manager, phase_input):
-    """Test induction with 'Example N:' format."""
-    mock_response = LLMResponse(
-        content="""
-        Example 1: A city implemented smart traffic lights and reduced congestion by 30%.
-        Example 2: Company X used AI scheduling to cut delivery times by 25%.
-        Example 3: Hospital Y optimized bed allocation using predictive models.
+async def test_induction_synthesis_structured_output(mock_llm_manager, phase_input):
+    """Test induction with structured output (InductionResponse schema)."""
+    import json
 
-        Conclusion: These examples demonstrate measurable improvements across sectors.
-        """,
+    synthesis_content = (
+        "The question of AI optimization is best addressed through the proposed approach. "
+        "This method scored highest on impact (0.85) due to its ability to reduce costs by 30%. "
+        "While Approach 2 offered higher feasibility (0.70), the overall impact makes Approach 1 "
+        "the better choice. To implement this, start with small pilot programs, then scale gradually."
+    )
+
+    mock_response = LLMResponse(
+        content=json.dumps({"synthesis": synthesis_content}),
         provider=LLMProvider.GOOGLE,
         model="gemini-1.5-flash",
         cost=0.004,
@@ -744,23 +747,22 @@ async def test_induction_example_pattern_1(mock_llm_manager, phase_input):
     )
 
     assert isinstance(result, InductionResult)
-    assert len(result.examples) >= 3
-    assert "traffic lights" in result.examples[0].lower()
-    assert "measurable improvements" in result.conclusion.lower()
+    # New induction returns synthesis, not examples
+    assert result.examples == []  # Empty by design
+    assert "AI optimization" in result.synthesis
+    assert "impact" in result.synthesis.lower()
+    # conclusion is alias to synthesis for backward compat
+    assert result.conclusion == result.synthesis
     assert result.llm_cost == 0.004
 
 
 @pytest.mark.asyncio
-async def test_induction_example_pattern_2(mock_llm_manager, phase_input):
-    """Test induction with numbered list format."""
+async def test_induction_synthesis_fallback(mock_llm_manager, phase_input):
+    """Test induction fallback when structured output parsing fails."""
+    # Raw text response (not JSON) - should be used as synthesis directly
     mock_response = LLMResponse(
-        content="""
-        1. Tesla's Gigafactory uses renewable energy for production
-        2. Denmark powers 50% of electricity from wind turbines
-        3. Costa Rica achieved 99% renewable energy in recent years
-
-        Conclusion: Renewable energy adoption is accelerating globally.
-        """,
+        content="This is a comprehensive synthesis that explains why the approach works. "
+                "It references specific scores and provides actionable guidance.",
         provider=LLMProvider.GOOGLE,
         model="gemini-1.5-flash",
         cost=0.0035,
@@ -771,70 +773,65 @@ async def test_induction_example_pattern_2(mock_llm_manager, phase_input):
         phase_input, "Q?", "Renewable energy is viable", ["H1", "H2"]
     )
 
-    assert len(result.examples) >= 3
-    assert (
-        "tesla" in result.examples[0].lower()
-        or "gigafactory" in result.examples[0].lower()
-    )
+    # Should use raw content as synthesis when JSON parsing fails
+    assert "comprehensive synthesis" in result.synthesis
+    assert result.examples == []
 
 
 @pytest.mark.asyncio
-async def test_induction_conclusion_extraction(mock_llm_manager, phase_input):
-    """Test conclusion parsing from induction response."""
-    mock_response = LLMResponse(
-        content="""
-        Example 1: Case study A
-        Example 2: Case study B
+async def test_induction_with_deduction_context(mock_llm_manager, phase_input):
+    """Test induction receives and uses deduction context."""
+    import json
+    # DeductionResult and HypothesisScore are already imported at module level
 
-        Conclusion: The approach is proven effective across multiple contexts and scales well.
-        """,
+    synthesis_content = (
+        "Based on the analysis, Approach 1 emerges as the best solution with an overall "
+        "score of 0.78. Its high impact (0.90) and scalability (0.85) outweigh the moderate "
+        "feasibility (0.60). The action plan provides clear steps: start small, iterate, scale."
+    )
+
+    mock_response = LLMResponse(
+        content=json.dumps({"synthesis": synthesis_content}),
         provider=LLMProvider.GOOGLE,
         model="gemini-1.5-flash",
         cost=0.003,
     )
     mock_llm_manager.generate.return_value = mock_response
 
-    result = await execute_induction_phase(phase_input, "Q?", "Answer", ["H1"])
-
-    assert "proven effective" in result.conclusion
-    assert "scales well" in result.conclusion
-
-
-@pytest.mark.asyncio
-async def test_induction_reference_substitution(mock_llm_manager, phase_input):
-    """Test H1/H2/H3 reference substitution in conclusion when used with 'your answer'."""
-    hypotheses = [
-        "Use machine learning for predictions",
-        "Implement blockchain for transparency",
-        "Deploy IoT sensors for monitoring",
-    ]
-
-    mock_response = LLMResponse(
-        content="""
-        Example 1: ML example
-        Example 2: Blockchain example
-
-        Conclusion: Your answer (H1) provides predictive capabilities. The answer (H2) ensures transparency and trust.
-        """,
-        provider=LLMProvider.GOOGLE,
-        model="gemini-1.5-flash",
-        cost=0.0045,
+    # Create mock deduction result with scores
+    deduction_result = DeductionResult(
+        hypothesis_scores=[
+            HypothesisScore(
+                impact=0.90,
+                feasibility=0.60,
+                accessibility=0.70,
+                sustainability=0.80,
+                scalability=0.85,
+                overall=0.78,
+            )
+        ],
+        answer="Approach 1 is recommended",
+        action_plan=["Start small", "Iterate", "Scale"],
+        llm_cost=0.01,
+        raw_response="",
+        used_parallel=False,
     )
-    mock_llm_manager.generate.return_value = mock_response
 
-    result = await execute_induction_phase(phase_input, "Q?", "Answer", hypotheses)
+    result = await execute_induction_phase(
+        phase_input, "Q?", "Answer", ["Hypothesis 1"], deduction_result=deduction_result
+    )
 
-    # Self-references like "your answer" should be replaced with "the recommended approach"
-    assert "your answer" not in result.conclusion.lower()
-    # When H references appear with "your answer" or "the answer", they should be replaced
-    assert "the recommended approach" in result.conclusion
+    assert "0.78" in result.synthesis or "overall" in result.synthesis.lower()
+    assert result.conclusion == result.synthesis
 
 
 @pytest.mark.asyncio
 async def test_induction_cost_tracking(mock_llm_manager, phase_input):
     """Test cost tracking in induction phase."""
+    import json
+
     mock_response = LLMResponse(
-        content="Example 1: Test\nConclusion: Test conclusion",
+        content=json.dumps({"synthesis": "Test synthesis for cost tracking."}),
         provider=LLMProvider.GOOGLE,
         model="gemini-1.5-flash",
         cost=0.0025,
