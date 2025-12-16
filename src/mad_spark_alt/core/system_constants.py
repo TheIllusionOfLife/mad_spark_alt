@@ -74,12 +74,12 @@ class TimeoutConstants:
     CLI_EVOLUTION_TIMEOUT_PER_EVAL: int = 60
     """Actual seconds allocated per evaluation in evolution timeout calculation."""
 
-    CLI_MAX_TIMEOUT_SECONDS: float = 900.0
-    """Maximum timeout for CLI operations (15 minutes, matches PHASE_TIMEOUT_TOTAL)."""
+    CLI_MAX_TIMEOUT_SECONDS: float = 3000.0
+    """Maximum timeout for CLI operations (50 minutes, allows longer evolution runs)."""
 
     # Ollama provider timeouts
-    OLLAMA_INFERENCE_TIMEOUT: int = 180
-    """Timeout in seconds for Ollama local inference (3 minutes)."""
+    OLLAMA_INFERENCE_TIMEOUT: int = 600
+    """Timeout in seconds for Ollama local inference (10 minutes)."""
 
     OLLAMA_CONNECTION_CHECK_TIMEOUT: int = 2
     """Timeout in seconds for checking Ollama server availability."""
