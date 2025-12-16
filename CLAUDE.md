@@ -182,7 +182,7 @@ Mad Spark Alt is a Multi-Agent Idea Generation System powered by LLMs using the 
 
 13. **Multimodal Input Bypass**: Outlines is automatically skipped for requests with multimodal inputs (images). Outlines flattens prompts to plain text, losing image context. The native Ollama API properly handles images via the messages format with `images` field.
 
-14. **Timeout Protection**: Outlines calls have timeout protection (`CONSTANTS.TIMEOUTS.OLLAMA_INFERENCE_TIMEOUT`, default 180s). Raises `LLMError` with `ErrorType.TIMEOUT` if the call takes too long.
+14. **Timeout Protection**: Outlines calls have timeout protection (`CONSTANTS.TIMEOUTS.OLLAMA_INFERENCE_TIMEOUT`, default 600s). Raises `LLMError` with `ErrorType.TIMEOUT` if the call takes too long.
 
 ## Completed Features Reference
 

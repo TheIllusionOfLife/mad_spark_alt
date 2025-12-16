@@ -270,10 +270,10 @@ class TestConstantsIntegration:
             max(CONSTANTS.TIMEOUTS.CLI_BASE_TIMEOUT_SECONDS, estimated_time),
             CONSTANTS.TIMEOUTS.CLI_MAX_TIMEOUT_SECONDS
         )
-        # max(300, 600) = 600, min(600, 900) = 600
+        # max(300, 600) = 600, min(600, 3000) = 600
         assert calculated_timeout == 600.0
 
-        # Test with max values (should be capped)
+        # Test with max values (should use estimated time, now within max)
         max_gens = CONSTANTS.EVOLUTION.MAX_GENERATIONS  # 5
         max_pop = CONSTANTS.EVOLUTION.MAX_POPULATION_SIZE  # 10
         max_estimated_time = max_gens * max_pop * CONSTANTS.TIMEOUTS.CLI_EVOLUTION_TIMEOUT_PER_EVAL  # 3000s
@@ -281,7 +281,7 @@ class TestConstantsIntegration:
             max(CONSTANTS.TIMEOUTS.CLI_BASE_TIMEOUT_SECONDS, max_estimated_time),
             CONSTANTS.TIMEOUTS.CLI_MAX_TIMEOUT_SECONDS
         )
-        # Should be capped at CLI_MAX_TIMEOUT_SECONDS
+        # max(300, 3000) = 3000, min(3000, 3000) = 3000
         assert max_calculated_timeout == CONSTANTS.TIMEOUTS.CLI_MAX_TIMEOUT_SECONDS
 
     def test_similarity_thresholds_for_different_purposes(self):

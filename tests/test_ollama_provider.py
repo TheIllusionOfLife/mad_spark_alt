@@ -717,7 +717,7 @@ class TestOllamaProviderResourceCleanup:
 
         # Verify the constant exists and has expected value
         assert hasattr(CONSTANTS.TIMEOUTS, 'OLLAMA_INFERENCE_TIMEOUT')
-        assert CONSTANTS.TIMEOUTS.OLLAMA_INFERENCE_TIMEOUT == 180
+        assert CONSTANTS.TIMEOUTS.OLLAMA_INFERENCE_TIMEOUT == 600
 
         # Verify OllamaProvider uses centralized defaults
         assert hasattr(CONSTANTS.LLM, 'OLLAMA_DEFAULT_BASE_URL')
