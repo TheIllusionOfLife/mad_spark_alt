@@ -1,6 +1,6 @@
 # Session Handover
 
-## Last Updated: December 7, 2025
+## Last Updated: December 16, 2025
 
 ---
 
@@ -11,6 +11,34 @@
 ---
 
 ## Recently Completed
+
+### PR #167: Increase Evolution Timeouts - MERGED ✅ (December 16, 2025)
+**Summary**: Extended timeouts for Ollama semantic operators to allow completion of evolution runs with max parameters.
+
+**Key Changes**:
+- ✅ `OLLAMA_INFERENCE_TIMEOUT`: 180s → 600s (10 min per request)
+- ✅ `CLI_MAX_TIMEOUT_SECONDS`: 900s → 3000s (50 min total)
+- ✅ Updated tests and documentation
+- ✅ Verified with max params: `--generations 5 --population 10` (1043s, 31% fitness gain)
+
+### PR #166: Redesign Induction Phase - MERGED ✅ (December 15, 2025)
+**Summary**: Replaced disconnected induction output with rich synthesis connecting all QADI phases.
+
+**Key Changes**:
+- ✅ Rich synthesis output with recommended approach, supporting evidence, and action items
+- ✅ Fixed JSON schema format for Ollama (lowercase types, not Google uppercase)
+- ✅ Added parse failure visibility and hypothesis/score length validation
+
+
+### PR #165: Outlines for Ollama Structured Output - MERGED ✅ (December 15, 2025)
+**Summary**: Added Outlines library for constrained grammar generation at token level.
+
+**Key Changes**:
+- ✅ `inline_schema_defs()` utility to expand `$ref/$defs` for Ollama compatibility
+- ✅ Multimodal bypass: Outlines flattens to plain text, use native API for images
+- ✅ Timeout protection via `asyncio.wait_for()` with `OLLAMA_INFERENCE_TIMEOUT`
+- ✅ AsyncClient caching to avoid resource leaks (`provider.close()` required)
+- ✅ `Optional[T]` incompatibility workaround: use `Field(default="")` instead
 
 ### PR #161: CLI Output Display Improvements - MERGED ✅ (December 7, 2025)
 **Summary**: Improved CLI output with explicit QADI phases and better readability.
@@ -51,12 +79,40 @@
 
 ## Session Learnings
 
+### Ollama JSON Schema Format (PR #166)
+**Problem**: Google Gemini uses uppercase types (`"type": "OBJECT"`), Ollama uses standard JSON Schema.
+```python
+# ❌ Google format (breaks Ollama)
+{"type": "OBJECT", "properties": {...}}
+
+# ✅ Standard JSON Schema (works everywhere)
+{"type": "object", "properties": {...}}
+```
+**Fix**: Always use lowercase types in manual schemas for Ollama compatibility.
+
+### Outlines Library Integration (PR #165)
+| Pattern | Implementation |
+|---------|---------------|
+| `$defs` inlining | `inline_schema_defs(schema)` expands `$ref` for Ollama |
+| Multimodal bypass | Skip Outlines for image inputs → native Ollama API |
+| Resource cleanup | Cache AsyncClient, call `provider.close()` in `finally` |
+| `Optional[T]` workaround | Use `Field(default="")` instead of `Optional[str]` |
+
+### Two-Level Timeout Architecture (PR #167)
+**Problem**: Evolution timed out despite fast per-request completion.
+```python
+# Individual request timeout (Ollama inference)
+OLLAMA_INFERENCE_TIMEOUT = 600  # 10 min per semantic operation
+
+# Overall CLI timeout (total evolution run)
+CLI_MAX_TIMEOUT_SECONDS = 3000  # 50 min = 5 gen × 10 pop × 60s
+```
+**Key**: Both levels must accommodate workload; individual timeouts don't extend overall.
+
 ### Structured Output Over Prompt Engineering (PR #161)
 - **NEVER** request formatting in prompts when using structured output
 - Use `Field(min_length=3, max_length=5)` in Pydantic schemas
 - Prompts describe WHAT; schemas define HOW
-- Anti-pattern: `"1. [item]"` + `List[str]` → double numbering
-- Never use regex to fix formatting - fix prompt/schema instead
 
 ### CLI Flag Guarding Pattern (PR #158)
 ```python
@@ -97,6 +153,8 @@ if not mode_flag:
 
 | Date | PRs | Key Work |
 |------|-----|----------|
+| Dec 16, 2025 | #166, #167 | Induction redesign, evolution timeouts |
+| Dec 15, 2025 | #165 | Outlines for Ollama structured output |
 | Dec 7, 2025 | #161 | CLI output improvements, QADI phases |
 | Nov 20, 2025 | #160 | Japanese UAT fixes |
 | Nov 18-19, 2025 | #154, #157, #158 | Ollama paths, CLI syntax, evaluate flag |
