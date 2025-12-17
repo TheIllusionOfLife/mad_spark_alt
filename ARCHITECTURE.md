@@ -1,7 +1,7 @@
 # Mad Spark Alt - System Architecture
 
 > **Single Source of Truth for System Design & Implementation**  
-> Last Updated: August 2025
+> Last Updated: December 2025
 
 ## Table of Contents
 1. [Executive Summary](#executive-summary)
@@ -60,17 +60,18 @@ Mad Spark Alt is an AI-powered idea generation system implementing the QADI (Que
 graph TB
     User[User/CLI] --> MS[Mad Spark Alt System]
     MS --> Gemini[Google Gemini API]
+    MS --> Ollama[Ollama Local]
     MS --> Env[.env Configuration]
     MS -.->|Future| OpenAI[OpenAI API]
     MS -.->|Future| Anthropic[Anthropic API]
-    
+
     style MS fill:#f9f,stroke:#333,stroke-width:4px
     style Gemini fill:#bbf,stroke:#333,stroke-width:2px
+    style Ollama fill:#bfb,stroke:#333,stroke-width:2px
 ```
 
 ### Out of Scope
 - Web interface (CLI only)
-- Persistent storage (session-based)
 - Production deployment (development tool)
 - Multi-user support
 
@@ -265,6 +266,15 @@ graph TD
 | **DiversityCalculator** | Population diversity metrics | `diversity_calculator.py` | Jaccard/Gemini |
 | **TerminalRenderer** | Rich markdown output | `terminal_renderer.py` | rich library |
 | **CostTracker** | Token usage monitoring | `cost_utils.py` | ModelConfig |
+
+### Provider Capabilities
+
+| Provider | Cost | Speed | Multimodal | Status |
+|----------|------|-------|------------|--------|
+| **Gemini** | ~$0.01/query | Fast (10s) | Images, PDFs, URLs | ✅ Active |
+| **Ollama** | Free | Slower (20-30s) | Images only | ✅ Active |
+| **OpenAI** | TBD | TBD | TBD | 🔜 Planned |
+| **Anthropic** | TBD | TBD | TBD | 🔜 Planned |
 
 ### CLI Architecture
 
@@ -872,8 +882,7 @@ This is a CLI development tool. There is no production deployment infrastructure
 | Item | Description | Impact | Plan |
 |------|-------------|--------|------|
 | **Deprecated Modules** | `prompt_classifier`, `adaptive_prompts` | Warnings on import | Remove in v2.0 |
-| **No Persistent Storage** | Results lost after session | User inconvenience | Add file export option |
-| **Single Provider** | Only Gemini supported | Limited flexibility | Add OpenAI, Anthropic |
+| **OpenAI/Anthropic Providers** | Schema prep exists, no provider impl | Limited cloud options | Add in future |
 | **No Web Interface** | CLI only | Limited accessibility | Consider web API |
 
 ### Code Quality Metrics
@@ -968,22 +977,26 @@ def test_evolution_timeout():
 
 ## Future Roadmap
 
-### Short Term (1-3 months)
-- [ ] Add OpenAI provider support
-- [ ] Implement result export to JSON/Markdown
-- [ ] Add progress saving for long runs
+### Completed (2025)
+- [x] Multi-provider support (Gemini + Ollama)
+- [x] Result export to JSON/Markdown
+- [x] Multimodal support (images, PDFs, URLs)
+- [x] Hybrid routing (Gemini preprocess → Ollama QADI)
+- [x] Structured output with Pydantic schemas
+
+### Short Term
+- [ ] Add OpenAI provider implementation
+- [ ] Add progress saving for long evolution runs
 - [ ] Improve error messages
 
-### Medium Term (3-6 months)
-- [ ] Add Anthropic Claude support
+### Medium Term
+- [ ] Add Anthropic Claude provider
 - [ ] Web API with FastAPI
-- [ ] Persistent result storage
 - [ ] Advanced caching strategies
 
-### Long Term (6+ months)
+### Long Term
 - [ ] Fine-tuned models for QADI
 - [ ] Multi-agent collaboration
-- [ ] Real-time collaboration features
 - [ ] Plugin marketplace
 
 ---
@@ -1034,4 +1047,4 @@ mad_spark_alt/
 
 ---
 
-*This architecture document represents the current state of the Mad Spark Alt system as of November 2025. It should be updated whenever significant architectural changes are made.*
+*This architecture document represents the current state of the Mad Spark Alt system as of December 2025. It should be updated whenever significant architectural changes are made.*

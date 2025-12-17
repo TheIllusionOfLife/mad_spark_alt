@@ -51,9 +51,9 @@ This documentation is organized into focused guides for different audiences and 
 
 ## 🚀 Quick Start Links
 
-- **Try QADI**: `uv run mad-spark qadi "Your question"`
-- **View all CLI options**: `uv run mad-spark --help`
-- **Run evolution**: `uv run mad-spark evolve "Your problem"`
+- **Try QADI**: `msa "Your question"`
+- **View all CLI options**: `msa --help`
+- **Run evolution**: `msa "Your problem" --evolve`
 - **See examples**: [examples.md](examples.md)
 
 ## 🧭 Feature-Specific Documentation
@@ -103,7 +103,7 @@ This documentation is actively maintained and reflects the current system capabi
 - **✅ Genetic Evolution**: Complete with parallel evaluation
 - **✅ CLI Interface**: Full command-line tools with rich output
 
-Last updated: November 2025
+Last updated: December 2025
 
 ---
 

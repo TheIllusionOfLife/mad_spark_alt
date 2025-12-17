@@ -16,7 +16,7 @@ This document provides comprehensive guidelines for developing, contributing to,
 
 ### Prerequisites
 
-- Python 3.8+ (3.11+ recommended)
+- Python 3.9+ (3.11+ recommended)
 - [uv](https://github.com/astral-sh/uv) (recommended package manager)
 - Git
 - API keys for LLM providers (Google, OpenAI, Anthropic)
@@ -57,10 +57,10 @@ uv run black src/ tests/
 # Import sorting
 uv run isort src/ tests/
 
-# CLI commands (must use uv run prefix)
-uv run mad-spark --help
-uv run python qadi_hypothesis.py "Your question"
-uv run mad-spark evolve "Your problem" --temperature 1.2
+# CLI commands
+msa --help
+msa "Your question"
+msa "Your problem" --evolve --temperature 1.2
 ```
 
 ## Architecture Overview
@@ -83,7 +83,7 @@ uv run mad-spark evolve "Your problem" --temperature 1.2
 - **unified_evaluator.py**: 5-criteria evaluation system (NEW)
 - **llm_provider.py**: Unified LLM API interface
 - **registry.py**: Component registration
-- **smart_orchestrator.py**: Legacy multi-agent system (being phased out)
+- **smart_orchestrator.py**: Legacy multi-agent system (use SimpleQADIOrchestrator instead)
 
 #### 2. Thinking Agents (`src/mad_spark_alt/agents/`)
 

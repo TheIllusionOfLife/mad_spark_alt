@@ -65,9 +65,9 @@ asyncio.run(run_qadi())
 **CLI Alternative:**
 ```bash
 # Instead of: python qadi_simple_multi.py "question" --type=business
-# Use: uv run mad-spark qadi "question"
+# Use: msa "question"
 
-uv run mad-spark qadi "How can we reduce costs?"
+msa "How can we reduce costs?"
 ```
 
 ---

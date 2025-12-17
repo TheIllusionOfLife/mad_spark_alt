@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - These modules were deprecated in favor of `SimpleQADIOrchestrator`
   - Migration guide available in `DEPRECATED.md`
 - Removed deprecated script `qadi_simple_multi.py` (568 lines)
-  - Use CLI command `uv run mad-spark qadi` instead
+  - Use CLI command `msa` instead
 - **Total Impact**: -1,821 lines (-11% codebase size)
 
 ### Documentation
@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Migration
 See `DEPRECATED.md` for detailed migration instructions from:
 - `prompt_classifier`/`adaptive_prompts` → `SimpleQADIOrchestrator`
-- `qadi_simple_multi.py` → `uv run mad-spark qadi`
+- `qadi_simple_multi.py` → `msa`
 
 ---
 
