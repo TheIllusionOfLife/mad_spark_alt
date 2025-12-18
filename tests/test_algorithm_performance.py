@@ -15,6 +15,7 @@ from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
 from mad_spark_alt.evolution.semantic_operators import BatchSemanticMutationOperator, SemanticOperatorCache
 from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
 from mad_spark_alt.core.llm_provider import GoogleProvider, LLMResponse, LLMProvider
+from tests.conftest import TEST_GEMINI_MODEL
 
 
 class PerformanceBenchmark:
@@ -212,7 +213,7 @@ class TestSemanticOperatorPerformance:
         provider.generate.return_value = LLMResponse(
             content="Optimized version of the idea",
             provider=LLMProvider.GOOGLE,
-            model="gemini-3-flash-preview",
+            model=TEST_GEMINI_MODEL,
             usage={"prompt_tokens": 100, "completion_tokens": 50},
             cost=0.001
         )

@@ -40,7 +40,7 @@ from .retry import (
     safe_aiohttp_request,
 )
 from .cost_utils import calculate_llm_cost_from_config, get_model_costs
-from .model_registry import ProviderType, get_default_model, get_model_spec
+from .model_registry import ProviderType, get_default_model, get_model_spec, get_models_by_provider
 from .system_constants import CONSTANTS
 
 if TYPE_CHECKING:
@@ -54,6 +54,10 @@ logger = logging.getLogger(__name__)
 
 # Model constants - sourced from model registry
 DEFAULT_GEMINI_MODEL = get_default_model(ProviderType.GEMINI)
+
+# Minimum output tokens for reasoning models to ensure complete responses
+# Reasoning models need sufficient token budget for internal chain-of-thought
+MIN_REASONING_OUTPUT_TOKENS = 2048
 
 # Cache for inlined schemas to avoid repeated deep copy + traversal
 _INLINED_SCHEMA_CACHE: Dict[str, Dict[str, Any]] = {}
@@ -471,7 +475,7 @@ class GoogleProvider(LLMProviderInterface):
         """Generate text using Google Gemini API."""
         session = await self._get_session()
 
-        # Always use Gemini 2.5 Flash
+        # Use default Gemini model from registry
         model_config = request.model_configuration or self._get_default_model_config(
             DEFAULT_GEMINI_MODEL
         )
@@ -498,9 +502,12 @@ class GoogleProvider(LLMProviderInterface):
         max_output_tokens = request.max_tokens
         model_spec = get_model_spec(model_config.model_name)
         if model_spec and model_spec.token_multiplier > 1.0:
-            # Reasoning models use extra tokens for internal reasoning
-            max_output_tokens = max(
-                int(request.max_tokens * model_spec.token_multiplier), 2048
+            # Reasoning models use extra tokens for internal chain-of-thought.
+            # Apply multiplier with minimum floor, then clamp to model's max.
+            scaled_tokens = int(request.max_tokens * model_spec.token_multiplier)
+            max_output_tokens = min(
+                max(scaled_tokens, MIN_REASONING_OUTPUT_TOKENS),
+                model_spec.max_output_tokens,
             )
 
         # Build generation config
@@ -779,30 +786,30 @@ class GoogleProvider(LLMProviderInterface):
         ]
 
     def get_available_models(self) -> List[ModelConfig]:
-        """Get available Google models.
+        """Get all available Google Gemini models from the registry.
 
-        Note: Model configuration is centralized in model_registry.py.
+        Returns all Gemini models configured in model_registry.py, enabling
+        discovery of both the default model and fallback options.
         """
-        model_name = DEFAULT_GEMINI_MODEL
-        model_spec = get_model_spec(model_name)
-        if not model_spec:
-            raise ValueError(f"'{model_name}' not configured in model_registry")
+        gemini_specs = get_models_by_provider(ProviderType.GEMINI)
+        if not gemini_specs:
+            raise ValueError("No Gemini models configured in model_registry")
 
         return [
             ModelConfig(
                 provider=LLMProvider.GOOGLE,
-                model_name=model_name,
+                model_name=spec.id,
                 model_size=ModelSize.LARGE,
-                input_cost_per_1k=model_spec.input_cost_per_1k,
-                output_cost_per_1k=model_spec.output_cost_per_1k,
-                max_tokens=model_spec.max_output_tokens,
-            ),
+                input_cost_per_1k=spec.input_cost_per_1k,
+                output_cost_per_1k=spec.output_cost_per_1k,
+                max_tokens=spec.max_output_tokens,
+            )
+            for spec in gemini_specs
         ]
 
     def _get_default_model_config(self, model_name: str) -> ModelConfig:
-        """Get default model config by name."""
+        """Get model config by name, falling back to default Gemini model."""
         models = {model.model_name: model for model in self.get_available_models()}
-        # Always use default Gemini model
         return models.get(model_name, models[DEFAULT_GEMINI_MODEL])
 
     def calculate_cost(
@@ -928,11 +935,11 @@ class OllamaProvider(LLMProviderInterface):
         Initialize Ollama provider.
 
         Args:
-            model: Ollama model name (default from CONSTANTS.LLM.OLLAMA_DEFAULT_MODEL)
+            model: Ollama model name (default from model registry)
             base_url: Ollama API base URL (default from CONSTANTS.LLM.OLLAMA_DEFAULT_BASE_URL)
             retry_config: Optional retry configuration
         """
-        self.model = model or CONSTANTS.LLM.OLLAMA_DEFAULT_MODEL
+        self.model = model or get_default_model(ProviderType.OLLAMA)
         self.base_url = base_url or CONSTANTS.LLM.OLLAMA_DEFAULT_BASE_URL
         self._session: Optional[aiohttp.ClientSession] = None
         self._session_lock: asyncio.Lock = asyncio.Lock()  # Protect concurrent session creation
@@ -1427,11 +1434,11 @@ async def setup_llm_providers(
         LLMProvider.GOOGLE, google_provider, rate_limit_config
     )
 
-    # Set default model for Google - always use Gemini 2.5 Flash
+    # Set default model for Google from registry
     default_models = google_provider.get_available_models()
     if not default_models:
         raise RuntimeError("No available models found for the Google provider.")
-    default_model = default_models[0]  # Only one model available
+    default_model = default_models[0]  # First model is the default
     llm_manager.set_default_model(LLMProvider.GOOGLE, default_model)
 
     return llm_manager

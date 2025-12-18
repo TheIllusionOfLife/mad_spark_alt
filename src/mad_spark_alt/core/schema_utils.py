@@ -53,7 +53,7 @@ def to_gemini_schema(pydantic_model: Type[BaseModel]) -> Dict[str, Any]:
         >>> schema = to_gemini_schema(DeductionResponse)
         >>> # Use in LLM API call
         >>> response = client.models.generate_content(
-        ...     model="gemini-2.5-flash",
+        ...     model="gemini-3-flash-preview",
         ...     contents=prompt,
         ...     config={
         ...         "response_mime_type": "application/json",

@@ -16,6 +16,7 @@ import pytest
 from pydantic import ValidationError
 
 from mad_spark_alt.core.llm_provider import LLMProvider, LLMResponse
+from tests.conftest import TEST_GEMINI_MODEL
 from mad_spark_alt.core.phase_logic import (
     DeductionResult,
     PhaseInput,
@@ -325,7 +326,7 @@ class TestDeductionPhaseWithPydantic:
                 }
             ),
             provider=LLMProvider.GOOGLE,
-            model="gemini-3-flash-preview",
+            model=TEST_GEMINI_MODEL,
             cost=0.005,
         )
         mock_llm_manager.generate.return_value = mock_response
@@ -365,7 +366,7 @@ Action Plan:
 3. Test at scale
             """,
             provider=LLMProvider.GOOGLE,
-            model="gemini-3-flash-preview",
+            model=TEST_GEMINI_MODEL,
             cost=0.004,
         )
         mock_llm_manager.generate.return_value = mock_response

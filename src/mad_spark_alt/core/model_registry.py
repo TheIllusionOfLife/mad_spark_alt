@@ -14,7 +14,7 @@ Usage:
     # Get model specification
     spec = get_model_spec("gemini-3-flash-preview")
     if spec:
-        cost = spec.input_cost_per_1k * input_tokens / 1000
+        cost = (input_tokens / 1000) * spec.input_cost_per_1k
 """
 
 from dataclasses import dataclass
@@ -77,7 +77,7 @@ _MODELS: Dict[str, ModelSpec] = {
         supports_structured_output=True,
         supports_multimodal=True,
     ),
-    # Legacy model - kept for reference and potential fallback
+    # Legacy model - kept for fallback compatibility (e.g., if Gemini 3 has issues)
     "gemini-2.5-flash": ModelSpec(
         id="gemini-2.5-flash",
         provider=ProviderType.GEMINI,
@@ -103,15 +103,48 @@ _MODELS: Dict[str, ModelSpec] = {
     ),
 }
 
-# Make the registry immutable to prevent accidental modifications
-MODELS: MappingProxyType[str, ModelSpec] = MappingProxyType(_MODELS)
-
 # Default models per provider - update these when changing default models
 _DEFAULT_MODELS: Dict[ProviderType, str] = {
     ProviderType.GEMINI: "gemini-3-flash-preview",
     ProviderType.OLLAMA: "gemma3:12b",
 }
 
+
+# =============================================================================
+# Registry Validation (runs at module load)
+# =============================================================================
+def _validate_registry() -> None:
+    """Validate registry integrity at module load time.
+
+    Raises:
+        ValueError: If registry has invalid configuration
+    """
+    # Validate: every model's spec.id matches its dictionary key
+    for model_id, spec in _MODELS.items():
+        if spec.id != model_id:
+            raise ValueError(
+                f"Registry integrity error: key '{model_id}' doesn't match spec.id '{spec.id}'"
+            )
+
+    # Validate: every default model exists in _MODELS
+    for provider, model_id in _DEFAULT_MODELS.items():
+        if model_id not in _MODELS:
+            raise ValueError(
+                f"Default model '{model_id}' for {provider.value} not found in registry"
+            )
+        # Also verify the model's provider matches
+        if _MODELS[model_id].provider != provider:
+            raise ValueError(
+                f"Default model '{model_id}' has provider {_MODELS[model_id].provider.value}, "
+                f"expected {provider.value}"
+            )
+
+
+# Run validation at import time to catch configuration errors early
+_validate_registry()
+
+# Make the registries immutable to prevent accidental modifications
+MODELS: MappingProxyType[str, ModelSpec] = MappingProxyType(_MODELS)
 DEFAULT_MODELS: MappingProxyType[ProviderType, str] = MappingProxyType(_DEFAULT_MODELS)
 
 
@@ -139,9 +172,12 @@ def get_default_model(provider: ProviderType) -> str:
         provider: Provider type
 
     Returns:
-        Default model ID for the provider, empty string if not found
+        Default model ID for the provider
+
+    Raises:
+        KeyError: If no default model is configured for the provider
     """
-    return DEFAULT_MODELS.get(provider, "")
+    return DEFAULT_MODELS[provider]
 
 
 def get_models_by_provider(provider: ProviderType) -> list[ModelSpec]:
@@ -156,13 +192,13 @@ def get_models_by_provider(provider: ProviderType) -> list[ModelSpec]:
     return [spec for spec in MODELS.values() if spec.provider == provider]
 
 
-# Export public API
+# Export public API (sorted alphabetically)
 __all__ = [
+    "DEFAULT_MODELS",
+    "MODELS",
     "ModelSpec",
     "ProviderType",
-    "MODELS",
-    "DEFAULT_MODELS",
-    "get_model_spec",
     "get_default_model",
+    "get_model_spec",
     "get_models_by_provider",
 ]
