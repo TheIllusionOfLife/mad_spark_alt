@@ -559,6 +559,19 @@ class GoogleProvider(LLMProviderInterface):
         try:
             candidate = response_data["candidates"][0]
             content_data = candidate["content"]
+            finish_reason = candidate.get("finishReason", "UNKNOWN")
+
+            # Log finish reason for debugging token limit issues
+            if finish_reason == "MAX_TOKENS":
+                usage_meta = response_data.get("usageMetadata", {})
+                logger.warning(
+                    "Response truncated due to MAX_TOKENS. "
+                    "Requested: %d, Used: prompt=%d, completion=%d, total=%d",
+                    max_output_tokens,
+                    usage_meta.get("promptTokenCount", 0),
+                    usage_meta.get("candidatesTokenCount", 0),
+                    usage_meta.get("totalTokenCount", 0),
+                )
 
             # Handle cases where parts might not exist (e.g., MAX_TOKENS with no content)
             if content_data.get(
@@ -567,7 +580,6 @@ class GoogleProvider(LLMProviderInterface):
                 content = content_data["parts"][0]["text"]
             else:
                 # Fallback for empty content due to finish reasons like MAX_TOKENS
-                finish_reason = candidate.get("finishReason", "UNKNOWN")
                 reason_messages = {
                     "MAX_TOKENS": "[Content generation stopped due to token limit - try reducing max_tokens or prompt length]",
                     "SAFETY": "[Content blocked by safety filters]",

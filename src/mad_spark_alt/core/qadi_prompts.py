@@ -190,7 +190,7 @@ PHASE_HYPERPARAMETERS = {
     },
     "deduction": {
         "temperature": 0.2,  # Very low - need analytical precision
-        "max_tokens": 3000,  # Increased for complete analysis with scores, answer, and action plan
+        "max_tokens": 8000,  # High for Gemini 3's thinking mode + complete analysis
         "top_p": 0.9,
     },
     "induction": {
