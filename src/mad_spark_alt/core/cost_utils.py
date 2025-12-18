@@ -3,17 +3,25 @@ Centralized cost calculation utilities for LLM operations.
 
 This module provides a unified interface for calculating costs across
 the entire codebase, eliminating duplicated cost calculation logic.
+
+Model pricing is managed in model_registry.py - update costs there.
 """
 
 import logging
 from dataclasses import dataclass
-from types import MappingProxyType
 from typing import Dict, Optional, Tuple
+
+from .model_registry import (
+    MODELS,
+    ProviderType,
+    get_default_model,
+    get_model_spec,
+)
 
 logger = logging.getLogger(__name__)
 
-# Default model constant
-DEFAULT_MODEL = "gemini-2.5-flash"
+# Default model constant - sourced from model registry
+DEFAULT_MODEL = get_default_model(ProviderType.GEMINI)
 
 
 @dataclass
@@ -23,20 +31,6 @@ class ModelCosts:
     input_cost_per_1k_tokens: float
     output_cost_per_1k_tokens: float
 
-
-# Gemini 2.5 Flash costs (as of January 2025)
-# Note: Gemini 2.5 Flash has thinking/reasoning mode that costs $3.50 per million output tokens
-# when reasoning is enabled. This utility uses standard pricing as base rates.
-# Source: https://cloud.google.com/vertex-ai/generative-ai/pricing
-_MODEL_COSTS = {
-    "gemini-2.5-flash": ModelCosts(
-        input_cost_per_1k_tokens=0.00030,  # $0.30 per million tokens = $0.00030 per 1k tokens
-        output_cost_per_1k_tokens=0.0025,  # $2.50 per million tokens = $0.0025 per 1k tokens
-    ),
-}
-
-# Make the costs immutable to prevent accidental modifications
-DEFAULT_MODEL_COSTS = MappingProxyType(_MODEL_COSTS)
 
 # Re-export for convenience
 __all__ = [
@@ -48,6 +42,7 @@ __all__ = [
     "estimate_token_cost",
     "get_available_models",
     "get_model_costs",
+    "DEFAULT_MODEL",
 ]
 
 
@@ -92,22 +87,26 @@ def calculate_llm_cost(
     Args:
         input_tokens: Number of input/prompt tokens
         output_tokens: Number of output/completion tokens
-        model: Model name (defaults to "gemini-2.5-flash")
+        model: Model name (defaults to current default Gemini model)
 
     Returns:
         Total cost in USD
 
     Example:
-        >>> cost = calculate_llm_cost(1000, 500, "gemini-2.5-flash")
+        >>> cost = calculate_llm_cost(1000, 500)
         >>> print(f"Cost: ${cost:.4f}")
     """
     model_costs = get_model_costs(model)
     if model_costs is None:
-        # Fall back to Gemini 2.5 Flash costs if model not found
+        # Fall back to default model costs if model not found
         logger.warning(
             "Model '%s' not found, falling back to '%s' costs.", model, DEFAULT_MODEL
         )
-        model_costs = DEFAULT_MODEL_COSTS[DEFAULT_MODEL]
+        model_costs = get_model_costs(DEFAULT_MODEL)
+        if model_costs is None:
+            # Should never happen, but handle gracefully
+            logger.error("Default model '%s' not found in registry", DEFAULT_MODEL)
+            return 0.0
 
     input_cost = (input_tokens / 1000) * model_costs.input_cost_per_1k_tokens
     output_cost = (output_tokens / 1000) * model_costs.output_cost_per_1k_tokens
@@ -148,7 +147,7 @@ def estimate_token_cost(
 
     Args:
         tokens: Total number of tokens
-        model: Model name (defaults to Gemini 2.5 Flash)
+        model: Model name (defaults to current default Gemini model)
         assume_equal_input_output: If True, assumes equal input/output split
 
     Returns:
@@ -171,7 +170,13 @@ def get_model_costs(model: str) -> Optional[ModelCosts]:
     Returns:
         ModelCosts object or None if model not found
     """
-    return DEFAULT_MODEL_COSTS.get(model)
+    spec = get_model_spec(model)
+    if spec is None:
+        return None
+    return ModelCosts(
+        input_cost_per_1k_tokens=spec.input_cost_per_1k,
+        output_cost_per_1k_tokens=spec.output_cost_per_1k,
+    )
 
 
 def get_available_models() -> Dict[str, ModelCosts]:
@@ -181,7 +186,13 @@ def get_available_models() -> Dict[str, ModelCosts]:
     Returns:
         Dictionary mapping model names to ModelCosts
     """
-    return dict(DEFAULT_MODEL_COSTS)
+    return {
+        model_id: ModelCosts(
+            input_cost_per_1k_tokens=spec.input_cost_per_1k,
+            output_cost_per_1k_tokens=spec.output_cost_per_1k,
+        )
+        for model_id, spec in MODELS.items()
+    }
 
 
 def calculate_cost_with_usage(

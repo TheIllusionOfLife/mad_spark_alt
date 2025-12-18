@@ -16,6 +16,7 @@ from mad_spark_alt.core.interfaces import (
     ThinkingMethod,
 )
 from mad_spark_alt.core.llm_provider import LLMManager, LLMProvider, LLMResponse
+from tests.conftest import TEST_GEMINI_MODEL
 
 
 class TestLLMInductiveAgent:
@@ -140,7 +141,7 @@ class TestLLMInductiveAgent:
         mock_response = LLMResponse(
             content="Invalid JSON content",
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model=TEST_GEMINI_MODEL,
             cost=0.001,
             response_time=0.5,
         )
@@ -175,7 +176,7 @@ class TestLLMInductiveAgent:
         mock_response = LLMResponse(
             content=json.dumps(valid_analysis),  # Proper JSON conversion
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model=TEST_GEMINI_MODEL,
             cost=0.002,
             response_time=0.7,
         )
@@ -221,7 +222,7 @@ class TestLLMInductiveAgent:
         mock_response = LLMResponse(
             content=json.dumps(insights_data),  # Proper JSON conversion
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model=TEST_GEMINI_MODEL,
             cost=0.005,
             response_time=1.2,
         )
@@ -272,7 +273,7 @@ class TestLLMInductiveAgent:
                 mock_response = LLMResponse(
                     content=json.dumps(analysis),
                     provider=LLMProvider.GOOGLE,
-                    model="gemini-2.5-flash",
+                    model=TEST_GEMINI_MODEL,
                     cost=0.002,
                     response_time=0.5,
                 )
@@ -292,7 +293,7 @@ class TestLLMInductiveAgent:
                 mock_response = LLMResponse(
                     content=json.dumps(insights),
                     provider=LLMProvider.GOOGLE,
-                    model="gemini-2.5-flash",
+                    model=TEST_GEMINI_MODEL,
                     cost=0.003,
                     response_time=0.7,
                 )
@@ -302,7 +303,7 @@ class TestLLMInductiveAgent:
                 mock_response = LLMResponse(
                     content="[0]",  # First insight ranked best
                     provider=LLMProvider.GOOGLE,
-                    model="gemini-2.5-flash",
+                    model=TEST_GEMINI_MODEL,
                     cost=0.001,
                     response_time=0.3,
                 )

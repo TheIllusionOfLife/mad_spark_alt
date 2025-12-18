@@ -22,6 +22,7 @@ from mad_spark_alt.core.multimodal import (
     MultimodalInputType,
     MultimodalSourceType,
 )
+from tests.conftest import TEST_GEMINI_MODEL
 
 
 # Skip all tests if GOOGLE_API_KEY not set
@@ -83,7 +84,7 @@ class TestGoogleProviderMultimodalIntegration:
         assert response.content is not None
         assert len(response.content) > 0
         assert response.provider == LLMProvider.GOOGLE
-        assert response.model == "gemini-2.5-flash"
+        assert response.model == TEST_GEMINI_MODEL
 
         # Verify multimodal metadata
         assert response.total_images_processed == 1

@@ -13,6 +13,7 @@ import pytest
 
 from mad_spark_alt.core.interfaces import GeneratedIdea
 from mad_spark_alt.core.llm_provider import GoogleProvider, LLMRequest, LLMResponse, LLMProvider
+from tests.conftest import TEST_GEMINI_MODEL
 from mad_spark_alt.evolution.semantic_operators import (
     BatchSemanticMutationOperator,
     SemanticCrossoverOperator,
@@ -123,7 +124,7 @@ class TestBatchSemanticMutationOperator:
         mock_llm_provider.generate.return_value = LLMResponse(
             content="Reduce plastic waste through community-led zero-waste initiatives",
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model=TEST_GEMINI_MODEL,
             usage={"prompt_tokens": 100, "completion_tokens": 50},
             cost=0.001
         )
@@ -151,7 +152,7 @@ IDEA_3_MUTATION: Deploy smart grid technology for real-time energy optimization"
         mock_llm_provider.generate.return_value = LLMResponse(
             content=batch_response,
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model=TEST_GEMINI_MODEL,
             usage={"prompt_tokens": 200, "completion_tokens": 100},
             cost=0.002
         )
@@ -172,7 +173,7 @@ IDEA_3_MUTATION: Deploy smart grid technology for real-time energy optimization"
         mock_llm_provider.generate.return_value = LLMResponse(
             content="Cached mutation result",
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model=TEST_GEMINI_MODEL,
             usage={"prompt_tokens": 100, "completion_tokens": 50},
             cost=0.001
         )
@@ -198,7 +199,7 @@ IDEA_3_MUTATION: Deploy smart grid technology for real-time energy optimization"
         single_response = LLMResponse(
             content='{"mutated_content": "Cached mutation for idea 1"}',
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model=TEST_GEMINI_MODEL,
             usage={"prompt_tokens": 50, "completion_tokens": 25},
             cost=0.0005
         )
@@ -217,7 +218,7 @@ IDEA_2_MUTATION: Deploy smart grid technology"""
         mock_llm_provider.generate.return_value = LLMResponse(
             content=batch_response,
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model=TEST_GEMINI_MODEL,
             usage={"prompt_tokens": 150, "completion_tokens": 75},
             cost=0.0015
         )
@@ -284,7 +285,7 @@ class TestSemanticCrossoverOperator:
         mock_llm_provider.generate.return_value = LLMResponse(
             content="OFFSPRING_1: Develop smart rooftop gardens with IoT-controlled irrigation systems for efficient urban food production\nOFFSPRING_2: Create sensor-monitored community gardens that optimize water usage for local food",
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model=TEST_GEMINI_MODEL,
             usage={"prompt_tokens": 150, "completion_tokens": 75},
             cost=0.0015
         )
@@ -318,7 +319,7 @@ OFFSPRING_2: Community gardens integrated with water-saving sensor networks"""
         mock_llm_provider.generate.return_value = LLMResponse(
             content=batch_response,
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model=TEST_GEMINI_MODEL,
             usage={"prompt_tokens": 200, "completion_tokens": 100},
             cost=0.002
         )
@@ -340,7 +341,7 @@ OFFSPRING_2: Community gardens integrated with water-saving sensor networks"""
         mock_llm_provider.generate.return_value = LLMResponse(
             content="OFFSPRING_1: Cached result 1\nOFFSPRING_2: Cached result 2",
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model=TEST_GEMINI_MODEL,
             usage={"prompt_tokens": 100, "completion_tokens": 50},
             cost=0.001
         )

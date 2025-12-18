@@ -9,7 +9,7 @@ Key Features:
 - Automatic validation (score ranges, required fields, no extra properties)
 - Type safety with IDE autocomplete
 - Schema reusability via nested models
-- Property ordering preservation (Gemini 2.5+)
+- Property ordering preservation (Gemini 3+)
 
 Usage:
     # Generate JSON Schema for API calls
@@ -100,7 +100,7 @@ class DeductionResponse(BaseModel):
     Complete response from the Deduction phase (Phase 2).
 
     Contains evaluations of all hypotheses, a synthesized answer,
-    and an actionable plan. Property order is preserved for Gemini 2.5+.
+    and an actionable plan. Property order is preserved for Gemini 3+.
     """
 
     model_config = ConfigDict(extra="forbid")

@@ -1128,7 +1128,7 @@ class ProviderRouter:
             >>> status = router.get_provider_status()
             >>> print(status)
             {
-                "gemini": {"available": True, "model": "gemini-2.5-flash"},
+                "gemini": {"available": True, "model": "gemini-3-flash-preview"},
                 "ollama": {"available": True, "model": "gemma3:12b"}
             }
         """

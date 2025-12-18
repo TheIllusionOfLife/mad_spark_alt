@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from mad_spark_alt.core.llm_provider import OllamaProvider, LLMProvider, LLMResponse
 from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
+from tests.conftest import TEST_GEMINI_MODEL
 
 
 @pytest.mark.ollama
@@ -167,7 +168,7 @@ class TestOllamaEndToEndIntegration:
         mock_gemini_response = LLMResponse(
             content="Fallback response",
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model=TEST_GEMINI_MODEL,
             cost=0.001,
             usage={"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
             response_time=0.5

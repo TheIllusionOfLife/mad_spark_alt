@@ -17,6 +17,7 @@ from mad_spark_alt.core.llm_provider import (
 )
 from mad_spark_alt.core.retry import LLMError
 from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIResult
+from tests.conftest import TEST_GEMINI_MODEL
 
 
 class TestProviderRouterSelection:
@@ -186,7 +187,7 @@ class TestProviderRouterFallback:
         gemini_response = LLMResponse(
             content="Fallback response",
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model=TEST_GEMINI_MODEL,
             usage={"total_tokens": 100},
             cost=0.001,
             response_time=2.0,
@@ -249,7 +250,7 @@ class TestProviderRouterStatus:
         """Test status reporting with both providers available."""
         gemini = MagicMock(spec=GoogleProvider)
         gemini.get_available_models.return_value = [
-            MagicMock(model_name="gemini-2.5-flash")
+            MagicMock(model_name=TEST_GEMINI_MODEL)
         ]
 
         ollama = MagicMock(spec=OllamaProvider)
@@ -260,7 +261,7 @@ class TestProviderRouterStatus:
         status = router.get_provider_status()
 
         assert status["gemini"]["available"] is True
-        assert status["gemini"]["model"] == "gemini-2.5-flash"
+        assert status["gemini"]["model"] == TEST_GEMINI_MODEL
         assert status["ollama"]["available"] is True
         assert status["ollama"]["model"] == "gemma3:12b"
 
@@ -268,7 +269,7 @@ class TestProviderRouterStatus:
         """Test status when only Gemini available."""
         gemini = MagicMock(spec=GoogleProvider)
         gemini.get_available_models.return_value = [
-            MagicMock(model_name="gemini-2.5-flash")
+            MagicMock(model_name=TEST_GEMINI_MODEL)
         ]
 
         router = ProviderRouter(gemini_provider=gemini, ollama_provider=None)
@@ -588,7 +589,7 @@ class TestHybridRouting:
             return_value=LLMResponse(
                 content="Extracted content from the webpage about AI safety...",
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={"prompt_tokens": 100, "completion_tokens": 200},
                 cost=0.0012,
             )
@@ -619,7 +620,7 @@ class TestHybridRouting:
             return_value=LLMResponse(
                 content="Extracted: Financial report shows Q3 revenue...",
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={"prompt_tokens": 500, "completion_tokens": 1000},
                 cost=0.0045,
             )
@@ -650,7 +651,7 @@ class TestHybridRouting:
             return_value=LLMResponse(
                 content="Combined: PDF data plus web content...",
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={"prompt_tokens": 800, "completion_tokens": 1500},
                 cost=0.0078,
             )
@@ -724,7 +725,7 @@ class TestHybridRouting:
             return_value=LLMResponse(
                 content="Market analysis shows 20% growth in Q3...",
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={"prompt_tokens": 300, "completion_tokens": 500},
                 cost=0.0025,
             )
@@ -793,7 +794,7 @@ class TestHybridRouting:
             return_value=LLMResponse(
                 content="URL content here",
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={},
                 cost=0.001,
             )
@@ -845,7 +846,7 @@ class TestHybridRouting:
             return_value=LLMResponse(
                 content="Extracted content",
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={},
                 cost=0.002,
             )
@@ -895,7 +896,7 @@ class TestHybridRouting:
             return_value=LLMResponse(
                 content="Extracted",
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={},
                 cost=0.001,
             )
@@ -974,7 +975,7 @@ class TestHybridRouting:
             return_value=LLMResponse(
                 content="x" * 5000,  # 5000 characters extracted
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={},
                 cost=0.0089,
             )
@@ -1027,7 +1028,7 @@ class TestHybridRouting:
             return_value=LLMResponse(
                 content="Extracted content",
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={},
                 cost=0.001,
             )
@@ -1067,7 +1068,7 @@ class TestHybridRouting:
             return_value=LLMResponse(
                 content="",  # Empty extraction result
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={},
                 cost=0.001,
             )

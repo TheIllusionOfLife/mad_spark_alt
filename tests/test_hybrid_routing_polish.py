@@ -23,6 +23,7 @@ from mad_spark_alt.core.llm_provider import (
     LLMResponse,
     OllamaProvider,
 )
+from tests.conftest import TEST_GEMINI_MODEL
 from mad_spark_alt.core.provider_router import ProviderRouter
 
 
@@ -112,7 +113,7 @@ class TestURLValidation:
             return_value=LLMResponse(
                 content="Extracted content",
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={},
                 cost=0.001,
             )
@@ -169,7 +170,7 @@ class TestContentSizeLimits:
             return_value=LLMResponse(
                 content="x" * 1000,
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={},
                 cost=0.001,
             )
@@ -203,7 +204,7 @@ class TestContentSizeLimits:
             return_value=LLMResponse(
                 content="x" * 30000,
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={},
                 cost=0.001,
             )
@@ -237,7 +238,7 @@ class TestContentSizeLimits:
             return_value=LLMResponse(
                 content="x" * 50000,
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={},
                 cost=0.001,
             )
@@ -266,7 +267,7 @@ class TestContentSizeLimits:
             return_value=LLMResponse(
                 content="x" * 20000,  # 20000 chars
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={},
                 cost=0.001,
             )
@@ -393,7 +394,7 @@ class TestCSVTextDocumentSupport:
             return_value=LLMResponse(
                 content="All documents processed",
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={},
                 cost=0.002,
             )
@@ -479,7 +480,7 @@ class TestContentCaching:
             return_value=LLMResponse(
                 content="Extracted",
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={},
                 cost=0.001,
             )
@@ -542,7 +543,7 @@ class TestContentCaching:
             return LLMResponse(
                 content=f"Extraction {call_count[0]}",
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={},
                 cost=0.001,
             )
@@ -585,7 +586,7 @@ class TestContentCaching:
             return LLMResponse(
                 content=f"Extraction {call_count[0]}",
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={},
                 cost=0.001,
             )
@@ -627,7 +628,7 @@ class TestContentCaching:
             return_value=LLMResponse(
                 content="Extracted",
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={},
                 cost=0.001,
             )

@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, patch
 
 from mad_spark_alt.core.simple_qadi_orchestrator import SimpleQADIOrchestrator
 from mad_spark_alt.core.llm_provider import LLMResponse, LLMProvider
+from tests.conftest import TEST_GEMINI_MODEL
 
 
 class TestEndToEndStructuredOutput:
@@ -31,7 +32,7 @@ class TestEndToEndStructuredOutput:
             responses.append(LLMResponse(
                 content="Q: How can we effectively reduce ocean plastic pollution?",
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={"prompt_tokens": 50, "completion_tokens": 20},
                 cost=0.0001
             ))
@@ -46,7 +47,7 @@ class TestEndToEndStructuredOutput:
                     ]
                 }),
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={"prompt_tokens": 100, "completion_tokens": 150},
                 cost=0.001
             ))
@@ -94,7 +95,7 @@ class TestEndToEndStructuredOutput:
                     ]
                 }),
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={"prompt_tokens": 300, "completion_tokens": 400},
                 cost=0.003
             ))
@@ -115,7 +116,7 @@ class TestEndToEndStructuredOutput:
                     )
                 }),
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model=TEST_GEMINI_MODEL,
                 usage={"prompt_tokens": 200, "completion_tokens": 150},
                 cost=0.002
             ))
