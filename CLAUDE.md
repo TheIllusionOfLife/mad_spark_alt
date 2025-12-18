@@ -65,6 +65,11 @@ Mad Spark Alt is a Multi-Agent Idea Generation System powered by LLMs using the 
 - **Parser**: Must handle markdown bold, bullet points, explanatory text
 - **Token Limits**: Deduction needs 1500+ tokens for complete analysis
 
+### Reasoning Model Token Overhead (Gemini 3+)
+- **Issue**: Thinking/reasoning models consume output tokens for internal reasoning, causing truncation
+- **Fix**: Increase `max_tokens` significantly (e.g., 3000 → 8000) with token multiplier (3x for Gemini 3)
+- **Registry**: Use `model_registry.get_model_spec()` for model-specific token multipliers
+
 ### Prompt-Response Format Consistency (CRITICAL)
 - **Issue**: Prompt criteria must EXACTLY match response format examples
 - **Fix**: `Impact: [score] - [explanation]` in both description and format sections
@@ -188,6 +193,7 @@ Mad Spark Alt is a Multi-Agent Idea Generation System powered by LLMs using the 
 
 | PR | Feature | Key Pattern |
 |----|---------|-------------|
+| #173 | Model Registry | `ModelSpec` dataclass; token multiplier for reasoning models; `get_model_spec()` API |
 | #71, #107 | Structured Output | `responseJsonSchema` (NOT `responseSchema`); JSON→regex→default fallback |
 | #141, #142 | Pydantic Schemas | `Field(ge=0.0, le=1.0)` for validation; 3-layer fallback (Pydantic→JSON→text) |
 | #89, #101 | Phase 2 Display | First sentence as title; avoid category-based extraction |
