@@ -325,7 +325,7 @@ class TestDeductionPhaseWithPydantic:
                 }
             ),
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             cost=0.005,
         )
         mock_llm_manager.generate.return_value = mock_response
@@ -365,7 +365,7 @@ Action Plan:
 3. Test at scale
             """,
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             cost=0.004,
         )
         mock_llm_manager.generate.return_value = mock_response

@@ -212,7 +212,7 @@ class TestSemanticOperatorPerformance:
         provider.generate.return_value = LLMResponse(
             content="Optimized version of the idea",
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             usage={"prompt_tokens": 100, "completion_tokens": 50},
             cost=0.001
         )

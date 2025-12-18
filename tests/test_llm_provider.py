@@ -32,14 +32,14 @@ class TestLLMProvider:
         """Test ModelConfig creation and validation."""
         config = ModelConfig(
             provider=LLMProvider.GOOGLE,
-            model_name="gemini-2.5-flash",
+            model_name="gemini-3-flash-preview",
             model_size=ModelSize.LARGE,
             input_cost_per_1k=0.00015,
             output_cost_per_1k=0.0006,
         )
 
         assert config.provider == LLMProvider.GOOGLE
-        assert config.model_name == "gemini-2.5-flash"
+        assert config.model_name == "gemini-3-flash-preview"
         assert config.model_size == ModelSize.LARGE
         assert config.input_cost_per_1k == 0.00015
 
@@ -63,10 +63,10 @@ class TestUsageStats:
 
     def test_usage_stats_initialization(self):
         """Test UsageStats initialization."""
-        stats = UsageStats(LLMProvider.GOOGLE, "gemini-2.5-flash")
+        stats = UsageStats(LLMProvider.GOOGLE, "gemini-3-flash-preview")
 
         assert stats.provider == LLMProvider.GOOGLE
-        assert stats.model == "gemini-2.5-flash"
+        assert stats.model == "gemini-3-flash-preview"
         assert stats.input_tokens == 0
         assert stats.output_tokens == 0
         assert stats.total_requests == 0
@@ -74,7 +74,7 @@ class TestUsageStats:
 
     def test_usage_stats_addition(self):
         """Test adding usage statistics."""
-        stats = UsageStats(LLMProvider.GOOGLE, "gemini-2.5-flash")
+        stats = UsageStats(LLMProvider.GOOGLE, "gemini-3-flash-preview")
 
         stats.add_usage(100, 50, 0.05)
 
@@ -86,7 +86,7 @@ class TestUsageStats:
 
     def test_usage_stats_accumulation(self):
         """Test accumulating multiple usage entries."""
-        stats = UsageStats(LLMProvider.GOOGLE, "gemini-2.5-flash")
+        stats = UsageStats(LLMProvider.GOOGLE, "gemini-3-flash-preview")
 
         stats.add_usage(100, 50, 0.05)
         stats.add_usage(200, 75, 0.08)
@@ -124,7 +124,7 @@ class TestLLMManager:
         manager = LLMManager()
         config = ModelConfig(
             provider=LLMProvider.GOOGLE,
-            model_name="gemini-2.5-flash",
+            model_name="gemini-3-flash-preview",
             model_size=ModelSize.LARGE,
             input_cost_per_1k=0.00015,
             output_cost_per_1k=0.0006,
@@ -171,14 +171,14 @@ class TestGoogleProvider:
         models = provider.get_available_models()
 
         assert len(models) == 1
-        assert models[0].model_name == "gemini-2.5-flash"
+        assert models[0].model_name == "gemini-3-flash-preview"
 
     def test_calculate_cost(self):
         """Test cost calculation for Google."""
         provider = GoogleProvider("test_api_key")
         config = ModelConfig(
             provider=LLMProvider.GOOGLE,
-            model_name="gemini-2.5-flash",
+            model_name="gemini-3-flash-preview",
             model_size=ModelSize.LARGE,
             input_cost_per_1k=0.00015,
             output_cost_per_1k=0.0006,
@@ -464,7 +464,7 @@ class TestIntegration:
         mock_response = LLMResponse(
             content="The capital of France is Paris.",
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             usage={"prompt_tokens": 10, "completion_tokens": 8},
             cost=0.001,
             response_time=0.5,
@@ -488,7 +488,7 @@ class TestIntegration:
 
         # Check usage tracking
         assert len(manager.usage_stats) == 1
-        stats_key = "google:gemini-2.5-flash"
+        stats_key = "google:gemini-3-flash-preview"
         assert stats_key in manager.usage_stats
         assert manager.usage_stats[stats_key].total_requests == 1
 
@@ -515,7 +515,7 @@ def sample_model_config():
     """Sample model configuration for testing."""
     return ModelConfig(
         provider=LLMProvider.GOOGLE,
-        model_name="gemini-2.5-flash",
+        model_name="gemini-3-flash-preview",
         model_size=ModelSize.LARGE,
         input_cost_per_1k=0.00015,
         output_cost_per_1k=0.0006,
@@ -539,7 +539,7 @@ def sample_llm_response():
     return LLMResponse(
         content="The capital of France is Paris.",
         provider=LLMProvider.GOOGLE,
-        model="gemini-2.5-flash",
+        model="gemini-3-flash-preview",
         usage={"prompt_tokens": 10, "completion_tokens": 8},
         cost=0.001,
         response_time=0.5,
@@ -753,7 +753,7 @@ class TestMultimodalLLMResponse:
         response = LLMResponse(
             content="Summary of sources",
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             usage={"prompt_tokens": 1000, "completion_tokens": 200},
             cost=0.01,
             url_context_metadata=url_metadata
@@ -768,7 +768,7 @@ class TestMultimodalLLMResponse:
         response = LLMResponse(
             content="Analysis complete",
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             usage={"prompt_tokens": 500, "completion_tokens": 100},
             cost=0.005,
             total_images_processed=3
@@ -781,7 +781,7 @@ class TestMultimodalLLMResponse:
         response = LLMResponse(
             content="Document summary",
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             usage={"prompt_tokens": 10000, "completion_tokens": 500},
             cost=0.1,
             total_pages_processed=50
@@ -794,7 +794,7 @@ class TestMultimodalLLMResponse:
         response = LLMResponse(
             content="Test",
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             usage={},
             cost=0.0
         )
@@ -814,7 +814,7 @@ class TestMultimodalLLMResponse:
         response = LLMResponse(
             content="Complete analysis",
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             usage={"prompt_tokens": 5000, "completion_tokens": 500},
             cost=0.05,
             url_context_metadata=url_metadata,

@@ -162,19 +162,20 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
     async def test_cost_aggregation_across_operations(self):
         """Test that costs are correctly aggregated across multiple operations."""
         total_cost = 0.0
-        
+
         # Simulate multiple LLM calls with cost tracking
+        # Gemini 3 Flash pricing: $0.50/M input ($0.0005/1K), $3.00/M output ($0.003/1K)
         operations = [
-            {"input_tokens": 100, "output_tokens": 200, "expected_cost": 0.00053},  # (100/1000 * 0.00030) + (200/1000 * 0.0025) = 0.00003 + 0.0005 = 0.00053
-            {"input_tokens": 500, "output_tokens": 1000, "expected_cost": 0.00265},  # (500/1000 * 0.00030) + (1000/1000 * 0.0025) = 0.00015 + 0.0025 = 0.00265
-            {"input_tokens": 50, "output_tokens": 100, "expected_cost": 0.000265},  # (50/1000 * 0.00030) + (100/1000 * 0.0025) = 0.000015 + 0.00025 = 0.000265
+            {"input_tokens": 100, "output_tokens": 200, "expected_cost": 0.00065},  # (100/1000 * 0.0005) + (200/1000 * 0.003) = 0.00005 + 0.0006 = 0.00065
+            {"input_tokens": 500, "output_tokens": 1000, "expected_cost": 0.00325},  # (500/1000 * 0.0005) + (1000/1000 * 0.003) = 0.00025 + 0.003 = 0.00325
+            {"input_tokens": 50, "output_tokens": 100, "expected_cost": 0.000325},  # (50/1000 * 0.0005) + (100/1000 * 0.003) = 0.000025 + 0.0003 = 0.000325
         ]
         
         for op in operations:
             cost = cost_utils.calculate_llm_cost(
                 op["input_tokens"], 
                 op["output_tokens"], 
-                "gemini-2.5-flash"
+                "gemini-3-flash-preview"
             )
             total_cost += cost
             # Verify individual cost calculation
@@ -186,24 +187,25 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
 
     def test_cost_calculation_accuracy_different_models(self):
         """Test cost calculation accuracy for different model types."""
+        # Gemini 3 Flash pricing: $0.50/M input ($0.0005/1K), $3.00/M output ($0.003/1K)
         test_cases = [
             {
-                "model": "gemini-2.5-flash",
+                "model": "gemini-3-flash-preview",
                 "input_tokens": 1000,
                 "output_tokens": 500,
-                "expected_cost": 0.00155  # (1000/1000 * 0.00030) + (500/1000 * 0.0025) = 0.0003 + 0.00125 = 0.00155
+                "expected_cost": 0.002  # (1000/1000 * 0.0005) + (500/1000 * 0.003) = 0.0005 + 0.0015 = 0.002
             },
             {
-                "model": "gemini-2.5-flash",
+                "model": "gemini-3-flash-preview",
                 "input_tokens": 2000,
                 "output_tokens": 1000,
-                "expected_cost": 0.0031  # (2000/1000 * 0.00030) + (1000/1000 * 0.0025) = 0.0006 + 0.0025 = 0.0031
+                "expected_cost": 0.004  # (2000/1000 * 0.0005) + (1000/1000 * 0.003) = 0.001 + 0.003 = 0.004
             },
             {
-                "model": "gemini-2.5-flash",
+                "model": "gemini-3-flash-preview",
                 "input_tokens": 1500,
                 "output_tokens": 750,
-                "expected_cost": 0.002325  # (1500/1000 * 0.00030) + (750/1000 * 0.0025) = 0.00045 + 0.001875 = 0.002325
+                "expected_cost": 0.003  # (1500/1000 * 0.0005) + (750/1000 * 0.003) = 0.00075 + 0.00225 = 0.003
             },
         ]
         
@@ -217,21 +219,23 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
 
     def test_cost_tracking_edge_cases(self):
         """Test edge cases in cost tracking."""
+        # Gemini 3 Flash pricing: $0.50/M input ($0.0005/1K), $3.00/M output ($0.003/1K)
+
         # Zero tokens
-        cost = cost_utils.calculate_llm_cost(0, 0, "gemini-2.5-flash")
+        cost = cost_utils.calculate_llm_cost(0, 0, "gemini-3-flash-preview")
         assert cost == 0.0
-        
+
         # Very large token counts
-        cost = cost_utils.calculate_llm_cost(1000000, 500000, "gemini-2.5-flash")
-        assert cost == pytest.approx(1.55)  # (1000000/1000 * 0.00030) + (500000/1000 * 0.0025) = 0.30 + 1.25 = 1.55
-        
-        # Unknown model falls back to Gemini 2.5 Flash
+        cost = cost_utils.calculate_llm_cost(1000000, 500000, "gemini-3-flash-preview")
+        assert cost == pytest.approx(2.0)  # (1000000/1000 * 0.0005) + (500000/1000 * 0.003) = 0.5 + 1.5 = 2.0
+
+        # Unknown model falls back to default Gemini model
         cost = cost_utils.calculate_llm_cost(100, 100, "unknown-model")
-        assert cost > 0  # Should use Gemini 2.5 Flash pricing
-        
+        assert cost > 0  # Should use default Gemini pricing
+
         # Fractional tokens (should handle gracefully)
-        cost = cost_utils.calculate_llm_cost(150, 75, "gemini-2.5-flash")
-        assert cost == pytest.approx(0.0002325)  # (150/1000 * 0.00030) + (75/1000 * 0.0025) = 0.000045 + 0.0001875 = 0.0002325
+        cost = cost_utils.calculate_llm_cost(150, 75, "gemini-3-flash-preview")
+        assert cost == pytest.approx(0.0003)  # (150/1000 * 0.0005) + (75/1000 * 0.003) = 0.000075 + 0.000225 = 0.0003
 
     @pytest.mark.asyncio
     async def test_cost_propagation_in_error_scenarios(self, orchestrator, mock_llm_manager):
@@ -299,49 +303,51 @@ Conclusion: Cities with diverse, well-integrated public transport see 30-50% tra
 
     def test_cost_utils_usage_dict_parsing(self):
         """Test cost calculation from usage dictionaries with different formats."""
+        # Gemini 3 Flash pricing: $0.50/M input ($0.0005/1K), $3.00/M output ($0.003/1K)
+
         # Google format
         cost, input_tokens, output_tokens = cost_utils.calculate_cost_with_usage(
             {"prompt_tokens": 100, "completion_tokens": 200},
-            "gemini-2.5-flash"
+            "gemini-3-flash-preview"
         )
         assert input_tokens == 100
         assert output_tokens == 200
-        assert cost == pytest.approx(0.00053)  # (100/1000 * 0.00030) + (200/1000 * 0.0025) = 0.00003 + 0.0005 = 0.00053
-        
+        assert cost == pytest.approx(0.00065)  # (100/1000 * 0.0005) + (200/1000 * 0.003) = 0.00005 + 0.0006 = 0.00065
+
         # Alternative format
         cost, input_tokens, output_tokens = cost_utils.calculate_cost_with_usage(
             {"input_tokens": 150, "output_tokens": 250},
-            "gemini-2.5-flash"
+            "gemini-3-flash-preview"
         )
         assert input_tokens == 150
         assert output_tokens == 250
-        assert cost == pytest.approx(0.00067)  # (150/1000 * 0.00030) + (250/1000 * 0.0025) = 0.000045 + 0.000625 = 0.00067
-        
+        assert cost == pytest.approx(0.000825)  # (150/1000 * 0.0005) + (250/1000 * 0.003) = 0.000075 + 0.00075 = 0.000825
+
         # Empty usage dict
         cost, input_tokens, output_tokens = cost_utils.calculate_cost_with_usage(
             {},
-            "gemini-2.5-flash"
+            "gemini-3-flash-preview"
         )
         assert input_tokens == 0
         assert output_tokens == 0
         assert cost == 0.0
 
     def test_centralized_vs_legacy_cost_calculation_parity(self):
-        """Ensure centralized cost calculation matches legacy calculations."""
+        """Ensure centralized cost calculation matches manual calculations."""
+        # Gemini 3 Flash pricing: $0.50/M input ($0.0005/1K), $3.00/M output ($0.003/1K)
         test_tokens = [
             (1000, 500),
             (100, 50),
             (5000, 2500),
             (10, 5),
         ]
-        
+
         for input_tok, output_tok in test_tokens:
-            # Legacy calculation pattern (as it was in llm_provider.py) for Gemini 2.5 Flash
-            # Updated to use new pricing: $0.30 per 1M input, $2.50 per 1M output
-            legacy_cost = (input_tok / 1000) * 0.00030 + (output_tok / 1000) * 0.0025
-            
-            # New centralized calculation
-            new_cost = cost_utils.calculate_llm_cost(input_tok, output_tok, "gemini-2.5-flash")
-            
+            # Manual calculation for Gemini 3 Flash pricing
+            manual_cost = (input_tok / 1000) * 0.0005 + (output_tok / 1000) * 0.003
+
+            # Centralized calculation from cost_utils
+            new_cost = cost_utils.calculate_llm_cost(input_tok, output_tok, "gemini-3-flash-preview")
+
             # They should match exactly
-            assert abs(legacy_cost - new_cost) < 0.000001, f"Cost mismatch for {input_tok}/{output_tok}"
+            assert abs(manual_cost - new_cost) < 0.000001, f"Cost mismatch for {input_tok}/{output_tok}"

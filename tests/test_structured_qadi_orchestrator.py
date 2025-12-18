@@ -31,7 +31,7 @@ class TestEndToEndStructuredOutput:
             responses.append(LLMResponse(
                 content="Q: How can we effectively reduce ocean plastic pollution?",
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model="gemini-3-flash-preview",
                 usage={"prompt_tokens": 50, "completion_tokens": 20},
                 cost=0.0001
             ))
@@ -46,7 +46,7 @@ class TestEndToEndStructuredOutput:
                     ]
                 }),
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model="gemini-3-flash-preview",
                 usage={"prompt_tokens": 100, "completion_tokens": 150},
                 cost=0.001
             ))
@@ -94,7 +94,7 @@ class TestEndToEndStructuredOutput:
                     ]
                 }),
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model="gemini-3-flash-preview",
                 usage={"prompt_tokens": 300, "completion_tokens": 400},
                 cost=0.003
             ))
@@ -115,7 +115,7 @@ class TestEndToEndStructuredOutput:
                     )
                 }),
                 provider=LLMProvider.GOOGLE,
-                model="gemini-2.5-flash",
+                model="gemini-3-flash-preview",
                 usage={"prompt_tokens": 200, "completion_tokens": 150},
                 cost=0.002
             ))

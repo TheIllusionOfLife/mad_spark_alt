@@ -40,6 +40,7 @@ from .retry import (
     safe_aiohttp_request,
 )
 from .cost_utils import calculate_llm_cost_from_config, get_model_costs
+from .model_registry import ProviderType, get_default_model, get_model_spec
 from .system_constants import CONSTANTS
 
 if TYPE_CHECKING:
@@ -51,8 +52,8 @@ from ..utils.multimodal_utils import read_file_as_base64
 
 logger = logging.getLogger(__name__)
 
-# Model constants
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+# Model constants - sourced from model registry
+DEFAULT_GEMINI_MODEL = get_default_model(ProviderType.GEMINI)
 
 # Cache for inlined schemas to avoid repeated deep copy + traversal
 _INLINED_SCHEMA_CACHE: Dict[str, Dict[str, Any]] = {}
@@ -493,13 +494,14 @@ class GoogleProvider(LLMProviderInterface):
                 "text parsing fallback for this request."
             )
 
-        # Adjust max_tokens for Gemini 2.5-flash reasoning overhead
+        # Adjust max_tokens for reasoning models with token overhead
         max_output_tokens = request.max_tokens
-        if model_config.model_name == DEFAULT_GEMINI_MODEL:
-            # 2.5-flash uses many tokens for internal reasoning, so increase output limit
+        model_spec = get_model_spec(model_config.model_name)
+        if model_spec and model_spec.token_multiplier > 1.0:
+            # Reasoning models use extra tokens for internal reasoning
             max_output_tokens = max(
-                request.max_tokens * 3, 2048
-            )  # At least 3x the requested tokens
+                int(request.max_tokens * model_spec.token_multiplier), 2048
+            )
 
         # Build generation config
         generation_config: Dict[str, Any] = {
@@ -778,30 +780,29 @@ class GoogleProvider(LLMProviderInterface):
 
     def get_available_models(self) -> List[ModelConfig]:
         """Get available Google models.
-        
-        Note: Pricing is centralized in cost_utils.py. Update pricing there.
+
+        Note: Model configuration is centralized in model_registry.py.
         """
-        # Get pricing from centralized cost_utils module
         model_name = DEFAULT_GEMINI_MODEL
-        model_costs = get_model_costs(model_name)
-        if not model_costs:
-            raise ValueError(f"'{model_name}' costs not configured in cost_utils")
-        
+        model_spec = get_model_spec(model_name)
+        if not model_spec:
+            raise ValueError(f"'{model_name}' not configured in model_registry")
+
         return [
             ModelConfig(
                 provider=LLMProvider.GOOGLE,
                 model_name=model_name,
                 model_size=ModelSize.LARGE,
-                input_cost_per_1k=model_costs.input_cost_per_1k_tokens,
-                output_cost_per_1k=model_costs.output_cost_per_1k_tokens,
-                max_tokens=8192,
+                input_cost_per_1k=model_spec.input_cost_per_1k,
+                output_cost_per_1k=model_spec.output_cost_per_1k,
+                max_tokens=model_spec.max_output_tokens,
             ),
         ]
 
     def _get_default_model_config(self, model_name: str) -> ModelConfig:
         """Get default model config by name."""
         models = {model.model_name: model for model in self.get_available_models()}
-        # Always use gemini-2.5-flash
+        # Always use default Gemini model
         return models.get(model_name, models[DEFAULT_GEMINI_MODEL])
 
     def calculate_cost(

@@ -12,6 +12,10 @@ from typing import AsyncGenerator
 import pytest
 
 from mad_spark_alt.core.llm_provider import LLMManager, llm_manager, setup_llm_providers
+from mad_spark_alt.core.model_registry import ProviderType, get_default_model
+
+# Test constant for Gemini model - use this in all tests instead of hardcoding
+TEST_GEMINI_MODEL = get_default_model(ProviderType.GEMINI)
 
 
 @pytest.fixture

@@ -54,7 +54,7 @@ class TestStructuredMutation:
         mock_response = LLMResponse(
             content=json.dumps(structured_response),
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             usage={"prompt_tokens": 100, "completion_tokens": 150},
             cost=0.001
         )
@@ -133,7 +133,7 @@ class TestStructuredMutation:
         mock_response = LLMResponse(
             content=json.dumps(structured_response),
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             usage={"prompt_tokens": 200, "completion_tokens": 300},
             cost=0.002
         )
@@ -175,7 +175,7 @@ IDEA_1_MUTATION: Implement comprehensive plastic reduction strategies including 
         mock_response = LLMResponse(
             content=text_response,
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             usage={"prompt_tokens": 100, "completion_tokens": 150},
             cost=0.001
         )
@@ -221,7 +221,7 @@ IDEA_1_MUTATION: Implement comprehensive plastic reduction strategies including 
         mock_response = LLMResponse(
             content=json.dumps(structured_response),
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             usage={"prompt_tokens": 100, "completion_tokens": 150},
             cost=0.001
         )
@@ -274,7 +274,7 @@ IDEA_1_MUTATION: Implement comprehensive plastic reduction strategies including 
         mock_response = LLMResponse(
             content=json.dumps(structured_response),
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             usage={"prompt_tokens": 150, "completion_tokens": 200},
             cost=0.002
         )
@@ -334,7 +334,7 @@ class TestStructuredCrossover:
         mock_response = LLMResponse(
             content=json.dumps(structured_response),
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             usage={"prompt_tokens": 150, "completion_tokens": 100},
             cost=0.001
         )
@@ -401,7 +401,7 @@ OFFSPRING_2: Create carbon-neutral public transit networks with renewable energy
         mock_response = LLMResponse(
             content=text_response,
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             usage={"prompt_tokens": 150, "completion_tokens": 100},
             cost=0.001
         )
@@ -501,7 +501,7 @@ OFFSPRING_2: Create carbon-neutral public transit networks with renewable energy
         mock_response = LLMResponse(
             content=json.dumps(structured_response),
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             usage={"prompt_tokens": 300, "completion_tokens": 400},
             cost=0.003
         )

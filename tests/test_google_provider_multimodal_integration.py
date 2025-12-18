@@ -83,7 +83,7 @@ class TestGoogleProviderMultimodalIntegration:
         assert response.content is not None
         assert len(response.content) > 0
         assert response.provider == LLMProvider.GOOGLE
-        assert response.model == "gemini-2.5-flash"
+        assert response.model == "gemini-3-flash-preview"
 
         # Verify multimodal metadata
         assert response.total_images_processed == 1

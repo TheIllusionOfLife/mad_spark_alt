@@ -167,7 +167,7 @@ class TestOllamaEndToEndIntegration:
         mock_gemini_response = LLMResponse(
             content="Fallback response",
             provider=LLMProvider.GOOGLE,
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             cost=0.001,
             usage={"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
             response_time=0.5
