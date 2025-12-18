@@ -1,6 +1,6 @@
 # Session Handover
 
-## Last Updated: December 16, 2025
+## Last Updated: December 18, 2025
 
 ---
 
@@ -11,6 +11,22 @@
 ---
 
 ## Recently Completed
+
+### PR #173: Gemini 3 Flash + Model Registry - MERGED ✅ (December 18, 2025)
+**Summary**: Upgraded to Gemini 3 Flash with centralized model registry for future multi-provider support.
+
+**Key Changes**:
+- ✅ Model registry (`core/model_registry.py`) with immutable `ModelSpec` dataclass
+- ✅ Default model: `gemini-2.5-flash` → `gemini-3-flash-preview`
+- ✅ Updated pricing: $0.50/$3.00 per million tokens (input/output)
+- ✅ Token multiplier support for reasoning overhead (3x for Gemini 3)
+- ✅ Increased deduction `max_tokens`: 3000 → 8000 (thinking mode consumes output tokens)
+
+### PR #172: Architecture Docs Sync - MERGED ✅ (December 17, 2025)
+**Summary**: Updated documentation to reflect December 2025 capabilities.
+
+### PR #171: Dependency Cleanup - MERGED ✅ (December 17, 2025)
+**Summary**: Removed unused FastAPI/SQLAlchemy dependencies (7 packages total).
 
 ### PR #167: Increase Evolution Timeouts - MERGED ✅ (December 16, 2025)
 **Summary**: Extended timeouts for Ollama semantic operators to allow completion of evolution runs with max parameters.
@@ -77,62 +93,6 @@
 
 ---
 
-## Session Learnings
-
-### Ollama JSON Schema Format (PR #166)
-**Problem**: Google Gemini uses uppercase types (`"type": "OBJECT"`), Ollama uses standard JSON Schema.
-```python
-# ❌ Google format (breaks Ollama)
-{"type": "OBJECT", "properties": {...}}
-
-# ✅ Standard JSON Schema (works everywhere)
-{"type": "object", "properties": {...}}
-```
-**Fix**: Always use lowercase types in manual schemas for Ollama compatibility.
-
-### Outlines Library Integration (PR #165)
-| Pattern | Implementation |
-|---------|---------------|
-| `$defs` inlining | `inline_schema_defs(schema)` expands `$ref` for Ollama |
-| Multimodal bypass | Skip Outlines for image inputs → native Ollama API |
-| Resource cleanup | Cache AsyncClient, call `provider.close()` in `finally` |
-| `Optional[T]` workaround | Use `Field(default="")` instead of `Optional[str]` |
-
-### Two-Level Timeout Architecture (PR #167)
-**Problem**: Evolution timed out despite fast per-request completion.
-```python
-# Individual request timeout (Ollama inference)
-OLLAMA_INFERENCE_TIMEOUT = 600  # 10 min per semantic operation
-
-# Overall CLI timeout (total evolution run)
-CLI_MAX_TIMEOUT_SECONDS = 3000  # 50 min = 5 gen × 10 pop × 60s
-```
-**Key**: Both levels must accommodate workload; individual timeouts don't extend overall.
-
-### Structured Output Over Prompt Engineering (PR #161)
-- **NEVER** request formatting in prompts when using structured output
-- Use `Field(min_length=3, max_length=5)` in Pydantic schemas
-- Prompts describe WHAT; schemas define HOW
-
-### CLI Flag Guarding Pattern (PR #158)
-```python
-mode_only_options = {'option': value if value != default else None}
-if not mode_flag:
-    used = [name for name, val in mode_only_options.items() if val]
-    if used:
-        show_error_with_hint()
-```
-
-### Cache Type Consistency (PR #151)
-- Keep hash values as same type throughout cache lifecycle
-- Float vs int comparison causes precision loss → silent invalidation
-
-### Hybrid Routing Architecture (PR #149)
-- Preprocess with Gemini → Run QADI with Ollama (free)
-- Fail-fast when no valid content extracted
-
----
-
 ## Known Issues / Blockers
 
 - **DNS Rebinding**: URL validation doesn't resolve hostnames - documented in CLAUDE.md
@@ -153,6 +113,7 @@ if not mode_flag:
 
 | Date | PRs | Key Work |
 |------|-----|----------|
+| Dec 18, 2025 | #171, #172, #173 | Gemini 3 Flash, model registry, docs sync, cleanup |
 | Dec 16, 2025 | #166, #167 | Induction redesign, evolution timeouts |
 | Dec 15, 2025 | #165 | Outlines for Ollama structured output |
 | Dec 7, 2025 | #161 | CLI output improvements, QADI phases |
