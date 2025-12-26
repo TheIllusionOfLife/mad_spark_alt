@@ -380,7 +380,7 @@ class TestProviderFallbackBehavior:
         """--provider ollama --diversity-method jaccard should be allowed."""
         from mad_spark_alt.unified_cli import main
 
-        with patch('mad_spark_alt.unified_cli._run_qadi_sync') as mock_qadi:
+        with patch('mad_spark_alt.unified_cli._run_qadi_sync'):
             with patch('os.getenv', return_value=None):  # No Google API key
                 runner = CliRunner()
                 result = runner.invoke(main, [
@@ -391,13 +391,14 @@ class TestProviderFallbackBehavior:
                 ])
 
                 # Should not fail with semantic diversity error
+                assert result.exit_code == 0
                 assert 'Semantic diversity requires Gemini' not in result.output
 
     def test_auto_semantic_diversity_allowed(self):
         """--provider auto --diversity-method semantic should be allowed (falls back to Jaccard if needed)."""
         from mad_spark_alt.unified_cli import main
 
-        with patch('mad_spark_alt.unified_cli._run_qadi_sync') as mock_qadi:
+        with patch('mad_spark_alt.unified_cli._run_qadi_sync'):
             with patch('os.getenv', return_value='fake-key'):
                 runner = CliRunner()
                 result = runner.invoke(main, [
@@ -408,13 +409,14 @@ class TestProviderFallbackBehavior:
                 ])
 
                 # Should not fail at startup validation
+                assert result.exit_code == 0
                 assert 'Semantic diversity requires Gemini' not in result.output
 
     def test_gemini_semantic_diversity_allowed(self):
         """--provider gemini --diversity-method semantic should work."""
         from mad_spark_alt.unified_cli import main
 
-        with patch('mad_spark_alt.unified_cli._run_qadi_sync') as mock_qadi:
+        with patch('mad_spark_alt.unified_cli._run_qadi_sync'):
             with patch('os.getenv', return_value='fake-key'):
                 runner = CliRunner()
                 result = runner.invoke(main, [
@@ -425,6 +427,7 @@ class TestProviderFallbackBehavior:
                 ])
 
                 # Should not fail with semantic diversity error
+                assert result.exit_code == 0
                 assert 'Semantic diversity requires Gemini' not in result.output
 
 

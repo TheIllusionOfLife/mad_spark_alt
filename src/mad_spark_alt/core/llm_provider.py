@@ -65,8 +65,9 @@ _INLINED_SCHEMA_CACHE: Dict[str, Dict[str, Any]] = {}
 # Embedding constants
 # Approximate ratio of tokens to words for estimation when API doesn't provide token count
 TOKEN_ESTIMATION_FACTOR = 1.3
-# Cost per 1K tokens for text-embedding-004 model (as of January 2025)
-EMBEDDING_COST_PER_1K_TOKENS = 0.0002
+# Cost per 1K tokens for gemini-embedding-001 model ($0.15 per 1M tokens, Dec 2025)
+# Note: text-embedding-004 deprecated January 2026
+EMBEDDING_COST_PER_1K_TOKENS = 0.00015
 
 
 def inline_schema_defs(schema: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -299,11 +300,11 @@ class LLMResponse(BaseModel):
 
 class EmbeddingRequest(BaseModel):
     """Request structure for embedding calls."""
-    
+
     texts: List[str]
-    model: str = "models/text-embedding-004"
+    model: str = "gemini-embedding-001"
     task_type: str = "SEMANTIC_SIMILARITY"
-    output_dimensionality: int = 768
+    output_dimensionality: int = 768  # Default 3072, but 768 is recommended for efficiency
     title: Optional[str] = None  # Optional title for better quality
 
 
@@ -909,7 +910,7 @@ class GoogleProvider(LLMProviderInterface):
             total_tokens = sum(len(text.split()) * TOKEN_ESTIMATION_FACTOR for text in request.texts)
         
         # Embedding costs are typically much lower than generation
-        # Using configured cost for text-embedding-004 model
+        # Using configured cost for gemini-embedding-001 model
         cost = (total_tokens / 1000) * EMBEDDING_COST_PER_1K_TOKENS
         
         return EmbeddingResponse(

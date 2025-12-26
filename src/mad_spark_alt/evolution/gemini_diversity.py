@@ -121,7 +121,6 @@ class GeminiDiversityCalculator(DiversityCalculator):
         if needed_texts:
             request = EmbeddingRequest(
                 texts=needed_texts,
-                model="models/text-embedding-004",
                 task_type="SEMANTIC_SIMILARITY",
                 output_dimensionality=768
             )
