@@ -26,9 +26,9 @@ class TestEmbeddingDataStructures:
     def test_embedding_request_defaults(self):
         """Test EmbeddingRequest has correct defaults."""
         request = EmbeddingRequest(texts=["test text"])
-        
+
         assert request.texts == ["test text"]
-        assert request.model == "models/text-embedding-004"
+        assert request.model == "gemini-embedding-001"
         assert request.task_type == "SEMANTIC_SIMILARITY"
         assert request.output_dimensionality == 768
         assert request.title is None
@@ -95,7 +95,7 @@ class TestGoogleProviderEmbeddings:
             call_args = mock_request.call_args
             
             # Check URL parameter
-            assert "text-embedding-004:batchEmbedContents" in call_args[1]['url']
+            assert "gemini-embedding-001:batchEmbedContents" in call_args[1]['url']
             
             # Check headers
             headers = call_args[1]['headers']
@@ -110,7 +110,7 @@ class TestGoogleProviderEmbeddings:
             # Check response
             assert len(response.embeddings) == 1
             assert response.embeddings[0] == [0.1, 0.2, 0.3]
-            assert response.model == "text-embedding-004"
+            assert response.model == "gemini-embedding-001"
             
     @pytest.mark.asyncio
     async def test_get_embeddings_batch(self):
