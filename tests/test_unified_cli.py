@@ -355,6 +355,79 @@ class TestProviderInheritance:
         assert 'provider' not in compare_params
 
 
+class TestProviderFallbackBehavior:
+    """Test provider fallback behavior for explicit provider selection."""
+
+    def test_ollama_semantic_diversity_rejected(self):
+        """--provider ollama --diversity-method semantic should fail at startup."""
+        from mad_spark_alt.unified_cli import main
+
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            '--provider', 'ollama',
+            '--evolve',
+            '--diversity-method', 'semantic',
+            'Test question'
+        ])
+
+        # Should fail with exit code 1
+        assert result.exit_code == 1
+        # Should show error about semantic diversity requiring Gemini
+        assert 'Semantic diversity requires Gemini' in result.output
+        assert '--diversity-method jaccard' in result.output
+
+    def test_ollama_jaccard_diversity_allowed(self):
+        """--provider ollama --diversity-method jaccard should be allowed."""
+        from mad_spark_alt.unified_cli import main
+
+        with patch('mad_spark_alt.unified_cli._run_qadi_sync') as mock_qadi:
+            with patch('os.getenv', return_value=None):  # No Google API key
+                runner = CliRunner()
+                result = runner.invoke(main, [
+                    '--provider', 'ollama',
+                    '--evolve',
+                    '--diversity-method', 'jaccard',
+                    'Test question'
+                ])
+
+                # Should not fail with semantic diversity error
+                assert 'Semantic diversity requires Gemini' not in result.output
+
+    def test_auto_semantic_diversity_allowed(self):
+        """--provider auto --diversity-method semantic should be allowed (falls back to Jaccard if needed)."""
+        from mad_spark_alt.unified_cli import main
+
+        with patch('mad_spark_alt.unified_cli._run_qadi_sync') as mock_qadi:
+            with patch('os.getenv', return_value='fake-key'):
+                runner = CliRunner()
+                result = runner.invoke(main, [
+                    '--provider', 'auto',
+                    '--evolve',
+                    '--diversity-method', 'semantic',
+                    'Test question'
+                ])
+
+                # Should not fail at startup validation
+                assert 'Semantic diversity requires Gemini' not in result.output
+
+    def test_gemini_semantic_diversity_allowed(self):
+        """--provider gemini --diversity-method semantic should work."""
+        from mad_spark_alt.unified_cli import main
+
+        with patch('mad_spark_alt.unified_cli._run_qadi_sync') as mock_qadi:
+            with patch('os.getenv', return_value='fake-key'):
+                runner = CliRunner()
+                result = runner.invoke(main, [
+                    '--provider', 'gemini',
+                    '--evolve',
+                    '--diversity-method', 'semantic',
+                    'Test question'
+                ])
+
+                # Should not fail with semantic diversity error
+                assert 'Semantic diversity requires Gemini' not in result.output
+
+
 class TestPDFValidation:
     """Test PDF validation in --image flag."""
 
