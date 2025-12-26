@@ -183,7 +183,7 @@ class TestGeminiDiversityCalculator:
         from mad_spark_alt.core.llm_provider import EmbeddingResponse
         self.mock_provider.get_embeddings.return_value = EmbeddingResponse(
             embeddings=embeddings.tolist(),
-            model="text-embedding-004",
+            model="gemini-embedding-001",
             usage={"total_tokens": 100}
         )
         
@@ -211,7 +211,7 @@ class TestGeminiDiversityCalculator:
         from mad_spark_alt.core.llm_provider import EmbeddingResponse
         self.mock_provider.get_embeddings.return_value = EmbeddingResponse(
             embeddings=embeddings[:2].tolist(),  # Only return 2 embeddings
-            model="text-embedding-004",
+            model="gemini-embedding-001",
             usage={"total_tokens": 50}
         )
         
@@ -241,7 +241,7 @@ class TestGeminiDiversityCalculator:
         from mad_spark_alt.core.llm_provider import EmbeddingResponse
         self.mock_provider.get_embeddings.return_value = EmbeddingResponse(
             embeddings=embeddings.tolist(),
-            model="text-embedding-004",
+            model="gemini-embedding-001",
             usage={"total_tokens": 2000}
         )
         

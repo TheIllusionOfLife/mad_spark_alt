@@ -65,9 +65,9 @@ _INLINED_SCHEMA_CACHE: Dict[str, Dict[str, Any]] = {}
 # Embedding constants
 # Approximate ratio of tokens to words for estimation when API doesn't provide token count
 TOKEN_ESTIMATION_FACTOR = 1.3
-# Cost per 1K tokens for gemini-embedding-001 model (as of December 2025)
+# Cost per 1K tokens for gemini-embedding-001 model ($0.15 per 1M tokens, Dec 2025)
 # Note: text-embedding-004 deprecated January 2026
-EMBEDDING_COST_PER_1K_TOKENS = 0.0002
+EMBEDDING_COST_PER_1K_TOKENS = 0.00015
 
 
 def inline_schema_defs(schema: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:

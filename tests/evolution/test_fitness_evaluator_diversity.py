@@ -109,7 +109,7 @@ class TestFitnessEvaluatorDiversity:
         from mad_spark_alt.core.llm_provider import EmbeddingResponse
         mock_provider.get_embeddings.return_value = EmbeddingResponse(
             embeddings=embeddings.tolist(),
-            model="text-embedding-004",
+            model="gemini-embedding-001",
             usage={"total_tokens": 100}
         )
         

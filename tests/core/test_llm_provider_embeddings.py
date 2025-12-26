@@ -53,14 +53,14 @@ class TestEmbeddingDataStructures:
         """Test EmbeddingResponse structure."""
         response = EmbeddingResponse(
             embeddings=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
-            model="text-embedding-004",
+            model="gemini-embedding-001",
             usage={"total_tokens": 100},
             cost=0.001
         )
-        
+
         assert len(response.embeddings) == 2
         assert len(response.embeddings[0]) == 3
-        assert response.model == "text-embedding-004"
+        assert response.model == "gemini-embedding-001"
         assert response.usage["total_tokens"] == 100
         assert response.cost == 0.001
 
