@@ -694,6 +694,14 @@ def main(
             console.print("  3. Remove --document/--url flags (text/image only with Ollama)")
             ctx.exit(1)
 
+        # Validate semantic diversity requires Gemini (Ollama doesn't support embeddings API)
+        if provider_selection == ProviderSelection.OLLAMA and evolve and diversity_method.lower() == "semantic":
+            console.print("[red]Error: Semantic diversity requires Gemini API for embeddings[/red]")
+            console.print("\n[yellow]Options:[/yellow]")
+            console.print("  1. Use --provider auto or --provider gemini")
+            console.print("  2. Use --diversity-method jaccard with --provider ollama")
+            ctx.exit(1)
+
         # For auto mode, check if we have necessary providers
         if provider_selection == ProviderSelection.AUTO:
             if (has_documents or has_urls) and not google_key:
@@ -1052,10 +1060,13 @@ async def _run_qadi_analysis(
         else:
             # Standard routing: single provider handles everything
             # Uses ProviderRouter.run_qadi_with_fallback() for SDK-consistent behavior
+            # Disable fallback if user explicitly requested a specific provider
+            # Only auto mode should fallback - explicit provider choice means "this or fail"
+            enable_fallback = provider_selection == ProviderSelection.AUTO
             result, active_provider, used_fallback = await router.run_qadi_with_fallback(
                 user_input=user_input,
                 primary_provider=primary_provider,
-                fallback_provider=gemini_provider,
+                fallback_provider=gemini_provider if enable_fallback else None,
                 temperature_override=temperature,
                 num_hypotheses=num_hypotheses,
                 multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
