@@ -193,6 +193,8 @@ Mad Spark Alt is a Multi-Agent Idea Generation System powered by LLMs using the 
 
 | PR | Feature | Key Pattern |
 |----|---------|-------------|
+| #176 | Embedding Model | `gemini-embedding-001` default; $0.15/1M tokens; 768 dimensions |
+| #175 | Explicit Provider | `--provider ollama` = no fallback; semantic diversity + Ollama = startup error |
 | #173 | Model Registry | `ModelSpec` dataclass; token multiplier for reasoning models; `get_model_spec()` API |
 | #71, #107 | Structured Output | `responseJsonSchema` (NOT `responseSchema`); JSON→regex→default fallback |
 | #141, #142 | Pydantic Schemas | `Field(ge=0.0, le=1.0)` for validation; 3-layer fallback (Pydantic→JSON→text) |

@@ -1,6 +1,6 @@
 # Session Handover
 
-## Last Updated: December 18, 2025
+## Last Updated: December 26, 2025
 
 ---
 
@@ -11,6 +11,23 @@
 ---
 
 ## Recently Completed
+
+### PR #176: Upgrade Embedding Model - MERGED ✅ (December 26, 2025)
+**Summary**: Migrated from deprecated `text-embedding-004` to `gemini-embedding-001`.
+
+**Key Changes**:
+- ✅ Default model: `text-embedding-004` → `gemini-embedding-001`
+- ✅ Updated pricing: $0.15 per 1M tokens ($0.00015/1K)
+- ✅ Default 768 dimensions (MRL-supported, can reduce to 256)
+- ✅ Updated all test files with new model name
+
+### PR #175: Disable Gemini Fallback for Explicit Provider - MERGED ✅ (December 26, 2025)
+**Summary**: When `--provider ollama` is explicitly set, disable all fallback mechanisms.
+
+**Key Changes**:
+- ✅ `--provider auto`: Falls back to Gemini (unchanged)
+- ✅ `--provider ollama`: No fallback, fails if Ollama unavailable
+- ✅ `--provider ollama --diversity-method semantic`: Error at startup (requires Gemini embeddings)
 
 ### PR #173: Gemini 3 Flash + Model Registry - MERGED ✅ (December 18, 2025)
 **Summary**: Upgraded to Gemini 3 Flash with centralized model registry for future multi-provider support.
@@ -113,6 +130,7 @@
 
 | Date | PRs | Key Work |
 |------|-----|----------|
+| Dec 26, 2025 | #175, #176 | Explicit provider fallback control, embedding model upgrade |
 | Dec 18, 2025 | #171, #172, #173 | Gemini 3 Flash, model registry, docs sync, cleanup |
 | Dec 16, 2025 | #166, #167 | Induction redesign, evolution timeouts |
 | Dec 15, 2025 | #165 | Outlines for Ollama structured output |
