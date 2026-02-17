@@ -1643,9 +1643,7 @@ async def _run_evolution(
 
         # Calculate adaptive timeout
         evolution_timeout = calculate_evolution_timeout(generations, actual_population)
-        print(
-            f"⏱️  Evolution timeout: {evolution_timeout:.0f}s (adjust --generations or --population if needed)"
-        )
+        console.print(f"⏱️  Evolution timeout: {evolution_timeout:.0f}s (adjust --generations or --population if needed)")
 
         # Setup progress indicator (only if not verbose)
         progress_ctx = _create_cli_spinner(verbose)
@@ -1665,13 +1663,13 @@ async def _run_evolution(
             evolution_time = time.time() - evolution_start
         except asyncio.TimeoutError:
             evolution_time = time.time() - evolution_start
-            print(f"\n❌ Evolution timed out after {evolution_time:.1f}s")
-            print("💡 Try reducing --generations or --population for faster results")
-            print("   Example: --evolve --generations 2 --population 5")
+            console.print(f"\n[red]❌ Evolution timed out after {evolution_time:.1f}s[/red]")
+            console.print("[yellow]💡 Try reducing --generations or --population for faster results[/yellow]")
+            console.print("   Example: --evolve --generations 2 --population 5")
             return None
 
         if evolution_result.success:
-            print(f"\n✅ Evolution completed in {evolution_time:.1f}s")
+            console.print(f"\n[green]✅ Evolution completed in {evolution_time:.1f}s[/green]")
 
             # Display results
             _display_evolution_results(evolution_result, qadi_result, verbose)
