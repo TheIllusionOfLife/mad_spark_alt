@@ -441,6 +441,10 @@ class ProviderRouter:
                 addr_info = socket.getaddrinfo(hostname_decoded, None)
                 for _, _, _, _, sockaddr in addr_info:
                     ip_str = sockaddr[0]
+                    # Ensure we have a string (AF_INET/AF_INET6), skip if not (e.g. AF_UNIX)
+                    if not isinstance(ip_str, str):
+                        continue
+
                     try:
                         # Remove scope ID from IPv6 address if present (e.g. fe80::1%lo0)
                         if "%" in ip_str:
