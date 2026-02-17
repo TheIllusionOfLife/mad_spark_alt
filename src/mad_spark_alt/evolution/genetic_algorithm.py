@@ -643,7 +643,7 @@ class GeneticAlgorithm:
         evaluation_context: Optional["EvaluationContext"] = None,
     ) -> List[IndividualFitness]:
         """Generate offspring using the original sequential approach."""
-        unevaluated_offspring = []
+        unevaluated_offspring: List[GeneratedIdea] = []
         
         # Optimization: Collect all offspring first, then evaluate in batch
         while len(new_population) + len(unevaluated_offspring) < config.population_size:
