@@ -22,6 +22,7 @@ import ipaddress
 import json
 import logging
 import mimetypes
+import socket
 from enum import Enum
 from hashlib import sha256
 from pathlib import Path
@@ -388,11 +389,9 @@ class ProviderRouter:
         - Internal/private IPs (localhost, 127.0.0.1, 10.x.x.x, etc.)
         - Cloud metadata endpoints (AWS, GCP, Azure)
 
-        Known Limitation:
-            This validation checks the URL hostname but does NOT resolve DNS.
-            Hostnames that resolve to private IPs (DNS rebinding attacks) are not
-            blocked. For maximum security in production, consider using a DNS resolver
-            to verify the resolved IP is not private before fetching.
+        This validation performs DNS resolution to detect:
+        - DNS rebinding attacks (hostnames resolving to private IPs)
+        - Internal hostnames that resolve to internal IPs
 
         Args:
             url: URL string to validate
@@ -433,6 +432,33 @@ class ProviderRouter:
             # Use lowercase comparison to prevent case-sensitivity bypass (e.g., METADATA.GOOGLE.INTERNAL)
             if any(pattern in hostname_decoded for pattern in _BLOCKED_METADATA_PATTERNS):
                 raise ValueError(f"Cloud metadata endpoints not allowed: {url}")
+
+            # 4. Resolve hostname to check for private IPs (DNS rebinding protection)
+            try:
+                # Use getaddrinfo to support both IPv4 and IPv6
+                # This blocks, but ensures we check the resolved IP.
+                # Since this is a CLI tool, brief blocking for security check is acceptable.
+                addr_info = socket.getaddrinfo(hostname_decoded, None)
+                for _, _, _, _, sockaddr in addr_info:
+                    ip_str = sockaddr[0]
+                    try:
+                        # Remove scope ID from IPv6 address if present (e.g. fe80::1%lo0)
+                        if "%" in ip_str:
+                            ip_str = ip_str.split("%")[0]
+
+                        ip = ipaddress.ip_address(ip_str)
+                    except ValueError:
+                        continue
+
+                    if ip.is_private or ip.is_loopback or ip.is_link_local:
+                        raise ValueError(
+                            f"Hostname '{hostname}' resolves to private/internal IP {ip_str}"
+                        )
+            except socket.gaierror:
+                # DNS resolution failed - could be invalid hostname or network issue.
+                # We proceed with caution (allow) since we can't verify, and fetching
+                # will likely fail anyway if DNS is broken.
+                pass
 
     async def _read_text_document(self, file_path: Path) -> str:
         """
