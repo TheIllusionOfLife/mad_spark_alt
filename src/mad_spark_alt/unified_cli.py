@@ -148,10 +148,13 @@ def load_env_file(env_path: Optional[Path] = None) -> None:
     if env_path is None:
         env_path = Path(__file__).parent.parent.parent / ".env"
 
-    if env_path.exists():
-        # Use python-dotenv to load environment variables securely
-        # override=False ensures we don't overwrite existing environment variables
-        load_dotenv(dotenv_path=env_path, override=False)
+    if env_path.is_file():
+        try:
+            # Use python-dotenv to load environment variables securely
+            # override=False ensures we don't overwrite existing environment variables
+            load_dotenv(dotenv_path=env_path, override=False)
+        except Exception as e:
+            logger.warning(f"Failed to load .env file: {e}")
 
 
 def setup_logging(verbose: bool = False) -> None:

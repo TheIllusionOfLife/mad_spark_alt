@@ -46,3 +46,28 @@ def test_no_override_existing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     load_env_file(env_file)
 
     assert os.environ["EXISTING_KEY"] == "original_value"
+
+
+def test_directory_named_env_is_skipped(tmp_path: Path) -> None:
+    """A directory named .env must not be passed to load_dotenv."""
+    env_dir = tmp_path / ".env"
+    env_dir.mkdir()
+
+    # Should not raise — is_file() check skips directories
+    load_env_file(env_dir)
+
+
+def test_unreadable_env_file_logs_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """An unreadable .env file should log a warning instead of crashing."""
+    from unittest.mock import patch
+    from dotenv import load_dotenv as _load_dotenv
+
+    env_file = tmp_path / ".env"
+    env_file.write_text("KEY=value", encoding="utf-8")
+
+    with patch("mad_spark_alt.unified_cli.load_dotenv", side_effect=OSError("Permission denied")):
+        import logging
+        with caplog.at_level(logging.WARNING, logger="mad_spark_alt.unified_cli"):
+            load_env_file(env_file)
+
+    assert any("Failed to load .env file" in r.message for r in caplog.records)
