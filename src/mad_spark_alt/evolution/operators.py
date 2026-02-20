@@ -14,7 +14,6 @@ from mad_spark_alt.evolution.constants import (
     DEFAULT_CONFIDENCE_SCORE,
     MUTATION_CONFIDENCE_REDUCTION,
     SELECTION_PRESSURE_ADJUSTMENT,
-    ZERO_SCORE,
 )
 from mad_spark_alt.evolution.interfaces import (
     CrossoverInterface,
@@ -357,8 +356,6 @@ class RouletteWheelSelection(SelectionInterface):
         Returns:
             Selected individuals
         """
-        selected = []
-
         # Calculate total fitness (ensure all positive)
         min_fitness = min(ind.overall_fitness for ind in population)
         if min_fitness < 0:
@@ -373,18 +370,12 @@ class RouletteWheelSelection(SelectionInterface):
                 for ind in population
             ]  # Avoid zero
 
-        total_fitness = sum(adjusted_fitnesses)
-
-        for _ in range(num_selected):
-            # Spin the roulette wheel
-            spin = random.uniform(0, total_fitness)
-            cumulative = ZERO_SCORE
-
-            for i, fitness in enumerate(adjusted_fitnesses):
-                cumulative += fitness
-                if cumulative >= spin:
-                    selected.append(population[i])
-                    break
+        # Use random.choices for O(n) weighted selection instead of O(k*n) manual loop
+        selected = random.choices(
+            population,
+            weights=adjusted_fitnesses,
+            k=num_selected,
+        )
 
         return selected
 
@@ -421,26 +412,19 @@ class RankSelection(SelectionInterface):
         Returns:
             Selected individuals
         """
-        selected = []
-
         # Sort population by fitness and assign ranks
         sorted_pop = sorted(population, key=lambda x: x.overall_fitness, reverse=True)
         n = len(sorted_pop)
 
         # Create rank-based weights (linear ranking)
         ranks = list(range(n, 0, -1))  # Best gets rank n, worst gets rank 1
-        total_rank = sum(ranks)
 
-        for _ in range(num_selected):
-            # Select based on rank probability
-            spin = random.uniform(0, total_rank)
-            cumulative = ZERO_SCORE
-
-            for i, rank in enumerate(ranks):
-                cumulative += rank
-                if cumulative >= spin:
-                    selected.append(sorted_pop[i])
-                    break
+        # Use random.choices for O(n) weighted selection
+        selected = random.choices(
+            sorted_pop,
+            weights=ranks,
+            k=num_selected,
+        )
 
         return selected
 
