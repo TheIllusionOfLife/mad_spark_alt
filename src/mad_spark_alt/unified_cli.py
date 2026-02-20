@@ -7,6 +7,7 @@ command-line interface with Click framework.
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 import mimetypes
@@ -16,14 +17,14 @@ import sys
 import time
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, ContextManager, Dict, List, Optional, Set
 
 import click
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.json import JSON
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
 from .core import (
@@ -78,7 +79,21 @@ def _get_semantic_operator_status() -> str:
         return "Semantic operators: DISABLED (traditional operators only)"
 
 
-def _format_idea_for_display(content: str, max_length: Optional[int] = None) -> str:
+def _create_cli_spinner(verbose: bool) -> ContextManager[Optional[Progress]]:
+    """Return a transient progress spinner, or nullcontext when verbose output is active."""
+    if verbose:
+        return contextlib.nullcontext()
+    return Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        TimeElapsedColumn(),
+        transient=True,
+    )
+
+
+def _format_idea_for_display(
+    content: str, max_length: Optional[int] = None
+) -> str:
     """Format idea content for display with smart truncation.
 
     Args:
@@ -1253,13 +1268,19 @@ async def _run_qadi_analysis(
             f"Context from text documents:\n{text_context}\n\nQuestion: {user_input}"
         )
 
+    # Setup progress indicator (only if not verbose)
+    progress_ctx = _create_cli_spinner(verbose)
+
     try:
-        # Use hybrid routing if documents/URLs present
-        # Hybrid mode: Gemini extracts document/URL content once, then runs QADI
-        # This is more efficient than re-processing documents in each QADI phase
-        if is_hybrid_mode:
-            result, active_provider, used_fallback, hybrid_metadata = (
-                await router.run_hybrid_qadi(
+        with progress_ctx as progress:
+            if progress:
+                progress.add_task(description="Running QADI analysis...", total=None)
+
+            # Use hybrid routing if documents/URLs present
+            # Hybrid mode: Gemini extracts document/URL content once, then runs QADI
+            # This is more efficient than re-processing documents in each QADI phase
+            if is_hybrid_mode:
+                result, active_provider, used_fallback, hybrid_metadata = await router.run_hybrid_qadi(
                     user_input=user_input,
                     document_paths=document_paths,
                     urls=urls,
@@ -1267,29 +1288,25 @@ async def _run_qadi_analysis(
                     temperature_override=temperature,
                     num_hypotheses=num_hypotheses,
                 )
-            )
 
-            if hybrid_metadata:
-                # Show preprocessing info
-                preprocess_cost = hybrid_metadata.get("preprocessing_cost", 0.0)
-                extracted_len = hybrid_metadata.get("extracted_content_length", 0)
-                if verbose:
-                    print(
-                        f"📄 Preprocessing: Extracted {extracted_len} characters (cost: ${preprocess_cost:.6f})"
-                    )
+                if hybrid_metadata:
+                    # Show preprocessing info
+                    preprocess_cost = hybrid_metadata.get("preprocessing_cost", 0.0)
+                    extracted_len = hybrid_metadata.get("extracted_content_length", 0)
+                    if verbose:
+                        print(f"📄 Preprocessing: Extracted {extracted_len} characters (cost: ${preprocess_cost:.6f})")
 
-            if used_fallback:
-                print("\n⚠️  Ollama failed during QADI")
-                print("🔄 Fell back to Gemini-only mode (using extracted context)")
-                print("✅ Successfully completed with Gemini fallback\n")
-        else:
-            # Standard routing: single provider handles everything
-            # Uses ProviderRouter.run_qadi_with_fallback() for SDK-consistent behavior
-            # Disable fallback if user explicitly requested a specific provider
-            # Only auto mode should fallback - explicit provider choice means "this or fail"
-            enable_fallback = provider_selection == ProviderSelection.AUTO
-            result, active_provider, used_fallback = (
-                await router.run_qadi_with_fallback(
+                if used_fallback:
+                    print("\n⚠️  Ollama failed during QADI")
+                    print("🔄 Fell back to Gemini-only mode (using extracted context)")
+                    print("✅ Successfully completed with Gemini fallback\n")
+            else:
+                # Standard routing: single provider handles everything
+                # Uses ProviderRouter.run_qadi_with_fallback() for SDK-consistent behavior
+                # Disable fallback if user explicitly requested a specific provider
+                # Only auto mode should fallback - explicit provider choice means "this or fail"
+                enable_fallback = provider_selection == ProviderSelection.AUTO
+                result, active_provider, used_fallback = await router.run_qadi_with_fallback(
                     user_input=user_input,
                     primary_provider=primary_provider,
                     fallback_provider=gemini_provider if enable_fallback else None,
@@ -1298,14 +1315,11 @@ async def _run_qadi_analysis(
                     multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
                     urls=url_list,
                 )
-            )
 
-            if used_fallback:
-                print(
-                    f"\n⚠️  Primary provider ({primary_provider.__class__.__name__}) failed"
-                )
-                print("🔄 Fell back to Gemini API")
-                print("✅ Successfully completed with Gemini fallback\n")
+                if used_fallback:
+                    print(f"\n⚠️  Primary provider ({primary_provider.__class__.__name__}) failed")
+                    print("🔄 Fell back to Gemini API")
+                    print("✅ Successfully completed with Gemini fallback\n")
 
         # Extract key solutions for summary
         key_solutions = extract_key_solutions(
@@ -1633,38 +1647,24 @@ async def _run_evolution(
             f"⏱️  Evolution timeout: {evolution_timeout:.0f}s (adjust --generations or --population if needed)"
         )
 
-        # Progress indicator
-        async def show_progress(start_time: float, timeout: float) -> None:
-            try:
-                elapsed = 0.0
-                while elapsed < timeout:
-                    await asyncio.sleep(10)
-                    elapsed = time.time() - start_time
-                    remaining = max(0, timeout - elapsed)
-                    print(
-                        f"   ...evolving ({elapsed:.0f}s elapsed, ~{remaining:.0f}s remaining)",
-                        end="\r",
-                    )
-            except asyncio.CancelledError:
-                pass
+        # Setup progress indicator (only if not verbose)
+        progress_ctx = _create_cli_spinner(verbose)
 
         # Run evolution with timeout protection
         evolution_start = time.time()
-        progress_task = asyncio.create_task(
-            show_progress(evolution_start, evolution_timeout)
-        )
 
         try:
-            evolution_result = await asyncio.wait_for(
-                ga.evolve(request), timeout=evolution_timeout
-            )
+            with progress_ctx as progress:
+                if progress:
+                    progress.add_task(description=f"Evolving {generations} generations...", total=None)
+
+                evolution_result = await asyncio.wait_for(
+                    ga.evolve(request),
+                    timeout=evolution_timeout
+                )
             evolution_time = time.time() - evolution_start
-            progress_task.cancel()
-            print()
         except asyncio.TimeoutError:
-            progress_task.cancel()
             evolution_time = time.time() - evolution_start
-            print()
             print(f"\n❌ Evolution timed out after {evolution_time:.1f}s")
             print("💡 Try reducing --generations or --population for faster results")
             print("   Example: --evolve --generations 2 --population 5")
