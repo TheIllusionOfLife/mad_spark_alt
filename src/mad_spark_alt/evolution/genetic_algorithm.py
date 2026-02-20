@@ -643,8 +643,10 @@ class GeneticAlgorithm:
         evaluation_context: Optional["EvaluationContext"] = None,
     ) -> List[IndividualFitness]:
         """Generate offspring using the original sequential approach."""
+        unevaluated_offspring: List[GeneratedIdea] = []
         
-        while len(new_population) < config.population_size:
+        # Optimization: Collect all offspring first, then evaluate in batch
+        while len(unevaluated_offspring) < num_offspring_needed:
             # Selection
             parents = await selector.select(population, 2, config)
 
@@ -693,14 +695,18 @@ class GeneticAlgorithm:
             offspring1.metadata["generation"] = generation + 1
             offspring2.metadata["generation"] = generation + 1
 
-            # Add to new population (as unevaluated ideas)
-            new_ideas = [offspring1]
-            if len(new_population) + 1 < config.population_size:
-                new_ideas.append(offspring2)
+            # Add to buffer (as unevaluated ideas)
+            unevaluated_offspring.append(offspring1)
 
-            # Evaluate new offspring
+            # Check if we still need more (in case we only needed 1 more)
+            if len(unevaluated_offspring) < num_offspring_needed:
+                unevaluated_offspring.append(offspring2)
+
+        # Batch evaluation of all collected offspring
+        if unevaluated_offspring:
+            logger.info(f"Batch evaluating {len(unevaluated_offspring)} offspring")
             evaluated_offspring = await self.fitness_evaluator.evaluate_population(
-                new_ideas, config, context
+                unevaluated_offspring, config, context
             )
             new_population.extend(evaluated_offspring)
 
