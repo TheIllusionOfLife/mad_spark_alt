@@ -30,80 +30,90 @@ from mad_spark_alt.core.provider_router import ProviderRouter
 class TestURLValidation:
     """Test URL validation for SSRF prevention."""
 
-    def test_valid_https_url_passes(self):
+    @patch("socket.getaddrinfo")
+    async def test_valid_https_url_passes(self, mock_getaddrinfo):
         """Test that valid HTTPS URLs are accepted."""
+        import socket as _socket
+        mock_getaddrinfo.return_value = [
+            (_socket.AF_INET, _socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))
+        ]
         router = ProviderRouter(gemini_provider=None, ollama_provider=None)
         # Should not raise any exception
-        router._validate_url_security("https://example.com/article")
-        router._validate_url_security("https://news.com/breaking/story?id=123")
-        router._validate_url_security("https://sub.domain.org/path/to/resource")
+        await router._validate_url_security("https://example.com/article")
+        await router._validate_url_security("https://news.com/breaking/story?id=123")
+        await router._validate_url_security("https://sub.domain.org/path/to/resource")
 
-    def test_valid_http_url_passes(self):
+    @patch("socket.getaddrinfo")
+    async def test_valid_http_url_passes(self, mock_getaddrinfo):
         """Test that valid HTTP URLs are accepted (some sites lack HTTPS)."""
+        import socket as _socket
+        mock_getaddrinfo.return_value = [
+            (_socket.AF_INET, _socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+        ]
         router = ProviderRouter(gemini_provider=None, ollama_provider=None)
         # HTTP should be allowed for compatibility
-        router._validate_url_security("http://legacy-site.com/data")
+        await router._validate_url_security("http://legacy-site.com/data")
 
-    def test_file_scheme_blocked(self):
+    async def test_file_scheme_blocked(self):
         """Test that file:// URLs are blocked."""
         router = ProviderRouter(gemini_provider=None, ollama_provider=None)
         with pytest.raises(ValueError, match="Unsupported URL scheme"):
-            router._validate_url_security("file:///etc/passwd")
+            await router._validate_url_security("file:///etc/passwd")
 
-    def test_ftp_scheme_blocked(self):
+    async def test_ftp_scheme_blocked(self):
         """Test that ftp:// URLs are blocked."""
         router = ProviderRouter(gemini_provider=None, ollama_provider=None)
         with pytest.raises(ValueError, match="Unsupported URL scheme"):
-            router._validate_url_security("ftp://example.com/file")
+            await router._validate_url_security("ftp://example.com/file")
 
-    def test_localhost_blocked(self):
+    async def test_localhost_blocked(self):
         """Test that localhost URLs are blocked."""
         router = ProviderRouter(gemini_provider=None, ollama_provider=None)
         with pytest.raises(ValueError, match="Internal URLs not allowed"):
-            router._validate_url_security("http://localhost:8080/admin")
+            await router._validate_url_security("http://localhost:8080/admin")
         with pytest.raises(ValueError, match="Internal URLs not allowed"):
-            router._validate_url_security("https://127.0.0.1/secret")
+            await router._validate_url_security("https://127.0.0.1/secret")
         with pytest.raises(ValueError, match="Internal URLs not allowed"):
-            router._validate_url_security("http://0.0.0.0:3000/")
+            await router._validate_url_security("http://0.0.0.0:3000/")
 
-    def test_private_ip_ranges_blocked(self):
+    async def test_private_ip_ranges_blocked(self):
         """Test that private IP ranges are blocked."""
         router = ProviderRouter(gemini_provider=None, ollama_provider=None)
 
         # 10.x.x.x range
         with pytest.raises(ValueError, match="Private/internal IP not allowed"):
-            router._validate_url_security("http://10.0.0.1/internal")
+            await router._validate_url_security("http://10.0.0.1/internal")
 
         # 192.168.x.x range
         with pytest.raises(ValueError, match="Private/internal IP not allowed"):
-            router._validate_url_security("http://192.168.1.1/router")
+            await router._validate_url_security("http://192.168.1.1/router")
 
         # 172.16.x.x range (part of private block B)
         with pytest.raises(ValueError, match="Private/internal IP not allowed"):
-            router._validate_url_security("http://172.31.0.1/")
+            await router._validate_url_security("http://172.31.0.1/")
 
-    def test_cloud_metadata_endpoints_blocked(self):
+    async def test_cloud_metadata_endpoints_blocked(self):
         """Test that cloud metadata endpoints are blocked (SSRF target)."""
         router = ProviderRouter(gemini_provider=None, ollama_provider=None)
         # AWS metadata endpoint (also link-local IP, so may be caught by IP check first)
         with pytest.raises(ValueError, match="(Cloud metadata|Private/internal IP)"):
-            router._validate_url_security("http://169.254.169.254/latest/meta-data/")
+            await router._validate_url_security("http://169.254.169.254/latest/meta-data/")
         # GCP metadata (hostname-based)
         with pytest.raises(ValueError, match="Cloud metadata endpoints not allowed"):
-            router._validate_url_security("http://metadata.google.internal/computeMetadata/")
+            await router._validate_url_security("http://metadata.google.internal/computeMetadata/")
         # Azure metadata (hostname-based)
         with pytest.raises(ValueError, match="Cloud metadata endpoints not allowed"):
-            router._validate_url_security("http://metadata.azure.com/instance")
+            await router._validate_url_security("http://metadata.azure.com/instance")
         # Case-insensitive check (prevent bypass with uppercase)
         with pytest.raises(ValueError, match="Cloud metadata endpoints not allowed"):
-            router._validate_url_security("http://METADATA.GOOGLE.INTERNAL/computeMetadata/")
+            await router._validate_url_security("http://METADATA.GOOGLE.INTERNAL/computeMetadata/")
         with pytest.raises(ValueError, match="Cloud metadata endpoints not allowed"):
-            router._validate_url_security("http://Metadata.Azure.Com/instance")
+            await router._validate_url_security("http://Metadata.Azure.Com/instance")
         # Percent-encoded bypass prevention
         with pytest.raises(ValueError, match="Internal URLs not allowed"):
-            router._validate_url_security("http://127.0.0.1%2e/admin")
+            await router._validate_url_security("http://127.0.0.1%2e/admin")
         with pytest.raises(ValueError, match="Internal URLs not allowed"):
-            router._validate_url_security("http://local%68ost:8080/")
+            await router._validate_url_security("http://local%68ost:8080/")
 
     @pytest.mark.asyncio
     async def test_url_validation_called_during_extraction(self):

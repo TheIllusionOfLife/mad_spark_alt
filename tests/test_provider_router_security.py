@@ -17,13 +17,13 @@ class TestProviderRouterSecurity:
             ollama_provider=MagicMock()
         )
 
-    def test_validate_url_public_ip(self, router):
+    async def test_validate_url_public_ip(self, router):
         """Test public IP addresses are allowed."""
         # 8.8.8.8 is Google DNS (public)
-        router._validate_url_security("https://8.8.8.8")
-        router._validate_url_security("http://93.184.216.34")  # example.com
+        await router._validate_url_security("https://8.8.8.8")
+        await router._validate_url_security("http://93.184.216.34")  # example.com
 
-    def test_validate_url_private_ip_blocked(self, router):
+    async def test_validate_url_private_ip_blocked(self, router):
         """Test private IP addresses are blocked."""
         private_ips = [
             "http://127.0.0.1",
@@ -36,9 +36,9 @@ class TestProviderRouterSecurity:
         ]
         for url in private_ips:
             with pytest.raises(ValueError, match="Internal URLs not allowed|Private/internal IP not allowed"):
-                router._validate_url_security(url)
+                await router._validate_url_security(url)
 
-    def test_validate_url_cloud_metadata_blocked(self, router):
+    async def test_validate_url_cloud_metadata_blocked(self, router):
         """Test cloud metadata endpoints are blocked."""
         metadata_urls = [
             "http://169.254.169.254/latest/meta-data/",
@@ -46,10 +46,10 @@ class TestProviderRouterSecurity:
         ]
         for url in metadata_urls:
             with pytest.raises(ValueError, match="Cloud metadata endpoints not allowed|Private/internal IP not allowed"):
-                router._validate_url_security(url)
+                await router._validate_url_security(url)
 
     @patch("socket.getaddrinfo")
-    def test_validate_url_dns_resolution_public(self, mock_getaddrinfo, router):
+    async def test_validate_url_dns_resolution_public(self, mock_getaddrinfo, router):
         """Test hostname resolving to public IP is allowed."""
         # Mock DNS resolution to return a public IP
         # (family, type, proto, canonname, sockaddr)
@@ -57,11 +57,11 @@ class TestProviderRouterSecurity:
             (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
         ]
 
-        router._validate_url_security("http://example.com")
+        await router._validate_url_security("http://example.com")
         mock_getaddrinfo.assert_called()
 
     @patch("socket.getaddrinfo")
-    def test_validate_url_dns_resolution_private_blocked(self, mock_getaddrinfo, router):
+    async def test_validate_url_dns_resolution_private_blocked(self, mock_getaddrinfo, router):
         """Test hostname resolving to private IP is blocked."""
         # Mock DNS resolution to return a private IP
         mock_getaddrinfo.return_value = [
@@ -69,20 +69,20 @@ class TestProviderRouterSecurity:
         ]
 
         with pytest.raises(ValueError, match="resolves to private/internal IP"):
-            router._validate_url_security("http://internal-site.com")
+            await router._validate_url_security("http://internal-site.com")
 
     @patch("socket.getaddrinfo")
-    def test_validate_url_dns_resolution_loopback_blocked(self, mock_getaddrinfo, router):
+    async def test_validate_url_dns_resolution_loopback_blocked(self, mock_getaddrinfo, router):
         """Test hostname resolving to loopback is blocked."""
         mock_getaddrinfo.return_value = [
             (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))
         ]
 
         with pytest.raises(ValueError, match="resolves to private/internal IP"):
-            router._validate_url_security("http://localtest.me")
+            await router._validate_url_security("http://localtest.me")
 
     @patch("socket.getaddrinfo")
-    def test_validate_url_dns_resolution_ipv6_private_blocked(self, mock_getaddrinfo, router):
+    async def test_validate_url_dns_resolution_ipv6_private_blocked(self, mock_getaddrinfo, router):
         """Test hostname resolving to IPv6 private/link-local is blocked."""
         # IPv6 sockaddr is (address, port, flowinfo, scopeid)
         mock_getaddrinfo.return_value = [
@@ -90,12 +90,13 @@ class TestProviderRouterSecurity:
         ]
 
         with pytest.raises(ValueError, match="resolves to private/internal IP"):
-            router._validate_url_security("http://ipv6-internal.com")
+            await router._validate_url_security("http://ipv6-internal.com")
 
     @patch("socket.getaddrinfo")
-    def test_validate_url_dns_resolution_failure_allowed(self, mock_getaddrinfo, router):
-        """Test DNS resolution failure allows execution (fail-open for connectivity issues)."""
+    async def test_validate_url_dns_resolution_failure_blocked(self, mock_getaddrinfo, router):
+        """Test DNS resolution failure blocks the request (fail-closed for security)."""
         mock_getaddrinfo.side_effect = socket.gaierror("Name or service not known")
 
-        # Should not raise exception
-        router._validate_url_security("http://nonexistent-domain.com")
+        # Should raise ValueError - fail-closed prevents bypass via DNS failure
+        with pytest.raises(ValueError, match="DNS resolution failed"):
+            await router._validate_url_security("http://nonexistent-domain.com")

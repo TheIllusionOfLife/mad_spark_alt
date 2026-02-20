@@ -380,7 +380,7 @@ class ProviderRouter:
             for keyword in _OLLAMA_FAILURE_KEYWORDS
         )
 
-    def _validate_url_security(self, url: str) -> None:
+    async def _validate_url_security(self, url: str) -> None:
         """
         Validate URL is safe to fetch (prevent SSRF attacks).
 
@@ -434,11 +434,14 @@ class ProviderRouter:
                 raise ValueError(f"Cloud metadata endpoints not allowed: {url}")
 
             # 4. Resolve hostname to check for private IPs (DNS rebinding protection)
+            # Uses run_in_executor to avoid blocking the event loop during DNS resolution.
+            # DNS resolution failure is treated as a security error (fail-closed) to prevent
+            # attackers from triggering resolution failures to bypass SSRF protection.
             try:
-                # Use getaddrinfo to support both IPv4 and IPv6
-                # This blocks, but ensures we check the resolved IP.
-                # Since this is a CLI tool, brief blocking for security check is acceptable.
-                addr_info = socket.getaddrinfo(hostname_decoded, None)
+                loop = asyncio.get_event_loop()
+                addr_info = await loop.run_in_executor(
+                    None, socket.getaddrinfo, hostname_decoded, None
+                )
                 for _, _, _, _, sockaddr in addr_info:
                     ip_str = sockaddr[0]
                     # Ensure we have a string (AF_INET/AF_INET6), skip if not (e.g. AF_UNIX)
@@ -458,11 +461,13 @@ class ProviderRouter:
                         raise ValueError(
                             f"Hostname '{hostname}' resolves to private/internal IP {ip_str}"
                         )
-            except socket.gaierror:
-                # DNS resolution failed - could be invalid hostname or network issue.
-                # We proceed with caution (allow) since we can't verify, and fetching
-                # will likely fail anyway if DNS is broken.
-                pass
+            except socket.gaierror as e:
+                # Fail-closed: DNS resolution failure blocks the request.
+                # Allowing unresolvable hostnames would let attackers bypass SSRF protection
+                # by deliberately triggering DNS failures.
+                raise ValueError(
+                    f"DNS resolution failed for '{hostname_decoded}': {e}"
+                ) from e
 
     async def _read_text_document(self, file_path: Path) -> str:
         """
@@ -713,7 +718,7 @@ class ProviderRouter:
         # This ensures security checks run regardless of hybrid vs non-hybrid path
         if urls:
             for url in urls:
-                self._validate_url_security(url)
+                await self._validate_url_security(url)
 
         # Import here to avoid circular dependency
         from .simple_qadi_orchestrator import SimpleQADIOrchestrator
@@ -813,7 +818,7 @@ class ProviderRouter:
 
         # Validate URLs for security (SSRF prevention)
         for url in urls:
-            self._validate_url_security(url)
+            await self._validate_url_security(url)
 
         # Check cache for full extraction (PDFs + URLs composite)
         if document_paths or urls:
