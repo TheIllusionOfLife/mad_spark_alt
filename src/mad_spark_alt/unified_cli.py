@@ -17,7 +17,7 @@ import sys
 import time
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, ContextManager, Dict, List, Optional, Set
 
 import click
 from dotenv import load_dotenv
@@ -79,7 +79,21 @@ def _get_semantic_operator_status() -> str:
         return "Semantic operators: DISABLED (traditional operators only)"
 
 
-def _format_idea_for_display(content: str, max_length: Optional[int] = None) -> str:
+def _create_cli_spinner(verbose: bool) -> ContextManager[Optional[Progress]]:
+    """Return a transient progress spinner, or nullcontext when verbose output is active."""
+    if verbose:
+        return contextlib.nullcontext()
+    return Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        TimeElapsedColumn(),
+        transient=True,
+    )
+
+
+def _format_idea_for_display(
+    content: str, max_length: Optional[int] = None
+) -> str:
     """Format idea content for display with smart truncation.
 
     Args:
@@ -1255,16 +1269,7 @@ async def _run_qadi_analysis(
         )
 
     # Setup progress indicator (only if not verbose)
-    progress_ctx: Any = (
-        contextlib.nullcontext()
-        if verbose
-        else Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            TimeElapsedColumn(),
-            transient=True,
-        )
-    )
+    progress_ctx = _create_cli_spinner(verbose)
 
     try:
         with progress_ctx as progress:
@@ -1643,16 +1648,7 @@ async def _run_evolution(
         )
 
         # Setup progress indicator (only if not verbose)
-        progress_ctx: Any = (
-            contextlib.nullcontext()
-            if verbose
-            else Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                TimeElapsedColumn(),
-                transient=True,
-            )
-        )
+        progress_ctx = _create_cli_spinner(verbose)
 
         # Run evolution with timeout protection
         evolution_start = time.time()
