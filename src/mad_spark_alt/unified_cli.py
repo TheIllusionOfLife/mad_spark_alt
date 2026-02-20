@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 import click
+from dotenv import load_dotenv
 from rich.console import Console
 from rich.json import JSON
 from rich.panel import Panel
@@ -38,7 +39,13 @@ from .core import (
     setup_llm_providers,
 )
 from .core.json_utils import format_llm_cost
-from .core.llm_provider import LLMProvider, LLMProviderInterface, OllamaProvider, get_google_provider, llm_manager
+from .core.llm_provider import (
+    LLMProvider,
+    LLMProviderInterface,
+    OllamaProvider,
+    get_google_provider,
+    llm_manager,
+)
 from .core.multimodal import MultimodalInput, MultimodalInputType, MultimodalSourceType
 from .core.provider_router import ProviderRouter, ProviderSelection
 from .core.simple_qadi_orchestrator import SimpleQADIOrchestrator, SimpleQADIResult
@@ -62,6 +69,7 @@ logger = logging.getLogger(__name__)
 
 # ===== UTILITY FUNCTIONS FROM BOTH FILES =====
 
+
 def _get_semantic_operator_status() -> str:
     """Get status of semantic operators (ENABLED/DISABLED)."""
     if LLMProvider.GOOGLE in llm_manager.providers:
@@ -70,9 +78,7 @@ def _get_semantic_operator_status() -> str:
         return "Semantic operators: DISABLED (traditional operators only)"
 
 
-def _format_idea_for_display(
-    content: str, max_length: Optional[int] = None
-) -> str:
+def _format_idea_for_display(content: str, max_length: Optional[int] = None) -> str:
     """Format idea content for display with smart truncation.
 
     Args:
@@ -92,15 +98,15 @@ def _format_idea_for_display(
     truncated = content[:max_length]
 
     # Look for last complete word
-    last_space = truncated.rfind(' ')
+    last_space = truncated.rfind(" ")
     if last_space > max_length * CONSTANTS.TEXT.WORD_BOUNDARY_RATIO:
         truncated = truncated[:last_space]
 
     # Also check for punctuation as good breaking points
-    for punct in ['.', ',', ';', ')', ']']:
+    for punct in [".", ",", ";", ")", "]"]:
         punct_pos = truncated.rfind(punct)
         if punct_pos > max_length * CONSTANTS.TEXT.WORD_BOUNDARY_RATIO:
-            truncated = truncated[:punct_pos + 1]
+            truncated = truncated[: punct_pos + 1]
             break
 
     return truncated.strip() + "..."
@@ -128,29 +134,27 @@ def calculate_evolution_timeout(generations: int, population: int) -> float:
         Timeout in seconds (min 120s, max 900s)
     """
     # Use configured timeout per evaluation (60s)
-    estimated_time = generations * population * CONSTANTS.TIMEOUTS.CLI_EVOLUTION_TIMEOUT_PER_EVAL
+    estimated_time = (
+        generations * population * CONSTANTS.TIMEOUTS.CLI_EVOLUTION_TIMEOUT_PER_EVAL
+    )
     return min(
         max(CONSTANTS.TIMEOUTS.CLI_BASE_TIMEOUT_SECONDS, estimated_time),
-        CONSTANTS.TIMEOUTS.CLI_MAX_TIMEOUT_SECONDS
+        CONSTANTS.TIMEOUTS.CLI_MAX_TIMEOUT_SECONDS,
     )
 
 
-def load_env_file() -> None:
+def load_env_file(env_path: Optional[Path] = None) -> None:
     """Load environment variables from .env file if it exists."""
-    env_path = Path(__file__).parent.parent.parent / ".env"
-    if env_path.exists():
+    if env_path is None:
+        env_path = Path(__file__).parent.parent.parent / ".env"
+
+    if env_path.is_file():
         try:
-            with open(env_path) as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#") and "=" in line:
-                        key, value = line.split("=", 1)
-                        # Only set if not already in environment
-                        if key not in os.environ:
-                            os.environ[key] = value.strip('"').strip("'")
+            # Use python-dotenv to load environment variables securely
+            # override=False ensures we don't overwrite existing environment variables
+            load_dotenv(dotenv_path=env_path, override=False)
         except Exception as e:
-            # Log error but don't fail - env vars might be set elsewhere
-            logging.warning(f"Failed to load .env file: {e}")
+            logger.warning(f"Failed to load .env file: {e}")
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -173,43 +177,44 @@ def register_default_evaluators() -> None:
 
 # ===== TEXT PROCESSING UTILITIES FROM QADI_SIMPLE =====
 
+
 def clean_markdown_text(text: str) -> str:
     """Remove markdown formatting while preserving structure."""
     if not text:
         return ""
 
     # Remove bold and italic markers but keep content
-    cleaned = text.replace('**', '').replace('__', '')
+    cleaned = text.replace("**", "").replace("__", "")
     # Be careful with single asterisks - only remove if they're formatting
-    cleaned = re.sub(r'(?<!\w)\*([^*]+)\*(?!\w)', r'\1', cleaned)
+    cleaned = re.sub(r"(?<!\w)\*([^*]+)\*(?!\w)", r"\1", cleaned)
 
     # Remove headers but keep content
-    cleaned = re.sub(r'^#{1,6}\s+', '', cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"^#{1,6}\s+", "", cleaned, flags=re.MULTILINE)
 
     # Keep link text, remove URL
-    cleaned = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', cleaned)
+    cleaned = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", cleaned)
 
     # Remove inline code markers but keep content
-    cleaned = re.sub(r'`([^`]+)`', r'\1', cleaned)
+    cleaned = re.sub(r"`([^`]+)`", r"\1", cleaned)
 
     # Remove code blocks entirely (they're usually not part of main content)
-    cleaned = re.sub(r'```[^`]*```', '', cleaned, flags=re.DOTALL)
+    cleaned = re.sub(r"```[^`]*```", "", cleaned, flags=re.DOTALL)
 
     # Preserve numbered list structure but remove markers
-    cleaned = re.sub(r'^(\d+)\.\s+', r'\1. ', cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"^(\d+)\.\s+", r"\1. ", cleaned, flags=re.MULTILINE)
 
     # Remove bullet markers but keep content
-    cleaned = re.sub(r'^[-*+]\s+', '', cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"^[-*+]\s+", "", cleaned, flags=re.MULTILINE)
 
     # Remove blockquote markers
-    cleaned = re.sub(r'^>\s+', '', cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"^>\s+", "", cleaned, flags=re.MULTILINE)
 
     # Remove table formatting
-    cleaned = re.sub(r'^\|.*\|$', '', cleaned, flags=re.MULTILINE)
-    cleaned = re.sub(r'^[-\s]+$', '', cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"^\|.*\|$", "", cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"^[-\s]+$", "", cleaned, flags=re.MULTILINE)
 
     # Preserve single line breaks for readability
-    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
 
     # Don't over-clean - keep some structure
     return cleaned.strip()
@@ -219,28 +224,31 @@ def _truncate_title(title: str) -> str:
     """Truncate title to MAX_TITLE_LENGTH if needed."""
     if len(title) <= CONSTANTS.TEXT.MAX_TITLE_LENGTH:
         return title
-    return title[:CONSTANTS.TEXT.MAX_TITLE_LENGTH] + "..."
+    return title[: CONSTANTS.TEXT.MAX_TITLE_LENGTH] + "..."
 
 
 def extract_hypothesis_title(cleaned_hypothesis: str, index: int) -> str:
     """Extract a meaningful title from hypothesis content."""
 
     # Emergency fallback for empty or very short hypotheses
-    if not cleaned_hypothesis or len(cleaned_hypothesis.strip()) < CONSTANTS.TEXT.MIN_HYPOTHESIS_LENGTH:
+    if (
+        not cleaned_hypothesis
+        or len(cleaned_hypothesis.strip()) < CONSTANTS.TEXT.MIN_HYPOTHESIS_LENGTH
+    ):
         return f"Approach {index}"
 
     # Strategy: Extract the first meaningful sentence or phrase
     # Don't use category-based extraction as it returns generic labels
 
     # Try Japanese sentence ending patterns first
-    jp_sentence_match = re.match(r'^([^。！？]+[。！？])', cleaned_hypothesis)
+    jp_sentence_match = re.match(r"^([^。！？]+[。！？])", cleaned_hypothesis)
     if jp_sentence_match:
         title = jp_sentence_match.group(1).strip()
         if len(title) > CONSTANTS.TEXT.MIN_MEANINGFUL_TITLE_LENGTH:
             return _truncate_title(title)
 
     # Try English sentence patterns
-    en_sentence_match = re.match(r'^([^.!?]+[.!?])', cleaned_hypothesis)
+    en_sentence_match = re.match(r"^([^.!?]+[.!?])", cleaned_hypothesis)
     if en_sentence_match:
         title = en_sentence_match.group(1).strip()
         if len(title) > CONSTANTS.TEXT.MIN_MEANINGFUL_TITLE_LENGTH:
@@ -249,39 +257,45 @@ def extract_hypothesis_title(cleaned_hypothesis: str, index: int) -> str:
     # For numbered lists, try to extract the intro part
     if "：" in cleaned_hypothesis or ":" in cleaned_hypothesis:
         # Split on colon and take the first part
-        parts = re.split(r'[:：]', cleaned_hypothesis)
-        if parts[0] and len(parts[0].strip()) > CONSTANTS.TEXT.MIN_MEANINGFUL_TITLE_LENGTH:
+        parts = re.split(r"[:：]", cleaned_hypothesis)
+        if (
+            parts[0]
+            and len(parts[0].strip()) > CONSTANTS.TEXT.MIN_MEANINGFUL_TITLE_LENGTH
+        ):
             title = parts[0].strip()
             return _truncate_title(title)
 
     # Try splitting by common delimiters
-    delimiters = ['。', '.', '、', ',', 'を', 'は', 'が', 'の']
+    delimiters = ["。", ".", "、", ",", "を", "は", "が", "の"]
     for delimiter in delimiters:
         if delimiter in cleaned_hypothesis[:100]:
             parts = cleaned_hypothesis.split(delimiter, 1)
-            if parts[0] and len(parts[0].strip()) > CONSTANTS.TEXT.MIN_MEANINGFUL_TITLE_LENGTH:
+            if (
+                parts[0]
+                and len(parts[0].strip()) > CONSTANTS.TEXT.MIN_MEANINGFUL_TITLE_LENGTH
+            ):
                 title = parts[0].strip()
                 return _truncate_title(title)
 
     # Final fallback: First MAX_TITLE_LENGTH chars with word boundary
     if len(cleaned_hypothesis) > CONSTANTS.TEXT.MAX_TITLE_LENGTH:
         # Try to find a word boundary
-        truncated = cleaned_hypothesis[:CONSTANTS.TEXT.MAX_TITLE_LENGTH]
-        last_space = truncated.rfind(' ')
+        truncated = cleaned_hypothesis[: CONSTANTS.TEXT.MAX_TITLE_LENGTH]
+        last_space = truncated.rfind(" ")
         last_jp_particle = max(
-            truncated.rfind('を') if 'を' in truncated else -1,
-            truncated.rfind('は') if 'は' in truncated else -1,
-            truncated.rfind('が') if 'が' in truncated else -1,
-            truncated.rfind('の') if 'の' in truncated else -1
+            truncated.rfind("を") if "を" in truncated else -1,
+            truncated.rfind("は") if "は" in truncated else -1,
+            truncated.rfind("が") if "が" in truncated else -1,
+            truncated.rfind("の") if "の" in truncated else -1,
         )
         boundary = max(last_space, last_jp_particle)
 
         if boundary > CONSTANTS.TEXT.WORD_BOUNDARY_THRESHOLD:
             return truncated[:boundary].strip() + "..."
         else:
-            return truncated[:CONSTANTS.TEXT.MAX_TITLE_LENGTH-3] + "..."
+            return truncated[: CONSTANTS.TEXT.MAX_TITLE_LENGTH - 3] + "..."
 
-    return cleaned_hypothesis[:CONSTANTS.TEXT.MAX_TITLE_LENGTH].strip()
+    return cleaned_hypothesis[: CONSTANTS.TEXT.MAX_TITLE_LENGTH].strip()
 
 
 def truncate_at_sentence_boundary(text: str, max_length: int) -> str:
@@ -301,8 +315,10 @@ def truncate_at_sentence_boundary(text: str, max_length: int) -> str:
         return text[:last_break_pos].strip()
 
     # Fallback: no sentence boundary found, truncate at word boundary
-    last_space = boundary_search_text.rfind(' ')
-    if last_space > max_length * CONSTANTS.TEXT.WORD_BOUNDARY_RATIO:  # If we found a space reasonably close
+    last_space = boundary_search_text.rfind(" ")
+    if (
+        last_space > max_length * CONSTANTS.TEXT.WORD_BOUNDARY_RATIO
+    ):  # If we found a space reasonably close
         return text[:last_space].strip() + "..."
 
     return boundary_search_text.strip() + "..."
@@ -310,7 +326,7 @@ def truncate_at_sentence_boundary(text: str, max_length: int) -> str:
 
 def format_example_output(example: str, example_num: int) -> str:
     """Format example output with smart truncation."""
-    lines = example.split('\n')
+    lines = example.split("\n")
 
     # Extract structured parts - look for various markdown patterns
     context_content = None
@@ -322,26 +338,34 @@ def format_example_output(example: str, example_num: int) -> str:
         line_clean = line.strip()
 
         # Look for level indicators like [Individual/Personal Level]
-        if re.match(r'\[.*?Level\]', line_clean):
-            level_indicator = line_clean.replace('[', '').replace(']', '')
+        if re.match(r"\[.*?Level\]", line_clean):
+            level_indicator = line_clean.replace("[", "").replace("]", "")
         # Look for context patterns and extract just the content
-        elif re.search(r'(^|[-*]\s*)(Context:|コンテキスト:|背景:)', line_clean):
+        elif re.search(r"(^|[-*]\s*)(Context:|コンテキスト:|背景:)", line_clean):
             # Remove all label variations and markdown
-            context_content = re.sub(r'^[-*]+\s*', '', line_clean)
-            context_content = re.sub(r'(Context:|コンテキスト:|背景:)\s*', '', context_content)
-            context_content = re.sub(r'\*{2,}', '', context_content).strip()
+            context_content = re.sub(r"^[-*]+\s*", "", line_clean)
+            context_content = re.sub(
+                r"(Context:|コンテキスト:|背景:)\s*", "", context_content
+            )
+            context_content = re.sub(r"\*{2,}", "", context_content).strip()
         # Look for application patterns and extract just the content
-        elif re.search(r'(^|[-*]\s*)(Application:|アプリケーション:|応用:|適用:)', line_clean):
+        elif re.search(
+            r"(^|[-*]\s*)(Application:|アプリケーション:|応用:|適用:)", line_clean
+        ):
             # Remove all label variations and markdown
-            application_content = re.sub(r'^[-*]+\s*', '', line_clean)
-            application_content = re.sub(r'(Application:|アプリケーション:|応用:|適用:)\s*', '', application_content)
-            application_content = re.sub(r'\*{2,}', '', application_content).strip()
+            application_content = re.sub(r"^[-*]+\s*", "", line_clean)
+            application_content = re.sub(
+                r"(Application:|アプリケーション:|応用:|適用:)\s*",
+                "",
+                application_content,
+            )
+            application_content = re.sub(r"\*{2,}", "", application_content).strip()
         # Look for result patterns and extract just the content
-        elif re.search(r'(^|[-*]\s*)(Result:|結果:|成果:)', line_clean):
+        elif re.search(r"(^|[-*]\s*)(Result:|結果:|成果:)", line_clean):
             # Remove all label variations and markdown
-            result_content = re.sub(r'^[-*]+\s*', '', line_clean)
-            result_content = re.sub(r'(Result:|結果:|成果:)\s*', '', result_content)
-            result_content = re.sub(r'\*{2,}', '', result_content).strip()
+            result_content = re.sub(r"^[-*]+\s*", "", line_clean)
+            result_content = re.sub(r"(Result:|結果:|成果:)\s*", "", result_content)
+            result_content = re.sub(r"\*{2,}", "", result_content).strip()
 
     output = f"**Example {example_num}**\n"
 
@@ -351,8 +375,12 @@ def format_example_output(example: str, example_num: int) -> str:
 
     if context_content and application_content:
         # Present clean content without redundant labels
-        context_truncated = truncate_at_sentence_boundary(context_content, CONSTANTS.TEXT.MAX_CONTEXT_TRUNCATION_LENGTH)
-        application_truncated = truncate_at_sentence_boundary(application_content, CONSTANTS.TEXT.MAX_CONTEXT_TRUNCATION_LENGTH)
+        context_truncated = truncate_at_sentence_boundary(
+            context_content, CONSTANTS.TEXT.MAX_CONTEXT_TRUNCATION_LENGTH
+        )
+        application_truncated = truncate_at_sentence_boundary(
+            application_content, CONSTANTS.TEXT.MAX_CONTEXT_TRUNCATION_LENGTH
+        )
 
         output += f"{context_truncated}\n\n"
         output += f"→ {application_truncated}\n"
@@ -364,20 +392,30 @@ def format_example_output(example: str, example_num: int) -> str:
         cleaned_example = example
         # Remove all instances of label text in various forms
         label_patterns = [
-            r'[-*]*\s*\*?\*?(Context|コンテキスト|背景):?\*?\*?\s*',
-            r'[-*]*\s*\*?\*?(Application|アプリケーション|応用|適用):?\*?\*?\s*',
-            r'[-*]*\s*\*?\*?(Result|結果|成果):?\*?\*?\s*',
+            r"[-*]*\s*\*?\*?(Context|コンテキスト|背景):?\*?\*?\s*",
+            r"[-*]*\s*\*?\*?(Application|アプリケーション|応用|適用):?\*?\*?\s*",
+            r"[-*]*\s*\*?\*?(Result|結果|成果):?\*?\*?\s*",
         ]
         for pattern in label_patterns:
-            cleaned_example = re.sub(pattern, '', cleaned_example, flags=re.IGNORECASE)
+            cleaned_example = re.sub(pattern, "", cleaned_example, flags=re.IGNORECASE)
 
         # Clean up formatting artifacts
-        cleaned_example = re.sub(r'\*{2,}', '', cleaned_example)  # Remove multiple asterisks
-        cleaned_example = re.sub(r'\[.*?Level\]\*{2,}', '', cleaned_example)  # Remove level indicators with trailing asterisks
-        cleaned_example = re.sub(r'\n\s*\*\s*\*\s*', '\n', cleaned_example)  # Fix bullet points
-        cleaned_example = re.sub(r'\n{3,}', '\n\n', cleaned_example)  # Fix excessive newlines
+        cleaned_example = re.sub(
+            r"\*{2,}", "", cleaned_example
+        )  # Remove multiple asterisks
+        cleaned_example = re.sub(
+            r"\[.*?Level\]\*{2,}", "", cleaned_example
+        )  # Remove level indicators with trailing asterisks
+        cleaned_example = re.sub(
+            r"\n\s*\*\s*\*\s*", "\n", cleaned_example
+        )  # Fix bullet points
+        cleaned_example = re.sub(
+            r"\n{3,}", "\n\n", cleaned_example
+        )  # Fix excessive newlines
 
-        truncated = truncate_at_sentence_boundary(cleaned_example.strip(), CONSTANTS.TEXT.MAX_EXAMPLE_LENGTH)
+        truncated = truncate_at_sentence_boundary(
+            cleaned_example.strip(), CONSTANTS.TEXT.MAX_EXAMPLE_LENGTH
+        )
         output += truncated + "\n"
 
     return output
@@ -392,8 +430,10 @@ def format_evaluation_scores(hypotheses: List[str], scores: List) -> str:
         cleaned_hypothesis = clean_ansi_codes(hypothesis)
 
         # Remove "Approach X:" prefix to avoid duplication in title extraction
-        approach_prefix_pattern = r'^Approach\s+\d+:\s*'
-        cleaned_hypothesis = re.sub(approach_prefix_pattern, '', cleaned_hypothesis, flags=re.IGNORECASE)
+        approach_prefix_pattern = r"^Approach\s+\d+:\s*"
+        cleaned_hypothesis = re.sub(
+            approach_prefix_pattern, "", cleaned_hypothesis, flags=re.IGNORECASE
+        )
 
         # Extract title using the new function
         title = extract_hypothesis_title(cleaned_hypothesis, i + 1)
@@ -444,7 +484,9 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
             # Clean ANSI codes first
             h_clean = clean_ansi_codes(h)
             title = clean_markdown_text(h_clean)
-            if title and len(title) > CONSTANTS.TEXT.MIN_MEANINGFUL_TITLE_LENGTH:  # Must be meaningful
+            if (
+                title and len(title) > CONSTANTS.TEXT.MIN_MEANINGFUL_TITLE_LENGTH
+            ):  # Must be meaningful
                 solutions.append(title[:150])  # Limit length
 
     # If we don't have enough solutions, add from action plan
@@ -454,14 +496,16 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
                 action_clean = clean_markdown_text(action)
                 # Fallback: remove numbering for backward compatibility with legacy data
                 # New structured output should not include numbering (see schemas.py)
-                action_clean = re.sub(r'^\d+\.\s*', '', action_clean)
+                action_clean = re.sub(r"^\d+\.\s*", "", action_clean)
 
                 # Take first sentence if it's meaningful
-                first_sentence = action_clean.split('.')[0].strip()
+                first_sentence = action_clean.split(".")[0].strip()
                 if len(first_sentence) > CONSTANTS.TEXT.MIN_MEANINGFUL_LENGTH:
                     solutions.append(first_sentence)
                 elif len(action_clean) > CONSTANTS.TEXT.MIN_MEANINGFUL_LENGTH:
-                    solutions.append(action_clean[:CONSTANTS.TEXT.MAX_ACTION_LENGTH].strip())
+                    solutions.append(
+                        action_clean[: CONSTANTS.TEXT.MAX_ACTION_LENGTH].strip()
+                    )
 
     # Return all solutions, not just 3
     return solutions
@@ -469,39 +513,123 @@ def extract_key_solutions(hypotheses: List[str], action_plan: List[str]) -> List
 
 # ===== MAIN CLI GROUP WITH INVOKE_WITHOUT_COMMAND =====
 
-@click.group(invoke_without_command=True, context_settings={"allow_interspersed_args": True})
+
+@click.group(
+    invoke_without_command=True, context_settings={"allow_interspersed_args": True}
+)
 @click.pass_context
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging and detailed output')
-@click.option('--provider', type=click.Choice(['auto', 'gemini', 'ollama'], case_sensitive=False),
-              default='auto', help='LLM provider: auto (hybrid mode - Gemini extracts docs/URLs, Ollama runs QADI), gemini (API only), ollama (local only)')
-@click.option('--temperature', '-t', type=click.FloatRange(0.0, 2.0), help='Temperature for hypothesis generation (0.0-2.0, default: 0.8)')
-@click.option('--evolve', '-e', is_flag=True, help='Evolve ideas using genetic algorithm after QADI analysis')
-@click.option('--generations', '-g', type=int, default=2, help='Number of evolution generations (default: 2, with --evolve)')
-@click.option('--population', '-p', type=int, default=5, help='Population size for evolution (default: 5, with --evolve)')
-@click.option('--traditional', is_flag=True, help='Use traditional operators instead of semantic operators (with --evolve)')
-@click.option('--diversity-method', type=click.Choice(['jaccard', 'semantic'], case_sensitive=False), default='jaccard',
-              help='Diversity calculation method: jaccard (fast, word-based) or semantic (slower, embedding-based)')
-@click.option('--image', '-i', multiple=True, type=click.Path(exists=True),
-              help='Path to image file(s) to include in analysis (PNG, JPEG, GIF, WEBP supported)')
-@click.option('--document', '-d', multiple=True, type=click.Path(exists=True),
-              help='Path to document file(s) to include in analysis (PDF, TXT, CSV, JSON, MD supported). With --provider auto, triggers hybrid mode.')
-@click.option('--url', '-u', multiple=True, help='URL(s) for context retrieval (max 20). With --provider auto, triggers hybrid mode using Gemini for extraction.')
-@click.option('--output', '-o', type=click.Path(), help='Export results to file (JSON or Markdown)')
-@click.option('--format', 'export_format', type=click.Choice(['json', 'md', 'table'], case_sensitive=False),
-              default='json', help='Output format: json (default), md (markdown), or table')
-@click.option('--evaluate', '--eval', 'evaluate_mode', is_flag=True,
-              help='Evaluate creativity of existing text instead of generating new ideas via QADI')
-@click.option('--evaluate_with',
-              help='Comma-separated evaluators to use with --evaluate (e.g., diversity_evaluator,quality_evaluator)')
-@click.option('--file', '-f', type=click.Path(exists=True),
-              help='Read text from file (used with --evaluate)')
-@click.option('--model', default='test-model',
-              help='Model name for the evaluated output (used with --evaluate)')
-@click.option('--output-type', type=click.Choice(['text', 'code']), default='text',
-              help='Type of output being evaluated: text or code (used with --evaluate)')
-@click.option('--layers',
-              help='Evaluation layers: quantitative,llm_judge,human (used with --evaluate)')
-@click.argument('input', required=False)
+@click.option(
+    "--verbose", "-v", is_flag=True, help="Enable verbose logging and detailed output"
+)
+@click.option(
+    "--provider",
+    type=click.Choice(["auto", "gemini", "ollama"], case_sensitive=False),
+    default="auto",
+    help="LLM provider: auto (hybrid mode - Gemini extracts docs/URLs, Ollama runs QADI), gemini (API only), ollama (local only)",
+)
+@click.option(
+    "--temperature",
+    "-t",
+    type=click.FloatRange(0.0, 2.0),
+    help="Temperature for hypothesis generation (0.0-2.0, default: 0.8)",
+)
+@click.option(
+    "--evolve",
+    "-e",
+    is_flag=True,
+    help="Evolve ideas using genetic algorithm after QADI analysis",
+)
+@click.option(
+    "--generations",
+    "-g",
+    type=int,
+    default=2,
+    help="Number of evolution generations (default: 2, with --evolve)",
+)
+@click.option(
+    "--population",
+    "-p",
+    type=int,
+    default=5,
+    help="Population size for evolution (default: 5, with --evolve)",
+)
+@click.option(
+    "--traditional",
+    is_flag=True,
+    help="Use traditional operators instead of semantic operators (with --evolve)",
+)
+@click.option(
+    "--diversity-method",
+    type=click.Choice(["jaccard", "semantic"], case_sensitive=False),
+    default="jaccard",
+    help="Diversity calculation method: jaccard (fast, word-based) or semantic (slower, embedding-based)",
+)
+@click.option(
+    "--image",
+    "-i",
+    multiple=True,
+    type=click.Path(exists=True),
+    help="Path to image file(s) to include in analysis (PNG, JPEG, GIF, WEBP supported)",
+)
+@click.option(
+    "--document",
+    "-d",
+    multiple=True,
+    type=click.Path(exists=True),
+    help="Path to document file(s) to include in analysis (PDF, TXT, CSV, JSON, MD supported). With --provider auto, triggers hybrid mode.",
+)
+@click.option(
+    "--url",
+    "-u",
+    multiple=True,
+    help="URL(s) for context retrieval (max 20). With --provider auto, triggers hybrid mode using Gemini for extraction.",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    help="Export results to file (JSON or Markdown)",
+)
+@click.option(
+    "--format",
+    "export_format",
+    type=click.Choice(["json", "md", "table"], case_sensitive=False),
+    default="json",
+    help="Output format: json (default), md (markdown), or table",
+)
+@click.option(
+    "--evaluate",
+    "--eval",
+    "evaluate_mode",
+    is_flag=True,
+    help="Evaluate creativity of existing text instead of generating new ideas via QADI",
+)
+@click.option(
+    "--evaluate_with",
+    help="Comma-separated evaluators to use with --evaluate (e.g., diversity_evaluator,quality_evaluator)",
+)
+@click.option(
+    "--file",
+    "-f",
+    type=click.Path(exists=True),
+    help="Read text from file (used with --evaluate)",
+)
+@click.option(
+    "--model",
+    default="test-model",
+    help="Model name for the evaluated output (used with --evaluate)",
+)
+@click.option(
+    "--output-type",
+    type=click.Choice(["text", "code"]),
+    default="text",
+    help="Type of output being evaluated: text or code (used with --evaluate)",
+)
+@click.option(
+    "--layers",
+    help="Evaluation layers: quantitative,llm_judge,human (used with --evaluate)",
+)
+@click.argument("input", required=False)
 def main(
     ctx: click.Context,
     verbose: bool,
@@ -564,22 +692,28 @@ def main(
 
     # Validate evaluate-only options are used with --evaluate flag
     evaluate_only_options = {
-        'evaluate_with': evaluate_with,
-        'file': file,
-        'model': model if model != 'test-model' else None,  # Ignore default
-        'output_type': output_type if output_type != 'text' else None,  # Ignore default
-        'layers': layers,
+        "evaluate_with": evaluate_with,
+        "file": file,
+        "model": model if model != "test-model" else None,  # Ignore default
+        "output_type": output_type if output_type != "text" else None,  # Ignore default
+        "layers": layers,
     }
 
     # Check if any evaluate-only options are used without --evaluate
     if not evaluate_mode:
-        used_evaluate_options = [name for name, value in evaluate_only_options.items() if value]
+        used_evaluate_options = [
+            name for name, value in evaluate_only_options.items() if value
+        ]
         if used_evaluate_options:
-            console.print("[red]Error: The following options require --evaluate flag:[/red]")
+            console.print(
+                "[red]Error: The following options require --evaluate flag:[/red]"
+            )
             for opt_name in used_evaluate_options:
                 console.print(f"  • --{opt_name}")
             console.print("\n[yellow]Did you mean to run:[/yellow]")
-            console.print(f"  msa --evaluate {input or '<text>'} --{used_evaluate_options[0]} ...")
+            console.print(
+                f"  msa --evaluate {input or '<text>'} --{used_evaluate_options[0]} ..."
+            )
             ctx.exit(1)
 
     # Route to evaluation mode if --evaluate flag is set
@@ -587,14 +721,20 @@ def main(
         # Validate incompatible options
         if evolve:
             console.print("[red]Error: Cannot use --evolve with --evaluate[/red]")
-            console.print("[yellow]Choose one: Generate ideas (QADI) OR evaluate existing text[/yellow]")
+            console.print(
+                "[yellow]Choose one: Generate ideas (QADI) OR evaluate existing text[/yellow]"
+            )
             ctx.exit(1)
 
         # Show warnings for ignored options
         if temperature is not None and temperature != 0.8:
-            console.print("[yellow]Warning: --temperature is ignored in evaluate mode (uses default)[/yellow]")
+            console.print(
+                "[yellow]Warning: --temperature is ignored in evaluate mode (uses default)[/yellow]"
+            )
         if image or document or url:
-            console.print("[yellow]Warning: --image, --document, --url are ignored in evaluate mode[/yellow]")
+            console.print(
+                "[yellow]Warning: --image, --document, --url are ignored in evaluate mode[/yellow]"
+            )
 
         # Run evaluation mode
         _run_evaluation_sync(
@@ -620,14 +760,19 @@ def main(
             # Get all registered subcommand names
             subcommand_names = list(ctx.command.commands.keys())
             # Normalize: check both underscore and hyphenated forms
-            input_normalized = input.replace('-', '_')
+            input_normalized = input.replace("-", "_")
 
             # If input matches a subcommand, manually invoke it with proper argument parsing
             for cmd_name in subcommand_names:
-                if input == cmd_name or input_normalized == cmd_name or input == cmd_name.replace('_', '-'):
+                if (
+                    input == cmd_name
+                    or input_normalized == cmd_name
+                    or input == cmd_name.replace("_", "-")
+                ):
                     # Initialize LLM provider BEFORE invoking subcommand
                     # (some subcommands like evaluate may need LLM providers)
                     if google_key:
+
                         async def init_llm() -> None:
                             await setup_llm_providers(google_api_key=google_key)
 
@@ -636,15 +781,21 @@ def main(
                         except RuntimeError:
                             # Already in event loop - skip initialization
                             if verbose:
-                                console.print("[yellow]Warning: Cannot initialize LLM providers in running event loop[/yellow]")
+                                console.print(
+                                    "[yellow]Warning: Cannot initialize LLM providers in running event loop[/yellow]"
+                                )
                         except Exception as e:
                             if verbose:
-                                console.print(f"[yellow]Warning: Failed to initialize LLM providers: {e}[/yellow]")
+                                console.print(
+                                    f"[yellow]Warning: Failed to initialize LLM providers: {e}[/yellow]"
+                                )
 
                     # Found matching subcommand - create new context to parse remaining args
                     subcommand = ctx.command.commands[cmd_name]
                     # Use make_context to parse remaining CLI tokens (ctx.args contains unparsed args)
-                    sub_ctx = subcommand.make_context(cmd_name, list(ctx.args), parent=ctx)
+                    sub_ctx = subcommand.make_context(
+                        cmd_name, list(ctx.args), parent=ctx
+                    )
                     # Invoke subcommand with parsed parameters
                     with sub_ctx:
                         ctx.invoke(subcommand, **sub_ctx.params)
@@ -658,16 +809,30 @@ def main(
 
         # Validate evolution parameters
         if evolve:
-            if population < CONSTANTS.EVOLUTION.MIN_POPULATION_SIZE or population > CONSTANTS.EVOLUTION.MAX_POPULATION_SIZE:
-                console.print(f"[red]Error: Population size must be between {CONSTANTS.EVOLUTION.MIN_POPULATION_SIZE} and {CONSTANTS.EVOLUTION.MAX_POPULATION_SIZE} (got {population})[/red]")
-                console.print(f"\n[yellow]Valid range:[/yellow] {CONSTANTS.EVOLUTION.MIN_POPULATION_SIZE} to {CONSTANTS.EVOLUTION.MAX_POPULATION_SIZE}")
-                console.print("Example: msa \"Your question\" --evolve --population 5")
+            if (
+                population < CONSTANTS.EVOLUTION.MIN_POPULATION_SIZE
+                or population > CONSTANTS.EVOLUTION.MAX_POPULATION_SIZE
+            ):
+                console.print(
+                    f"[red]Error: Population size must be between {CONSTANTS.EVOLUTION.MIN_POPULATION_SIZE} and {CONSTANTS.EVOLUTION.MAX_POPULATION_SIZE} (got {population})[/red]"
+                )
+                console.print(
+                    f"\n[yellow]Valid range:[/yellow] {CONSTANTS.EVOLUTION.MIN_POPULATION_SIZE} to {CONSTANTS.EVOLUTION.MAX_POPULATION_SIZE}"
+                )
+                console.print('Example: msa "Your question" --evolve --population 5')
                 ctx.exit(1)
 
-            if generations < CONSTANTS.EVOLUTION.MIN_GENERATIONS or generations > CONSTANTS.EVOLUTION.MAX_GENERATIONS:
-                console.print(f"[red]Error: Generations must be between {CONSTANTS.EVOLUTION.MIN_GENERATIONS} and {CONSTANTS.EVOLUTION.MAX_GENERATIONS} (got {generations})[/red]")
-                console.print(f"\n[yellow]Valid range:[/yellow] {CONSTANTS.EVOLUTION.MIN_GENERATIONS} to {CONSTANTS.EVOLUTION.MAX_GENERATIONS}")
-                console.print("Example: msa \"Your question\" --evolve --generations 3")
+            if (
+                generations < CONSTANTS.EVOLUTION.MIN_GENERATIONS
+                or generations > CONSTANTS.EVOLUTION.MAX_GENERATIONS
+            ):
+                console.print(
+                    f"[red]Error: Generations must be between {CONSTANTS.EVOLUTION.MIN_GENERATIONS} and {CONSTANTS.EVOLUTION.MAX_GENERATIONS} (got {generations})[/red]"
+                )
+                console.print(
+                    f"\n[yellow]Valid range:[/yellow] {CONSTANTS.EVOLUTION.MIN_GENERATIONS} to {CONSTANTS.EVOLUTION.MAX_GENERATIONS}"
+                )
+                console.print('Example: msa "Your question" --evolve --generations 3')
                 ctx.exit(1)
 
         # Validate provider availability based on selection
@@ -680,23 +845,43 @@ def main(
         if provider_selection == ProviderSelection.GEMINI and not google_key:
             console.print("[red]Error: --provider gemini requires GOOGLE_API_KEY[/red]")
             console.print("\n[yellow]To fix this:[/yellow]")
-            console.print("1. Get a Google API key from: https://makersuite.google.com/app/apikey")
-            console.print("2. Set environment variable: export GOOGLE_API_KEY='your-key'")
-            console.print("3. Or create .env file: echo 'GOOGLE_API_KEY=your-key' > .env")
-            console.print("\n[dim]Or use --provider ollama for free local inference[/dim]")
+            console.print(
+                "1. Get a Google API key from: https://makersuite.google.com/app/apikey"
+            )
+            console.print(
+                "2. Set environment variable: export GOOGLE_API_KEY='your-key'"
+            )
+            console.print(
+                "3. Or create .env file: echo 'GOOGLE_API_KEY=your-key' > .env"
+            )
+            console.print(
+                "\n[dim]Or use --provider ollama for free local inference[/dim]"
+            )
             ctx.exit(1)
 
-        if provider_selection == ProviderSelection.OLLAMA and (has_documents or has_urls):
-            console.print("[red]Error: Ollama doesn't support --document or --url inputs[/red]")
+        if provider_selection == ProviderSelection.OLLAMA and (
+            has_documents or has_urls
+        ):
+            console.print(
+                "[red]Error: Ollama doesn't support --document or --url inputs[/red]"
+            )
             console.print("\n[yellow]Options:[/yellow]")
             console.print("  1. Use --provider auto (uses Gemini for documents/URLs)")
             console.print("  2. Use --provider gemini (full Gemini pipeline)")
-            console.print("  3. Remove --document/--url flags (text/image only with Ollama)")
+            console.print(
+                "  3. Remove --document/--url flags (text/image only with Ollama)"
+            )
             ctx.exit(1)
 
         # Validate semantic diversity requires Gemini (Ollama doesn't support embeddings API)
-        if provider_selection == ProviderSelection.OLLAMA and evolve and diversity_method.lower() == "semantic":
-            console.print("[red]Error: Semantic diversity requires Gemini API for embeddings[/red]")
+        if (
+            provider_selection == ProviderSelection.OLLAMA
+            and evolve
+            and diversity_method.lower() == "semantic"
+        ):
+            console.print(
+                "[red]Error: Semantic diversity requires Gemini API for embeddings[/red]"
+            )
             console.print("\n[yellow]Options:[/yellow]")
             console.print("  1. Use --provider auto or --provider gemini")
             console.print("  2. Use --diversity-method jaccard with --provider ollama")
@@ -705,7 +890,9 @@ def main(
         # For auto mode, check if we have necessary providers
         if provider_selection == ProviderSelection.AUTO:
             if (has_documents or has_urls) and not google_key:
-                console.print("[red]Error: Documents/URLs require Gemini API (GOOGLE_API_KEY not found)[/red]")
+                console.print(
+                    "[red]Error: Documents/URLs require Gemini API (GOOGLE_API_KEY not found)[/red]"
+                )
                 console.print("\n[yellow]To fix this:[/yellow]")
                 console.print("1. Set GOOGLE_API_KEY for document/URL processing")
                 console.print("2. Or remove --document/--url flags to use Ollama only")
@@ -714,7 +901,9 @@ def main(
             # If no providers available at all
             if not google_key:
                 # Check if Ollama is available (we'll try to connect later)
-                console.print("[yellow]Note: No GOOGLE_API_KEY found. Will attempt to use Ollama (local LLM).[/yellow]")
+                console.print(
+                    "[yellow]Note: No GOOGLE_API_KEY found. Will attempt to use Ollama (local LLM).[/yellow]"
+                )
                 console.print("[dim]Ensure Ollama is running: ollama serve[/dim]")
 
         # Run QADI analysis
@@ -732,12 +921,13 @@ def main(
             document_paths=document,
             urls=url,
             output_file=output,
-            export_format=export_format
+            export_format=export_format,
         )
     else:
         # Subcommand will be invoked
         # Initialize LLM provider for subcommands that need it
         if google_key:
+
             async def init_llm() -> None:
                 await setup_llm_providers(google_api_key=google_key)
 
@@ -745,21 +935,30 @@ def main(
                 try:
                     loop = asyncio.get_running_loop()
                     if verbose:
-                        console.print("[yellow]Warning: Cannot initialize LLM providers in running event loop[/yellow]")
+                        console.print(
+                            "[yellow]Warning: Cannot initialize LLM providers in running event loop[/yellow]"
+                        )
                 except RuntimeError:
                     try:
                         asyncio.run(init_llm())
                     except Exception as e:
                         if verbose:
-                            console.print(f"[red]Error: LLM provider initialization failed: {e}[/red]")
+                            console.print(
+                                f"[red]Error: LLM provider initialization failed: {e}[/red]"
+                            )
             except Exception as e:
                 if verbose:
-                    console.print(f"[red]Unexpected error during LLM initialization: {e}[/red]")
+                    console.print(
+                        f"[red]Unexpected error during LLM initialization: {e}[/red]"
+                    )
         elif verbose:
-            console.print("[yellow]Info: GOOGLE_API_KEY not found, LLM features disabled[/yellow]")
+            console.print(
+                "[yellow]Info: GOOGLE_API_KEY not found, LLM features disabled[/yellow]"
+            )
 
 
 # ===== QADI ANALYSIS IMPLEMENTATION =====
+
 
 def _run_qadi_sync(
     user_input: str,
@@ -775,25 +974,27 @@ def _run_qadi_sync(
     document_paths: tuple = (),
     urls: tuple = (),
     output_file: Optional[str] = None,
-    export_format: str = "json"
+    export_format: str = "json",
 ) -> None:
     """Synchronous wrapper for QADI analysis - handles event loop properly."""
-    asyncio.run(_run_qadi_analysis(
-        user_input,
-        provider_selection=provider_selection,
-        temperature=temperature,
-        verbose=verbose,
-        evolve=evolve,
-        generations=generations,
-        population=population,
-        traditional=traditional,
-        diversity_method=diversity_method,
-        image_paths=image_paths,
-        document_paths=document_paths,
-        urls=urls,
-        output_file=output_file,
-        export_format=export_format
-    ))
+    asyncio.run(
+        _run_qadi_analysis(
+            user_input,
+            provider_selection=provider_selection,
+            temperature=temperature,
+            verbose=verbose,
+            evolve=evolve,
+            generations=generations,
+            population=population,
+            traditional=traditional,
+            diversity_method=diversity_method,
+            image_paths=image_paths,
+            document_paths=document_paths,
+            urls=urls,
+            output_file=output_file,
+            export_format=export_format,
+        )
+    )
 
 
 async def _run_qadi_analysis(
@@ -810,7 +1011,7 @@ async def _run_qadi_analysis(
     document_paths: tuple = (),
     urls: tuple = (),
     output_file: Optional[str] = None,
-    export_format: str = "json"
+    export_format: str = "json",
 ) -> None:
     """Run QADI analysis with multi-provider support and optional evolution."""
 
@@ -818,7 +1019,7 @@ async def _run_qadi_analysis(
     if len(urls) > 20:
         raise click.BadParameter(
             f"Too many URLs provided ({len(urls)}). Maximum is 20 URLs.",
-            param_hint="--url"
+            param_hint="--url",
         )
 
     print("🧠 QADI Analysis with Multi-Provider Support")
@@ -834,7 +1035,7 @@ async def _run_qadi_analysis(
     # Process images
     for img_path in image_paths:
         # Validate that PDFs are not passed to --image
-        if Path(img_path).suffix.lower() == '.pdf':
+        if Path(img_path).suffix.lower() == ".pdf":
             raise ValueError(
                 f"PDF files should be passed to --document, not --image: {img_path}\n"
                 f"Usage: msa 'your question' --document {img_path}"
@@ -886,17 +1087,28 @@ async def _run_qadi_analysis(
                 if file_ext == ".csv":
                     lines = content.strip().split("\n")
                     if len(lines) > 100:
-                        content = "\n".join(lines[:100]) + f"\n... ({len(lines) - 100} more rows)"
-                    text_document_contents.append(f"=== {Path(doc_path).name} (CSV) ===\n{content}")
+                        content = (
+                            "\n".join(lines[:100])
+                            + f"\n... ({len(lines) - 100} more rows)"
+                        )
+                    text_document_contents.append(
+                        f"=== {Path(doc_path).name} (CSV) ===\n{content}"
+                    )
                 elif file_ext == ".json":
                     try:
                         data = json.loads(content)
                         # Use ensure_ascii=False to preserve non-ASCII characters (accents, scripts)
-                        text_document_contents.append(f"=== {Path(doc_path).name} (JSON) ===\n{json.dumps(data, indent=2, ensure_ascii=False)}")
+                        text_document_contents.append(
+                            f"=== {Path(doc_path).name} (JSON) ===\n{json.dumps(data, indent=2, ensure_ascii=False)}"
+                        )
                     except json.JSONDecodeError:
-                        text_document_contents.append(f"=== {Path(doc_path).name} (JSON) ===\n{content}")
+                        text_document_contents.append(
+                            f"=== {Path(doc_path).name} (JSON) ===\n{content}"
+                        )
                 else:
-                    text_document_contents.append(f"=== {Path(doc_path).name} ===\n{content}")
+                    text_document_contents.append(
+                        f"=== {Path(doc_path).name} ===\n{content}"
+                    )
             except (OSError, IOError, UnicodeDecodeError) as e:
                 raise ValueError(f"Failed to read text document {doc_path}: {e}") from e
             continue
@@ -905,7 +1117,7 @@ async def _run_qadi_analysis(
 
         # Validate document type - PDF for multimodal input
         if mime_type != "application/pdf":
-            if not doc_path.lower().endswith('.pdf'):
+            if not doc_path.lower().endswith(".pdf"):
                 raise ValueError(
                     f"Unsupported document type for {doc_path}. "
                     f"Supported formats: PDF, TXT, CSV, JSON, MD. "
@@ -943,12 +1155,15 @@ async def _run_qadi_analysis(
     ollama_provider = None
     try:
         import aiohttp
+
         ollama_provider = OllamaProvider()
         # Actually verify Ollama server is reachable
         session = await ollama_provider._get_session()
         async with session.get(
             f"{ollama_provider.base_url}/api/tags",
-            timeout=aiohttp.ClientTimeout(total=CONSTANTS.TIMEOUTS.OLLAMA_CONNECTION_CHECK_TIMEOUT)
+            timeout=aiohttp.ClientTimeout(
+                total=CONSTANTS.TIMEOUTS.OLLAMA_CONNECTION_CHECK_TIMEOUT
+            ),
         ) as resp:
             if resp.status != 200:
                 raise ConnectionError("Ollama server not responding")
@@ -984,9 +1199,13 @@ async def _run_qadi_analysis(
         if is_hybrid_mode:
             # Check if we can do true hybrid routing (Gemini preprocess → Ollama QADI)
             if ollama_provider:
-                print("🔀 Hybrid mode: Gemini extracts documents/URLs → Ollama runs QADI\n")
+                print(
+                    "🔀 Hybrid mode: Gemini extracts documents/URLs → Ollama runs QADI\n"
+                )
             else:
-                print("🔀 Using Gemini for documents/URLs (Ollama unavailable for hybrid mode)\n")
+                print(
+                    "🔀 Using Gemini for documents/URLs (Ollama unavailable for hybrid mode)\n"
+                )
         else:
             print(f"🤖 Using {provider_name} for analysis\n")
 
@@ -1030,20 +1249,24 @@ async def _run_qadi_analysis(
             text_context += f"\n\n[Content truncated from ~{original_length // 4} to ~{max_context_tokens} tokens]"
             print(f"⚠️  Text documents truncated to ~{max_context_tokens} tokens")
 
-        user_input = f"Context from text documents:\n{text_context}\n\nQuestion: {user_input}"
+        user_input = (
+            f"Context from text documents:\n{text_context}\n\nQuestion: {user_input}"
+        )
 
     try:
         # Use hybrid routing if documents/URLs present
         # Hybrid mode: Gemini extracts document/URL content once, then runs QADI
         # This is more efficient than re-processing documents in each QADI phase
         if is_hybrid_mode:
-            result, active_provider, used_fallback, hybrid_metadata = await router.run_hybrid_qadi(
-                user_input=user_input,
-                document_paths=document_paths,
-                urls=urls,
-                image_paths=image_paths,
-                temperature_override=temperature,
-                num_hypotheses=num_hypotheses,
+            result, active_provider, used_fallback, hybrid_metadata = (
+                await router.run_hybrid_qadi(
+                    user_input=user_input,
+                    document_paths=document_paths,
+                    urls=urls,
+                    image_paths=image_paths,
+                    temperature_override=temperature,
+                    num_hypotheses=num_hypotheses,
+                )
             )
 
             if hybrid_metadata:
@@ -1051,7 +1274,9 @@ async def _run_qadi_analysis(
                 preprocess_cost = hybrid_metadata.get("preprocessing_cost", 0.0)
                 extracted_len = hybrid_metadata.get("extracted_content_length", 0)
                 if verbose:
-                    print(f"📄 Preprocessing: Extracted {extracted_len} characters (cost: ${preprocess_cost:.6f})")
+                    print(
+                        f"📄 Preprocessing: Extracted {extracted_len} characters (cost: ${preprocess_cost:.6f})"
+                    )
 
             if used_fallback:
                 print("\n⚠️  Ollama failed during QADI")
@@ -1063,18 +1288,22 @@ async def _run_qadi_analysis(
             # Disable fallback if user explicitly requested a specific provider
             # Only auto mode should fallback - explicit provider choice means "this or fail"
             enable_fallback = provider_selection == ProviderSelection.AUTO
-            result, active_provider, used_fallback = await router.run_qadi_with_fallback(
-                user_input=user_input,
-                primary_provider=primary_provider,
-                fallback_provider=gemini_provider if enable_fallback else None,
-                temperature_override=temperature,
-                num_hypotheses=num_hypotheses,
-                multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
-                urls=url_list,
+            result, active_provider, used_fallback = (
+                await router.run_qadi_with_fallback(
+                    user_input=user_input,
+                    primary_provider=primary_provider,
+                    fallback_provider=gemini_provider if enable_fallback else None,
+                    temperature_override=temperature,
+                    num_hypotheses=num_hypotheses,
+                    multimodal_inputs=multimodal_inputs if multimodal_inputs else None,
+                    urls=url_list,
+                )
             )
 
             if used_fallback:
-                print(f"\n⚠️  Primary provider ({primary_provider.__class__.__name__}) failed")
+                print(
+                    f"\n⚠️  Primary provider ({primary_provider.__class__.__name__}) failed"
+                )
                 print("🔄 Fell back to Gemini API")
                 print("✅ Successfully completed with Gemini fallback\n")
 
@@ -1102,18 +1331,22 @@ async def _run_qadi_analysis(
                 hypothesis_clean = clean_ansi_codes(hypothesis)
 
                 # Remove existing "Approach X:" prefix and duplicate numbering
-                approach_prefix_pattern = r'^Approach\s+\d+:\s*'
-                hypothesis_clean = re.sub(approach_prefix_pattern, '', hypothesis_clean, flags=re.IGNORECASE)
+                approach_prefix_pattern = r"^Approach\s+\d+:\s*"
+                hypothesis_clean = re.sub(
+                    approach_prefix_pattern, "", hypothesis_clean, flags=re.IGNORECASE
+                )
 
                 # Remove duplicate numbering like "1. " at the start
-                duplicate_number_pattern = r'^\d+\.\s*'
-                hypothesis_clean = re.sub(duplicate_number_pattern, '', hypothesis_clean, flags=re.MULTILINE)
+                duplicate_number_pattern = r"^\d+\.\s*"
+                hypothesis_clean = re.sub(
+                    duplicate_number_pattern, "", hypothesis_clean, flags=re.MULTILINE
+                )
 
                 # Split the hypothesis to separate title from description
-                title_match = re.match(r'^([^.]+\.)', hypothesis_clean)
+                title_match = re.match(r"^([^.]+\.)", hypothesis_clean)
                 if title_match:
                     title = title_match.group(1).strip()
-                    description = hypothesis_clean[len(title):].strip()
+                    description = hypothesis_clean[len(title) :].strip()
                     render_markdown(f"{i+1}. {title}")
                     if description:
                         render_markdown(description)
@@ -1149,10 +1382,14 @@ async def _run_qadi_analysis(
                 hypothesis_clean = clean_ansi_codes(hypothesis)
                 # Backward compatibility: Clean legacy formatting from older cached responses
                 # New structured output should not include these prefixes (see schemas.py)
-                approach_prefix_pattern = r'^Approach\s+\d+:\s*'
-                hypothesis_clean = re.sub(approach_prefix_pattern, '', hypothesis_clean, flags=re.IGNORECASE)
-                duplicate_number_pattern = r'^\d+\.\s*'
-                hypothesis_clean = re.sub(duplicate_number_pattern, '', hypothesis_clean, flags=re.MULTILINE)
+                approach_prefix_pattern = r"^Approach\s+\d+:\s*"
+                hypothesis_clean = re.sub(
+                    approach_prefix_pattern, "", hypothesis_clean, flags=re.IGNORECASE
+                )
+                duplicate_number_pattern = r"^\d+\.\s*"
+                hypothesis_clean = re.sub(
+                    duplicate_number_pattern, "", hypothesis_clean, flags=re.MULTILINE
+                )
                 # Display full hypothesis with approach number header
                 print(f"### Approach {i + 1}\n")
                 render_markdown(hypothesis_clean.strip())
@@ -1194,22 +1431,26 @@ async def _run_qadi_analysis(
             for i, action in enumerate(result.action_plan):
                 # Backward compatibility: Strip existing numbering from non-structured fallbacks
                 # New structured output should not include numbering (see schemas.py)
-                action_clean = re.sub(r'^\d+[\.\)]\s*', '', action.strip())
+                action_clean = re.sub(r"^\d+[\.\)]\s*", "", action.strip())
                 render_markdown(f"{i+1}. {action_clean}")
 
         # Final synthesis (the new Induction output)
         if result.verification_conclusion and result.verification_conclusion.strip():
             print("\n## 🎯 I (Induction): Final Synthesis\n")
             cleaned_synthesis = result.verification_conclusion.strip()
-            cleaned_synthesis = re.sub(r'^\*{1,2}\s*', '', cleaned_synthesis)
-            cleaned_synthesis = re.sub(r'\*{3,}', '**', cleaned_synthesis)
+            cleaned_synthesis = re.sub(r"^\*{1,2}\s*", "", cleaned_synthesis)
+            cleaned_synthesis = re.sub(r"\*{3,}", "**", cleaned_synthesis)
             render_markdown(cleaned_synthesis)
 
         # Compact summary at the end
         elapsed_time = time.time() - start_time
 
         # Display multimodal processing stats if any were processed
-        if result.total_images_processed > 0 or result.total_pages_processed > 0 or result.total_urls_processed > 0:
+        if (
+            result.total_images_processed > 0
+            or result.total_pages_processed > 0
+            or result.total_urls_processed > 0
+        ):
             multimodal_stats = []
             if result.total_images_processed > 0:
                 multimodal_stats.append(f"{result.total_images_processed} images")
@@ -1230,36 +1471,50 @@ async def _run_qadi_analysis(
                 total_cost += preprocess_cost
                 if preprocess_cost > 0:
                     cost_breakdown = f" (preprocessing: ${preprocess_cost:.4f}, QADI: ${result.total_llm_cost:.4f})"
-            print(f"⏱️  Time: {elapsed_time:.1f}s | 💰 Cost: ${total_cost:.4f}{cost_breakdown}{fallback_note}")
+            print(
+                f"⏱️  Time: {elapsed_time:.1f}s | 💰 Cost: ${total_cost:.4f}{cost_breakdown}{fallback_note}"
+            )
 
         # Evolution phase if requested
         evolution_result = None
         if evolve and result.synthesized_ideas:
             evolution_result = await _run_evolution(
-                result, user_input, elapsed_time, generations, population,
-                traditional, diversity_method, verbose,
-                llm_provider_for_evolution=active_provider
+                result,
+                user_input,
+                elapsed_time,
+                generations,
+                population,
+                traditional,
+                diversity_method,
+                verbose,
+                llm_provider_for_evolution=active_provider,
             )
 
         # Export results if output file specified
         if output_file:
             try:
-                if export_format.lower() == 'md':
-                    export_to_markdown(result, output_file, evolution_result=evolution_result)
+                if export_format.lower() == "md":
+                    export_to_markdown(
+                        result, output_file, evolution_result=evolution_result
+                    )
                 else:  # default to json
-                    export_to_json(result, output_file, evolution_result=evolution_result)
+                    export_to_json(
+                        result, output_file, evolution_result=evolution_result
+                    )
 
                 print(f"\n💾 Results exported to: {output_file}")
             except Exception as export_error:
                 print(f"\n⚠️  Export failed: {export_error}")
                 if verbose:
                     import traceback
+
                     traceback.print_exc()
 
     except Exception as e:
         print(f"\n❌ Error: {e}")
         if verbose:
             import traceback
+
             traceback.print_exc()
     finally:
         # Clean up provider sessions to prevent resource leaks
@@ -1296,11 +1551,13 @@ async def _run_evolution(
     # Check if we have fewer ideas than requested
     actual_population = min(population, len(qadi_result.synthesized_ideas))
     if actual_population < population:
-        print(f"   (Note: Generated {len(qadi_result.synthesized_ideas)} hypotheses, but {population} were requested)")
+        print(
+            f"   (Note: Generated {len(qadi_result.synthesized_ideas)} hypotheses, but {population} were requested)"
+        )
         print(f"   (Using all {actual_population} available ideas for evolution)")
 
     # Configure logging level based on verbose flag (match main logger behavior)
-    evolution_logger = logging.getLogger('mad_spark_alt.evolution')
+    evolution_logger = logging.getLogger("mad_spark_alt.evolution")
     original_level = evolution_logger.level
     evolution_logger.setLevel(logging.DEBUG if verbose else logging.WARNING)
 
@@ -1313,24 +1570,30 @@ async def _run_evolution(
         else:
             # Use provided LLM provider (Ollama or Gemini) for evolution
             llm_provider = llm_provider_for_evolution
-            provider_name = llm_provider.__class__.__name__.replace("Provider", "") if llm_provider else "Unknown"
-            print(f"🧬 Evolution operators: SEMANTIC ({provider_name}-powered for better creativity)")
+            provider_name = (
+                llm_provider.__class__.__name__.replace("Provider", "")
+                if llm_provider
+                else "Unknown"
+            )
+            print(
+                f"🧬 Evolution operators: SEMANTIC ({provider_name}-powered for better creativity)"
+            )
             print("   (Use --traditional for faster traditional operators)")
 
         # Display diversity method information
         if diversity_method.lower() == "semantic":
             print("🧬 Diversity calculation: SEMANTIC (embedding-based, more accurate)")
-            print("   (Use --diversity-method jaccard for faster word-based calculation)")
+            print(
+                "   (Use --diversity-method jaccard for faster word-based calculation)"
+            )
         else:
             print("🧬 Diversity calculation: JACCARD (word-based, faster)")
-            print("   (Use --diversity-method semantic for more accurate embedding-based calculation)")
+            print(
+                "   (Use --diversity-method semantic for more accurate embedding-based calculation)"
+            )
 
         # Create genetic algorithm instance
-        ga = GeneticAlgorithm(
-            use_cache=True,
-            cache_ttl=3600,
-            llm_provider=llm_provider
-        )
+        ga = GeneticAlgorithm(use_cache=True, cache_ttl=3600, llm_provider=llm_provider)
 
         # Configure evolution
         mutation_rate = 0.5 if actual_population <= 3 else 0.3
@@ -1351,18 +1614,24 @@ async def _run_evolution(
             max_parallel_evaluations=min(8, actual_population),
             use_semantic_operators=use_semantic,
             semantic_operator_threshold=semantic_threshold,
-            diversity_method=DiversityMethod.SEMANTIC if diversity_method.lower() == "semantic" else DiversityMethod.JACCARD,
+            diversity_method=(
+                DiversityMethod.SEMANTIC
+                if diversity_method.lower() == "semantic"
+                else DiversityMethod.JACCARD
+            ),
         )
 
         request = EvolutionRequest(
-            initial_population=qadi_result.synthesized_ideas[:config.population_size],
+            initial_population=qadi_result.synthesized_ideas[: config.population_size],
             config=config,
             context=user_input,
         )
 
         # Calculate adaptive timeout
         evolution_timeout = calculate_evolution_timeout(generations, actual_population)
-        print(f"⏱️  Evolution timeout: {evolution_timeout:.0f}s (adjust --generations or --population if needed)")
+        print(
+            f"⏱️  Evolution timeout: {evolution_timeout:.0f}s (adjust --generations or --population if needed)"
+        )
 
         # Progress indicator
         async def show_progress(start_time: float, timeout: float) -> None:
@@ -1372,18 +1641,22 @@ async def _run_evolution(
                     await asyncio.sleep(10)
                     elapsed = time.time() - start_time
                     remaining = max(0, timeout - elapsed)
-                    print(f"   ...evolving ({elapsed:.0f}s elapsed, ~{remaining:.0f}s remaining)", end='\r')
+                    print(
+                        f"   ...evolving ({elapsed:.0f}s elapsed, ~{remaining:.0f}s remaining)",
+                        end="\r",
+                    )
             except asyncio.CancelledError:
                 pass
 
         # Run evolution with timeout protection
         evolution_start = time.time()
-        progress_task = asyncio.create_task(show_progress(evolution_start, evolution_timeout))
+        progress_task = asyncio.create_task(
+            show_progress(evolution_start, evolution_timeout)
+        )
 
         try:
             evolution_result = await asyncio.wait_for(
-                ga.evolve(request),
-                timeout=evolution_timeout
+                ga.evolve(request), timeout=evolution_timeout
             )
             evolution_time = time.time() - evolution_start
             progress_task.cancel()
@@ -1406,7 +1679,9 @@ async def _run_evolution(
             # Final summary with total time and cost
             total_time = qadi_time + evolution_time
             print("\n" + "═" * 50)
-            print(f"⏱️  Total time: {total_time:.1f}s | 💰 Total cost: ${qadi_result.total_llm_cost:.4f}")
+            print(
+                f"⏱️  Total time: {total_time:.1f}s | 💰 Total cost: ${qadi_result.total_llm_cost:.4f}"
+            )
 
             return evolution_result
         else:
@@ -1417,6 +1692,7 @@ async def _run_evolution(
         print(f"\n❌ Evolution error: {e}")
         if verbose:
             import traceback
+
             traceback.print_exc()
         return None
     finally:
@@ -1447,20 +1723,22 @@ def _display_evolution_results(
 
     # Add initial QADI hypotheses as IndividualFitness objects
     if qadi_result.hypotheses and qadi_result.hypothesis_scores:
-        for hypothesis, score in zip(qadi_result.hypotheses, qadi_result.hypothesis_scores):
+        for hypothesis, score in zip(
+            qadi_result.hypotheses, qadi_result.hypothesis_scores
+        ):
             qadi_individual = IndividualFitness(
                 idea=GeneratedIdea(
                     content=hypothesis,
                     thinking_method=ThinkingMethod.ABDUCTION,
                     agent_name="qadi",
-                    generation_prompt="initial analysis"
+                    generation_prompt="initial analysis",
                 ),
                 impact=score.impact,
                 feasibility=score.feasibility,
                 accessibility=score.accessibility,
                 sustainability=score.sustainability,
                 scalability=score.scalability,
-                overall_fitness=score.overall
+                overall_fitness=score.overall,
             )
             all_individuals.append(qadi_individual)
 
@@ -1473,7 +1751,9 @@ def _display_evolution_results(
 
         is_duplicate = False
         for existing in unique_individuals:
-            existing_content = existing.idea.content.strip() if existing.idea.content else ""
+            existing_content = (
+                existing.idea.content.strip() if existing.idea.content else ""
+            )
             if is_similar(normalized_content, existing_content):
                 is_duplicate = True
                 break
@@ -1530,8 +1810,12 @@ def _display_evolution_results(
     print("**Process:** QADI Analysis → Genetic Evolution → Enhanced Solutions")
 
     metrics = evolution_result.evolution_metrics
-    print(f"• **Improvement:** {metrics.get('fitness_improvement_percent', 0):.1f}% fitness increase")
-    print(f"• **Evaluation:** {metrics.get('total_ideas_evaluated', 0)} total ideas tested")
+    print(
+        f"• **Improvement:** {metrics.get('fitness_improvement_percent', 0):.1f}% fitness increase"
+    )
+    print(
+        f"• **Evaluation:** {metrics.get('total_ideas_evaluated', 0)} total ideas tested"
+    )
 
     if verbose:
         cache_stats = metrics.get("cache_stats")
@@ -1561,7 +1845,9 @@ def _run_evaluation_sync(
     elif not sys.stdin.isatty():
         text_to_evaluate = sys.stdin.read().strip()
     else:
-        console.print("[red]Error: Provide text via argument, --file option, or stdin[/red]")
+        console.print(
+            "[red]Error: Provide text via argument, --file option, or stdin[/red]"
+        )
         sys.exit(1)
 
     # Validate we have non-empty text
@@ -1594,9 +1880,13 @@ def _run_evaluation_sync(
     if evaluators:
         evaluator_names = [e.strip() for e in evaluators.split(",")]
         available_evaluators = registry.list_evaluators()
-        invalid_names = [name for name in evaluator_names if name not in available_evaluators]
+        invalid_names = [
+            name for name in evaluator_names if name not in available_evaluators
+        ]
         if invalid_names:
-            console.print(f"[red]Error: Unknown evaluators: {', '.join(invalid_names)}[/red]")
+            console.print(
+                f"[red]Error: Unknown evaluators: {', '.join(invalid_names)}[/red]"
+            )
             console.print("[yellow]Available evaluators:[/yellow]")
             for name in sorted(available_evaluators.keys()):
                 console.print(f"  - {name}")
@@ -1622,6 +1912,7 @@ def _run_evaluation_sync(
 
 # ===== EVALUATION SUBCOMMANDS =====
 
+
 @main.command()
 def list_evaluators() -> None:
     """List all registered evaluators with usage examples."""
@@ -1644,7 +1935,9 @@ def list_evaluators() -> None:
     console.print("  # Use a single evaluator:")
     console.print("  msa --evaluate 'text' --evaluate_with diversity_evaluator")
     console.print("\n  # Use multiple evaluators:")
-    console.print("  msa --evaluate 'text' --evaluate_with diversity_evaluator,quality_evaluator")
+    console.print(
+        "  msa --evaluate 'text' --evaluate_with diversity_evaluator,quality_evaluator"
+    )
     console.print("\n  # Use all evaluators (default):")
     console.print("  msa --evaluate 'text'")
 
@@ -1652,9 +1945,21 @@ def list_evaluators() -> None:
 @main.command()
 @click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
 @click.option("--model", "-m", default="test-model", help="Model name for the outputs")
-@click.option("--output-type", "-t", type=click.Choice(["text", "code"]), default="text", help="Output type")
+@click.option(
+    "--output-type",
+    "-t",
+    type=click.Choice(["text", "code"]),
+    default="text",
+    help="Output type",
+)
 @click.option("--output", "-o", type=click.Path(), help="Save results to file")
-@click.option("--format", "output_format", type=click.Choice(["json", "table"]), default="table", help="Output format")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["json", "table"]),
+    default="table",
+    help="Output format",
+)
 def batch_evaluate(
     files: List[str],
     model: str,
@@ -1694,7 +1999,13 @@ def batch_evaluate(
 
 @main.command()
 @click.argument("prompt")
-@click.option("--responses", "-r", multiple=True, required=True, help="Multiple responses to compare")
+@click.option(
+    "--responses",
+    "-r",
+    multiple=True,
+    required=True,
+    help="Multiple responses to compare",
+)
 @click.option("--model", "-m", default="test-model", help="Model name")
 @click.option("--output", "-o", type=click.Path(), help="Save results to file")
 def compare(
