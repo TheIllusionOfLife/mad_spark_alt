@@ -22,6 +22,7 @@ import ipaddress
 import json
 import logging
 import mimetypes
+import socket
 from enum import Enum
 from hashlib import sha256
 from pathlib import Path
@@ -379,7 +380,7 @@ class ProviderRouter:
             for keyword in _OLLAMA_FAILURE_KEYWORDS
         )
 
-    def _validate_url_security(self, url: str) -> None:
+    async def _validate_url_security(self, url: str) -> None:
         """
         Validate URL is safe to fetch (prevent SSRF attacks).
 
@@ -388,11 +389,9 @@ class ProviderRouter:
         - Internal/private IPs (localhost, 127.0.0.1, 10.x.x.x, etc.)
         - Cloud metadata endpoints (AWS, GCP, Azure)
 
-        Known Limitation:
-            This validation checks the URL hostname but does NOT resolve DNS.
-            Hostnames that resolve to private IPs (DNS rebinding attacks) are not
-            blocked. For maximum security in production, consider using a DNS resolver
-            to verify the resolved IP is not private before fetching.
+        This validation performs DNS resolution to detect:
+        - DNS rebinding attacks (hostnames resolving to private IPs)
+        - Internal hostnames that resolve to internal IPs
 
         Args:
             url: URL string to validate
@@ -434,6 +433,46 @@ class ProviderRouter:
             if any(pattern in hostname_decoded for pattern in _BLOCKED_METADATA_PATTERNS):
                 raise ValueError(f"Cloud metadata endpoints not allowed: {url}")
 
+            # 4. Resolve hostname to check for private IPs (DNS rebinding protection)
+            # Uses run_in_executor to avoid blocking the event loop during DNS resolution.
+            # DNS resolution failure is treated as a security error (fail-closed) to prevent
+            # attackers from triggering resolution failures to bypass SSRF protection.
+            try:
+                loop = asyncio.get_running_loop()
+                addr_info = await loop.run_in_executor(
+                    None, socket.getaddrinfo, hostname_decoded, None
+                )
+                if not addr_info:
+                    raise ValueError(
+                        f"DNS resolution returned no results for '{hostname_decoded}'"
+                    )
+                for _, _, _, _, sockaddr in addr_info:
+                    ip_str = sockaddr[0]
+                    # Ensure we have a string (AF_INET/AF_INET6), skip if not (e.g. AF_UNIX)
+                    if not isinstance(ip_str, str):
+                        continue
+
+                    try:
+                        # Remove scope ID from IPv6 address if present (e.g. fe80::1%lo0)
+                        if "%" in ip_str:
+                            ip_str = ip_str.split("%")[0]
+
+                        ip = ipaddress.ip_address(ip_str)
+                    except ValueError:
+                        continue
+
+                    if ip.is_private or ip.is_loopback or ip.is_link_local:
+                        raise ValueError(
+                            f"Hostname '{hostname}' resolves to private/internal IP {ip_str}"
+                        )
+            except socket.gaierror as e:
+                # Fail-closed: DNS resolution failure blocks the request.
+                # Allowing unresolvable hostnames would let attackers bypass SSRF protection
+                # by deliberately triggering DNS failures.
+                raise ValueError(
+                    f"DNS resolution failed for '{hostname_decoded}': {e}"
+                ) from e
+
     async def _read_text_document(self, file_path: Path) -> str:
         """
         Read text-based documents directly.
@@ -459,7 +498,7 @@ class ProviderRouter:
             with open(file_path, "r", encoding="utf-8") as f:
                 return f.read()
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         content = await loop.run_in_executor(None, _blocking_read)
 
         if suffix == ".csv":
@@ -683,7 +722,7 @@ class ProviderRouter:
         # This ensures security checks run regardless of hybrid vs non-hybrid path
         if urls:
             for url in urls:
-                self._validate_url_security(url)
+                await self._validate_url_security(url)
 
         # Import here to avoid circular dependency
         from .simple_qadi_orchestrator import SimpleQADIOrchestrator
@@ -783,7 +822,7 @@ class ProviderRouter:
 
         # Validate URLs for security (SSRF prevention)
         for url in urls:
-            self._validate_url_security(url)
+            await self._validate_url_security(url)
 
         # Check cache for full extraction (PDFs + URLs composite)
         if document_paths or urls:
