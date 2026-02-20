@@ -3,7 +3,6 @@ Tests for selection operators.
 """
 
 import pytest
-import random
 from mad_spark_alt.evolution.operators import (
     RouletteWheelSelection,
     RankSelection,
@@ -12,7 +11,7 @@ from mad_spark_alt.evolution.operators import (
     RandomSelection
 )
 from mad_spark_alt.evolution.interfaces import IndividualFitness, EvolutionConfig
-from mad_spark_alt.core.interfaces import GeneratedIdea
+from mad_spark_alt.core.interfaces import GeneratedIdea, ThinkingMethod
 
 class TestSelectionOperators:
 
@@ -24,7 +23,7 @@ class TestSelectionOperators:
         for i in range(1, 11):
             idea = GeneratedIdea(
                 content=f"Idea {i}",
-                thinking_method="test",
+                thinking_method=ThinkingMethod.QUESTIONING,
                 agent_name="test",
                 generation_prompt="test",
                 confidence_score=0.5
@@ -94,7 +93,7 @@ class TestSelectionOperators:
         """Test roulette selection handles negative fitness values."""
         pop = []
         for i in range(5):
-            idea = GeneratedIdea(content=f"Idea {i}", thinking_method="test", agent_name="test", generation_prompt="test", confidence_score=0.5)
+            idea = GeneratedIdea(content=f"Idea {i}", thinking_method=ThinkingMethod.QUESTIONING, agent_name="test", generation_prompt="test", confidence_score=0.5)
             # Create negative fitness
             ind = IndividualFitness(
                 idea=idea,
