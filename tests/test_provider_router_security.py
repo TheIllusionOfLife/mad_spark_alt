@@ -17,10 +17,17 @@ class TestProviderRouterSecurity:
             ollama_provider=MagicMock()
         )
 
-    async def test_validate_url_public_ip(self, router):
-        """Test public IP addresses are allowed."""
-        # 8.8.8.8 is Google DNS (public)
+    @patch("socket.getaddrinfo")
+    async def test_validate_url_public_ip(self, mock_getaddrinfo, router):
+        """Test public IP addresses are allowed (DNS mocked for CI safety)."""
+        mock_getaddrinfo.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 443))
+        ]
         await router._validate_url_security("https://8.8.8.8")
+
+        mock_getaddrinfo.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+        ]
         await router._validate_url_security("http://93.184.216.34")  # example.com
 
     async def test_validate_url_private_ip_blocked(self, router):
@@ -35,7 +42,7 @@ class TestProviderRouterSecurity:
             # "http://[fe80::1]", # Parsing literal IPv6 link-local in URL needs [] but urlparse handles hostname
         ]
         for url in private_ips:
-            with pytest.raises(ValueError, match="Internal URLs not allowed|Private/internal IP not allowed"):
+            with pytest.raises(ValueError, match=r"Internal URLs not allowed|Private/internal IP not allowed"):
                 await router._validate_url_security(url)
 
     async def test_validate_url_cloud_metadata_blocked(self, router):
@@ -45,7 +52,7 @@ class TestProviderRouterSecurity:
             "http://metadata.google.internal/computeMetadata/v1/",
         ]
         for url in metadata_urls:
-            with pytest.raises(ValueError, match="Cloud metadata endpoints not allowed|Private/internal IP not allowed"):
+            with pytest.raises(ValueError, match=r"Cloud metadata endpoints not allowed|Private/internal IP not allowed"):
                 await router._validate_url_security(url)
 
     @patch("socket.getaddrinfo")
@@ -100,3 +107,11 @@ class TestProviderRouterSecurity:
         # Should raise ValueError - fail-closed prevents bypass via DNS failure
         with pytest.raises(ValueError, match="DNS resolution failed"):
             await router._validate_url_security("http://nonexistent-domain.com")
+
+    @patch("socket.getaddrinfo")
+    async def test_validate_url_empty_addr_info_blocked(self, mock_getaddrinfo, router):
+        """Test empty addr_info from DNS blocks the request (fail-closed)."""
+        mock_getaddrinfo.return_value = []
+
+        with pytest.raises(ValueError, match="DNS resolution returned no results"):
+            await router._validate_url_security("http://empty-resolve.example.com")

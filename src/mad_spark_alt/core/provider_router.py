@@ -438,10 +438,14 @@ class ProviderRouter:
             # DNS resolution failure is treated as a security error (fail-closed) to prevent
             # attackers from triggering resolution failures to bypass SSRF protection.
             try:
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 addr_info = await loop.run_in_executor(
                     None, socket.getaddrinfo, hostname_decoded, None
                 )
+                if not addr_info:
+                    raise ValueError(
+                        f"DNS resolution returned no results for '{hostname_decoded}'"
+                    )
                 for _, _, _, _, sockaddr in addr_info:
                     ip_str = sockaddr[0]
                     # Ensure we have a string (AF_INET/AF_INET6), skip if not (e.g. AF_UNIX)
@@ -494,7 +498,7 @@ class ProviderRouter:
             with open(file_path, "r", encoding="utf-8") as f:
                 return f.read()
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         content = await loop.run_in_executor(None, _blocking_read)
 
         if suffix == ".csv":

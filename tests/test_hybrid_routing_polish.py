@@ -96,7 +96,7 @@ class TestURLValidation:
         """Test that cloud metadata endpoints are blocked (SSRF target)."""
         router = ProviderRouter(gemini_provider=None, ollama_provider=None)
         # AWS metadata endpoint (also link-local IP, so may be caught by IP check first)
-        with pytest.raises(ValueError, match="(Cloud metadata|Private/internal IP)"):
+        with pytest.raises(ValueError, match=r"(Cloud metadata|Private/internal IP)"):
             await router._validate_url_security("http://169.254.169.254/latest/meta-data/")
         # GCP metadata (hostname-based)
         with pytest.raises(ValueError, match="Cloud metadata endpoints not allowed"):
