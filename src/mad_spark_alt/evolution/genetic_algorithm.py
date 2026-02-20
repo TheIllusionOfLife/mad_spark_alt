@@ -646,7 +646,7 @@ class GeneticAlgorithm:
         unevaluated_offspring: List[GeneratedIdea] = []
         
         # Optimization: Collect all offspring first, then evaluate in batch
-        while len(new_population) + len(unevaluated_offspring) < config.population_size:
+        while len(unevaluated_offspring) < num_offspring_needed:
             # Selection
             parents = await selector.select(population, 2, config)
 
@@ -699,7 +699,7 @@ class GeneticAlgorithm:
             unevaluated_offspring.append(offspring1)
 
             # Check if we still need more (in case we only needed 1 more)
-            if len(new_population) + len(unevaluated_offspring) < config.population_size:
+            if len(unevaluated_offspring) < num_offspring_needed:
                 unevaluated_offspring.append(offspring2)
 
         # Batch evaluation of all collected offspring
