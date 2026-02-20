@@ -10,6 +10,7 @@ This module tests the 5 new enhancements:
 """
 
 import json
+import socket
 import tempfile
 import time
 from pathlib import Path
@@ -30,12 +31,12 @@ from mad_spark_alt.core.provider_router import ProviderRouter
 class TestURLValidation:
     """Test URL validation for SSRF prevention."""
 
+    @pytest.mark.asyncio
     @patch("socket.getaddrinfo")
     async def test_valid_https_url_passes(self, mock_getaddrinfo):
         """Test that valid HTTPS URLs are accepted."""
-        import socket as _socket
         mock_getaddrinfo.return_value = [
-            (_socket.AF_INET, _socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))
         ]
         router = ProviderRouter(gemini_provider=None, ollama_provider=None)
         # Should not raise any exception
@@ -43,29 +44,32 @@ class TestURLValidation:
         await router._validate_url_security("https://news.com/breaking/story?id=123")
         await router._validate_url_security("https://sub.domain.org/path/to/resource")
 
+    @pytest.mark.asyncio
     @patch("socket.getaddrinfo")
     async def test_valid_http_url_passes(self, mock_getaddrinfo):
         """Test that valid HTTP URLs are accepted (some sites lack HTTPS)."""
-        import socket as _socket
         mock_getaddrinfo.return_value = [
-            (_socket.AF_INET, _socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
         ]
         router = ProviderRouter(gemini_provider=None, ollama_provider=None)
         # HTTP should be allowed for compatibility
         await router._validate_url_security("http://legacy-site.com/data")
 
+    @pytest.mark.asyncio
     async def test_file_scheme_blocked(self):
         """Test that file:// URLs are blocked."""
         router = ProviderRouter(gemini_provider=None, ollama_provider=None)
         with pytest.raises(ValueError, match="Unsupported URL scheme"):
             await router._validate_url_security("file:///etc/passwd")
 
+    @pytest.mark.asyncio
     async def test_ftp_scheme_blocked(self):
         """Test that ftp:// URLs are blocked."""
         router = ProviderRouter(gemini_provider=None, ollama_provider=None)
         with pytest.raises(ValueError, match="Unsupported URL scheme"):
             await router._validate_url_security("ftp://example.com/file")
 
+    @pytest.mark.asyncio
     async def test_localhost_blocked(self):
         """Test that localhost URLs are blocked."""
         router = ProviderRouter(gemini_provider=None, ollama_provider=None)
@@ -76,6 +80,7 @@ class TestURLValidation:
         with pytest.raises(ValueError, match="Internal URLs not allowed"):
             await router._validate_url_security("http://0.0.0.0:3000/")
 
+    @pytest.mark.asyncio
     async def test_private_ip_ranges_blocked(self):
         """Test that private IP ranges are blocked."""
         router = ProviderRouter(gemini_provider=None, ollama_provider=None)
@@ -92,6 +97,7 @@ class TestURLValidation:
         with pytest.raises(ValueError, match="Private/internal IP not allowed"):
             await router._validate_url_security("http://172.31.0.1/")
 
+    @pytest.mark.asyncio
     async def test_cloud_metadata_endpoints_blocked(self):
         """Test that cloud metadata endpoints are blocked (SSRF target)."""
         router = ProviderRouter(gemini_provider=None, ollama_provider=None)
